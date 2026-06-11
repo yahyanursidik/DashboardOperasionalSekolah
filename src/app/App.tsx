@@ -1,0 +1,233 @@
+import { Refine, Authenticated } from "@refinedev/core";
+import { BrowserRouter, Route, Routes, Outlet } from "react-router-dom";
+import routerBindings, { CatchAllNavigate, NavigateToResource } from "@refinedev/react-router-v6";
+import { authProvider } from "../lib/supabase/auth-provider";
+import { dataProvider } from "./providers/dataProvider";
+import { LoginPage } from "../modules/auth/LoginPage";
+import { AdminLayout } from "../components/layout/AdminLayout";
+import { AuthLayout } from "../components/layout/AuthLayout";
+
+
+import { accessControlProvider } from "./providers/accessControlProvider";
+import { auditLogProvider } from "./providers/auditLogProvider";
+import { UnitProvider } from "./providers/UnitProvider";
+import { AcademicYearProvider } from "./providers/AcademicYearProvider";
+
+import { StudentsList, StudentCreate, StudentEdit, StudentShow } from "../modules/students";
+import { TeachersList, TeacherCreate, TeacherEdit, TeacherShow } from "../modules/teachers";
+import { ClassesList, ClassCreate, ClassEdit, ClassShow } from "../modules/classes";
+import { ParentsList, ParentCreate, ParentEdit, ParentShow } from "../modules/parents";
+import { TasksList, TaskCreate, TaskEdit, TaskShow } from "../modules/tasks";
+import { AttendanceSelector, AttendanceInput, AttendanceReports } from "../modules/attendance";
+import { DocumentsList, DocumentTypesList, DocumentCreate, DocumentShow } from "../modules/documents";
+import { AnnouncementsList, AnnouncementCreate, AnnouncementEdit, AnnouncementShow } from "../modules/announcements";
+import { AuditLogsList } from "../modules/audit-logs";
+import { ReportsDashboard, StudentReport, AttendanceReport, DocumentReport, TaskReport } from "../modules/reports";
+
+import { DashboardPage } from "../modules/dashboard";
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <Refine
+        authProvider={authProvider}
+        dataProvider={dataProvider}
+        accessControlProvider={accessControlProvider}
+        auditLogProvider={auditLogProvider}
+        routerProvider={routerBindings}
+        resources={[
+          {
+            name: "students",
+            list: "/students",
+            create: "/students/create",
+            edit: "/students/edit/:id",
+            show: "/students/show/:id",
+            meta: {
+              canDelete: true,
+            },
+          },
+          {
+            name: "parents",
+            list: "/parents",
+            create: "/parents/create",
+            edit: "/parents/edit/:id",
+            show: "/parents/show/:id",
+            meta: {
+              canDelete: true,
+            },
+          },
+          {
+            name: "teachers",
+            list: "/teachers",
+            create: "/teachers/create",
+            edit: "/teachers/edit/:id",
+            show: "/teachers/show/:id",
+            meta: {
+              canDelete: true,
+            },
+          },
+          {
+            name: "classes",
+            list: "/classes",
+            create: "/classes/create",
+            edit: "/classes/edit/:id",
+            show: "/classes/show/:id",
+            meta: {
+              canDelete: true,
+            },
+          },
+          {
+            name: "admin_tasks",
+            list: "/tasks",
+            create: "/tasks/create",
+            edit: "/tasks/edit/:id",
+            show: "/tasks/show/:id",
+            meta: {
+              canDelete: true,
+            },
+          },
+          {
+            name: "attendance_records",
+            list: "/attendance",
+            meta: { canDelete: false },
+          },
+          {
+            name: "document_types",
+            list: "/document-types",
+            meta: { canDelete: true },
+          },
+          {
+            name: "documents",
+            list: "/documents",
+            create: "/documents/create",
+            show: "/documents/show/:id",
+            meta: { canDelete: true },
+          },
+          {
+            name: "announcements",
+            list: "/announcements",
+            create: "/announcements/create",
+            edit: "/announcements/edit/:id",
+            show: "/announcements/show/:id",
+            meta: { canDelete: true },
+          },
+          {
+            name: "audit_logs",
+            list: "/audit-logs",
+            meta: { canDelete: false },
+          },
+          {
+            name: "reports",
+            list: "/reports",
+            meta: { canDelete: false },
+          },
+        ]}
+        options={{
+          syncWithLocation: true,
+          warnWhenUnsavedChanges: true,
+        }}
+      >
+        <AcademicYearProvider>
+          <UnitProvider>
+            <Routes>
+              <Route
+                element={
+                  <Authenticated
+                    key="authenticated-inner"
+                    fallback={<CatchAllNavigate to="/login" />}
+                  >
+                    <AdminLayout />
+                  </Authenticated>
+                }
+              >
+                <Route index element={<DashboardPage />} />
+                
+                <Route path="/students">
+                <Route index element={<StudentsList />} />
+                <Route path="create" element={<StudentCreate />} />
+                <Route path="edit/:id" element={<StudentEdit />} />
+                <Route path="show/:id" element={<StudentShow />} />
+              </Route>
+
+              <Route path="/parents">
+                <Route index element={<ParentsList />} />
+                <Route path="create" element={<ParentCreate />} />
+                <Route path="edit/:id" element={<ParentEdit />} />
+                <Route path="show/:id" element={<ParentShow />} />
+              </Route>
+
+              <Route path="/teachers">
+                  <Route index element={<TeachersList />} />
+                  <Route path="create" element={<TeacherCreate />} />
+                  <Route path="edit/:id" element={<TeacherEdit />} />
+                  <Route path="show/:id" element={<TeacherShow />} />
+                </Route>
+
+                <Route path="classes">
+                  <Route index element={<ClassesList />} />
+                  <Route path="create" element={<ClassCreate />} />
+                  <Route path="edit/:id" element={<ClassEdit />} />
+                  <Route path="show/:id" element={<ClassShow />} />
+                </Route>
+
+                <Route path="tasks">
+                  <Route index element={<TasksList />} />
+                  <Route path="create" element={<TaskCreate />} />
+                  <Route path="edit/:id" element={<TaskEdit />} />
+                  <Route path="show/:id" element={<TaskShow />} />
+                </Route>
+
+                <Route path="attendance">
+                  <Route index element={<AttendanceSelector />} />
+                  <Route path="class/:classId" element={<AttendanceInput />} />
+                  <Route path="reports" element={<AttendanceReports />} />
+                </Route>
+
+                <Route path="document-types">
+                  <Route index element={<DocumentTypesList />} />
+                </Route>
+
+                <Route path="documents">
+                  <Route index element={<DocumentsList />} />
+                  <Route path="create" element={<DocumentCreate />} />
+                  <Route path="show/:id" element={<DocumentShow />} />
+                </Route>
+
+                <Route path="announcements">
+                  <Route index element={<AnnouncementsList />} />
+                  <Route path="create" element={<AnnouncementCreate />} />
+                  <Route path="edit/:id" element={<AnnouncementEdit />} />
+                  <Route path="show/:id" element={<AnnouncementShow />} />
+                </Route>
+
+                <Route path="audit-logs">
+                  <Route index element={<AuditLogsList />} />
+                </Route>
+
+                <Route path="reports">
+                  <Route index element={<ReportsDashboard />} />
+                  <Route path="students" element={<StudentReport />} />
+                  <Route path="attendance" element={<AttendanceReport />} />
+                  <Route path="documents" element={<DocumentReport />} />
+                  <Route path="tasks" element={<TaskReport />} />
+                </Route>
+
+              </Route>
+              <Route
+                element={
+                  <Authenticated key="authenticated-outer" fallback={<Outlet />}>
+                    <NavigateToResource />
+                  </Authenticated>
+                }
+              >
+                <Route element={<AuthLayout />}>
+                  <Route path="/login" element={<LoginPage />} />
+                </Route>
+              </Route>
+            </Routes>
+          </UnitProvider>
+        </AcademicYearProvider>
+      </Refine>
+    </BrowserRouter>
+  );
+}
