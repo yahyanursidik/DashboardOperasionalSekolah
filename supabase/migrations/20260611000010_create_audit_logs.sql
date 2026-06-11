@@ -1,5 +1,6 @@
 -- Create Audit Logs Schema
 
+DROP TABLE IF EXISTS public.audit_logs;
 CREATE TABLE public.audit_logs (
   id uuid primary key default gen_random_uuid(),
   user_id uuid references public.profiles(id),
@@ -21,9 +22,10 @@ create policy "Admins can view audit logs"
   on public.audit_logs for select
   using (
     exists (
-      select 1 from public.profiles
-      where profiles.id = auth.uid()
-      and profiles.role_id in (select id from public.roles where name in ('super_admin', 'kepsek'))
+      select 1 from public.user_roles ur
+      join public.roles r on ur.role_id = r.id
+      where ur.user_id = auth.uid()
+      and r.name in ('super_admin', 'kepsek')
     )
   );
 

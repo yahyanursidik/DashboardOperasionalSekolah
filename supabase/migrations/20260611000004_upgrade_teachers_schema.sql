@@ -20,5 +20,5 @@ ALTER TABLE public.teacher_assignments
   ADD COLUMN IF NOT EXISTS is_active boolean default true;
 
 -- Update teacher_assignments role check constraint
-ALTER TABLE public.teacher_assignments DROP CONSTRAINT IF EXISTS teacher_assignments_role_check;
-ALTER TABLE public.teacher_assignments ADD CONSTRAINT teacher_assignments_role_check CHECK (role in ('homeroom', 'subject', 'substitute', 'wali_kelas', 'guru_mapel', 'guru_quran', 'guru_diniyah', 'staff'));
+ALTER TABLE public.teacher_assignments DROP CONSTRAINT IF EXISTS teacher_assignments_role_type_check;
+ALTER TABLE public.teacher_assignments ADD CONSTRAINT teacher_assignments_role_type_check CHECK (role_type in ('homeroom', 'subject', 'substitute', 'wali_kelas', 'guru_mapel', 'guru_quran', 'guru_diniyah', 'staff'));

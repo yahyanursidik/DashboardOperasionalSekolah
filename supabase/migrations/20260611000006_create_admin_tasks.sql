@@ -1,5 +1,6 @@
 -- Create Admin Tasks Schema
 
+DROP TABLE IF EXISTS public.admin_tasks;
 CREATE TABLE public.admin_tasks (
   id uuid primary key default gen_random_uuid(),
   title text not null,
@@ -17,4 +18,4 @@ CREATE TABLE public.admin_tasks (
 
 -- Triggers for updated_at
 CREATE TRIGGER handle_updated_at BEFORE UPDATE ON public.admin_tasks
-  FOR EACH ROW EXECUTE PROCEDURE moddatetime (updated_at);
+  FOR EACH ROW EXECUTE PROCEDURE public.handle_updated_at();

@@ -30,10 +30,10 @@ CREATE TABLE public.documents (
 );
 
 CREATE TRIGGER handle_doc_types_updated_at BEFORE UPDATE ON public.document_types
-  FOR EACH ROW EXECUTE PROCEDURE moddatetime (updated_at);
+  FOR EACH ROW EXECUTE PROCEDURE public.handle_updated_at();
 
 CREATE TRIGGER handle_docs_updated_at BEFORE UPDATE ON public.documents
-  FOR EACH ROW EXECUTE PROCEDURE moddatetime (updated_at);
+  FOR EACH ROW EXECUTE PROCEDURE public.handle_updated_at();
 
 -- ==========================================
 -- SUPABASE STORAGE CONFIGURATION

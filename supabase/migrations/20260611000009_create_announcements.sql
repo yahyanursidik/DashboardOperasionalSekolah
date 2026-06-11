@@ -18,4 +18,4 @@ CREATE TABLE public.announcements (
 
 -- Triggers for updated_at
 CREATE TRIGGER handle_updated_at BEFORE UPDATE ON public.announcements
-  FOR EACH ROW EXECUTE PROCEDURE moddatetime (updated_at);
+  FOR EACH ROW EXECUTE PROCEDURE public.handle_updated_at();
