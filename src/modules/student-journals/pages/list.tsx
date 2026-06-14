@@ -32,9 +32,11 @@ export const StudentJournalsList: React.FC = () => {
   const filters: any[] = [];
   if (filterCategory) filters.push({ field: "category", operator: "eq", value: filterCategory });
   if (filterVisibility) filters.push({ field: "visibility", operator: "eq", value: filterVisibility });
-  if (activeUnitId) filters.push({ field: "students.unit_id", operator: "eq", value: activeUnitId });
+  if (activeUnitId) filters.push({ field: "unit_id", operator: "eq", value: activeUnitId });
   if (activeYearId) filters.push({ field: "academic_year_id", operator: "eq", value: activeYearId });
-  if (filterClass) filters.push({ field: "students.class_id", operator: "eq", value: filterClass });
+  // Foreign table filtering (students.class_id) might cause a runtime crash in Refine's Supabase data provider if not using inner join properly.
+  // We will filter it out client side or skip it if it crashes.
+  // if (filterClass) filters.push({ field: "students.class_id", operator: "eq", value: filterClass });
 
   if (filterSemesterId && semestersData?.data) {
     const sem = semestersData.data.find(s => s.id === filterSemesterId);
@@ -46,11 +48,16 @@ export const StudentJournalsList: React.FC = () => {
 
   const { data, isLoading } = useList({
     resource: "student_journals",
-    meta: { select: "*, students(full_name, nis), employees(full_name)" },
+    meta: { select: "*, students(full_name, nis, class_id), employees(full_name)" },
     filters,
     sorters: [{ field: "date_recorded", order: "desc" }, { field: "created_at", order: "desc" }],
     pagination: { pageSize: 50 }
   });
+
+  const displayData = data?.data?.filter((journal: any) => {
+    if (filterClass && journal.students?.class_id !== filterClass) return false;
+    return true;
+  }) || [];
 
   const getCategoryDetails = (category: string) => {
     switch(category) {
@@ -137,7 +144,7 @@ export const StudentJournalsList: React.FC = () => {
           <div className="p-8 text-center text-muted-foreground animate-pulse">Memuat data jurnal...</div>
         ) : (
           <div className="divide-y divide-border">
-            {data?.data.map((journal) => {
+            {displayData.map((journal) => {
               const cat = getCategoryDetails(journal.category);
               return (
                 <div key={journal.id} className="p-4 sm:p-5 hover:bg-muted/30 transition-colors flex flex-col sm:flex-row gap-4">
