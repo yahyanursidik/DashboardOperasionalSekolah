@@ -206,7 +206,7 @@ const AcademicYearsTab: React.FC = () => {
                 <td className="px-6 py-4 text-muted-foreground">{year.start_date || "-"}</td>
                 <td className="px-6 py-4 text-muted-foreground">{year.end_date || "-"}</td>
                 <td className="px-6 py-4 text-center">
-                  <button onClick={() => toggleStatus(year.id, year.is_active)} className={`flex items-center justify-center mx-auto p-1 rounded transition-colors ${year.is_active ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-100'}`}>
+                  <button onClick={() => toggleStatus(String(year.id), year.is_active)} className={`flex items-center justify-center mx-auto p-1 rounded transition-colors ${year.is_active ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-100'}`}>
                     {year.is_active ? <ToggleRight className="w-6 h-6" /> : <ToggleLeft className="w-6 h-6" />}
                   </button>
                 </td>
@@ -260,7 +260,7 @@ const SemestersTab: React.FC = () => {
   const [formData, setFormData] = useState({ name: "Ganjil", academic_year_id: "", start_date: "", end_date: "" });
 
   const openCreate = () => { setFormData({ name: "Ganjil", academic_year_id: yearsData?.data?.[0]?.id || "", start_date: "", end_date: "" }); setEditId(null); setModalMode("create"); };
-  const openEdit = (row: any) => { setFormData({ name: row.name, academic_year_id: row.academic_year_id, start_date: row.start_date || "", end_date: row.end_date || "" }); setEditId(row.id); setModalMode("edit"); };
+  const openEdit = (row: any) => { setFormData({ name: row.name, academic_year_id: row.academic_year_id, start_date: row.start_date || "", end_date: row.end_date || "" }); setEditId(String(row.id)); setModalMode("edit"); };
 
   const handleSave = () => {
     if (!formData.name || !formData.academic_year_id) return;
@@ -272,7 +272,7 @@ const SemestersTab: React.FC = () => {
     }
   };
 
-  const toggleStatus = (id: string, currentStatus: boolean) => {
+  const toggleStatus = (id: string | number, currentStatus: boolean) => {
     update({ resource: "semesters", id, values: { is_active: !currentStatus } });
   };
 
@@ -307,7 +307,7 @@ const SemestersTab: React.FC = () => {
                 <td className="px-6 py-4 text-muted-foreground">{sem.start_date || "-"}</td>
                 <td className="px-6 py-4 text-muted-foreground">{sem.end_date || "-"}</td>
                 <td className="px-6 py-4 text-center">
-                  <button onClick={() => toggleStatus(sem.id, sem.is_active)} className={`flex items-center justify-center mx-auto p-1 rounded transition-colors ${sem.is_active ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-100'}`}>
+                  <button onClick={() => toggleStatus(String(sem.id), sem.is_active)} className={`flex items-center justify-center mx-auto p-1 rounded transition-colors ${sem.is_active ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-100'}`}>
                     {sem.is_active ? <ToggleRight className="w-6 h-6" /> : <ToggleLeft className="w-6 h-6" />}
                   </button>
                 </td>

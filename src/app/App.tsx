@@ -171,6 +171,10 @@ export default function App() {
             meta: { canDelete: false },
           },
           {
+            name: "student_academic_history",
+            meta: { canDelete: true },
+          },
+          {
             name: "employees",
             list: "/employees",
             create: "/employees/create",

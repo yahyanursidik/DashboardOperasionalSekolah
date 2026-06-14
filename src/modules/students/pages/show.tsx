@@ -1,11 +1,12 @@
 import React, { useState } from "react";
 import { useShow, useList, useCreate } from "@refinedev/core";
 import { PageHeader } from "../../../components/layout/PageHeader";
-import { User, Edit, ArrowLeft, Users, Plus, X, BookOpen, Star, AlertTriangle, ShieldAlert, Award, Activity, Eye } from "lucide-react";
+import { User, Edit, ArrowLeft, Users, Plus, X, BookOpen, Star, AlertTriangle, ShieldAlert, Award, Activity, Eye, GraduationCap, History } from "lucide-react";
 import { AuditHistory } from "../../../components/common/AuditHistory";
 import { Link, useNavigate } from "react-router-dom";
 import { calculateCompleteness } from "./list";
 import { ParentForm } from "../../parents/components/parent-form";
+import { AcademicHistoryModal } from "../components/AcademicHistoryModal";
 
 export const StudentShow: React.FC = () => {
   const { queryResult } = useShow({
@@ -39,7 +40,17 @@ export const StudentShow: React.FC = () => {
     pagination: { mode: "off" }
   });
 
+  // Academic History
+  const { data: historyData, isLoading: historyLoading, refetch: refetchHistory } = useList({
+    resource: "student_academic_history",
+    filters: [{ field: "student_id", operator: "eq", value: record?.id }],
+    meta: { select: "*, units(name), classes(name), academic_years(name)" },
+    sorters: [{ field: "created_at", order: "desc" }],
+    queryOptions: { enabled: !!record?.id }
+  });
+
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [linkMode, setLinkMode] = useState<"existing" | "new">("new");
   
   // Link mutation
@@ -78,6 +89,12 @@ export const StudentShow: React.FC = () => {
         setSelectedParentId("");
       }
     });
+  };
+
+  const handleHistorySaved = () => {
+    refetchHistory();
+    // also refetch student data to get new class_id
+    queryResult.refetch();
   };
 
   if (isLoading) {
@@ -211,6 +228,62 @@ export const StudentShow: React.FC = () => {
           <div className="bg-card rounded-xl border shadow-sm p-6">
             <div className="flex justify-between items-center mb-6 border-b pb-4">
               <h3 className="font-semibold text-lg flex items-center gap-2">
+                <History className="w-5 h-5 text-emerald-600" /> Riwayat Akademik & Kelas
+              </h3>
+              <button 
+                onClick={() => setIsHistoryModalOpen(true)}
+                className="text-sm flex items-center gap-1 bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-md font-medium hover:bg-emerald-100 transition-colors"
+              >
+                <Plus className="w-4 h-4" /> Catat Riwayat / Pindah
+              </button>
+            </div>
+            
+            {historyLoading ? (
+              <p className="text-sm text-muted-foreground animate-pulse">Memuat riwayat...</p>
+            ) : historyData?.data?.length === 0 ? (
+              <div className="bg-muted/30 border border-dashed rounded-lg p-8 text-center">
+                <p className="text-sm text-muted-foreground">Belum ada riwayat akademik untuk siswa ini.</p>
+              </div>
+            ) : (
+              <div className="relative border-l-2 border-muted ml-3 space-y-6">
+                {historyData?.data?.map((history: any, index: number) => {
+                  let badgeColor = "bg-slate-100 text-slate-700";
+                  if (history.status === 'Naik Kelas') badgeColor = "bg-emerald-100 text-emerald-700";
+                  else if (history.status === 'Pindah Jenjang') badgeColor = "bg-purple-100 text-purple-700";
+                  else if (history.status === 'Siswa Baru' || history.status === 'Pindahan (Masuk)') badgeColor = "bg-blue-100 text-blue-700";
+                  else if (history.status === 'Lulus') badgeColor = "bg-amber-100 text-amber-700";
+                  else if (history.status === 'Tinggal Kelas') badgeColor = "bg-rose-100 text-rose-700";
+                  
+                  return (
+                    <div key={history.id} className="relative pl-6">
+                      <div className={`absolute w-3 h-3 rounded-full -left-[7px] top-1.5 border-2 border-white ${index === 0 ? 'bg-emerald-500' : 'bg-slate-300'}`}></div>
+                      <div className="bg-muted/30 rounded-lg p-4 border">
+                        <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
+                          <div>
+                            <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${badgeColor}`}>
+                              {history.status}
+                            </span>
+                            <h4 className="font-semibold text-sm mt-1">{history.units?.name} - {history.classes?.name || "Lulus/Keluar"}</h4>
+                          </div>
+                          <span className="text-xs font-medium text-muted-foreground bg-background px-2 py-1 rounded border">
+                            TA {history.academic_years?.name || "-"}
+                          </span>
+                        </div>
+                        {history.notes && <p className="text-sm text-muted-foreground mt-2 italic">"{history.notes}"</p>}
+                        <p className="text-xs text-muted-foreground mt-3 flex items-center gap-1">
+                          Dibuat pada {new Date(history.created_at).toLocaleDateString('id-ID')}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <div className="bg-card rounded-xl border shadow-sm p-6">
+            <div className="flex justify-between items-center mb-6 border-b pb-4">
+              <h3 className="font-semibold text-lg flex items-center gap-2">
                 <BookOpen className="w-5 h-5 text-indigo-600" /> Jurnal & Rekam Jejak
               </h3>
               <Link 
@@ -322,6 +395,15 @@ export const StudentShow: React.FC = () => {
         </div>
       </div>
 
+      {/* Modals */}
+      {isHistoryModalOpen && (
+        <AcademicHistoryModal 
+          isOpen={isHistoryModalOpen} 
+          onClose={() => setIsHistoryModalOpen(false)} 
+          student={record} 
+          onSuccess={handleHistorySaved} 
+        />
+      )}
       {/* MODAL: Tautkan Orang Tua */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
