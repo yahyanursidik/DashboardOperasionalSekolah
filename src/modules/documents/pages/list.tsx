@@ -52,7 +52,7 @@ export const DocumentsList: React.FC = () => {
         >
           <option value="">Semua Pemilik</option>
           <option value="student">Siswa</option>
-          <option value="teacher">Guru / Pegawai</option>
+          <option value="employee">Pegawai / Guru</option>
           <option value="school">Sekolah / Yayasan</option>
         </select>
         <select 
@@ -98,7 +98,11 @@ export const DocumentsList: React.FC = () => {
                         </div>
                         <div>
                           <p className="font-medium text-foreground leading-tight truncate max-w-[200px]" title={doc.file_name}>{doc.file_name}</p>
+                          {doc.document_number && (
+                            <p className="text-xs font-mono text-blue-600 mt-1">{doc.document_number}</p>
+                          )}
                           <p className="text-[10px] text-muted-foreground mt-0.5 uppercase tracking-wide">
+                            {doc.document_date ? `Tgl: ${new Date(doc.document_date).toLocaleDateString('id-ID')} • ` : ""}
                             {doc.file_size ? `${(doc.file_size / 1024).toFixed(1)} KB` : "Unknown Size"}
                           </p>
                         </div>

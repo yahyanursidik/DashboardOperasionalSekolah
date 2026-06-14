@@ -60,10 +60,13 @@ export const ClassesList: React.FC = () => {
       },
       {
         id: "homeroom",
-        accessorKey: "teachers.full_name",
         header: "Wali Kelas",
-        cell: function render({ getValue }) {
-          return getValue() || <span className="text-muted-foreground italic text-xs">Belum Ditentukan</span>;
+        cell: function render({ row }) {
+          const assignments = row.original.teacher_assignments;
+          const homeroom = assignments?.find((a: any) => a.role_type === 'homeroom' || a.role_type === 'wali_kelas');
+          const name = homeroom?.employees?.full_name;
+          if (name) return <span className="font-semibold text-foreground">{name}</span>;
+          return <span className="text-muted-foreground italic text-xs">Belum Ditentukan</span>;
         },
       },
       {
@@ -136,15 +139,23 @@ export const ClassesList: React.FC = () => {
         permanent: buildFilters(),
       },
       meta: {
-        select: "*, units(name), teachers(full_name)"
+        select: "*, units(name), teacher_assignments(role_type, employees(full_name))"
       }
     },
   });
 
   const isLoading = tableQueryResult.isLoading;
+  const isError = tableQueryResult.isError;
+  const error = tableQueryResult.error;
 
   return (
     <div className="space-y-6">
+      {isError && (
+        <div className="bg-red-100 text-red-800 p-4 rounded-md">
+          <p className="font-bold">Error fetching data:</p>
+          <pre className="text-xs">{JSON.stringify(error, null, 2)}</pre>
+        </div>
+      )}
       <PageHeader
         title="Daftar Kelas"
         description="Kelola kelas, wali kelas, dan rombongan belajar."

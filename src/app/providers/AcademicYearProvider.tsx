@@ -11,7 +11,7 @@ const AcademicYearContext = createContext<AcademicYearContextType>({
 });
 
 export const AcademicYearProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [activeYearId, setActiveYearId] = useState<string | null>("2023-2024-mock-id"); // We will populate this with actual DB data later
+  const [activeYearId, setActiveYearId] = useState<string | null>(null);
 
   return (
     <AcademicYearContext.Provider value={{ activeYearId, setActiveYearId }}>

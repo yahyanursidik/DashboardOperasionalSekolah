@@ -12,6 +12,7 @@ import { accessControlProvider } from "./providers/accessControlProvider";
 import { auditLogProvider } from "./providers/auditLogProvider";
 import { UnitProvider } from "./providers/UnitProvider";
 import { AcademicYearProvider } from "./providers/AcademicYearProvider";
+import { ThemeProvider } from "./providers/ThemeProvider";
 
 import { StudentsList, StudentCreate, StudentEdit, StudentShow } from "../modules/students";
 import { TeachersList, TeacherCreate, TeacherEdit, TeacherShow } from "../modules/teachers";
@@ -24,12 +25,23 @@ import { AnnouncementsList, AnnouncementCreate, AnnouncementEdit, AnnouncementSh
 import { AuditLogsList } from "../modules/audit-logs";
 import { ReportsDashboard, StudentReport, AttendanceReport, DocumentReport, TaskReport } from "../modules/reports";
 
+import { EmployeesList, EmployeeCreate, EmployeeEdit } from "../modules/employees";
+import { EmployeeAttendanceList } from "../modules/attendance/pages/employee-attendance";
+import { SchedulesList, ScheduleCreate, ScheduleEdit } from "../modules/schedules";
+import { LeavesList, LeaveCreate, LeaveShow } from "../modules/leaves";
+import { SubstitutesList, SubstituteCreate, SubstituteEdit } from "../modules/substitutes";
 import { DashboardPage } from "../modules/dashboard";
+import { MasterDataDashboard } from "../modules/master-data";
+import { SettingsPage } from "../modules/settings";
+import { CommunicationsPage } from "../modules/communications";
+import { StudentJournalsList, StudentJournalCreate, StudentJournalEdit } from "../modules/student-journals/pages";
+import { FinanceDashboard, InvoicesList, PaymentVerifications, SchoolExpenses, FinanceCategories } from "../modules/finance/pages";
 
 export default function App() {
   return (
     <BrowserRouter>
-      <Refine
+      <ThemeProvider>
+        <Refine
         authProvider={authProvider}
         dataProvider={dataProvider}
         accessControlProvider={accessControlProvider}
@@ -55,6 +67,43 @@ export default function App() {
             meta: {
               canDelete: true,
             },
+          },
+          {
+            name: "parents",
+            list: "/parents",
+            create: "/parents/create",
+            edit: "/parents/edit/:id",
+            show: "/parents/show/:id",
+            meta: {
+              canDelete: true,
+            },
+          },
+          {
+            name: "student_journals",
+            list: "/student-journals",
+            create: "/student-journals/create",
+            edit: "/student-journals/edit/:id",
+            meta: { canDelete: true },
+          },
+          {
+            name: "student_invoices",
+            list: "/finance/invoices",
+            meta: { label: "Tagihan Siswa" }
+          },
+          {
+            name: "payment_transactions",
+            list: "/finance/verifications",
+            meta: { label: "Verifikasi Transfer" }
+          },
+          {
+            name: "school_expenses",
+            list: "/finance/expenses",
+            meta: { label: "Buku Kas Keluar" }
+          },
+          {
+            name: "finance_categories",
+            list: "/finance/categories",
+            meta: { label: "Kategori Keuangan" }
           },
           {
             name: "teachers",
@@ -121,6 +170,51 @@ export default function App() {
             list: "/reports",
             meta: { canDelete: false },
           },
+          {
+            name: "employees",
+            list: "/employees",
+            create: "/employees/create",
+            edit: "/employees/edit/:id",
+            meta: { canDelete: true },
+          },
+          {
+            name: "employee_attendance",
+            list: "/employee-attendance",
+            meta: { canDelete: false },
+          },
+          {
+            name: "employee_schedules",
+            list: "/schedules",
+            create: "/schedules/create",
+            edit: "/schedules/edit/:id",
+            meta: { canDelete: true },
+          },
+          {
+            name: "leave_requests",
+            list: "/leaves",
+            create: "/leaves/create",
+            show: "/leaves/show/:id",
+            meta: { canDelete: true },
+          },
+          {
+            name: "substitute_assignments",
+            list: "/substitutes",
+            create: "/substitutes/create",
+            edit: "/substitutes/edit/:id",
+            meta: { canDelete: true },
+          },
+          {
+            name: "units",
+            meta: { canDelete: true },
+          },
+          {
+            name: "academic_years",
+            meta: { canDelete: true },
+          },
+          {
+            name: "semesters",
+            meta: { canDelete: true },
+          },
         ]}
         options={{
           syncWithLocation: true,
@@ -141,6 +235,9 @@ export default function App() {
                 }
               >
                 <Route index element={<DashboardPage />} />
+                <Route path="/master-data" element={<MasterDataDashboard />} />
+                <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/communications" element={<CommunicationsPage />} />
                 
                 <Route path="/students">
                 <Route index element={<StudentsList />} />
@@ -180,7 +277,32 @@ export default function App() {
                 <Route path="attendance">
                   <Route index element={<AttendanceSelector />} />
                   <Route path="class/:classId" element={<AttendanceInput />} />
+                  <Route path="employees" element={<EmployeeAttendanceList />} />
                   <Route path="reports" element={<AttendanceReports />} />
+                </Route>
+
+                <Route path="employees">
+                  <Route index element={<EmployeesList />} />
+                  <Route path="create" element={<EmployeeCreate />} />
+                  <Route path="edit/:id" element={<EmployeeEdit />} />
+                </Route>
+
+                <Route path="schedules">
+                  <Route index element={<SchedulesList />} />
+                  <Route path="create" element={<ScheduleCreate />} />
+                  <Route path="edit/:id" element={<ScheduleEdit />} />
+                </Route>
+
+                <Route path="leaves">
+                  <Route index element={<LeavesList />} />
+                  <Route path="create" element={<LeaveCreate />} />
+                  <Route path="show/:id" element={<LeaveShow />} />
+                </Route>
+
+                <Route path="substitutes">
+                  <Route index element={<SubstitutesList />} />
+                  <Route path="create" element={<SubstituteCreate />} />
+                  <Route path="edit/:id" element={<SubstituteEdit />} />
                 </Route>
 
                 <Route path="document-types">
@@ -212,6 +334,20 @@ export default function App() {
                   <Route path="tasks" element={<TaskReport />} />
                 </Route>
 
+                <Route path="/student-journals">
+                  <Route index element={<StudentJournalsList />} />
+                  <Route path="create" element={<StudentJournalCreate />} />
+                  <Route path="edit/:id" element={<StudentJournalEdit />} />
+                </Route>
+
+                <Route path="/finance">
+                  <Route index element={<FinanceDashboard />} />
+                  <Route path="invoices" element={<InvoicesList />} />
+                  <Route path="verifications" element={<PaymentVerifications />} />
+                  <Route path="expenses" element={<SchoolExpenses />} />
+                  <Route path="categories" element={<FinanceCategories />} />
+                </Route>
+
               </Route>
               <Route
                 element={
@@ -228,6 +364,7 @@ export default function App() {
           </UnitProvider>
         </AcademicYearProvider>
       </Refine>
+      </ThemeProvider>
     </BrowserRouter>
   );
 }

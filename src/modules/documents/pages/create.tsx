@@ -15,6 +15,8 @@ export const DocumentCreate: React.FC = () => {
   const [ownerType, setOwnerType] = useState("student");
   const [ownerId, setOwnerId] = useState("");
   const [documentTypeId, setDocumentTypeId] = useState("");
+  const [documentNumber, setDocumentNumber] = useState("");
+  const [documentDate, setDocumentDate] = useState("");
   const [isUploading, setIsUploading] = useState(false);
 
   const { options: docTypes } = useSelect({ 
@@ -26,7 +28,7 @@ export const DocumentCreate: React.FC = () => {
 
   // Basic mock list for owner id - in reality, we'd have async search inputs based on ownerType
   const { options: studentOptions } = useSelect({ resource: "students", optionLabel: "full_name", optionValue: "id", queryOptions: { enabled: ownerType === 'student' } });
-  const { options: teacherOptions } = useSelect({ resource: "teachers", optionLabel: "full_name", optionValue: "id", queryOptions: { enabled: ownerType === 'teacher' } });
+  const { options: employeeOptions } = useSelect({ resource: "employees", optionLabel: "full_name", optionValue: "id", queryOptions: { enabled: ownerType === 'employee' } });
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -60,6 +62,8 @@ export const DocumentCreate: React.FC = () => {
           file_size: fileMeta.fileSize,
           status: "menunggu_verifikasi",
           uploaded_by: identity?.id,
+          document_number: documentNumber || null,
+          document_date: documentDate || null,
         },
         successNotification: () => ({ message: "Dokumen berhasil diunggah", type: "success" })
       }, {
@@ -91,7 +95,7 @@ export const DocumentCreate: React.FC = () => {
                 className="w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-primary/50 outline-none bg-background"
               >
                 <option value="student">Siswa</option>
-                <option value="teacher">Guru / Pegawai</option>
+                <option value="employee">Pegawai / Guru</option>
                 <option value="school">Sekolah / Instansi</option>
               </select>
             </div>
@@ -106,7 +110,7 @@ export const DocumentCreate: React.FC = () => {
               >
                 <option value="">-- Pilih Pemilik Data --</option>
                 {ownerType === 'student' && studentOptions?.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                {ownerType === 'teacher' && teacherOptions?.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                {ownerType === 'employee' && employeeOptions?.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 {ownerType === 'school' && <option value="00000000-0000-0000-0000-000000000000">Yayasan TSLS</option>}
               </select>
             </div>
@@ -122,6 +126,27 @@ export const DocumentCreate: React.FC = () => {
                 <option value="">-- Pilih Jenis Dokumen --</option>
                 {docTypes?.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Nomor Surat (Opsional)</label>
+              <input
+                type="text"
+                placeholder="Contoh: 001/SK/TSLS/VI/2026"
+                value={documentNumber}
+                onChange={(e) => setDocumentNumber(e.target.value)}
+                className="w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-primary/50 outline-none bg-background"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Tanggal Surat (Opsional)</label>
+              <input
+                type="date"
+                value={documentDate}
+                onChange={(e) => setDocumentDate(e.target.value)}
+                className="w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-primary/50 outline-none bg-background"
+              />
             </div>
 
             <div className="space-y-2 md:col-span-2">

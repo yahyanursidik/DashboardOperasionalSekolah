@@ -1,0 +1,438 @@
+import React, { useState, useEffect } from "react";
+import { useGetIdentity, useUpdate, useList, useCreate, useDelete } from "@refinedev/core";
+import { PageHeader } from "../../../components/layout/PageHeader";
+import { User, Users, Bell, Shield, Moon, Sun, Monitor, Palette, Check } from "lucide-react";
+import { useTheme } from "../../../app/providers/ThemeProvider";
+
+export const SettingsPage: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<"profile" | "users" | "appearance" | "security">("profile");
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        title="Pengaturan Sistem"
+        description="Kelola profil akun, pengguna sistem, preferensi tampilan, dan keamanan sistem."
+      />
+
+      <div className="bg-card rounded-xl border shadow-sm overflow-hidden flex flex-col md:flex-row min-h-[500px]">
+        {/* Sidebar Nav */}
+        <div className="md:w-64 border-b md:border-b-0 md:border-r bg-muted/10 shrink-0 p-4 space-y-1">
+          <button
+            onClick={() => setActiveTab("profile")}
+            className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
+              activeTab === "profile" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+            }`}
+          >
+            <User className="w-4 h-4" />
+            Profil Akun
+          </button>
+          <button
+            onClick={() => setActiveTab("users")}
+            className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
+              activeTab === "users" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+            }`}
+          >
+            <Users className="w-4 h-4" />
+            Pengguna Sistem
+          </button>
+          <button
+            onClick={() => setActiveTab("appearance")}
+            className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
+              activeTab === "appearance" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+            }`}
+          >
+            <Sun className="w-4 h-4" />
+            Preferensi Tampilan
+          </button>
+          <button
+            onClick={() => setActiveTab("security")}
+            className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
+              activeTab === "security" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+            }`}
+          >
+            <Shield className="w-4 h-4" />
+            Keamanan & Privasi
+          </button>
+        </div>
+
+        {/* Content Area */}
+        <div className="p-6 md:p-8 flex-1">
+          {activeTab === "profile" && <ProfileSettings />}
+          {activeTab === "users" && <UsersTab />}
+          {activeTab === "appearance" && <AppearanceSettings />}
+          {activeTab === "security" && <SecuritySettings />}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// --- SETTINGS SECTIONS ---
+
+const ProfileSettings: React.FC = () => {
+  const { data: user, isLoading } = useGetIdentity<any>();
+  const { mutate, isLoading: isSaving } = useUpdate();
+  
+  const [formData, setFormData] = useState({
+    full_name: "",
+    phone: "",
+  });
+
+  useEffect(() => {
+    if (user?.profile) {
+      setFormData({
+        full_name: user.profile.full_name || "",
+        phone: user.profile.phone || "",
+      });
+    }
+  }, [user]);
+
+  const handleSave = () => {
+    if (!user?.profile?.id) return;
+    mutate({
+      resource: "profiles",
+      id: user.profile.id,
+      values: formData,
+    });
+  };
+
+  if (isLoading) return <div className="text-muted-foreground">Memuat profil...</div>;
+
+  return (
+    <div className="max-w-xl space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+      <div>
+        <h3 className="text-lg font-bold">Profil Publik</h3>
+        <p className="text-sm text-muted-foreground">Informasi profil ini akan terlihat oleh anggota lain di dalam unit yang sama.</p>
+      </div>
+
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Email Akun (Tidak bisa diubah)</label>
+          <input 
+            type="email" 
+            value={user?.email || ""} 
+            disabled 
+            className="w-full border rounded-md px-3 py-2 bg-muted/50 text-muted-foreground outline-none cursor-not-allowed" 
+          />
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Nama Lengkap</label>
+          <input 
+            type="text" 
+            value={formData.full_name} 
+            onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+            className="w-full border rounded-md px-3 py-2 outline-none focus:border-primary transition-colors bg-background" 
+            placeholder="Masukkan nama lengkap"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Nomor WhatsApp / HP</label>
+          <input 
+            type="text" 
+            value={formData.phone} 
+            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+            className="w-full border rounded-md px-3 py-2 outline-none focus:border-primary transition-colors bg-background" 
+            placeholder="Contoh: 081234567890"
+          />
+        </div>
+      </div>
+
+      <div className="pt-4 border-t">
+        <button 
+          onClick={handleSave} 
+          disabled={isSaving}
+          className="bg-primary text-primary-foreground px-6 py-2.5 rounded-md hover:bg-primary/90 font-medium transition-colors shadow-sm disabled:opacity-50"
+        >
+          {isSaving ? "Menyimpan..." : "Simpan Perubahan"}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+const AppearanceSettings: React.FC = () => {
+  const { theme, setTheme, colorTheme, setColorTheme } = useTheme();
+
+  return (
+    <div className="max-w-2xl space-y-10 animate-in fade-in slide-in-from-bottom-2 duration-300">
+      
+      {/* Warna Sistem Section */}
+      <div className="space-y-4">
+        <div>
+          <h3 className="text-lg font-bold flex items-center gap-2">
+            <Palette className="w-5 h-5 text-primary" />
+            Warna Sistem
+          </h3>
+          <p className="text-sm text-muted-foreground">Pilih tema warna utama aplikasi.</p>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <button 
+            onClick={() => setColorTheme("emerald")}
+            className={`flex flex-col items-center justify-center gap-3 p-4 border-2 rounded-xl transition-all ${colorTheme === "emerald" ? "border-emerald-600 bg-emerald-50 dark:bg-emerald-950/20" : "border-border hover:border-emerald-500/50 bg-background"}`}
+          >
+            <div className="w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center">
+              {colorTheme === "emerald" && <Check className="w-5 h-5 text-white" />}
+            </div>
+            <span className="font-medium text-sm">Eye-Care Emerald</span>
+          </button>
+
+          <button 
+            onClick={() => setColorTheme("ocean")}
+            className={`flex flex-col items-center justify-center gap-3 p-4 border-2 rounded-xl transition-all ${colorTheme === "ocean" ? "border-blue-600 bg-blue-50 dark:bg-blue-950/20" : "border-border hover:border-blue-500/50 bg-background"}`}
+          >
+            <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center">
+              {colorTheme === "ocean" && <Check className="w-5 h-5 text-white" />}
+            </div>
+            <span className="font-medium text-sm">Ocean Blue</span>
+          </button>
+
+          <button 
+            onClick={() => setColorTheme("rose")}
+            className={`flex flex-col items-center justify-center gap-3 p-4 border-2 rounded-xl transition-all ${colorTheme === "rose" ? "border-rose-600 bg-rose-50 dark:bg-rose-950/20" : "border-border hover:border-rose-500/50 bg-background"}`}
+          >
+            <div className="w-10 h-10 rounded-full bg-rose-600 flex items-center justify-center">
+              {colorTheme === "rose" && <Check className="w-5 h-5 text-white" />}
+            </div>
+            <span className="font-medium text-sm">Elegant Rose</span>
+          </button>
+
+          <button 
+            onClick={() => setColorTheme("slate")}
+            className={`flex flex-col items-center justify-center gap-3 p-4 border-2 rounded-xl transition-all ${colorTheme === "slate" ? "border-slate-800 bg-slate-100 dark:border-slate-400 dark:bg-slate-800" : "border-border hover:border-slate-500/50 bg-background"}`}
+          >
+            <div className="w-10 h-10 rounded-full bg-slate-800 dark:bg-slate-400 flex items-center justify-center">
+              {colorTheme === "slate" && <Check className="w-5 h-5 text-white dark:text-slate-900" />}
+            </div>
+            <span className="font-medium text-sm">Classic Slate</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Mode Terang / Gelap Section */}
+      <div className="space-y-4">
+        <div>
+          <h3 className="text-lg font-bold">Mode Tampilan</h3>
+          <p className="text-sm text-muted-foreground">Sesuaikan mode gelap atau terang untuk kenyamanan mata Anda.</p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <button 
+            onClick={() => setTheme("light")}
+            className={`flex flex-col items-center justify-center gap-3 p-4 border-2 rounded-xl transition-all ${theme === "light" ? "border-primary bg-primary/5" : "border-border hover:border-primary/50 bg-background"}`}
+          >
+            <Sun className="w-8 h-8 text-amber-500" />
+            <span className="font-medium text-sm">Mode Terang</span>
+          </button>
+
+          <button 
+            onClick={() => setTheme("dark")}
+            className={`flex flex-col items-center justify-center gap-3 p-4 border-2 rounded-xl transition-all ${theme === "dark" ? "border-primary bg-primary/5" : "border-border hover:border-primary/50 bg-background"}`}
+          >
+            <Moon className="w-8 h-8 text-slate-700 dark:text-slate-200" />
+            <span className="font-medium text-sm">Mode Gelap</span>
+          </button>
+
+          <button 
+            onClick={() => setTheme("system")}
+            className={`flex flex-col items-center justify-center gap-3 p-4 border-2 rounded-xl transition-all ${theme === "system" ? "border-primary bg-primary/5" : "border-border hover:border-primary/50 bg-background"}`}
+          >
+            <Monitor className="w-8 h-8 text-slate-500" />
+            <span className="font-medium text-sm">Ikuti Sistem</span>
+          </button>
+        </div>
+      </div>
+
+    </div>
+  );
+};
+
+const SecuritySettings: React.FC = () => {
+  return (
+    <div className="max-w-xl space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+      <div>
+        <h3 className="text-lg font-bold">Keamanan & Privasi</h3>
+        <p className="text-sm text-muted-foreground">Kelola kata sandi dan pengaturan keamanan akun Anda.</p>
+      </div>
+
+      <div className="space-y-4">
+        <div className="p-4 border rounded-lg bg-orange-50/50 dark:bg-orange-950/20 border-orange-200 dark:border-orange-900">
+          <div className="flex gap-3">
+            <Bell className="w-5 h-5 text-orange-600 dark:text-orange-400 shrink-0" />
+            <div>
+              <h4 className="font-medium text-orange-800 dark:text-orange-300">Ganti Kata Sandi</h4>
+              <p className="text-sm text-orange-700/80 dark:text-orange-400/80 mt-1">
+                Untuk mengubah kata sandi, Anda dapat melakukannya melalui tautan "Lupa Kata Sandi" di halaman Login atau menghubungi Administrator Unit Anda.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// --- MODAL COMPONENT ---
+const SettingsModal: React.FC<{ isOpen: boolean; onClose: () => void; title: string; children: React.ReactNode }> = ({ isOpen, onClose, title, children }) => {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="bg-background rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        <div className="flex items-center justify-between px-6 py-4 border-b">
+          <h3 className="font-semibold text-lg">{title}</h3>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
+            <User className="w-5 h-5 opacity-0 absolute" /> {/* Placeholder for X icon if lucide doesn't have it imported, we'll just use text */}
+            <span className="font-bold text-xl leading-none">&times;</span>
+          </button>
+        </div>
+        <div className="p-6">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const UsersTab: React.FC = () => {
+  const { data: userRolesData, isLoading } = useList({ 
+    resource: "user_roles", 
+    meta: { select: "*, profiles(id, full_name, email), roles(id, name), units(id, name)" } 
+  });
+  const { data: profilesData } = useList({ resource: "profiles" });
+  const { data: rolesData } = useList({ resource: "roles" });
+  const { data: unitsData } = useList({ resource: "units" });
+
+  const { mutate: createRole } = useCreate();
+  const { mutate: deleteRole } = useDelete();
+
+  const [modalMode, setModalMode] = useState<"create" | null>(null);
+  const [formData, setFormData] = useState({ user_id: "", role_id: "", unit_id: "" });
+
+  const handleSave = () => {
+    if (!formData.user_id || !formData.role_id) return;
+    createRole({
+      resource: "user_roles",
+      values: { 
+        user_id: formData.user_id, 
+        role_id: formData.role_id, 
+        unit_id: formData.unit_id || null 
+      }
+    }, { onSuccess: () => setModalMode(null) });
+  };
+
+  const handleRevoke = (id: string) => {
+    if (confirm("Cabut hak akses ini?")) {
+      deleteRole({ resource: "user_roles", id });
+    }
+  };
+
+  return (
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+      <div className="flex justify-between items-center">
+        <div>
+          <h3 className="text-lg font-bold">Manajemen Pengguna (RBAC)</h3>
+          <p className="text-sm text-muted-foreground">Kelola hak akses dan peran (Role) untuk semua staf dan guru.</p>
+        </div>
+        <button 
+          onClick={() => setModalMode("create")}
+          className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition-colors shadow-sm font-medium text-sm"
+        >
+          + Tetapkan Hak Akses
+        </button>
+      </div>
+
+      <div className="border rounded-xl overflow-hidden">
+        <table className="w-full text-sm text-left">
+          <thead className="bg-muted/50 text-muted-foreground text-xs uppercase font-medium border-b">
+            <tr>
+              <th className="px-6 py-4 whitespace-nowrap">Nama Pengguna</th>
+              <th className="px-6 py-4 whitespace-nowrap">Role (Peran)</th>
+              <th className="px-6 py-4 whitespace-nowrap">Unit / Cakupan</th>
+              <th className="px-6 py-4 whitespace-nowrap text-right">Aksi</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {isLoading ? (
+              <tr><td colSpan={4} className="px-6 py-8 text-center text-muted-foreground">Memuat data akses...</td></tr>
+            ) : userRolesData?.data?.length === 0 ? (
+              <tr><td colSpan={4} className="px-6 py-8 text-center text-muted-foreground">Belum ada hak akses yang ditetapkan.</td></tr>
+            ) : (
+              userRolesData?.data.map((ur: any) => (
+                <tr key={ur.id} className="hover:bg-muted/30 transition-colors">
+                  <td className="px-6 py-4">
+                    <div className="font-medium">{ur.profiles?.full_name || 'User Tidak Diketahui'}</div>
+                    <div className="text-xs text-muted-foreground">{ur.profiles?.email}</div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className="px-2.5 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 rounded-full text-xs font-medium">
+                      {ur.roles?.name || 'Unknown'}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-muted-foreground">
+                    {ur.units?.name || 'Global (Semua Unit)'}
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <button 
+                      onClick={() => handleRevoke(ur.id)}
+                      className="text-red-600 hover:text-red-700 hover:underline text-xs font-medium"
+                    >
+                      Cabut Akses
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <SettingsModal isOpen={modalMode === "create"} onClose={() => setModalMode(null)} title="Tetapkan Hak Akses (Role)">
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Pilih Pengguna</label>
+            <select 
+              value={formData.user_id} 
+              onChange={e => setFormData({...formData, user_id: e.target.value})} 
+              className="w-full border rounded-md px-3 py-2 outline-none focus:border-primary bg-background"
+            >
+              <option value="" disabled>Pilih staf/guru...</option>
+              {profilesData?.data?.map((p: any) => <option key={p.id} value={p.id}>{p.full_name} ({p.email})</option>)}
+            </select>
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Pilih Peran (Role)</label>
+            <select 
+              value={formData.role_id} 
+              onChange={e => setFormData({...formData, role_id: e.target.value})} 
+              className="w-full border rounded-md px-3 py-2 outline-none focus:border-primary bg-background"
+            >
+              <option value="" disabled>Pilih peran...</option>
+              {rolesData?.data?.map((r: any) => <option key={r.id} value={r.id}>{r.name}</option>)}
+            </select>
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Cakupan Unit (Opsional)</label>
+            <select 
+              value={formData.unit_id} 
+              onChange={e => setFormData({...formData, unit_id: e.target.value})} 
+              className="w-full border rounded-md px-3 py-2 outline-none focus:border-primary bg-background"
+            >
+              <option value="">Global (Semua Unit)</option>
+              {unitsData?.data?.map((u: any) => <option key={u.id} value={u.id}>{u.name}</option>)}
+            </select>
+            <p className="text-xs text-muted-foreground">Kosongkan jika role ini berlaku global untuk seluruh yayasan.</p>
+          </div>
+          <button 
+            onClick={handleSave} 
+            disabled={!formData.user_id || !formData.role_id}
+            className="w-full flex justify-center items-center gap-2 bg-primary text-primary-foreground py-2.5 rounded-md hover:bg-primary/90 font-medium disabled:opacity-50"
+          >
+            Simpan Penetapan Akses
+          </button>
+        </div>
+      </SettingsModal>
+    </div>
+  );
+};

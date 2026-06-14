@@ -1,5 +1,5 @@
-import React from "react";
-import { useLogout } from "@refinedev/core";
+import React, { useEffect } from "react";
+import { useLogout, useSelect } from "@refinedev/core";
 import { LogOut, Building, Search, Bell, Calendar } from "lucide-react";
 import { useCurrentUser } from "../../hooks/useAuth";
 import { useCurrentUnit } from "../../app/providers/UnitProvider";
@@ -10,6 +10,20 @@ export const Topbar: React.FC = () => {
   const { user } = useCurrentUser();
   const { activeUnitId, setActiveUnitId, availableUnits } = useCurrentUnit();
   const { activeYearId, setActiveYearId } = useAcademicYear();
+
+  const { options: yearOptions } = useSelect({ 
+    resource: "academic_years", 
+    optionLabel: "name", 
+    optionValue: "id",
+    filters: [{ field: "is_active", operator: "eq", value: true }]
+  });
+
+  // Auto-select active year
+  useEffect(() => {
+    if (!activeYearId && yearOptions && yearOptions.length > 0) {
+      setActiveYearId(yearOptions[0].value.toString());
+    }
+  }, [yearOptions, activeYearId, setActiveYearId]);
 
   return (
     <header className="h-16 border-b bg-white flex items-center justify-between px-4 sm:px-6 shadow-sm dark:bg-card shrink-0">
@@ -34,8 +48,9 @@ export const Topbar: React.FC = () => {
             onChange={(e) => setActiveYearId(e.target.value)}
             className="bg-transparent border-none text-sm font-medium focus:ring-0 cursor-pointer outline-none"
           >
-            <option value="2023-2024-mock-id">TA 2023/2024</option>
-            <option value="2024-2025-mock-id">TA 2024/2025</option>
+            {yearOptions?.map(y => (
+              <option key={y.value} value={y.value}>{y.label}</option>
+            ))}
           </select>
         </div>
 

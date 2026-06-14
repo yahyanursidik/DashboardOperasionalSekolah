@@ -6,7 +6,7 @@ import { Link, useNavigate } from "react-router-dom";
 
 export const ClassShow: React.FC = () => {
   const { queryResult } = useShow({
-    meta: { select: "*, units(name), academic_years(name), teachers(full_name)" }
+    meta: { select: "*, units(name), academic_years(name)" }
   });
   const { data, isLoading } = queryResult;
   const navigate = useNavigate();
@@ -27,7 +27,7 @@ export const ClassShow: React.FC = () => {
     filters: [
       { field: "class_id", operator: "eq", value: record?.id }
     ],
-    meta: { select: "*, teachers(full_name)" },
+    meta: { select: "*, employees(full_name)" },
     queryOptions: { enabled: !!record?.id }
   });
 
@@ -94,6 +94,9 @@ export const ClassShow: React.FC = () => {
   const currentCapacity = studentsData?.data?.length || 0;
   const maxCapacity = record.capacity || 30;
   const capacityPercent = Math.min(100, Math.round((currentCapacity / maxCapacity) * 100));
+  
+  const homeroomAssignment = assignmentsData?.data?.find((a: any) => a.role_type === 'homeroom' || a.role_type === 'wali_kelas');
+  const homeroomName = homeroomAssignment?.employees?.full_name;
 
   return (
     <div className="space-y-6">
@@ -143,7 +146,7 @@ export const ClassShow: React.FC = () => {
                 <p className="text-xs text-muted-foreground mb-1">Wali Kelas (Homeroom Teacher)</p>
                 <div className="flex items-center gap-2">
                   <UserCheck className="w-4 h-4 text-emerald-600" />
-                  <span className="font-medium">{record.teachers?.full_name || <span className="italic text-muted-foreground text-sm">Belum ditentukan</span>}</span>
+                  <span className="font-medium">{homeroomName || <span className="italic text-muted-foreground text-sm">Belum ditentukan</span>}</span>
                 </div>
               </div>
               <div>
@@ -251,9 +254,9 @@ export const ClassShow: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {assignmentsData?.data?.map((assignment: any) => (
                   <div key={assignment.id} className="border rounded-xl p-4 bg-background">
-                    <p className="font-semibold text-sm">{assignment.teachers?.full_name}</p>
+                    <p className="font-semibold text-sm">{assignment.employees?.full_name}</p>
                     <div className="flex flex-col gap-1 mt-2">
-                      <span className="text-xs text-muted-foreground uppercase font-bold">{assignment.role.replace('_', ' ')}</span>
+                      <span className="text-xs text-muted-foreground uppercase font-bold">{assignment.role_type?.replace('_', ' ')}</span>
                       {assignment.subject && (
                         <span className="text-xs bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-md self-start font-medium">
                           {assignment.subject}

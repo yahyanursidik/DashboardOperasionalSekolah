@@ -1,7 +1,10 @@
 export type RoleName = 
   | 'super_admin'
+  | 'ketua_yayasan'
   | 'kepsek'
   | 'wakasek'
+  | 'kepala_tu'
+  | 'admin_tu'
   | 'admin_sekolah'
   | 'admin_unit'
   | 'admin_keuangan'
@@ -27,22 +30,30 @@ export const hasAnyRole = (scopes: UserRoleScope[] | undefined, roleNames: RoleN
 
 export const canAccessUnit = (scopes: UserRoleScope[] | undefined, unitId: string): boolean => {
   if (!scopes) return false;
-  // Super admin can access all units
-  if (hasRole(scopes, 'super_admin')) return true;
+  // Super admin & ketua yayasan can access all units
+  if (hasAnyRole(scopes, ['super_admin', 'ketua_yayasan'])) return true;
   // Check if they have a role scoped to this specific unit
   return scopes.some(scope => scope.unit_id === unitId || scope.unit_id === null); // null unit_id means global role
 };
 
 // Resource map defining which roles can access which resources
 const ResourceAccessMap: Record<string, RoleName[]> = {
-  'students': ['super_admin', 'kepsek', 'wakasek', 'admin_sekolah', 'admin_unit', 'guru', 'wali_kelas'],
-  'teachers': ['super_admin', 'kepsek', 'admin_sekolah', 'admin_unit'],
-  'classes': ['super_admin', 'kepsek', 'wakasek', 'admin_sekolah', 'admin_unit', 'guru', 'wali_kelas'],
-  'financials': ['super_admin', 'admin_keuangan', 'kepsek'],
-  'reports': ['super_admin', 'kepsek', 'wakasek', 'admin_sekolah', 'admin_unit'],
-  'documents': ['super_admin', 'admin_dokumen'],
-  'attendance': ['super_admin', 'operator_absensi', 'wali_kelas', 'guru'],
-  'settings': ['super_admin'],
+  'students': ['super_admin', 'ketua_yayasan', 'kepsek', 'wakasek', 'kepala_tu', 'admin_tu', 'admin_sekolah', 'admin_unit', 'guru', 'wali_kelas'],
+  'teachers': ['super_admin', 'ketua_yayasan', 'kepsek', 'kepala_tu', 'admin_sekolah', 'admin_unit'],
+  'classes': ['super_admin', 'ketua_yayasan', 'kepsek', 'wakasek', 'kepala_tu', 'admin_tu', 'admin_sekolah', 'admin_unit', 'guru', 'wali_kelas'],
+  'financials': ['super_admin', 'ketua_yayasan', 'admin_keuangan', 'kepsek', 'kepala_tu'],
+  'reports': ['super_admin', 'ketua_yayasan', 'kepsek', 'wakasek', 'kepala_tu', 'admin_sekolah', 'admin_unit'],
+  'documents': ['super_admin', 'ketua_yayasan', 'kepala_tu', 'admin_tu', 'admin_dokumen'],
+  'attendance': ['super_admin', 'ketua_yayasan', 'kepsek', 'wakasek', 'kepala_tu', 'admin_tu', 'operator_absensi', 'wali_kelas', 'guru'],
+  'employee_attendance': ['super_admin', 'ketua_yayasan', 'kepsek', 'wakasek', 'kepala_tu', 'admin_tu'],
+  'employees': ['super_admin', 'ketua_yayasan', 'kepsek', 'kepala_tu', 'admin_sekolah', 'admin_unit'],
+  'employee_schedules': ['super_admin', 'ketua_yayasan', 'kepsek', 'wakasek', 'kepala_tu', 'admin_tu', 'admin_sekolah', 'admin_unit'],
+  'leave_requests': ['super_admin', 'ketua_yayasan', 'kepsek', 'wakasek', 'kepala_tu', 'admin_tu', 'admin_sekolah', 'admin_unit', 'guru'],
+  'substitute_assignments': ['super_admin', 'ketua_yayasan', 'kepsek', 'wakasek', 'kepala_tu', 'admin_tu', 'admin_sekolah', 'admin_unit'],
+  'settings': ['super_admin', 'ketua_yayasan'],
+  'admin_tasks': ['super_admin', 'ketua_yayasan', 'kepsek', 'wakasek', 'kepala_tu', 'admin_tu', 'guru'],
+  'announcements': ['super_admin', 'ketua_yayasan', 'kepsek', 'wakasek', 'kepala_tu'],
+  'audit_logs': ['super_admin', 'ketua_yayasan'],
 };
 
 export const canAccessResource = (scopes: UserRoleScope[] | undefined, resource: string): boolean => {

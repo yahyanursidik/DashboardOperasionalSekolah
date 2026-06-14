@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useShow, useList, useCreate } from "@refinedev/core";
 import { PageHeader } from "../../../components/layout/PageHeader";
-import { User, Edit, ArrowLeft, Users, Plus, X } from "lucide-react";
+import { User, Edit, ArrowLeft, Users, Plus, X, BookOpen, Star, AlertTriangle, ShieldAlert, Award, Activity, Eye } from "lucide-react";
 import { AuditHistory } from "../../../components/common/AuditHistory";
 import { Link, useNavigate } from "react-router-dom";
 import { calculateCompleteness } from "./list";
@@ -23,6 +23,20 @@ export const StudentShow: React.FC = () => {
     ],
     meta: { select: "*, parents(*)" },
     queryOptions: { enabled: !!record?.id }
+  });
+
+  // Journals data
+  const { data: journalsData, isLoading: journalsLoading } = useList({
+    resource: "student_journals",
+    filters: [{ field: "student_id", operator: "eq", value: record?.id }],
+    sorters: [{ field: "date_recorded", order: "desc" }],
+    queryOptions: { enabled: !!record?.id }
+  });
+
+  const { data: semestersData } = useList({
+    resource: "semesters",
+    meta: { select: "*, academic_years(name)" },
+    pagination: { mode: "off" }
   });
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -80,6 +94,20 @@ export const StudentShow: React.FC = () => {
   }
 
   const score = calculateCompleteness(record);
+
+  const getCategoryDetails = (category: string) => {
+    switch(category) {
+      case 'akademik': return { icon: <BookOpen className="w-4 h-4" />, label: 'Akademik', color: 'text-blue-600 bg-blue-50 border-blue-200' };
+      case 'karakter': return { icon: <Star className="w-4 h-4" />, label: 'Karakter', color: 'text-purple-600 bg-purple-50 border-purple-200' };
+      case 'kendala': return { icon: <AlertTriangle className="w-4 h-4" />, label: 'Kendala', color: 'text-amber-600 bg-amber-50 border-amber-200' };
+      case 'ekskul': return { icon: <Award className="w-4 h-4" />, label: 'Ekskul', color: 'text-emerald-600 bg-emerald-50 border-emerald-200' };
+      case 'kasus': return { icon: <ShieldAlert className="w-4 h-4" />, label: 'Kasus', color: 'text-red-600 bg-red-50 border-red-200' };
+      case 'kesehatan': return { icon: <Activity className="w-4 h-4" />, label: 'Kesehatan', color: 'text-rose-600 bg-rose-50 border-rose-200' };
+      case 'anekdot': return { icon: <Eye className="w-4 h-4" />, label: 'Anekdot', color: 'text-teal-600 bg-teal-50 border-teal-200' };
+      case 'stppa': return { icon: <Star className="w-4 h-4 fill-current" />, label: 'STPPA', color: 'text-indigo-600 bg-indigo-50 border-indigo-200' };
+      default: return { icon: <BookOpen className="w-4 h-4" />, label: category, color: 'text-slate-600 bg-slate-50 border-slate-200' };
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -179,6 +207,117 @@ export const StudentShow: React.FC = () => {
               </div>
             )}
           </div>
+
+          <div className="bg-card rounded-xl border shadow-sm p-6">
+            <div className="flex justify-between items-center mb-6 border-b pb-4">
+              <h3 className="font-semibold text-lg flex items-center gap-2">
+                <BookOpen className="w-5 h-5 text-indigo-600" /> Jurnal & Rekam Jejak
+              </h3>
+              <Link 
+                to="/student-journals/create"
+                className="text-sm flex items-center gap-1 bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-md font-medium hover:bg-indigo-100 transition-colors"
+              >
+                <Plus className="w-4 h-4" /> Tulis Jurnal
+              </Link>
+            </div>
+            
+            {journalsLoading ? (
+              <p className="text-sm text-muted-foreground animate-pulse">Memuat rekam jejak...</p>
+            ) : journalsData?.data?.length === 0 ? (
+              <div className="bg-muted/30 border border-dashed rounded-lg p-8 text-center">
+                <p className="text-sm text-muted-foreground">Belum ada catatan jurnal atau rekam jejak untuk siswa ini.</p>
+              </div>
+            ) : (
+              <div className="space-y-8">
+                {(() => {
+                  // Group journals by Semester & Year
+                  const grouped: Record<string, { yearName: string; semesterName: string; items: any[] }> = {};
+                  
+                  journalsData?.data?.forEach(journal => {
+                    let groupKey = "Lainnya";
+                    let yearName = "Lainnya";
+                    let semesterName = "";
+
+                    if (semestersData?.data) {
+                      const date = new Date(journal.date_recorded);
+                      const semester = semestersData.data.find(s => {
+                        return date >= new Date(s.start_date) && date <= new Date(s.end_date);
+                      });
+                      if (semester) {
+                        yearName = semester.academic_years?.name || "Tahun Tidak Diketahui";
+                        semesterName = semester.name;
+                        groupKey = `TA ${yearName} - Semester ${semesterName}`;
+                      }
+                    }
+
+                    if (!grouped[groupKey]) {
+                      grouped[groupKey] = { yearName, semesterName, items: [] };
+                    }
+                    grouped[groupKey].items.push(journal);
+                  });
+
+                  return Object.entries(grouped).map(([groupKey, group]) => (
+                    <div key={groupKey} className="space-y-4">
+                      <div className="flex items-center gap-2 pb-2 border-b border-indigo-100">
+                        <div className="px-3 py-1 bg-indigo-50 text-indigo-700 font-bold text-sm rounded-full border border-indigo-100">
+                          {groupKey}
+                        </div>
+                        <div className="text-xs text-muted-foreground font-medium bg-muted px-2 py-1 rounded-md">
+                          {group.items.length} Catatan
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-6 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-border before:to-transparent">
+                        {group.items.map((journal: any) => {
+                          const cat = getCategoryDetails(journal.category);
+                          return (
+                            <div key={journal.id} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
+                              <div className="flex items-center justify-center w-10 h-10 rounded-full border-4 border-background bg-muted text-muted-foreground shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 shadow-sm z-10">
+                                {cat.icon}
+                              </div>
+                              <div className="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] bg-card p-4 rounded-xl border shadow-sm">
+                                <div className="flex justify-between items-start mb-2">
+                                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${cat.color}`}>
+                                    {cat.label}
+                                  </span>
+                                  <span className="text-xs font-semibold text-muted-foreground bg-muted px-2 py-1 rounded-md">
+                                    {new Date(journal.date_recorded).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                  </span>
+                                </div>
+                                <h4 className="font-bold text-foreground text-sm mb-1">{journal.title}</h4>
+                                <p className="text-sm text-muted-foreground mb-3">{journal.description}</p>
+                                
+                                {journal.category === 'stppa' && journal.stppa_metrics && (
+                                  <div className="mt-2 mb-3 bg-indigo-50/50 rounded-lg p-3 border border-indigo-100">
+                                    <h5 className="text-[10px] font-bold uppercase text-indigo-800 mb-2">Capaian STPPA:</h5>
+                                    <div className="grid grid-cols-2 gap-2 text-xs">
+                                      {Object.entries(journal.stppa_metrics).map(([key, val]) => (
+                                        <div key={key} className="flex justify-between items-center bg-white px-2 py-1 rounded border border-indigo-50">
+                                          <span className="font-semibold text-indigo-900">{key}</span>
+                                          <span className="font-bold text-indigo-600">{String(val)}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {journal.action_taken && (
+                                  <div className="bg-amber-50 text-amber-800 p-2 rounded text-xs border border-amber-100">
+                                    <strong>Tindakan:</strong> {journal.action_taken}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ));
+                })()}
+              </div>
+            )}
+          </div>
+
           <AuditHistory resource="students" resourceId={record.id as string} />
         </div>
       </div>

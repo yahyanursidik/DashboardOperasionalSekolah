@@ -32,7 +32,9 @@ export const DocumentTypesList: React.FC = () => {
             <thead className="bg-muted/50 text-muted-foreground text-xs uppercase font-medium border-b">
               <tr>
                 <th className="px-6 py-4">Nama Dokumen</th>
+                <th className="px-6 py-4">Kode / Klasifikasi</th>
                 <th className="px-6 py-4">Kategori</th>
+                <th className="px-6 py-4">Peruntukan</th>
                 <th className="px-6 py-4">Wajib / Opsional</th>
                 <th className="px-6 py-4">Unit Terkait</th>
                 <th className="px-6 py-4 text-right">Aksi</th>
@@ -44,10 +46,20 @@ export const DocumentTypesList: React.FC = () => {
                   <td className="px-6 py-4 font-medium flex items-center gap-2">
                     <FileText className="w-4 h-4 text-muted-foreground"/> {type.name}
                   </td>
+                  <td className="px-6 py-4 font-mono text-xs text-muted-foreground">
+                    {type.classification_code || "-"}
+                  </td>
                   <td className="px-6 py-4">
                     <span className="px-2 py-1 bg-slate-100 border text-slate-800 text-xs font-semibold rounded-md uppercase">
                       {type.category}
                     </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    {type.category === 'surat' ? (
+                      <span className={`px-2 py-1 border text-xs font-semibold rounded-md capitalize ${type.audience === 'internal' ? 'bg-blue-50 text-blue-700' : type.audience === 'eksternal' ? 'bg-orange-50 text-orange-700' : 'bg-gray-50 text-gray-700'}`}>
+                        {type.audience || "Umum"}
+                      </span>
+                    ) : "-"}
                   </td>
                   <td className="px-6 py-4">
                     {type.is_required ? (
@@ -67,7 +79,7 @@ export const DocumentTypesList: React.FC = () => {
                 </tr>
               ))}
               {data?.data.length === 0 && (
-                <tr><td colSpan={5} className="text-center p-8 text-muted-foreground">Belum ada jenis dokumen diatur.</td></tr>
+                <tr><td colSpan={7} className="text-center p-8 text-muted-foreground">Belum ada jenis dokumen diatur.</td></tr>
               )}
             </tbody>
           </table>

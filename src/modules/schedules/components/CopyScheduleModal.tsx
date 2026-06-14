@@ -1,0 +1,156 @@
+import React, { useState } from "react";
+import { useList, useInvalidate } from "@refinedev/core";
+import { X, Copy, AlertTriangle } from "lucide-react";
+import { supabaseClient } from "../../../lib/supabase/client";
+import { useAcademicYear } from "../../../app/providers/AcademicYearProvider";
+import { useCurrentUnit } from "../../../app/providers/UnitProvider";
+import { toast } from "sonner";
+
+interface CopyScheduleModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export const CopyScheduleModal: React.FC<CopyScheduleModalProps> = ({ isOpen, onClose }) => {
+  const invalidate = useInvalidate();
+  const { activeYearId } = useAcademicYear();
+  const { activeUnitId } = useCurrentUnit();
+  
+  const [sourceYearId, setSourceYearId] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  // Fetch academic years
+  const { data: yearsData } = useList({
+    resource: "academic_years",
+    sorters: [{ field: "name", order: "desc" }],
+  });
+
+  const handleCopy = async () => {
+    if (!sourceYearId) {
+      toast.error("Pilih tahun ajaran sumber!");
+      return;
+    }
+    if (!activeYearId || !activeUnitId) {
+      toast.error("Unit atau Tahun Ajaran aktif belum diatur!");
+      return;
+    }
+    if (sourceYearId === activeYearId) {
+      toast.error("Tidak dapat menyalin dari tahun ajaran yang sama!");
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      // 1. Fetch schedules from source
+      const { data: sourceSchedules, error: fetchError } = await supabaseClient
+        .from("employee_schedules")
+        .select("*")
+        .eq("academic_year_id", sourceYearId)
+        .eq("unit_id", activeUnitId);
+
+      if (fetchError) throw fetchError;
+
+      if (!sourceSchedules || sourceSchedules.length === 0) {
+        toast.error("Tidak ada jadwal yang ditemukan di semester sumber untuk unit ini.");
+        setIsProcessing(false);
+        return;
+      }
+
+      // 2. Map payload for current year
+      const payload = sourceSchedules.map((sch: any) => {
+        // Exclude id, created_at, updated_at
+        const { id, created_at, updated_at, academic_year_id, ...rest } = sch;
+        return {
+          ...rest,
+          academic_year_id: activeYearId,
+        };
+      });
+
+      // 3. Insert payload
+      const { error: insertError } = await supabaseClient
+        .from("employee_schedules")
+        .insert(payload);
+
+      if (insertError) throw insertError;
+
+      toast.success(`Berhasil menyalin ${payload.length} jadwal ke semester aktif!`);
+      invalidate({
+        resource: "employee_schedules",
+        invalidates: ["list"],
+      });
+      onClose();
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error.message || "Gagal menyalin jadwal");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
+      <div className="bg-card w-full max-w-md rounded-xl shadow-xl overflow-hidden border">
+        <div className="flex justify-between items-center p-4 border-b">
+          <h3 className="font-semibold text-lg flex items-center gap-2">
+            <Copy className="w-5 h-5 text-primary" />
+            Salin Jadwal Massal
+          </h3>
+          <button onClick={onClose} className="p-1 hover:bg-muted rounded-md text-muted-foreground">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-4">
+          <div className="bg-amber-500/10 text-amber-600 p-3 rounded-lg flex gap-3 items-start border border-amber-500/20">
+            <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
+            <p className="text-sm">
+              Fitur ini akan menduplikasi <strong>semua jadwal</strong> (mengajar, piket, shift) dari semester sumber ke semester yang aktif saat ini.
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">Salin DARI Tahun Ajaran / Semester:</label>
+            <select
+              value={sourceYearId}
+              onChange={(e) => setSourceYearId(e.target.value)}
+              className="w-full border rounded-lg px-3 py-2 bg-background outline-none focus:ring-2 focus:ring-primary/50"
+            >
+              <option value="">-- Pilih Tahun Ajaran Sumber --</option>
+              {yearsData?.data.map((y) => (
+                <option key={y.id} value={y.id}>
+                  {y.name} {y.is_active ? "(Aktif Saat Ini)" : ""}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="pt-2">
+            <label className="block text-sm font-medium mb-1 text-muted-foreground">Tujuan (Semester Aktif):</label>
+            <div className="px-3 py-2 bg-muted/50 rounded-lg border text-sm font-medium">
+              {yearsData?.data.find((y) => y.id === activeYearId)?.name || "Sedang memuat..."}
+            </div>
+          </div>
+        </div>
+
+        <div className="p-4 border-t bg-muted/20 flex justify-end gap-2">
+          <button
+            onClick={onClose}
+            disabled={isProcessing}
+            className="px-4 py-2 border rounded-md hover:bg-muted text-sm font-medium transition-colors"
+          >
+            Batal
+          </button>
+          <button
+            onClick={handleCopy}
+            disabled={isProcessing || !sourceYearId || sourceYearId === activeYearId}
+            className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 text-sm font-medium transition-colors flex items-center gap-2 disabled:opacity-50"
+          >
+            {isProcessing ? "Menyalin..." : "Salin Jadwal"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};

@@ -20,6 +20,13 @@ export const ReportsDashboard: React.FC = () => {
       color: "bg-emerald-100 text-emerald-600",
     },
     {
+      title: "Laporan Absensi Pegawai",
+      description: "Rekapitulasi kehadiran guru dan staf.",
+      icon: CalendarCheck,
+      href: "/reports/employee-attendance",
+      color: "bg-teal-100 text-teal-600",
+    },
+    {
       title: "Laporan Dokumen",
       description: "Status dokumen masuk, keluar, dan arsip berdasarkan unit.",
       icon: FileText,

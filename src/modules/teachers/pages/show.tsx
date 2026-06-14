@@ -7,6 +7,7 @@ import { useAcademicYear } from "../../../app/providers/AcademicYearProvider";
 
 export const TeacherShow: React.FC = () => {
   const { queryResult } = useShow({
+    resource: "employees",
     meta: { select: "*, units(name)" }
   });
   const { data, isLoading } = queryResult;
@@ -19,7 +20,7 @@ export const TeacherShow: React.FC = () => {
   const { data: assignmentsData, isLoading: assignmentsLoading, refetch: refetchAssignments } = useList({
     resource: "teacher_assignments",
     filters: [
-      { field: "teacher_id", operator: "eq", value: record?.id },
+      { field: "employee_id", operator: "eq", value: record?.id },
       { field: "academic_year_id", operator: "eq", value: activeYearId }
     ],
     meta: { select: "*, units(name), classes(name)" },
@@ -51,10 +52,10 @@ export const TeacherShow: React.FC = () => {
     createAssignment({
       resource: "teacher_assignments",
       values: {
-        teacher_id: record?.id,
+        employee_id: record?.id,
         unit_id: unitId,
         class_id: classId || null,
-        role: assignmentType,
+        role_type: assignmentType,
         subject: subject || null,
         academic_year_id: activeYearId,
         is_active: true
@@ -98,7 +99,7 @@ export const TeacherShow: React.FC = () => {
               Kembali
             </button>
             <Link
-              to={`/teachers/edit/${record.id}`}
+              to={`/employees/edit/${record.id}`}
               className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition-colors shadow-sm font-medium text-sm"
             >
               <Edit className="w-4 h-4" />
@@ -116,10 +117,10 @@ export const TeacherShow: React.FC = () => {
               <User className="w-12 h-12 text-emerald-500" />
             </div>
             <h2 className="text-xl font-bold">{record.full_name}</h2>
-            <p className="text-sm text-muted-foreground mb-4">{record.role_title || "Pegawai"}</p>
+            <p className="text-sm text-muted-foreground mb-4">{record.position?.replace(/_/g, ' ') || "Pegawai"}</p>
             
-            <div className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full border mb-6 ${record.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
-              Status: {record.status} ({record.is_active ? 'Aktif' : 'Suspend'})
+            <div className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full border mb-6 ${record.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+              Status: {record.status}
             </div>
 
             <div className="text-left border-t pt-4 space-y-4">
@@ -207,7 +208,7 @@ export const TeacherShow: React.FC = () => {
                           <GraduationCap className="w-5 h-5 text-emerald-500" />
                         </div>
                         <div>
-                          <p className="font-semibold text-sm">{roles[assignment.role] || assignment.role}</p>
+                          <p className="font-semibold text-sm">{roles[assignment.role_type] || assignment.role_type}</p>
                           <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
                             <span className="bg-muted px-2 py-0.5 rounded-md">{assignment.units?.name || "Umum"}</span>
                             {assignment.classes && (

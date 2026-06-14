@@ -8,7 +8,13 @@ import {
   BarChart,
   Settings,
   CalendarCheck,
-  Megaphone
+  Megaphone,
+  BookOpen,
+  Wallet,
+  Receipt,
+  CreditCard,
+  Tag,
+  CheckCircle
 } from "lucide-react";
 import type { RoleName } from "../lib/permissions";
 
@@ -40,10 +46,22 @@ export const navigationConfig: NavigationGroup[] = [
     name: "Master Data",
     items: [
       {
-        title: "Guru & Pegawai",
-        href: "/teachers",
+        title: "Jurnal & Rekam Jejak",
+        href: "/student-journals",
+        icon: BookOpen,
+        resource: "student_journals",
+      },
+      {
+        title: "Data Pegawai",
+        href: "/employees",
         icon: Users,
-        resource: "teachers",
+        resource: "employees",
+      },
+      {
+        title: "Jadwal Pegawai",
+        href: "/schedules",
+        icon: CalendarCheck,
+        resource: "employee_schedules",
       },
       {
         title: "Data Induk",
@@ -81,16 +99,69 @@ export const navigationConfig: NavigationGroup[] = [
         resource: "classes",
       },
       {
-        title: "Absensi",
+        title: "Absensi Siswa",
         href: "/attendance",
         icon: CalendarCheck,
         resource: "attendance_records",
+      },
+      {
+        title: "Absensi Pegawai",
+        href: "/attendance/employees",
+        icon: CalendarCheck,
+        resource: "employee_attendance",
+      },
+      {
+        title: "Pengajuan Izin",
+        href: "/leaves",
+        icon: ClipboardList,
+        resource: "leave_requests",
+      },
+      {
+        title: "Guru Inval",
+        href: "/substitutes",
+        icon: Users,
+        resource: "substitute_assignments",
       },
       {
         title: "Task Admin",
         href: "/tasks",
         icon: ClipboardList,
         resource: "admin_tasks",
+      },
+    ],
+  },
+  {
+    name: "Keuangan",
+    items: [
+      {
+        title: "Dashboard Keuangan",
+        href: "/finance",
+        icon: Wallet,
+        resource: "student_invoices",
+      },
+      {
+        title: "Tagihan & Pembayaran",
+        href: "/finance/invoices",
+        icon: Receipt,
+        resource: "student_invoices",
+      },
+      {
+        title: "Verifikasi Transfer",
+        href: "/finance/verifications",
+        icon: CheckCircle,
+        resource: "payment_transactions",
+      },
+      {
+        title: "Buku Kas (Pengeluaran)",
+        href: "/finance/expenses",
+        icon: CreditCard,
+        resource: "school_expenses",
+      },
+      {
+        title: "Kategori Biaya",
+        href: "/finance/categories",
+        icon: Tag,
+        resource: "finance_categories",
       },
     ],
   },

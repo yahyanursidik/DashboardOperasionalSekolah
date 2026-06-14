@@ -52,7 +52,7 @@ const GreetingCard = () => {
 const QuickActions = () => {
   const actions = [
     { label: "Tambah Siswa", icon: UserPlus, href: "/students/create", color: "bg-blue-50 text-blue-600" },
-    { label: "Tambah Guru", icon: Briefcase, href: "/teachers/create", color: "bg-emerald-50 text-emerald-600" },
+    { label: "Tambah Guru", icon: Briefcase, href: "/employees/create", color: "bg-emerald-50 text-emerald-600" },
     { label: "Tambah Kelas", icon: Building, href: "/classes/create", color: "bg-amber-50 text-amber-600" },
     { label: "Buat Task", icon: ClipboardList, href: "/tasks/create", color: "bg-purple-50 text-purple-600" },
     { label: "Pengumuman", icon: Megaphone, href: "/communications", color: "bg-rose-50 text-rose-600" },
@@ -99,10 +99,11 @@ const TodaySummary = () => {
   });
 
   const { data: teachers } = useList({
-    resource: "teachers",
+    resource: "employees",
     pagination: { pageSize: 1 },
     filters: [
-      { field: "status", operator: "eq", value: "active" }
+      { field: "status", operator: "eq", value: "active" },
+      { field: "position", operator: "eq", value: "guru" }
     ]
   });
 

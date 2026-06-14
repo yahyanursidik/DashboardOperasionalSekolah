@@ -113,6 +113,15 @@ export const DocumentShow: React.FC = () => {
                 <p className="text-xs text-muted-foreground">Nama File Asli</p>
                 <p className="font-medium text-sm truncate" title={doc.file_name}>{doc.file_name}</p>
               </div>
+              {(doc.document_number || doc.document_date) && (
+                <div>
+                  <p className="text-xs text-muted-foreground">Nomor & Tanggal Surat</p>
+                  <p className="font-medium text-sm text-blue-700">
+                    {doc.document_number || "-"} 
+                    {doc.document_date && ` (Tgl: ${new Date(doc.document_date).toLocaleDateString('id-ID')})`}
+                  </p>
+                </div>
+              )}
               <div>
                 <p className="text-xs text-muted-foreground">Ukuran / Tipe</p>
                 <p className="font-medium text-sm">{doc.file_size ? `${(doc.file_size/1024).toFixed(1)} KB` : "?"} • {doc.mime_type}</p>

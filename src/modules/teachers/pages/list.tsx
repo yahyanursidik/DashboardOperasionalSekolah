@@ -35,21 +35,22 @@ export const TeachersList: React.FC = () => {
         accessorKey: "full_name",
         header: "Nama Pegawai",
         cell: function render({ row, getValue }) {
-          const nip = row.original.nip;
+          const nik = row.original.nik;
           return (
             <div>
               <p className="font-semibold text-foreground">{getValue<string>()}</p>
-              {nip && <p className="text-xs text-muted-foreground">NIP: {nip}</p>}
+              {nik && <p className="text-xs text-muted-foreground">NIK: {nik}</p>}
             </div>
           );
         },
       },
       {
-        id: "role_title",
-        accessorKey: "role_title",
-        header: "Jabatan Utama",
+        id: "position",
+        accessorKey: "position",
+        header: "Posisi",
         cell: function render({ getValue }) {
-          return getValue() || "-";
+          const pos = getValue<string>() || "";
+          return <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-xs font-semibold uppercase">{pos.replace(/_/g, ' ')}</span>;
         },
       },
       {
@@ -64,21 +65,13 @@ export const TeachersList: React.FC = () => {
         id: "status",
         accessorKey: "status",
         header: "Status Kepegawaian",
-        cell: function render({ getValue, row }) {
+        cell: function render({ getValue }) {
           const val = getValue<string>();
-          const isActive = row.original.is_active;
-          
-          let label = "Aktif";
-          let color = "bg-green-100 text-green-800";
-          if (val === "contract") { label = "Kontrak"; color = "bg-blue-100 text-blue-800"; }
-          else if (val === "part_time") { label = "Part-time"; color = "bg-amber-100 text-amber-800"; }
-          else if (val === "inactive") { label = "Nonaktif"; color = "bg-gray-100 text-gray-800"; }
-
+          const isActive = val === 'active';
           return (
-            <div className="flex flex-col gap-1 items-start">
-              <span className={`px-2 py-0.5 text-[10px] uppercase font-bold rounded-full ${color}`}>{label}</span>
-              {!isActive && <span className="text-[10px] text-destructive font-medium border border-destructive px-2 py-0.5 rounded-full">Akun Suspend</span>}
-            </div>
+            <span className={`px-2 py-0.5 text-[10px] uppercase font-bold rounded-full ${isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+              {val}
+            </span>
           );
         },
       },
@@ -97,7 +90,7 @@ export const TeachersList: React.FC = () => {
                 <Eye className="w-4 h-4" />
               </button>
               <button
-                onClick={() => navigate(`/teachers/edit/${getValue()}`)}
+                onClick={() => navigate(`/employees/edit/${getValue()}`)}
                 className="p-1.5 text-muted-foreground hover:text-blue-600 transition-colors rounded-md hover:bg-blue-50"
                 title="Ubah Data"
               >
@@ -118,8 +111,7 @@ export const TeachersList: React.FC = () => {
         operator: "or",
         value: [
           { field: "full_name", operator: "ilike", value: `%${searchQuery}%` },
-          { field: "nip", operator: "ilike", value: `%${searchQuery}%` },
-          { field: "nickname", operator: "ilike", value: `%${searchQuery}%` }
+          { field: "nik", operator: "ilike", value: `%${searchQuery}%` }
         ]
       });
     }
@@ -138,9 +130,12 @@ export const TeachersList: React.FC = () => {
   const { refineCore: { tableQueryResult }, ...table } = useTable({
     columns,
     refineCoreProps: {
-      resource: "teachers",
+      resource: "employees",
       filters: {
-        permanent: buildFilters(),
+        permanent: [
+          { field: "position", operator: "eq", value: "guru" },
+          ...buildFilters()
+        ],
       },
       meta: {
         select: "*, units(name)"
@@ -157,11 +152,11 @@ export const TeachersList: React.FC = () => {
         description="Kelola data pegawai, jabatan, dan akses sistem."
         action={
           <Link
-            to="/teachers/create"
+            to="/employees/create"
             className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition-colors shadow-sm font-medium text-sm"
           >
             <Plus className="w-4 h-4" />
-            Tambah Pegawai
+            Tambah Guru
           </Link>
         }
       />
@@ -173,7 +168,7 @@ export const TeachersList: React.FC = () => {
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Cari berdasarkan nama atau NIP..."
+              placeholder="Cari berdasarkan nama atau NIK..."
               className="w-full pl-9 pr-4 py-2 border rounded-md text-sm focus:ring-2 focus:ring-primary/50 outline-none"
             />
           </div>
@@ -207,15 +202,6 @@ export const TeachersList: React.FC = () => {
             <option value="contract">Pegawai Kontrak</option>
             <option value="part_time">Honorer</option>
             <option value="inactive">Nonaktif</option>
-          </select>
-          <select 
-            value={filterGender} 
-            onChange={(e) => setFilterGender(e.target.value)}
-            className="border rounded-md px-3 py-1.5 text-sm bg-background"
-          >
-            <option value="">Semua Gender</option>
-            <option value="L">Ikhwan</option>
-            <option value="P">Akhawat</option>
           </select>
         </div>
       </div>

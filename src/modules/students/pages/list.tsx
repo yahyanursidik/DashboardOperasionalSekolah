@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useTable } from "@refinedev/react-table";
+import { useList } from "@refinedev/core";
 import { flexRender } from "@tanstack/react-table";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useNavigate } from "react-router-dom";
@@ -23,16 +24,34 @@ export const StudentsList: React.FC = () => {
   const { activeUnitId } = useCurrentUnit();
 
   // Local Filter State
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterUnit, setFilterUnit] = useState("");
   const [filterClass, setFilterClass] = useState("");
   const [filterGender, setFilterGender] = useState("");
   const [filterStatus, setFilterStatus] = useState("active");
 
+  const { data: units } = useList({ resource: "units", pagination: { mode: "off" } });
+  const { data: classes } = useList({ 
+    resource: "classes", 
+    filters: (activeUnitId || filterUnit) ? [{ field: "unit_id", operator: "eq", value: activeUnitId || filterUnit }] : [],
+    pagination: { mode: "off" } 
+  });
+
   const buildFilters = () => {
     const filters: any[] = [];
-    if (activeUnitId) filters.push({ field: "unit_id", operator: "eq", value: activeUnitId });
+    
+    // Prioritize activeUnitId from global context, otherwise use local filterUnit
+    if (activeUnitId) {
+      filters.push({ field: "unit_id", operator: "eq", value: activeUnitId });
+    } else if (filterUnit) {
+      filters.push({ field: "unit_id", operator: "eq", value: filterUnit });
+    }
+
     if (filterClass) filters.push({ field: "class_id", operator: "eq", value: filterClass });
     if (filterGender) filters.push({ field: "gender", operator: "eq", value: filterGender });
     if (filterStatus) filters.push({ field: "status", operator: "eq", value: filterStatus });
+    if (searchTerm) filters.push({ field: "full_name", operator: "ilike", value: `%${searchTerm}%` });
+    
     return filters;
   };
 
@@ -72,6 +91,14 @@ export const StudentsList: React.FC = () => {
         header: "L/P",
         cell: function render({ getValue }) {
           return getValue() === "L" ? "Ikhwan (L)" : "Akhawat (P)";
+        },
+      },
+      {
+        id: "unit",
+        accessorKey: "units.name",
+        header: "Unit",
+        cell: function render({ row }) {
+          return <span className="text-xs font-bold px-2 py-1 bg-muted rounded-md">{row.original.units?.name || "-"}</span>;
         },
       },
       {
@@ -186,40 +213,67 @@ export const StudentsList: React.FC = () => {
       />
 
       {/* Advanced Filters */}
-      <div className="bg-card rounded-xl border shadow-sm p-4 flex flex-wrap items-end gap-4">
-        <div className="space-y-1.5 flex-1 min-w-[150px]">
-          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Status</label>
-          <select 
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="w-full border rounded-md px-3 py-2 text-sm bg-background"
-          >
-            <option value="">Semua Status</option>
-            <option value="active">Aktif</option>
-            <option value="inactive">Nonaktif</option>
-            <option value="graduated">Lulus</option>
-            <option value="transferred">Pindah</option>
-          </select>
+      <div className="bg-card rounded-xl border shadow-sm p-4 space-y-4">
+        
+        {/* Search Bar */}
+        <div className="relative w-full">
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="text"
+            placeholder="Ketik nama siswa untuk mencari..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-9 pr-4 py-2.5 border rounded-md text-sm outline-none focus:ring-2 focus:ring-primary/50 font-medium"
+          />
         </div>
-        <div className="space-y-1.5 flex-1 min-w-[150px]">
-          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Jenis Kelamin</label>
-          <select 
-            value={filterGender}
-            onChange={(e) => setFilterGender(e.target.value)}
-            className="w-full border rounded-md px-3 py-2 text-sm bg-background"
+
+        {/* Filter Dropdowns */}
+        <div className="flex flex-wrap items-end gap-3">
+          {!activeUnitId && (
+            <div className="space-y-1.5 flex-1 min-w-[140px]">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Unit Sekolah</label>
+              <select value={filterUnit} onChange={(e) => setFilterUnit(e.target.value)} className="w-full border rounded-md px-3 py-2 text-sm bg-background">
+                <option value="">Semua Unit</option>
+                {units?.data?.map(u => <option key={u.id} value={u.id as string}>{u.name}</option>)}
+              </select>
+            </div>
+          )}
+
+          <div className="space-y-1.5 flex-1 min-w-[140px]">
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Kelas</label>
+            <select value={filterClass} onChange={(e) => setFilterClass(e.target.value)} className="w-full border rounded-md px-3 py-2 text-sm bg-background">
+              <option value="">Semua Kelas</option>
+              {classes?.data?.map(c => <option key={c.id} value={c.id as string}>{c.name}</option>)}
+            </select>
+          </div>
+
+          <div className="space-y-1.5 flex-1 min-w-[140px]">
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Status</label>
+            <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="w-full border rounded-md px-3 py-2 text-sm bg-background">
+              <option value="">Semua Status</option>
+              <option value="active">Aktif</option>
+              <option value="inactive">Nonaktif</option>
+              <option value="graduated">Lulus</option>
+              <option value="transferred">Pindah</option>
+            </select>
+          </div>
+
+          <div className="space-y-1.5 flex-1 min-w-[140px]">
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">L / P</label>
+            <select value={filterGender} onChange={(e) => setFilterGender(e.target.value)} className="w-full border rounded-md px-3 py-2 text-sm bg-background">
+              <option value="">Semua (L/P)</option>
+              <option value="L">Ikhwan</option>
+              <option value="P">Akhawat</option>
+            </select>
+          </div>
+
+          <button 
+            onClick={() => { setSearchTerm(""); setFilterUnit(""); setFilterClass(""); setFilterGender(""); setFilterStatus(""); }}
+            className="px-4 py-2 border rounded-md text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors flex items-center gap-2 h-[38px]"
           >
-            <option value="">Semua (Ikhwan & Akhawat)</option>
-            <option value="L">Ikhwan</option>
-            <option value="P">Akhawat</option>
-          </select>
+            <FilterX className="w-4 h-4" /> Reset
+          </button>
         </div>
-        <button 
-          onClick={() => { setFilterClass(""); setFilterGender(""); setFilterStatus(""); }}
-          className="px-4 py-2 border rounded-md text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors flex items-center gap-2"
-        >
-          <FilterX className="w-4 h-4" />
-          Reset
-        </button>
       </div>
 
       {/* Data Table */}
