@@ -202,13 +202,22 @@ export const StudentsList: React.FC = () => {
         title="Administrasi Siswa"
         description="Kelola data induk siswa, riwayat akademik, dan mutasi."
         action={
-          <Link
-            to="/students/create"
-            className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition-colors shadow-sm font-medium text-sm"
-          >
-            <Plus className="w-4 h-4" />
-            Siswa Baru
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              to="/students/mass-promotion"
+              className="flex items-center gap-2 bg-emerald-50 text-emerald-600 border border-emerald-200 px-4 py-2 rounded-md hover:bg-emerald-100 transition-colors shadow-sm font-medium text-sm"
+            >
+              <FilterX className="w-4 h-4" /> {/* Or use an icon like GraduationCap/Users */}
+              Aksi Massal
+            </Link>
+            <Link
+              to="/students/create"
+              className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition-colors shadow-sm font-medium text-sm"
+            >
+              <Plus className="w-4 h-4" />
+              Siswa Baru
+            </Link>
+          </div>
         }
       />
 

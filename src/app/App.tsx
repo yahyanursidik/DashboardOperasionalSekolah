@@ -33,6 +33,7 @@ import { SubstitutesList, SubstituteCreate, SubstituteEdit } from "../modules/su
 import { DashboardPage } from "../modules/dashboard";
 import { MasterDataDashboard } from "../modules/master-data";
 import { SettingsPage } from "../modules/settings";
+import { StudentMassPromotion } from "../modules/students/pages/mass-promotion";
 import { CommunicationsPage } from "../modules/communications";
 import { StudentJournalsList, StudentJournalCreate, StudentJournalEdit } from "../modules/student-journals/pages";
 import { FinanceDashboard, InvoicesList, PaymentVerifications, SchoolExpenses, FinanceCategories } from "../modules/finance/pages";
@@ -248,6 +249,7 @@ export default function App() {
                 <Route path="create" element={<StudentCreate />} />
                 <Route path="edit/:id" element={<StudentEdit />} />
                 <Route path="show/:id" element={<StudentShow />} />
+                <Route path="mass-promotion" element={<StudentMassPromotion />} />
               </Route>
 
               <Route path="/parents">
