@@ -58,7 +58,7 @@ export const DocumentReport: React.FC = () => {
     []
   );
 
-  const { reactTable: table, refineCore: { tableQueryResult } } = useTable({
+  const { refineCore: { tableQueryResult }, ...table } = useTable({
     columns,
     refineCoreProps: {
       resource: "documents",

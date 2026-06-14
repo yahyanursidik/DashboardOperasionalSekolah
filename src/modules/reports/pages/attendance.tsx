@@ -60,7 +60,7 @@ export const AttendanceReport: React.FC = () => {
     []
   );
 
-  const { reactTable: table, refineCore: { tableQueryResult } } = useTable({
+  const { refineCore: { tableQueryResult }, ...table } = useTable({
     columns,
     refineCoreProps: {
       resource: "attendance_records",

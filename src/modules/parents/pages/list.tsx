@@ -105,7 +105,7 @@ export const ParentsList: React.FC = () => {
     });
   }
 
-  const { reactTable: table, refineCore: { tableQueryResult } } = useTable<any>({
+  const { refineCore: { tableQueryResult }, ...table } = useTable<any>({
     columns,
     refineCoreProps: {
       resource: "parents",

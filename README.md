@@ -33,7 +33,16 @@ This project is configured for seamless deployment on Netlify.
    - Sign up a new user via Supabase Auth or your app's signup page (if exposed).
    - In Supabase SQL Editor, run:
      ```sql
-     INSERT INTO user_roles (user_id, role) VALUES ('<user_uuid>', 'super_admin');
+     -- 1. Create the role if it doesn't exist
+     INSERT INTO public.roles (name, description) 
+     VALUES ('super_admin', 'Super Administrator') 
+     ON CONFLICT (name) DO NOTHING;
+
+     -- 2. Assign the role to the user
+     INSERT INTO public.user_roles (user_id, role_id) 
+     SELECT '<user_uuid>', id 
+     FROM public.roles 
+     WHERE name = 'super_admin';
      ```
 
 ### 2. Configure Netlify

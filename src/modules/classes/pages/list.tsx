@@ -128,7 +128,7 @@ export const ClassesList: React.FC = () => {
     return filters;
   };
 
-  const { reactTable: table, refineCore: { tableQueryResult } } = useTable({
+  const { refineCore: { tableQueryResult }, ...table } = useTable({
     columns,
     refineCoreProps: {
       resource: "classes",

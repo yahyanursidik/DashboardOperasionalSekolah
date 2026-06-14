@@ -154,7 +154,7 @@ export const StudentsList: React.FC = () => {
     [navigate]
   );
 
-  const { reactTable: table, refineCore: { tableQueryResult } } = useTable({
+  const { refineCore: { tableQueryResult }, ...table } = useTable({
     columns,
     refineCoreProps: {
       resource: "students",
