@@ -50,7 +50,7 @@ export const StudentMassPromotion: React.FC = () => {
     if (selectedStudentIds.length === studentsList.length) {
       setSelectedStudentIds([]);
     } else {
-      setSelectedStudentIds(studentsList.map(s => s.id));
+      setSelectedStudentIds(studentsList.map(s => String(s.id)));
     }
   };
 
@@ -64,7 +64,7 @@ export const StudentMassPromotion: React.FC = () => {
 
   // If source class changes, reset selection
   React.useEffect(() => {
-    setSelectedStudentIds(studentsList.map(s => s.id));
+    setSelectedStudentIds(studentsList.map(s => String(s.id)));
   }, [studentsList.length]);
 
   const isGraduating = actionType === "Lulus" || actionType === "Pindah (Keluar)";
