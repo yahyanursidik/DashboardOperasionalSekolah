@@ -46,6 +46,12 @@ export const navigationConfig: NavigationGroup[] = [
     name: "Master Data",
     items: [
       {
+        title: "Kurikulum & Pembelajaran",
+        href: "/curriculum",
+        icon: BookOpen,
+        resource: "subjects", // Basic requirement to access curriculum module
+      },
+      {
         title: "Jurnal & Rekam Jejak",
         href: "/student-journals",
         icon: BookOpen,

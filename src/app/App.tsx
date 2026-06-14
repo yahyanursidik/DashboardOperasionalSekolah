@@ -37,6 +37,9 @@ import { StudentMassPromotion } from "../modules/students/pages/mass-promotion";
 import { CommunicationsPage } from "../modules/communications";
 import { StudentJournalsList, StudentJournalCreate, StudentJournalEdit } from "../modules/student-journals/pages";
 import { FinanceDashboard, InvoicesList, PaymentVerifications, SchoolExpenses, FinanceCategories } from "../modules/finance/pages";
+import { CurriculumDashboard } from "../modules/curriculum/dashboard";
+import { SubjectsList, SubjectCreate, SubjectEdit } from "../modules/curriculum/subjects";
+import { CurriculumDocumentsList, CurriculumDocumentCreate } from "../modules/curriculum/documents";
 
 export default function App() {
   return (
@@ -202,11 +205,21 @@ export default function App() {
             meta: { canDelete: true },
           },
           {
-            name: "substitute_assignments",
+            name: "substitutes",
             list: "/substitutes",
             create: "/substitutes/create",
             edit: "/substitutes/edit/:id",
-            meta: { canDelete: true },
+          },
+          {
+            name: "subjects",
+            list: "/curriculum/subjects",
+            create: "/curriculum/subjects/create",
+            edit: "/curriculum/subjects/edit/:id",
+          },
+          {
+            name: "curriculum_documents",
+            list: "/curriculum/documents",
+            create: "/curriculum/documents/create",
           },
           {
             name: "units",
@@ -344,6 +357,19 @@ export default function App() {
                   <Route index element={<StudentJournalsList />} />
                   <Route path="create" element={<StudentJournalCreate />} />
                   <Route path="edit/:id" element={<StudentJournalEdit />} />
+                </Route>
+
+                <Route path="/curriculum">
+                  <Route index element={<CurriculumDashboard />} />
+                  <Route path="subjects">
+                    <Route index element={<SubjectsList />} />
+                    <Route path="create" element={<SubjectCreate />} />
+                    <Route path="edit/:id" element={<SubjectEdit />} />
+                  </Route>
+                  <Route path="documents">
+                    <Route index element={<CurriculumDocumentsList />} />
+                    <Route path="create" element={<CurriculumDocumentCreate />} />
+                  </Route>
                 </Route>
 
                 <Route path="/finance">
