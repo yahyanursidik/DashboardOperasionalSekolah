@@ -3,6 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import { useCurrentRoles } from "../../hooks/useAuth";
 import { canAccessResource } from "../../lib/permissions";
 import { navigationConfig } from "../../config/navigation";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 export const Sidebar: React.FC = () => {
   const { roles } = useCurrentRoles();
@@ -11,11 +12,12 @@ export const Sidebar: React.FC = () => {
   const isActive = (path: string) => location.pathname === path;
 
   return (
-    <aside className="w-64 bg-primary text-primary-foreground hidden md:flex flex-col h-screen sticky top-0 overflow-y-auto shadow-lg border-r border-primary/20">
+    <aside className="w-64 bg-primary text-primary-foreground hidden md:flex flex-col h-screen sticky top-0 shadow-lg border-r border-primary/20">
       <div className="h-16 flex items-center px-6 font-bold text-xl tracking-tight bg-black/20 shrink-0">
         TSLS Admin OS
       </div>
-      <nav className="flex-1 px-4 py-6 space-y-6">
+      <ScrollArea className="flex-1">
+        <nav className="px-4 py-6 space-y-6">
         {navigationConfig.map((group) => {
           // Filter items based on permissions
           const visibleItems = group.items.filter(item => 
@@ -49,7 +51,8 @@ export const Sidebar: React.FC = () => {
             </div>
           );
         })}
-      </nav>
+        </nav>
+      </ScrollArea>
     </aside>
   );
 };
