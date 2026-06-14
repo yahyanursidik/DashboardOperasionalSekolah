@@ -15,6 +15,13 @@ export const StudentJournalsList: React.FC = () => {
   const [filterCategory, setFilterCategory] = useState("");
   const [filterVisibility, setFilterVisibility] = useState("");
   const [filterSemesterId, setFilterSemesterId] = useState("");
+  const [filterClass, setFilterClass] = useState("");
+
+  const { data: classesData } = useList({
+    resource: "classes",
+    filters: activeUnitId ? [{ field: "unit_id", operator: "eq", value: activeUnitId }] : [],
+    pagination: { mode: "off" }
+  });
 
   const { data: semestersData } = useList({
     resource: "semesters",
@@ -25,8 +32,9 @@ export const StudentJournalsList: React.FC = () => {
   const filters: any[] = [];
   if (filterCategory) filters.push({ field: "category", operator: "eq", value: filterCategory });
   if (filterVisibility) filters.push({ field: "visibility", operator: "eq", value: filterVisibility });
-  if (activeUnitId) filters.push({ field: "unit_id", operator: "eq", value: activeUnitId });
+  if (activeUnitId) filters.push({ field: "students.unit_id", operator: "eq", value: activeUnitId });
   if (activeYearId) filters.push({ field: "academic_year_id", operator: "eq", value: activeYearId });
+  if (filterClass) filters.push({ field: "students.class_id", operator: "eq", value: filterClass });
 
   if (filterSemesterId && semestersData?.data) {
     const sem = semestersData.data.find(s => s.id === filterSemesterId);
@@ -89,6 +97,17 @@ export const StudentJournalsList: React.FC = () => {
           <option value="kasus">Kasus/Pelanggaran</option>
           <option value="anekdot">Catatan Anekdot</option>
           <option value="stppa">STPPA (PAUD)</option>
+        </select>
+
+        <select 
+          value={filterClass}
+          onChange={(e) => setFilterClass(e.target.value)}
+          className="border rounded-md px-3 py-1.5 text-sm bg-background outline-none focus:ring-2 focus:ring-primary/50"
+        >
+          <option value="">Semua Kelas</option>
+          {classesData?.data?.map((c: any) => (
+            <option key={c.id} value={c.id}>{c.name}</option>
+          ))}
         </select>
 
         <select 

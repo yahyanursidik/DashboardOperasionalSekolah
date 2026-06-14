@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useTable } from "@refinedev/react-table";
+import { useList } from "@refinedev/core";
 import { flexRender } from "@tanstack/react-table";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Search, FilterX, Download, ArrowLeft } from "lucide-react";
@@ -10,6 +11,12 @@ import { exportToCsv } from "../../../lib/csv";
 
 export const StudentReport: React.FC = () => {
   const { activeUnitId } = useCurrentUnit();
+
+  const { data: classesData } = useList({ 
+    resource: "classes", 
+    filters: activeUnitId ? [{ field: "unit_id", operator: "eq", value: activeUnitId }] : [],
+    pagination: { mode: "off" } 
+  });
 
   // Local Filter State
   const [filterClass, setFilterClass] = useState("");
@@ -113,6 +120,19 @@ export const StudentReport: React.FC = () => {
 
       {/* Filters */}
       <div className="bg-card rounded-xl border shadow-sm p-4 flex flex-wrap items-end gap-4">
+        <div className="space-y-1.5 flex-1 min-w-[150px]">
+          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Kelas</label>
+          <select 
+            value={filterClass}
+            onChange={(e) => setFilterClass(e.target.value)}
+            className="w-full border rounded-md px-3 py-2 text-sm bg-background"
+          >
+            <option value="">Semua Kelas</option>
+            {classesData?.data?.map((c: any) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+        </div>
         <div className="space-y-1.5 flex-1 min-w-[150px]">
           <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Status</label>
           <select 
