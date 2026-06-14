@@ -1,5 +1,6 @@
 import React from "react";
 import { useLogin } from "@refinedev/core";
+import { BrandLogo } from "../../components/common/BrandLogo";
 
 export const LoginPage: React.FC = () => {
   const { mutate: login, isLoading } = useLogin();
@@ -14,10 +15,11 @@ export const LoginPage: React.FC = () => {
 
   return (
     <div className="w-full space-y-8 rounded-2xl bg-card text-card-foreground p-8 shadow-xl border">
-      <div className="text-center">
-        <h2 className="mt-2 text-3xl font-extrabold tracking-tight">
-          TSLS Admin OS
-        </h2>
+      <div className="text-center flex flex-col items-center">
+        <BrandLogo 
+          logoClassName="max-h-20 w-auto object-contain mb-4" 
+          textClassName="mt-2 text-3xl font-extrabold tracking-tight mb-2" 
+        />
         <p className="mt-2 text-sm text-muted-foreground">
           Sign in to your account
         </p>

@@ -4,6 +4,7 @@ import { useCurrentRoles } from "../../hooks/useAuth";
 import { canAccessResource } from "../../lib/permissions";
 import { navigationConfig } from "../../config/navigation";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { BrandLogo } from "../common/BrandLogo";
 
 export const Sidebar: React.FC = () => {
   const { roles } = useCurrentRoles();
@@ -13,8 +14,8 @@ export const Sidebar: React.FC = () => {
 
   return (
     <aside className="w-64 bg-primary text-primary-foreground hidden md:flex flex-col h-screen sticky top-0 shadow-lg border-r border-primary/20">
-      <div className="h-16 flex items-center px-6 font-bold text-xl tracking-tight bg-black/20 shrink-0">
-        TSLS Admin OS
+      <div className="h-16 flex items-center px-6 bg-black/20 shrink-0">
+        <BrandLogo textClassName="font-bold text-xl tracking-tight" />
       </div>
       <ScrollArea className="flex-1">
         <nav className="px-4 py-6 space-y-6">

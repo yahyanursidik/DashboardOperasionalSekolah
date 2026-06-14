@@ -13,6 +13,7 @@ import { auditLogProvider } from "./providers/auditLogProvider";
 import { UnitProvider } from "./providers/UnitProvider";
 import { AcademicYearProvider } from "./providers/AcademicYearProvider";
 import { ThemeProvider } from "./providers/ThemeProvider";
+import { SettingsProvider } from "./providers/SettingsProvider";
 
 import { StudentsList, StudentCreate, StudentEdit, StudentShow } from "../modules/students";
 import { TeachersList, TeacherCreate, TeacherEdit, TeacherShow } from "../modules/teachers";
@@ -45,7 +46,8 @@ export default function App() {
   return (
     <BrowserRouter>
       <ThemeProvider>
-        <Refine
+        <SettingsProvider>
+          <Refine
         authProvider={authProvider}
         dataProvider={dataProvider}
         accessControlProvider={accessControlProvider}
@@ -396,6 +398,7 @@ export default function App() {
           </UnitProvider>
         </AcademicYearProvider>
       </Refine>
+      </SettingsProvider>
       </ThemeProvider>
     </BrowserRouter>
   );

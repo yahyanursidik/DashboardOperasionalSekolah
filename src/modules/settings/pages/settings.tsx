@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { useGetIdentity, useUpdate, useList, useCreate, useDelete } from "@refinedev/core";
 import { PageHeader } from "../../../components/layout/PageHeader";
-import { User, Users, Bell, Shield, Moon, Sun, Monitor, Palette, Check } from "lucide-react";
+import { User, Users, Bell, Shield, Moon, Sun, Monitor, Palette, Check, Save } from "lucide-react";
 import { useTheme } from "../../../app/providers/ThemeProvider";
+import { useSystemSettings } from "../../../app/providers/SettingsProvider";
+import { supabaseClient } from "../../../lib/supabase/client";
+import { toast } from "sonner";
 
 export const SettingsPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<"profile" | "users" | "appearance" | "security">("profile");
@@ -154,10 +157,93 @@ const ProfileSettings: React.FC = () => {
 
 const AppearanceSettings: React.FC = () => {
   const { theme, setTheme, colorTheme, setColorTheme } = useTheme();
+  const { appName, logoUrl, refreshSettings } = useSystemSettings();
+  
+  const [formData, setFormData] = useState({
+    appName: appName || "TSLS Admin OS",
+    logoUrl: logoUrl || "",
+  });
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Sync state if context changes
+  useEffect(() => {
+    setFormData({
+      appName: appName,
+      logoUrl: logoUrl,
+    });
+  }, [appName, logoUrl]);
+
+  const handleSaveIdentity = async () => {
+    setIsSaving(true);
+    try {
+      // Upsert app_name
+      const { error: err1 } = await supabaseClient
+        .from("system_settings")
+        .upsert({ key: "app_name", value: `"${formData.appName}"`, description: "Global Application Name" });
+        
+      // Upsert logo_url
+      const { error: err2 } = await supabaseClient
+        .from("system_settings")
+        .upsert({ key: "logo_url", value: `"${formData.logoUrl}"`, description: "Global Logo URL" });
+
+      if (err1 || err2) throw new Error("Gagal menyimpan pengaturan");
+      
+      toast.success("Identitas aplikasi berhasil disimpan");
+      refreshSettings();
+    } catch (err: any) {
+      toast.error(err.message || "Terjadi kesalahan");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   return (
     <div className="max-w-2xl space-y-10 animate-in fade-in slide-in-from-bottom-2 duration-300">
       
+      {/* Identitas Aplikasi Section */}
+      <div className="space-y-4">
+        <div>
+          <h3 className="text-lg font-bold">Identitas Aplikasi</h3>
+          <p className="text-sm text-muted-foreground">Atur nama aplikasi dan logo yang akan ditampilkan di seluruh sistem.</p>
+        </div>
+        
+        <div className="space-y-4 bg-muted/20 p-5 rounded-xl border">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Nama Aplikasi</label>
+            <input 
+              type="text" 
+              value={formData.appName} 
+              onChange={(e) => setFormData({ ...formData, appName: e.target.value })}
+              className="w-full border rounded-md px-3 py-2 outline-none focus:border-primary transition-colors bg-background" 
+              placeholder="Contoh: TSLS Admin OS"
+            />
+          </div>
+          
+          <div className="space-y-2">
+            <label className="text-sm font-medium">URL Logo</label>
+            <input 
+              type="text" 
+              value={formData.logoUrl} 
+              onChange={(e) => setFormData({ ...formData, logoUrl: e.target.value })}
+              className="w-full border rounded-md px-3 py-2 outline-none focus:border-primary transition-colors bg-background" 
+              placeholder="Contoh: https://example.com/logo.png"
+            />
+            <p className="text-xs text-muted-foreground">Kosongkan jika hanya ingin menampilkan teks nama aplikasi.</p>
+          </div>
+          
+          <div className="pt-2">
+            <button 
+              onClick={handleSaveIdentity}
+              disabled={isSaving}
+              className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 font-medium transition-colors text-sm disabled:opacity-50"
+            >
+              <Save className="w-4 h-4" />
+              {isSaving ? "Menyimpan..." : "Simpan Identitas"}
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* Warna Sistem Section */}
       <div className="space-y-4">
         <div>
