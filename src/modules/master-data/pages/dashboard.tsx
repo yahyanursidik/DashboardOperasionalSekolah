@@ -86,7 +86,7 @@ const UnitsTab: React.FC = () => {
   const [formName, setFormName] = useState("");
 
   const openCreate = () => { setFormName(""); setEditId(null); setModalMode("create"); };
-  const openEdit = (unit: any) => { setFormName(unit.name); setEditId(unit.id); setModalMode("edit"); };
+  const openEdit = (unit: any) => { setFormName(unit.name); setEditId(String(unit.id)); setModalMode("edit"); };
 
   const handleSave = () => {
     if (!formName.trim()) return;
@@ -161,7 +161,7 @@ const AcademicYearsTab: React.FC = () => {
   const [formData, setFormData] = useState({ name: "", start_date: "", end_date: "" });
 
   const openCreate = () => { setFormData({ name: "", start_date: "", end_date: "" }); setEditId(null); setModalMode("create"); };
-  const openEdit = (row: any) => { setFormData({ name: row.name, start_date: row.start_date || "", end_date: row.end_date || "" }); setEditId(row.id); setModalMode("edit"); };
+  const openEdit = (row: any) => { setFormData({ name: row.name, start_date: row.start_date || "", end_date: row.end_date || "" }); setEditId(String(row.id)); setModalMode("edit"); };
 
   const handleSave = () => {
     if (!formData.name) return;
@@ -259,7 +259,7 @@ const SemestersTab: React.FC = () => {
   const [editId, setEditId] = useState<string | null>(null);
   const [formData, setFormData] = useState({ name: "Ganjil", academic_year_id: "", start_date: "", end_date: "" });
 
-  const openCreate = () => { setFormData({ name: "Ganjil", academic_year_id: yearsData?.data?.[0]?.id || "", start_date: "", end_date: "" }); setEditId(null); setModalMode("create"); };
+  const openCreate = () => { setFormData({ name: "Ganjil", academic_year_id: yearsData?.data?.[0]?.id ? String(yearsData.data[0].id) : "", start_date: "", end_date: "" }); setEditId(null); setModalMode("create"); };
   const openEdit = (row: any) => { setFormData({ name: row.name, academic_year_id: row.academic_year_id, start_date: row.start_date || "", end_date: row.end_date || "" }); setEditId(String(row.id)); setModalMode("edit"); };
 
   const handleSave = () => {
