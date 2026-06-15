@@ -112,7 +112,7 @@ export const DispositionsList: React.FC = () => {
 
                         {!isCompleted && (
                           <button
-                            onClick={() => handleMarkComplete(disp.id)}
+                            onClick={() => handleMarkComplete(disp.id as string)}
                             disabled={updatingId === disp.id}
                             className="bg-emerald-600 text-white px-4 py-1.5 rounded-md text-sm font-medium hover:bg-emerald-700 transition-colors disabled:opacity-50"
                           >

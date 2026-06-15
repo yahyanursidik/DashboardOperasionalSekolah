@@ -36,7 +36,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       }
 
       if (data) {
-        data.forEach((setting) => {
+        (data as any[]).forEach((setting) => {
           if (setting.key === "app_name") setAppName(setting.value || "TSLS Admin OS");
           if (setting.key === "logo_url") setLogoUrl(setting.value || "");
         });
