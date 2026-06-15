@@ -70,12 +70,12 @@ export const ApplicantsList: React.FC = () => {
             >
               Kembali
             </Link>
-            <button
+            <Link
+              to="/recruitment/applicants/create"
               className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-md hover:bg-emerald-700 transition-colors shadow-sm font-medium text-sm"
-              onClick={() => alert('Fitur form tambah pelamar manual belum diimplementasi.')}
             >
               <Plus className="w-4 h-4" /> Input Pelamar
-            </button>
+            </Link>
           </div>
         }
       />
