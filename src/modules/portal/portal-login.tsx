@@ -55,6 +55,11 @@ export const PortalLogin: React.FC = () => {
            });
            authData = signup.data;
            authError = signup.error;
+
+           // Jika signup berhasil, panggil RPC untuk menautkan akun
+           if (signup.data?.session) {
+             await supabaseClient.rpc('link_my_account');
+           }
         } else {
            authData = retry.data;
            authError = retry.error;
