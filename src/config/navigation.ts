@@ -14,8 +14,10 @@ import {
   Receipt,
   CreditCard,
   Tag,
+  Tag,
   CheckCircle,
-  Inbox
+  Inbox,
+  Briefcase
 } from "lucide-react";
 import type { RoleName } from "../lib/permissions";
 
@@ -140,6 +142,12 @@ export const navigationConfig: NavigationGroup[] = [
         href: "/tasks",
         icon: ClipboardList,
         resource: "admin_tasks",
+      },
+      {
+        title: "Rekrutmen Pegawai",
+        href: "/recruitment",
+        icon: Briefcase,
+        resource: "recruitment_vacancies",
       },
     ],
   },

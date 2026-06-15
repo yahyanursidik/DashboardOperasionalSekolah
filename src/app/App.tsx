@@ -42,6 +42,7 @@ import { CurriculumDashboard } from "../modules/curriculum/dashboard";
 import { SubjectsList, SubjectCreate, SubjectEdit } from "../modules/curriculum/subjects";
 import { CurriculumDocumentsList, CurriculumDocumentCreate } from "../modules/curriculum/documents";
 import { MailDashboard, IncomingMailList, OutgoingMailList, DispositionsList, IncomingMailCreate, OutgoingMailCreate } from "../modules/mail";
+import { RecruitmentDashboard, VacanciesList, ApplicantsList, ApplicantShow } from "../modules/recruitment";
 
 export default function App() {
   return (
@@ -246,6 +247,17 @@ export default function App() {
             name: "mail_dispositions",
             meta: { canDelete: true },
           },
+          {
+            name: "recruitment_vacancies",
+            list: "/recruitment/vacancies",
+            meta: { canDelete: true },
+          },
+          {
+            name: "recruitment_applicants",
+            list: "/recruitment/applicants",
+            show: "/recruitment/applicants/show/:id",
+            meta: { canDelete: true },
+          },
         ]}
         options={{
           syncWithLocation: true,
@@ -402,6 +414,13 @@ export default function App() {
                   <Route path="outgoing" element={<OutgoingMailList />} />
                   <Route path="outgoing/create" element={<OutgoingMailCreate />} />
                   <Route path="dispositions" element={<DispositionsList />} />
+                </Route>
+
+                <Route path="/recruitment">
+                  <Route index element={<RecruitmentDashboard />} />
+                  <Route path="vacancies" element={<VacanciesList />} />
+                  <Route path="applicants" element={<ApplicantsList />} />
+                  <Route path="applicants/show/:id" element={<ApplicantShow />} />
                 </Route>
 
               </Route>
