@@ -79,9 +79,9 @@ export const TeacherLogin: React.FC = () => {
       console.log("Login berhasil, authData:", authData);
       
       // PASTIKAN SELALU PANGGIL LINK RPC WALAUPUN SIGNIN NORMAL BERHASIL!
-      // Karena bisa saja akun sudah ada di auth.users tapi terputus dari employees
       console.log("Memastikan akun tertaut via RPC...");
-      await supabaseClient.rpc('link_my_account');
+      const linkResult = await supabaseClient.rpc('link_my_account');
+      console.log("Hasil akhir link_my_account:", linkResult);
 
       toast.success(`Selamat datang!`);
       navigate("/teacher");
