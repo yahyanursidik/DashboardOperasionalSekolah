@@ -33,12 +33,20 @@ export const TeacherLogin: React.FC = () => {
       const userEmail = emailData;
 
       // 2. Lakukan login ke Supabase Auth
-      // Catatan: Karena password tidak diinput di UI prototype awal,
-      // kita asumsikan default password adalah 'sekolah123' untuk semua akun hasil migrasi.
-      const { data: authData, error: authError } = await supabaseClient.auth.signInWithPassword({
+      let { data: authData, error: authError } = await supabaseClient.auth.signInWithPassword({
         email: userEmail,
         password: "sekolah123", 
       });
+
+      // Fallback untuk akun demo lama
+      if (authError && authError.message.includes("Invalid login credentials")) {
+        const retry = await supabaseClient.auth.signInWithPassword({
+          email: userEmail,
+          password: "password123", 
+        });
+        authData = retry.data;
+        authError = retry.error;
+      }
 
       if (authError || !authData.session) {
         toast.error(authError?.message || "Gagal melakukan otentikasi.");

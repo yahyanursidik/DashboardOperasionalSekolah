@@ -31,10 +31,20 @@ export const PortalLogin: React.FC = () => {
       }
 
       // 2. Login ke Supabase Auth dengan email yang ditemukan
-      const { data: authData, error: authError } = await supabaseClient.auth.signInWithPassword({
+      let { data: authData, error: authError } = await supabaseClient.auth.signInWithPassword({
         email: parentEmail,
         password: "parent123", // Password default hasil migrasi
       });
+
+      // Fallback untuk akun demo lama (seed lama menggunakan password123)
+      if (authError && authError.message.includes("Invalid login credentials")) {
+        const retry = await supabaseClient.auth.signInWithPassword({
+          email: parentEmail,
+          password: "password123", 
+        });
+        authData = retry.data;
+        authError = retry.error;
+      }
 
       if (authError || !authData.session) {
         toast.error("Gagal memverifikasi akses orang tua.");
