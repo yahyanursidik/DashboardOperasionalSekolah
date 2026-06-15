@@ -42,8 +42,23 @@ export const PortalLogin: React.FC = () => {
           email: parentEmail,
           password: "password123", 
         });
-        authData = retry.data;
-        authError = retry.error;
+        
+        // Jika masih gagal, berarti akun belum ada di auth.users (sudah dihapus untuk reset)
+        // Kita auto-buatkan (signUp), trigger database akan otomatis mem-bypass konfirmasi email!
+        if (retry.error && retry.error.message.includes("Invalid login credentials")) {
+           const signup = await supabaseClient.auth.signUp({
+             email: parentEmail,
+             password: "parent123",
+             options: {
+                data: { full_name: "Orang Tua Siswa", role: "parent" }
+             }
+           });
+           authData = signup.data;
+           authError = signup.error;
+        } else {
+           authData = retry.data;
+           authError = retry.error;
+        }
       }
 
       if (authError || !authData.session) {

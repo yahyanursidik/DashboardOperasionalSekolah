@@ -44,8 +44,22 @@ export const TeacherLogin: React.FC = () => {
           email: userEmail,
           password: "password123", 
         });
-        authData = retry.data;
-        authError = retry.error;
+
+        // Jika masih gagal, lakukan auto-signup
+        if (retry.error && retry.error.message.includes("Invalid login credentials")) {
+           const signup = await supabaseClient.auth.signUp({
+             email: userEmail,
+             password: "sekolah123",
+             options: {
+                data: { full_name: "Guru", role: "guru" }
+             }
+           });
+           authData = signup.data;
+           authError = signup.error;
+        } else {
+           authData = retry.data;
+           authError = retry.error;
+        }
       }
 
       if (authError || !authData.session) {
