@@ -14,7 +14,7 @@ export const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="w-full space-y-8 rounded-2xl bg-card text-card-foreground p-8 shadow-xl border">
+    <div className="w-full space-y-8 rounded-3xl bg-white/60 backdrop-blur-xl text-card-foreground p-8 shadow-2xl border border-white/50">
       <div className="text-center flex flex-col items-center">
         <BrandLogo 
           logoClassName="max-h-20 w-auto object-contain mb-4" 
