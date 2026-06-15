@@ -100,7 +100,7 @@ export const QuranAssessmentsList: React.FC = () => {
                             if (window.confirm("Hapus data ujian ini?")) {
                               deleteMutate({
                                 resource: "quran_assessments",
-                                id: record.id,
+                                id: record.id as string,
                               });
                             }
                           }}

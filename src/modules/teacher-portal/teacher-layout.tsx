@@ -1,14 +1,26 @@
 import React, { useEffect, useState } from "react";
 import { Outlet, useNavigate, useLocation, Link } from "react-router-dom";
 import { supabaseClient } from "../../lib/supabase/client";
-import { Home, Users, BookOpen, Calendar, LogOut, CheckSquare } from "lucide-react";
+import { Home, Users, BookOpen, Calendar, LogOut, CheckSquare, Star } from "lucide-react";
 import { useSystemSettings } from "../../app/providers/SettingsProvider";
+import { useCurrentUnit } from "../../app/providers/UnitProvider";
+import { useOne } from "@refinedev/core";
 
 export const TeacherLayout: React.FC = () => {
   const [employee, setEmployee] = useState<any>(null);
   const navigate = useNavigate();
   const location = useLocation();
   const { appName, logoUrl } = useSystemSettings();
+  const { activeUnitId } = useCurrentUnit();
+
+  const { data: unitData } = useOne({
+    resource: "units",
+    id: activeUnitId || "",
+    queryOptions: { enabled: !!activeUnitId }
+  });
+
+  const unitName = unitData?.data?.name?.toLowerCase() || "";
+  const isPaudUnit = unitName.includes("paud") || unitName.includes("tk") || unitName.includes("kb");
 
   useEffect(() => {
     const fetchSession = async () => {
@@ -115,7 +127,11 @@ export const TeacherLayout: React.FC = () => {
         <div className="fixed bottom-0 left-0 right-0 sm:max-w-md sm:mx-auto bg-white border-t flex justify-around items-center p-2 z-50 pb-safe shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
           <NavItem to="/teacher" icon={<Home />} label="Beranda" active={location.pathname === "/teacher"} />
           <NavItem to="/teacher/classes" icon={<CheckSquare />} label="Absen & Nilai" active={location.pathname.includes("/teacher/classes")} />
-          <NavItem to="/teacher/quran" icon={<BookOpen />} label="Al-Qur'an" active={location.pathname.includes("/teacher/quran")} />
+          {isPaudUnit ? (
+            <NavItem to="/teacher/paud" icon={<Star />} label="PAUD" active={location.pathname.includes("/teacher/paud")} />
+          ) : (
+            <NavItem to="/teacher/quran" icon={<BookOpen />} label="Al-Qur'an" active={location.pathname.includes("/teacher/quran")} />
+          )}
           <NavItem to="/teacher/journals" icon={<BookOpen />} label="Jurnal" active={location.pathname.includes("/teacher/journals")} />
         </div>
 

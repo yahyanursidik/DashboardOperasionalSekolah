@@ -54,8 +54,8 @@ export const TeacherLogin: React.FC = () => {
                 data: { full_name: "Guru", role: "guru" }
              }
            });
-           authData = signup.data;
-           authError = signup.error;
+           authData = signup.data as any;
+           authError = signup.error as any;
 
            // Jika signup berhasil, panggil RPC untuk menautkan akun
            if (signup.data?.session) {
@@ -65,8 +65,8 @@ export const TeacherLogin: React.FC = () => {
            }
         } else {
            console.log("Login dengan password123 berhasil");
-           authData = retry.data;
-           authError = retry.error;
+           authData = retry.data as any;
+           authError = retry.error as any;
         }
       }
 

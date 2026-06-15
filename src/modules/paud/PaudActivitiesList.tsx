@@ -78,7 +78,7 @@ export const PaudActivitiesList: React.FC = () => {
                         if (window.confirm("Hapus dokumentasi kegiatan ini?")) {
                           deleteMutate({
                             resource: "paud_activities",
-                            id: record.id,
+                            id: record.id as string,
                           });
                         }
                       }}

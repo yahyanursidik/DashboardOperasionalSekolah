@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useShow, useList, useCreate } from "@refinedev/core";
 import { PageHeader } from "../../../components/layout/PageHeader";
-import { User, Edit, ArrowLeft, Users, Plus, X, BookOpen, Star, AlertTriangle, ShieldAlert, Award, Activity, Eye, GraduationCap, History } from "lucide-react";
+import { User, Edit, ArrowLeft, Users, Plus, X, BookOpen, Star, AlertTriangle, ShieldAlert, Award, Activity, Eye, GraduationCap, History, Bookmark, CheckSquare } from "lucide-react";
 import { AuditHistory } from "../../../components/common/AuditHistory";
 import { Link, useNavigate } from "react-router-dom";
 import { calculateCompleteness } from "./list";
@@ -47,6 +47,24 @@ export const StudentShow: React.FC = () => {
     meta: { select: "*, units(name), classes(name), academic_years(name)" },
     sorters: [{ field: "created_at", order: "desc" }],
     queryOptions: { enabled: !!record?.id }
+  });
+
+  // Quran data
+  const { data: quranData, isLoading: quranLoading } = useList({
+    resource: "quran_records",
+    filters: [{ field: "student_id", operator: "eq", value: record?.id }],
+    sorters: [{ field: "date", order: "desc" }],
+    meta: { select: "*, employees(full_name)" },
+    queryOptions: { enabled: !!record?.id }
+  });
+
+  // PAUD STPPA data
+  const { data: stppaData, isLoading: stppaLoading } = useList({
+    resource: "paud_stppa_assessments",
+    filters: [{ field: "student_id", operator: "eq", value: record?.id }],
+    sorters: [{ field: "date", order: "desc" }],
+    meta: { select: "*, employees(full_name)" },
+    queryOptions: { enabled: !!record?.id && record?.units?.name?.toLowerCase().includes("paud") }
   });
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -390,6 +408,118 @@ export const StudentShow: React.FC = () => {
               </div>
             )}
           </div>
+
+          {/* Quran Section */}
+          <div className="bg-card rounded-xl border shadow-sm p-6">
+            <div className="flex justify-between items-center mb-6 border-b pb-4">
+              <h3 className="font-semibold text-lg flex items-center gap-2">
+                <Bookmark className="w-5 h-5 text-emerald-600" /> Mutaba'ah Al-Qur'an
+              </h3>
+            </div>
+            {quranLoading ? (
+              <p className="text-sm text-muted-foreground animate-pulse">Memuat data Al-Qur'an...</p>
+            ) : quranData?.data?.length === 0 ? (
+              <div className="bg-muted/30 border border-dashed rounded-lg p-8 text-center">
+                <p className="text-sm text-muted-foreground">Belum ada rekam jejak Al-Qur'an untuk siswa ini.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {quranData?.data?.map((q: any) => (
+                  <div key={q.id} className="p-4 border rounded-xl hover:border-emerald-200 transition-colors bg-white">
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${q.record_type === 'tahfidz' ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'}`}>
+                          {q.record_type}
+                        </span>
+                        <span className="text-sm font-semibold">{q.surah_or_jilid}</span>
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(q.date).toLocaleDateString('id-ID')}
+                      </span>
+                    </div>
+                    <div className="flex gap-4 text-sm mt-3">
+                      <div>
+                        <span className="text-xs text-muted-foreground block">Ayat/Halaman</span>
+                        <span className="font-medium">{q.ayat_or_page}</span>
+                      </div>
+                      <div>
+                        <span className="text-xs text-muted-foreground block">Kelancaran</span>
+                        <span className="font-medium">{q.fluency_score}</span>
+                      </div>
+                      {q.notes && (
+                        <div>
+                          <span className="text-xs text-muted-foreground block">Catatan</span>
+                          <span className="font-medium">{q.notes}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* PAUD STPPA Section - Only show if student is in PAUD unit or has PAUD data */}
+          {(record?.units?.name?.toLowerCase().includes("paud") || (stppaData?.data?.length ?? 0) > 0) && (
+            <div className="bg-card rounded-xl border shadow-sm p-6">
+              <div className="flex justify-between items-center mb-6 border-b pb-4">
+                <h3 className="font-semibold text-lg flex items-center gap-2">
+                  <CheckSquare className="w-5 h-5 text-purple-600" /> Rapor STPPA (PAUD)
+                </h3>
+              </div>
+              {stppaLoading ? (
+                <p className="text-sm text-muted-foreground animate-pulse">Memuat data STPPA...</p>
+              ) : stppaData?.data?.length === 0 ? (
+                <div className="bg-muted/30 border border-dashed rounded-lg p-8 text-center">
+                  <p className="text-sm text-muted-foreground">Belum ada asesmen STPPA.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {stppaData?.data?.map((stppa: any) => (
+                    <div key={stppa.id} className="p-4 border rounded-xl bg-purple-50/30">
+                      <div className="flex justify-between items-center mb-4">
+                        <span className="text-sm font-bold text-purple-800">
+                          Asesmen Tanggal: {new Date(stppa.date).toLocaleDateString('id-ID')}
+                        </span>
+                        <span className="text-xs text-muted-foreground">Oleh: {stppa.employees?.full_name}</span>
+                      </div>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
+                        <div className="bg-white p-2 rounded border">
+                          <div className="text-[10px] uppercase text-muted-foreground font-bold">Agama & Moral</div>
+                          <div className="font-semibold">{stppa.agama_moral}</div>
+                        </div>
+                        <div className="bg-white p-2 rounded border">
+                          <div className="text-[10px] uppercase text-muted-foreground font-bold">Fisik Motorik</div>
+                          <div className="font-semibold">{stppa.fisik_motorik}</div>
+                        </div>
+                        <div className="bg-white p-2 rounded border">
+                          <div className="text-[10px] uppercase text-muted-foreground font-bold">Kognitif</div>
+                          <div className="font-semibold">{stppa.kognitif}</div>
+                        </div>
+                        <div className="bg-white p-2 rounded border">
+                          <div className="text-[10px] uppercase text-muted-foreground font-bold">Bahasa</div>
+                          <div className="font-semibold">{stppa.bahasa}</div>
+                        </div>
+                        <div className="bg-white p-2 rounded border">
+                          <div className="text-[10px] uppercase text-muted-foreground font-bold">Sosial Emosional</div>
+                          <div className="font-semibold">{stppa.sosial_emosional}</div>
+                        </div>
+                        <div className="bg-white p-2 rounded border">
+                          <div className="text-[10px] uppercase text-muted-foreground font-bold">Seni</div>
+                          <div className="font-semibold">{stppa.seni}</div>
+                        </div>
+                      </div>
+                      {stppa.narrative_report && (
+                        <div className="mt-3 bg-white p-3 rounded border text-sm italic">
+                          "{stppa.narrative_report}"
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           <AuditHistory resource="students" resourceId={record.id as string} />
         </div>

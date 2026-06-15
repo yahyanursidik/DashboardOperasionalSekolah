@@ -95,7 +95,7 @@ export const StppaAssessmentsList: React.FC = () => {
                             if (window.confirm("Hapus evaluasi ini?")) {
                               deleteMutate({
                                 resource: "paud_stppa_assessments",
-                                id: record.id,
+                                id: record.id as string,
                               });
                             }
                           }}

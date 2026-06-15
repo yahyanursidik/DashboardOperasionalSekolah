@@ -93,7 +93,7 @@ export const QuranTargetsList: React.FC = () => {
                             if (window.confirm("Hapus target ini?")) {
                               deleteMutate({
                                 resource: "quran_targets",
-                                id: record.id,
+                                id: record.id as string,
                               });
                             }
                           }}

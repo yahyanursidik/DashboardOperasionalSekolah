@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useList, useSelect } from "@refinedev/core";
+import { useList, useSelect, type CrudFilter } from "@refinedev/core";
 import { Link } from "react-router-dom";
 import { Plus, BookOpen, Search, Filter, Trash2, Edit } from "lucide-react";
 import { PageHeader } from "../../components/layout/PageHeader";
@@ -25,7 +25,7 @@ export const QuranRecordsList: React.FC = () => {
     sorters: [{ field: "name", order: "asc" }],
   });
 
-  const filters = [
+  const filters: CrudFilter[] = [
     { field: "record_type", operator: "eq", value: activeTab }
   ];
   if (selectedClassId) {

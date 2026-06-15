@@ -95,7 +95,7 @@ export const TeacherQuran: React.FC = () => {
         
         // Auto-fill surah/jilid based on last record to save time
         if (data && !formData.surah_or_jilid) {
-          setFormData(prev => ({ ...prev, surah_or_jilid: data.surah_or_jilid }));
+          setFormData(prev => ({ ...prev, surah_or_jilid: (data as any).surah_or_jilid }));
         }
       } catch (e) {
         setLastRecord(null);

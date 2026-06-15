@@ -53,8 +53,8 @@ export const PortalLogin: React.FC = () => {
                 data: { full_name: "Orang Tua Siswa", role: "parent" }
              }
            });
-           authData = signup.data;
-           authError = signup.error;
+           authData = signup.data as any;
+           authError = signup.error as any;
 
            // Jika signup berhasil, panggil RPC untuk menautkan akun
            if (signup.data?.session) {
@@ -64,8 +64,8 @@ export const PortalLogin: React.FC = () => {
            }
         } else {
            console.log("Login dengan password123 berhasil");
-           authData = retry.data;
-           authError = retry.error;
+           authData = retry.data as any;
+           authError = retry.error as any;
         }
       }
 

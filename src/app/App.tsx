@@ -74,6 +74,7 @@ import { TeacherClasses } from "../modules/teacher-portal/teacher-classes";
 import { TeacherJournals } from "../modules/teacher-portal/teacher-journals";
 import { TeacherLeaves } from "../modules/teacher-portal/teacher-leaves";
 import { TeacherQuran } from "../modules/teacher-portal/teacher-quran";
+import { TeacherPaud } from "../modules/teacher-portal/teacher-paud";
 
 export default function App() {
   return (
@@ -591,6 +592,7 @@ export default function App() {
                 <Route index element={<TeacherDashboard />} />
                 <Route path="classes" element={<TeacherClasses />} />
                 <Route path="quran" element={<TeacherQuran />} />
+                <Route path="paud" element={<TeacherPaud />} />
                 <Route path="journals" element={<TeacherJournals />} />
                 <Route path="leaves" element={<TeacherLeaves />} />
               </Route>

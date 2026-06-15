@@ -87,7 +87,6 @@ export const QuranRecordForm: React.FC = () => {
       <PageHeader
         title="Input Capaian Al-Qur'an"
         description="Catat perkembangan hafalan atau bacaan tahsin siswa."
-        backButton={true}
       />
 
       <form onSubmit={handleSubmit(onFinish as any)} className="bg-card rounded-xl border shadow-sm overflow-hidden">
