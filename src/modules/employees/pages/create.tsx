@@ -22,6 +22,10 @@ export const EmployeeCreate: React.FC = () => {
     if (!data.unit_id) {
       data.unit_id = null as any;
     }
+    
+    // Handle array for teacher_roles
+    data.teacher_roles = formData.getAll("teacher_roles") as any;
+
     onFinish(data);
   };
 
@@ -96,6 +100,30 @@ export const EmployeeCreate: React.FC = () => {
                 ))}
               </select>
             </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">Tupoksi / Peran Jamak Guru</label>
+            <select
+              name="teacher_roles"
+              multiple
+              className="w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-primary/50 outline-none bg-background h-32"
+            >
+              <option value="Wali Kelas">Wali Kelas</option>
+              <option value="Guru Tahsin & Tahfidz">Guru Tahsin & Tahfidz</option>
+              <option value="Guru Mata Pelajaran">Guru Mata Pelajaran</option>
+              <option value="Guru Kelas">Guru Kelas</option>
+              <option value="Guru Mapel Pendukung/Pilihan">Guru Mapel Pendukung/Pilihan</option>
+              <option value="Guru Bimbingan dan Konseling">Guru Bimbingan dan Konseling (BK)</option>
+              <option value="Guru Pendamping Khusus">Guru Pendamping Khusus (GPK)</option>
+              <option value="Guru Piket">Guru Piket</option>
+              <option value="Guru Ekstrakurikuler">Guru Ekstrakurikuler / Pelatih</option>
+              <option value="Guru PAUD">Guru PAUD</option>
+              <option value="Guru SD">Guru SD</option>
+              <option value="Pembina OSIS">Pembina OSIS</option>
+              <option value="Kepala Laboratorium / Perpustakaan">Kepala Laboratorium / Perpustakaan</option>
+            </select>
+            <p className="text-[10px] text-muted-foreground mt-1">Tahan tombol <b>Ctrl</b> (Windows) atau <b>Cmd</b> (Mac) untuk memilih lebih dari satu Tupoksi.</p>
           </div>
 
           <div className="grid grid-cols-2 gap-4">

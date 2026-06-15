@@ -21,6 +21,10 @@ export const EmployeeEdit: React.FC = () => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const data = Object.fromEntries(formData.entries());
+    
+    // Handle array for teacher_roles
+    data.teacher_roles = formData.getAll("teacher_roles") as any;
+    
     if (!data.unit_id) data.unit_id = null as any;
     onFinish(data);
   };
