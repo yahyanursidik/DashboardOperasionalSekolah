@@ -1,0 +1,85 @@
+import React, { useEffect, useState } from "react";
+import { Outlet, useNavigate, useLocation, Link } from "react-router-dom";
+import { Home, Wallet, BookOpen, Clock, LogOut } from "lucide-react";
+
+export const PortalLayout: React.FC = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [student, setStudent] = useState<any>(null);
+
+  useEffect(() => {
+    // Check local storage for session
+    const sessionStr = localStorage.getItem("parent_portal_session");
+    if (!sessionStr) {
+      navigate("/portal/login");
+      return;
+    }
+
+    try {
+      const sessionData = JSON.parse(sessionStr);
+      setStudent(sessionData);
+    } catch (e) {
+      navigate("/portal/login");
+    }
+  }, [navigate]);
+
+  const handleLogout = () => {
+    localStorage.removeItem("parent_portal_session");
+    navigate("/portal/login");
+  };
+
+  if (!student) return <div className="min-h-screen flex items-center justify-center bg-gray-50">Memuat...</div>;
+
+  const navItems = [
+    { name: "Beranda", path: "/portal", icon: Home },
+    { name: "Akademik", path: "/portal/academic", icon: BookOpen },
+    { name: "Keuangan", path: "/portal/finance", icon: Wallet },
+    { name: "Catatan", path: "/portal/journals", icon: Clock },
+  ];
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
+      {/* Header */}
+      <header className="bg-white border-b sticky top-0 z-50">
+        <div className="max-w-md mx-auto px-4 py-3 flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold text-lg">
+              {student.full_name?.charAt(0)}
+            </div>
+            <div>
+              <h1 className="text-sm font-bold text-gray-900 leading-tight">{student.full_name}</h1>
+              <p className="text-xs text-muted-foreground">{student.nisn || "NISN -"} • {student.classes?.name || "Kelas -"}</p>
+            </div>
+          </div>
+          <button onClick={handleLogout} className="p-2 text-gray-500 hover:text-red-600 rounded-full hover:bg-red-50 transition-colors">
+            <LogOut className="w-5 h-5" />
+          </button>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="flex-1 w-full max-w-md mx-auto relative pb-20">
+        <Outlet context={{ student }} />
+      </main>
+
+      {/* Bottom Navigation (Mobile Friendly) */}
+      <nav className="fixed bottom-0 left-0 w-full bg-white border-t z-50 pb-safe">
+        <div className="max-w-md mx-auto flex justify-around">
+          {navItems.map((item) => {
+            const isActive = location.pathname === item.path || (item.path !== '/portal' && location.pathname.startsWith(item.path));
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={`flex flex-col items-center py-3 px-4 w-full ${isActive ? 'text-emerald-600' : 'text-gray-500 hover:text-gray-900'}`}
+              >
+                <item.icon className={`w-6 h-6 mb-1 ${isActive ? 'stroke-[2.5px]' : ''}`} />
+                <span className="text-[10px] font-medium">{item.name}</span>
+              </Link>
+            );
+          })}
+        </div>
+      </nav>
+    </div>
+  );
+};

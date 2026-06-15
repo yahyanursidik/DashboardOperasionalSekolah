@@ -46,6 +46,13 @@ import { RecruitmentDashboard, VacanciesList, ApplicantsList, ApplicantShow, Vac
 import { AcademicDashboard, Gradebook, ReportCards, ReportPrint } from "../modules/academic";
 import { SarprasDashboard, AssetsList, AssetLoansList, ProcurementsList } from "../modules/sarpras";
 
+import { PortalLayout } from "../modules/portal/portal-layout";
+import { PortalLogin } from "../modules/portal/portal-login";
+import { PortalDashboard } from "../modules/portal/portal-dashboard";
+import { PortalFinance } from "../modules/portal/portal-finance";
+import { PortalAcademic } from "../modules/portal/portal-academic";
+import { PortalJournals } from "../modules/portal/portal-journals";
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -480,6 +487,15 @@ export default function App() {
                   <Route path="/login" element={<LoginPage />} />
                 </Route>
               </Route>
+              
+              <Route path="/portal/login" element={<PortalLogin />} />
+              <Route path="/portal" element={<PortalLayout />}>
+                <Route index element={<PortalDashboard />} />
+                <Route path="finance" element={<PortalFinance />} />
+                <Route path="academic" element={<PortalAcademic />} />
+                <Route path="journals" element={<PortalJournals />} />
+              </Route>
+
             </Routes>
           </UnitProvider>
         </AcademicYearProvider>
