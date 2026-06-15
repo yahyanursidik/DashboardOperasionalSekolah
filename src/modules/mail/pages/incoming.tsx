@@ -54,12 +54,12 @@ export const IncomingMailList: React.FC = () => {
             >
               Kembali
             </Link>
-            <button
+            <Link
+              to="/mail/incoming/create"
               className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition-colors shadow-sm font-medium text-sm"
-              onClick={() => alert('Fitur form tambah surat belum diimplementasi di demo ini.')}
             >
               <Plus className="w-4 h-4" /> Catat Surat Masuk
-            </button>
+            </Link>
           </div>
         }
       />

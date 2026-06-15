@@ -41,7 +41,7 @@ import { FinanceDashboard, InvoicesList, PaymentVerifications, SchoolExpenses, F
 import { CurriculumDashboard } from "../modules/curriculum/dashboard";
 import { SubjectsList, SubjectCreate, SubjectEdit } from "../modules/curriculum/subjects";
 import { CurriculumDocumentsList, CurriculumDocumentCreate } from "../modules/curriculum/documents";
-import { MailDashboard, IncomingMailList, OutgoingMailList, DispositionsList } from "../modules/mail";
+import { MailDashboard, IncomingMailList, OutgoingMailList, DispositionsList, IncomingMailCreate, OutgoingMailCreate } from "../modules/mail";
 
 export default function App() {
   return (
@@ -239,6 +239,7 @@ export default function App() {
           {
             name: "mail_records",
             list: "/mail",
+            create: "/mail/incoming/create",
             meta: { canDelete: true },
           },
           {
@@ -397,7 +398,9 @@ export default function App() {
                 <Route path="/mail">
                   <Route index element={<MailDashboard />} />
                   <Route path="incoming" element={<IncomingMailList />} />
+                  <Route path="incoming/create" element={<IncomingMailCreate />} />
                   <Route path="outgoing" element={<OutgoingMailList />} />
+                  <Route path="outgoing/create" element={<OutgoingMailCreate />} />
                   <Route path="dispositions" element={<DispositionsList />} />
                 </Route>
 
