@@ -95,16 +95,6 @@ export default function App() {
             },
           },
           {
-            name: "parents",
-            list: "/parents",
-            create: "/parents/create",
-            edit: "/parents/edit/:id",
-            show: "/parents/show/:id",
-            meta: {
-              canDelete: true,
-            },
-          },
-          {
             name: "student_journals",
             list: "/student-journals",
             create: "/student-journals/create",
