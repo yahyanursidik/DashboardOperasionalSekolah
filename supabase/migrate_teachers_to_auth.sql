@@ -51,15 +51,11 @@ BEGIN
         -- 2. Insert ke public.profiles
         INSERT INTO public.profiles (
             id,
-            email,
             full_name,
-            role,
             is_active
         ) VALUES (
             new_user_id,
-            emp_email,
             emp.full_name,
-            'guru',
             true
         ) ON CONFLICT (id) DO NOTHING;
 
