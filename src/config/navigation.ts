@@ -14,7 +14,8 @@ import {
   Receipt,
   CreditCard,
   Tag,
-  CheckCircle
+  CheckCircle,
+  Inbox
 } from "lucide-react";
 import type { RoleName } from "../lib/permissions";
 
@@ -80,6 +81,12 @@ export const navigationConfig: NavigationGroup[] = [
         href: "/documents",
         icon: FileText,
         resource: "documents",
+      },
+      {
+        title: "Tata Usaha (Surat)",
+        href: "/mail",
+        icon: Inbox,
+        resource: "mail_records",
       },
     ],
   },

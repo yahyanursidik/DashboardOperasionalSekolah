@@ -41,6 +41,7 @@ import { FinanceDashboard, InvoicesList, PaymentVerifications, SchoolExpenses, F
 import { CurriculumDashboard } from "../modules/curriculum/dashboard";
 import { SubjectsList, SubjectCreate, SubjectEdit } from "../modules/curriculum/subjects";
 import { CurriculumDocumentsList, CurriculumDocumentCreate } from "../modules/curriculum/documents";
+import { MailDashboard, IncomingMailList, OutgoingMailList, DispositionsList } from "../modules/mail";
 
 export default function App() {
   return (
@@ -235,6 +236,15 @@ export default function App() {
             name: "semesters",
             meta: { canDelete: true },
           },
+          {
+            name: "mail_records",
+            list: "/mail",
+            meta: { canDelete: true },
+          },
+          {
+            name: "mail_dispositions",
+            meta: { canDelete: true },
+          },
         ]}
         options={{
           syncWithLocation: true,
@@ -382,6 +392,13 @@ export default function App() {
                   <Route path="verifications" element={<PaymentVerifications />} />
                   <Route path="expenses" element={<SchoolExpenses />} />
                   <Route path="categories" element={<FinanceCategories />} />
+                </Route>
+
+                <Route path="/mail">
+                  <Route index element={<MailDashboard />} />
+                  <Route path="incoming" element={<IncomingMailList />} />
+                  <Route path="outgoing" element={<OutgoingMailList />} />
+                  <Route path="dispositions" element={<DispositionsList />} />
                 </Route>
 
               </Route>
