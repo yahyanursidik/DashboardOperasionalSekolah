@@ -24,7 +24,7 @@ import { AttendanceSelector, AttendanceInput, AttendanceReports } from "../modul
 import { DocumentsList, DocumentTypesList, DocumentCreate, DocumentShow } from "../modules/documents";
 import { AnnouncementsList, AnnouncementCreate, AnnouncementEdit, AnnouncementShow } from "../modules/announcements";
 import { AuditLogsList } from "../modules/audit-logs";
-import { ReportsDashboard, StudentReport, AttendanceReport, DocumentReport, TaskReport } from "../modules/reports";
+import { ReportsDashboard, StudentReport, AttendanceReport, DocumentReport, TaskReport, ReportEmployeeAttendance, ReportLeaves } from "../modules/reports";
 
 import { EmployeesList, EmployeeCreate, EmployeeEdit } from "../modules/employees";
 import { EmployeeAttendanceList } from "../modules/attendance/pages/employee-attendance";
@@ -353,6 +353,8 @@ export default function App() {
                   <Route path="attendance" element={<AttendanceReport />} />
                   <Route path="documents" element={<DocumentReport />} />
                   <Route path="tasks" element={<TaskReport />} />
+                  <Route path="employee-attendance" element={<ReportEmployeeAttendance />} />
+                  <Route path="leaves" element={<ReportLeaves />} />
                 </Route>
 
                 <Route path="/student-journals">

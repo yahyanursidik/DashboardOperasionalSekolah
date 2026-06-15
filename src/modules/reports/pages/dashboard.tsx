@@ -1,7 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { PageHeader } from "../../../components/layout/PageHeader";
-import { Users, CalendarCheck, FileText, ClipboardList } from "lucide-react";
+import { Users, CalendarCheck, FileText, ClipboardList, Clock } from "lucide-react";
 
 export const ReportsDashboard: React.FC = () => {
   const reports = [
@@ -25,6 +25,13 @@ export const ReportsDashboard: React.FC = () => {
       icon: CalendarCheck,
       href: "/reports/employee-attendance",
       color: "bg-teal-100 text-teal-600",
+    },
+    {
+      title: "Laporan Cuti & Izin",
+      description: "Rekapitulasi pengajuan izin dan cuti pegawai.",
+      icon: Clock,
+      href: "/reports/leaves",
+      color: "bg-orange-100 text-orange-600",
     },
     {
       title: "Laporan Dokumen",
