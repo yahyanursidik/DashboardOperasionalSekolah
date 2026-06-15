@@ -21,20 +21,28 @@ export const PortalLogin: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const { data, error } = await supabaseClient
-        .from("students")
-        .select("*, classes(name)")
-        .eq("nisn", nisn)
-        .eq("nis", nis)
-        .single();
+      // 1. Cari email orang tua berdasarkan NISN & NIS
+      const { data: parentEmail, error: emailError } = await supabaseClient
+        .rpc("get_parent_login_email_by_student", { p_nisn: nisn, p_nis: nis });
 
-      if (error || !data) {
-        toast.error("NISN atau NIS tidak ditemukan. Silakan periksa kembali.");
-      } else {
-        localStorage.setItem("parent_portal_session", JSON.stringify(data));
-        toast.success("Login berhasil!");
-        navigate("/portal");
+      if (emailError || !parentEmail) {
+        toast.error("Data Siswa tidak ditemukan atau belum ditautkan ke Orang Tua.");
+        return;
       }
+
+      // 2. Login ke Supabase Auth dengan email yang ditemukan
+      const { data: authData, error: authError } = await supabaseClient.auth.signInWithPassword({
+        email: parentEmail,
+        password: "parent123", // Password default hasil migrasi
+      });
+
+      if (authError || !authData.session) {
+        toast.error("Gagal memverifikasi akses orang tua.");
+        return;
+      }
+
+      toast.success("Login berhasil!");
+      navigate("/portal");
     } catch (err: any) {
       toast.error(err.message || "Terjadi kesalahan sistem. Coba lagi nanti.");
     } finally {

@@ -21,39 +21,35 @@ export const TeacherLogin: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const isEmail = identifier.includes("@");
-      
-      let query = supabaseClient
-        .from("employees")
-        .select("*")
-        .eq("status", "active");
+      // 1. Dapatkan Email (Karena Supabase Auth butuh email, bukan NIK)
+      const { data: emailData, error: emailError } = await supabaseClient
+        .rpc("get_login_email_by_identifier", { p_identifier: identifier });
 
-      if (isEmail) {
-        query = query.eq("email", identifier);
-      } else {
-        query = query.eq("nik", identifier);
-      }
-
-      const { data: empDataResult, error } = await query.single();
-      const empData = empDataResult as any;
-
-      if (error || !empData) {
-        toast.error("Akun tidak ditemukan atau bukan pegawai aktif.");
+      if (emailError || !emailData) {
+        toast.error("Akun tidak ditemukan. Pastikan NIK / Email benar.");
         return;
       }
 
-      localStorage.setItem("teacher_portal_session", JSON.stringify({
-        id: empData.id,
-        nik: empData.nik,
-        email: empData.email,
-        full_name: empData.full_name,
-        teacher_roles: empData.teacher_roles
-      }));
+      const userEmail = emailData;
 
-      toast.success(`Selamat datang, ${empData.full_name}!`);
+      // 2. Lakukan login ke Supabase Auth
+      // Catatan: Karena password tidak diinput di UI prototype awal,
+      // kita asumsikan default password adalah 'sekolah123' untuk semua akun hasil migrasi.
+      const { data: authData, error: authError } = await supabaseClient.auth.signInWithPassword({
+        email: userEmail,
+        password: "sekolah123", 
+      });
+
+      if (authError || !authData.session) {
+        toast.error(authError?.message || "Gagal melakukan otentikasi.");
+        return;
+      }
+
+      // Login berhasil! Sesi secara otomatis disimpan di LocalStorage oleh Supabase.
+      toast.success(`Selamat datang!`);
       navigate("/teacher");
     } catch (err: any) {
-      toast.error(err.message || "Terjadi kesalahan saat login.");
+      toast.error(err.message || "Terjadi kesalahan sistem saat login.");
     } finally {
       setIsLoading(false);
     }

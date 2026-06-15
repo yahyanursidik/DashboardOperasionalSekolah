@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Outlet, useNavigate, useLocation, Link } from "react-router-dom";
+import { supabaseClient } from "../../lib/supabase/client";
 import { Home, Users, BookOpen, Calendar, LogOut, CheckSquare } from "lucide-react";
 import { useSystemSettings } from "../../app/providers/SettingsProvider";
 
@@ -10,26 +11,37 @@ export const TeacherLayout: React.FC = () => {
   const { appName, logoUrl } = useSystemSettings();
 
   useEffect(() => {
-    const sessionStr = localStorage.getItem("teacher_portal_session");
-    if (!sessionStr) {
-      navigate("/teacher/login");
-      return;
-    }
-
-    try {
-      const sessionData = JSON.parse(sessionStr);
-      if (!sessionData || !sessionData.id) {
-        throw new Error("Invalid session");
+    const fetchSession = async () => {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      
+      if (!session) {
+        navigate("/teacher/login");
+        return;
       }
-      setEmployee(sessionData);
-    } catch (e) {
-      localStorage.removeItem("teacher_portal_session");
-      navigate("/teacher/login");
-    }
+
+      // Load employee data based on user_id
+      const { data: empData, error } = await supabaseClient
+        .from("employees")
+        .select("*")
+        .eq("user_id", session.user.id)
+        .eq("status", "active")
+        .single();
+
+      if (error || !empData) {
+        console.error("Employee not found for this user");
+        await supabaseClient.auth.signOut();
+        navigate("/teacher/login");
+        return;
+      }
+
+      setEmployee(empData);
+    };
+
+    fetchSession();
   }, [navigate]);
 
-  const handleLogout = () => {
-    localStorage.removeItem("teacher_portal_session");
+  const handleLogout = async () => {
+    await supabaseClient.auth.signOut();
     navigate("/teacher/login");
   };
 

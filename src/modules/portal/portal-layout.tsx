@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Outlet, useNavigate, useLocation, Link } from "react-router-dom";
+import { supabaseClient } from "../../lib/supabase/client";
 import { Home, Wallet, BookOpen, Clock, LogOut } from "lucide-react";
 
 export const PortalLayout: React.FC = () => {
@@ -8,23 +9,51 @@ export const PortalLayout: React.FC = () => {
   const [student, setStudent] = useState<any>(null);
 
   useEffect(() => {
-    // Check local storage for session
-    const sessionStr = localStorage.getItem("parent_portal_session");
-    if (!sessionStr) {
-      navigate("/portal/login");
-      return;
-    }
+    const fetchSession = async () => {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if (!session) {
+        navigate("/portal/login");
+        return;
+      }
 
-    try {
-      const sessionData = JSON.parse(sessionStr);
-      setStudent(sessionData);
-    } catch (e) {
-      navigate("/portal/login");
-    }
+      // Fetch the parent record
+      const { data: parentDataResult, error: parentError } = await supabaseClient
+        .from("parents")
+        .select("id")
+        .eq("user_id", session.user.id)
+        .single();
+
+      if (parentError || !parentDataResult) {
+        await supabaseClient.auth.signOut();
+        navigate("/portal/login");
+        return;
+      }
+
+      const parentData = parentDataResult as any;
+
+      // Fetch the FIRST student linked to this parent for the demo
+      const { data: studentDataResult } = await supabaseClient
+        .from("student_parent_links")
+        .select("students(*, classes(name))")
+        .eq("parent_id", parentData.id)
+        .limit(1)
+        .single();
+        
+      const studentData = studentDataResult as any;
+
+      if (studentData && studentData.students) {
+        setStudent(studentData.students);
+      } else {
+        // Fallback if no student linked
+        setStudent({ full_name: "Orang Tua Siswa" });
+      }
+    };
+
+    fetchSession();
   }, [navigate]);
 
-  const handleLogout = () => {
-    localStorage.removeItem("parent_portal_session");
+  const handleLogout = async () => {
+    await supabaseClient.auth.signOut();
     navigate("/portal/login");
   };
 
