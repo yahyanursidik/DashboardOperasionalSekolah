@@ -54,14 +54,7 @@ USING (
     )
 );
 
--- Students can read their own records
-CREATE POLICY "Students can view their own quran_records" 
-ON public.quran_records FOR SELECT TO authenticated 
-USING (
-    student_id IN (
-        SELECT id FROM students WHERE user_id = auth.uid()
-    )
-);
+
 
 -- Dummy Data for Demonstration
 INSERT INTO public.quran_records (student_id, employee_id, academic_year_id, semester_id, record_type, date, surah_or_jilid, ayat_or_page, fluency_score, notes)
