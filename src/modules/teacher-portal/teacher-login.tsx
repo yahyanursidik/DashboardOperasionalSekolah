@@ -1,23 +1,26 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabaseClient } from "../../lib/supabase/client";
-import { BookOpen, ArrowRight, AlertCircle, Mail, User } from "lucide-react";
+import { School, ArrowRight, UserCheck, KeyRound, Mail, User, BookOpen } from "lucide-react";
+import { toast } from "sonner";
 import { useSystemSettings } from "../../app/providers/SettingsProvider";
 
 export const TeacherLogin: React.FC = () => {
   const [identifier, setIdentifier] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
   const navigate = useNavigate();
   const { appName, logoUrl } = useSystemSettings();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
+    if (!navigator.onLine) {
+      toast.error("Tidak ada koneksi internet. Periksa jaringan Anda.");
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      // Check if input is email format or NIK
       const isEmail = identifier.includes("@");
       
       let query = supabaseClient
@@ -31,17 +34,26 @@ export const TeacherLogin: React.FC = () => {
         query = query.eq("nik", identifier);
       }
 
-      const { data, error } = await query.single();
+      const { data: empDataResult, error } = await query.single();
+      const empData = empDataResult as any;
 
-      if (error || !data) {
-        setError("Kredensial tidak ditemukan atau akun tidak aktif.");
-      } else {
-        localStorage.setItem("teacher_portal_session", JSON.stringify(data));
-        navigate("/teacher");
+      if (error || !empData) {
+        toast.error("Akun tidak ditemukan atau bukan pegawai aktif.");
+        return;
       }
-    } catch (err) {
-      console.error(err);
-      setError("Terjadi kesalahan sistem.");
+
+      localStorage.setItem("teacher_portal_session", JSON.stringify({
+        id: empData.id,
+        nik: empData.nik,
+        email: empData.email,
+        full_name: empData.full_name,
+        teacher_roles: empData.teacher_roles
+      }));
+
+      toast.success(`Selamat datang, ${empData.full_name}!`);
+      navigate("/teacher");
+    } catch (err: any) {
+      toast.error(err.message || "Terjadi kesalahan saat login.");
     } finally {
       setIsLoading(false);
     }
@@ -72,16 +84,12 @@ export const TeacherLogin: React.FC = () => {
         {/* Form Area */}
         <div className="p-8">
           <div className="text-center mb-8">
-            <h2 className="text-xl font-bold text-gray-900">Selamat Datang</h2>
-            <p className="text-sm text-gray-500 mt-1">Silakan masuk menggunakan NIK atau Email Anda</p>
-          </div>
-
-          {error && (
-            <div className="mb-6 p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl flex items-start gap-2">
-              <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
-              <span>{error}</span>
+            <div className="bg-orange-50 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <School className="w-8 h-8 text-orange-500" />
             </div>
-          )}
+            <h2 className="text-xl font-bold text-gray-900">Selamat Datang</h2>
+            <p className="text-gray-500 text-sm mt-1">Masuk dengan NIK atau Email</p>
+          </div>
 
           <form onSubmit={handleLogin} className="space-y-6">
             <div>

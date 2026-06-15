@@ -7,6 +7,8 @@ import { LoginPage } from "../modules/auth/LoginPage";
 import { AdminLayout } from "../components/layout/AdminLayout";
 import { AuthLayout } from "../components/layout/AuthLayout";
 
+import { Toaster } from "sonner";
+import { NetworkDetector } from "../components/common/NetworkDetector";
 
 import { accessControlProvider } from "./providers/accessControlProvider";
 import { auditLogProvider } from "./providers/auditLogProvider";
@@ -517,6 +519,8 @@ export default function App() {
       </Refine>
       </SettingsProvider>
       </ThemeProvider>
+      <Toaster position="top-center" richColors closeButton />
+      <NetworkDetector />
     </BrowserRouter>
   );
 }

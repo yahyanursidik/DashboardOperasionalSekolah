@@ -34,8 +34,9 @@ export const TeacherDashboard: React.FC = () => {
           .order("start_time");
 
         setTodaySchedules(schedules || []);
+        const myAttendance = myAtt as any;
         setStats({
-          myAttendance: myAtt ? (myAtt.status === 'present' ? `Hadir (${myAtt.time_in?.substring(0,5)})` : myAtt.status) : "Belum Absen",
+          myAttendance: myAttendance ? (myAttendance.status === 'present' ? `Hadir (${myAttendance.time_in?.substring(0,5)})` : myAttendance.status) : "Belum Absen",
           classesToday: schedules?.length || 0
         });
 

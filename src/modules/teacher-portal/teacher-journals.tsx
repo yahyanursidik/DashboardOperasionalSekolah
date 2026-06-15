@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import { supabaseClient } from "../../lib/supabase/client";
 import { BookOpen, Search, User, CheckCircle, Activity, Award, AlertTriangle, HeartPulse } from "lucide-react";
+import { toast } from "sonner";
 
 export const TeacherJournals: React.FC = () => {
   const { employee } = useOutletContext<any>();
@@ -70,6 +71,12 @@ export const TeacherJournals: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedStudent || !title || !description) return;
+    
+    if (!navigator.onLine) {
+      toast.error("Gagal mengirim jurnal: Koneksi internet terputus.");
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -84,7 +91,7 @@ export const TeacherJournals: React.FC = () => {
         }]);
 
       if (error) throw error;
-      alert("Jurnal berhasil disimpan!");
+      toast.success("Jurnal siswa berhasil dicatat!");
       
       // Reset form
       setSelectedStudent(null);
@@ -93,7 +100,7 @@ export const TeacherJournals: React.FC = () => {
       setSearchQuery("");
     } catch (err) {
       console.error(err);
-      alert("Gagal menyimpan jurnal.");
+      toast.error("Gagal menyimpan jurnal. Silakan coba lagi.");
     } finally {
       setIsSubmitting(false);
     }

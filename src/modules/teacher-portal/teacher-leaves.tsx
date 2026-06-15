@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import { supabaseClient } from "../../lib/supabase/client";
 import { Calendar, Plus, Clock, CheckCircle, XCircle } from "lucide-react";
+import { toast } from "sonner";
 
 export const TeacherLeaves: React.FC = () => {
   const { employee } = useOutletContext<any>();
@@ -39,9 +40,13 @@ export const TeacherLeaves: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!startDate || !endDate || !reason) return;
+    if (!navigator.onLine) {
+      toast.error("Gagal mengajukan: Tidak ada koneksi internet.");
+      return;
+    }
+    
     setIsSubmitting(true);
-
+    
     try {
       const { error } = await supabaseClient
         .from("leave_requests")
@@ -55,17 +60,25 @@ export const TeacherLeaves: React.FC = () => {
         }]);
 
       if (error) throw error;
+      toast.success("Pengajuan cuti/izin berhasil dikirim!");
       
-      alert("Pengajuan cuti/izin berhasil dikirim ke Admin!");
       setShowForm(false);
       setLeaveType("sick");
       setStartDate("");
       setEndDate("");
       setReason("");
-      fetchLeaves();
+      
+      // Refresh list
+      const { data } = await supabaseClient
+        .from("leave_requests")
+        .select("*")
+        .eq("employee_id", employee.id)
+        .order("created_at", { ascending: false });
+      if (data) setLeaves(data);
+
     } catch (err) {
       console.error(err);
-      alert("Gagal mengirim pengajuan.");
+      toast.error("Gagal mengirim pengajuan. Silakan coba lagi.");
     } finally {
       setIsSubmitting(false);
     }

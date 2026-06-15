@@ -1,22 +1,26 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabaseClient } from "../../lib/supabase/client";
-import { GraduationCap, ArrowRight, AlertCircle } from "lucide-react";
+import { GraduationCap, ArrowRight, UserCheck, KeyRound } from "lucide-react";
+import { toast } from "sonner";
 
 export const PortalLogin: React.FC = () => {
   const [nisn, setNisn] = useState("");
   const [nis, setNis] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
   const navigate = useNavigate();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!navigator.onLine) {
+      toast.error("Tidak ada koneksi internet. Periksa jaringan Anda.");
+      return;
+    }
+
     setIsLoading(true);
-    setError("");
 
     try {
-      // Very simple validation for Demo MVP
       const { data, error } = await supabaseClient
         .from("students")
         .select("*, classes(name)")
@@ -25,13 +29,14 @@ export const PortalLogin: React.FC = () => {
         .single();
 
       if (error || !data) {
-        setError("NISN atau NIS tidak ditemukan. Silakan periksa kembali.");
+        toast.error("NISN atau NIS tidak ditemukan. Silakan periksa kembali.");
       } else {
         localStorage.setItem("parent_portal_session", JSON.stringify(data));
+        toast.success("Login berhasil!");
         navigate("/portal");
       }
-    } catch (err) {
-      setError("Terjadi kesalahan sistem. Coba lagi nanti.");
+    } catch (err: any) {
+      toast.error(err.message || "Terjadi kesalahan sistem. Coba lagi nanti.");
     } finally {
       setIsLoading(false);
     }
@@ -49,13 +54,6 @@ export const PortalLogin: React.FC = () => {
         </div>
         
         <div className="p-8">
-          {error && (
-            <div className="mb-6 p-4 bg-red-50 rounded-lg flex gap-3 text-red-700 items-start">
-              <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
-              <p className="text-sm">{error}</p>
-            </div>
-          )}
-
           <form onSubmit={handleLogin} className="space-y-5">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">NISN Siswa</label>

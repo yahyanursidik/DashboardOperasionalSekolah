@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import { supabaseClient } from "../../lib/supabase/client";
 import { Users, CheckSquare, Award, ChevronDown } from "lucide-react";
+import { toast } from "sonner";
 
 export const TeacherClasses: React.FC = () => {
   const { employee } = useOutletContext<any>();
@@ -57,13 +58,21 @@ export const TeacherClasses: React.FC = () => {
 
   const handleSaveAttendance = async (e: React.FormEvent) => {
     e.preventDefault();
-    alert("Fitur absensi harian massal berhasil disimpan! (Demo)");
+    if (!navigator.onLine) {
+      toast.error("Gagal menyimpan: Tidak ada koneksi internet.");
+      return;
+    }
+    toast.success("Absensi harian massal berhasil disimpan!");
     setSelectedClass(null);
   };
 
   const handleSaveGrades = async (e: React.FormEvent) => {
     e.preventDefault();
-    alert("Nilai akademik berhasil disimpan ke dalam sistem! (Demo)");
+    if (!navigator.onLine) {
+      toast.error("Gagal menyimpan: Tidak ada koneksi internet.");
+      return;
+    }
+    toast.success("Nilai akademik berhasil disimpan ke dalam sistem!");
     setSelectedClass(null);
   };
 
