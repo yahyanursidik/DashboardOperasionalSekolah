@@ -47,6 +47,7 @@ import { MailDashboard, IncomingMailList, OutgoingMailList, DispositionsList, In
 import { RecruitmentDashboard, VacanciesList, ApplicantsList, ApplicantShow, VacancyCreate, ApplicantCreate } from "../modules/recruitment";
 import { AcademicDashboard, Gradebook, ReportCards, ReportPrint } from "../modules/academic";
 import { SarprasDashboard, AssetsList, AssetLoansList, ProcurementsList } from "../modules/sarpras";
+import { QuranRecordsList, QuranRecordForm } from "../modules/quran";
 
 import { PortalLayout } from "../modules/portal/portal-layout";
 import { PortalLogin } from "../modules/portal/portal-login";
@@ -54,6 +55,7 @@ import { PortalDashboard } from "../modules/portal/portal-dashboard";
 import { PortalFinance } from "../modules/portal/portal-finance";
 import { PortalAcademic } from "../modules/portal/portal-academic";
 import { PortalJournals } from "../modules/portal/portal-journals";
+import { PortalQuran } from "../modules/portal/portal-quran";
 
 import { TeacherLayout } from "../modules/teacher-portal/teacher-layout";
 import { TeacherLogin } from "../modules/teacher-portal/teacher-login";
@@ -61,6 +63,7 @@ import { TeacherDashboard } from "../modules/teacher-portal/teacher-dashboard";
 import { TeacherClasses } from "../modules/teacher-portal/teacher-classes";
 import { TeacherJournals } from "../modules/teacher-portal/teacher-journals";
 import { TeacherLeaves } from "../modules/teacher-portal/teacher-leaves";
+import { TeacherQuran } from "../modules/teacher-portal/teacher-quran";
 
 export default function App() {
   return (
@@ -99,7 +102,20 @@ export default function App() {
             list: "/student-journals",
             create: "/student-journals/create",
             edit: "/student-journals/edit/:id",
-            meta: { canDelete: true },
+            show: "/student-journals/show/:id",
+            meta: {
+              canDelete: true,
+            },
+          },
+          {
+            name: "quran_records",
+            list: "/quran",
+            create: "/quran/create",
+            edit: "/quran/edit/:id",
+            show: "/quran/show/:id",
+            meta: {
+              canDelete: true,
+            },
           },
           {
             name: "student_invoices",
@@ -421,6 +437,11 @@ export default function App() {
                   <Route path="edit/:id" element={<StudentJournalEdit />} />
                 </Route>
 
+                <Route path="/quran">
+                  <Route index element={<QuranRecordsList />} />
+                  <Route path="create" element={<QuranRecordForm />} />
+                </Route>
+
                 <Route path="/curriculum">
                   <Route index element={<CurriculumDashboard />} />
                   <Route path="subjects">
@@ -492,6 +513,7 @@ export default function App() {
                 <Route index element={<PortalDashboard />} />
                 <Route path="finance" element={<PortalFinance />} />
                 <Route path="academic" element={<PortalAcademic />} />
+                <Route path="quran" element={<PortalQuran />} />
                 <Route path="journals" element={<PortalJournals />} />
               </Route>
 
@@ -499,6 +521,7 @@ export default function App() {
               <Route path="/teacher" element={<TeacherLayout />}>
                 <Route index element={<TeacherDashboard />} />
                 <Route path="classes" element={<TeacherClasses />} />
+                <Route path="quran" element={<TeacherQuran />} />
                 <Route path="journals" element={<TeacherJournals />} />
                 <Route path="leaves" element={<TeacherLeaves />} />
               </Route>

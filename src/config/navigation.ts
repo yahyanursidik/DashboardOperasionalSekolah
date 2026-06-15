@@ -64,6 +64,12 @@ export const navigationConfig: NavigationGroup[] = [
         icon: FileBadge,
         resource: "academic_report_cards",
       },
+      {
+        title: "Tahsin & Tahfidz",
+        href: "/quran",
+        icon: BookOpen,
+        resource: "quran_records",
+      },
     ],
   },
   {

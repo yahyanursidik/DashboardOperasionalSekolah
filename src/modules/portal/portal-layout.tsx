@@ -62,8 +62,8 @@ export const PortalLayout: React.FC = () => {
   const navItems = [
     { name: "Beranda", path: "/portal", icon: Home },
     { name: "Akademik", path: "/portal/academic", icon: BookOpen },
+    { name: "Al-Qur'an", path: "/portal/quran", icon: BookOpen },
     { name: "Keuangan", path: "/portal/finance", icon: Wallet },
-    { name: "Catatan", path: "/portal/journals", icon: Clock },
   ];
 
   return (

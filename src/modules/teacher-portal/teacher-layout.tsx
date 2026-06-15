@@ -115,8 +115,8 @@ export const TeacherLayout: React.FC = () => {
         <div className="fixed bottom-0 left-0 right-0 sm:max-w-md sm:mx-auto bg-white border-t flex justify-around items-center p-2 z-50 pb-safe shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
           <NavItem to="/teacher" icon={<Home />} label="Beranda" active={location.pathname === "/teacher"} />
           <NavItem to="/teacher/classes" icon={<CheckSquare />} label="Absen & Nilai" active={location.pathname.includes("/teacher/classes")} />
-          <NavItem to="/teacher/journals" icon={<BookOpen />} label="Jurnal Siswa" active={location.pathname.includes("/teacher/journals")} />
-          <NavItem to="/teacher/leaves" icon={<Calendar />} label="Cuti / Izin" active={location.pathname.includes("/teacher/leaves")} />
+          <NavItem to="/teacher/quran" icon={<BookOpen />} label="Al-Qur'an" active={location.pathname.includes("/teacher/quran")} />
+          <NavItem to="/teacher/journals" icon={<BookOpen />} label="Jurnal" active={location.pathname.includes("/teacher/journals")} />
         </div>
 
       </div>
