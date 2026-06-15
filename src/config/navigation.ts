@@ -16,7 +16,12 @@ import {
   Tag,
   CheckCircle,
   Inbox,
-  Briefcase
+  Briefcase,
+  GraduationCap,
+  FileBadge,
+  Package,
+  Truck,
+  ShoppingCart
 } from "lucide-react";
 import type { RoleName } from "../lib/permissions";
 
@@ -41,6 +46,23 @@ export const navigationConfig: NavigationGroup[] = [
         title: "Beranda",
         href: "/",
         icon: Home,
+      },
+    ],
+  },
+  {
+    name: "Akademik",
+    items: [
+      {
+        title: "Gradebook (Nilai)",
+        href: "/academic/gradebook",
+        icon: BookOpen,
+        resource: "academic_grades",
+      },
+      {
+        title: "Master Rapor Siswa",
+        href: "/academic/reports",
+        icon: FileBadge,
+        resource: "academic_report_cards",
       },
     ],
   },
@@ -149,6 +171,29 @@ export const navigationConfig: NavigationGroup[] = [
         resource: "recruitment_vacancies",
       },
     ],
+  },
+  {
+    name: "Sarpras & Inventaris",
+    items: [
+      {
+        title: "Katalog Aset",
+        href: "/sarpras/assets",
+        icon: Package,
+        resource: "assets",
+      },
+      {
+        title: "Peminjaman",
+        href: "/sarpras/asset-loans",
+        icon: Truck,
+        resource: "asset_loans",
+      },
+      {
+        title: "Pengadaan Barang",
+        href: "/sarpras/procurements",
+        icon: ShoppingCart,
+        resource: "procurements",
+      },
+    ]
   },
   {
     name: "Keuangan",

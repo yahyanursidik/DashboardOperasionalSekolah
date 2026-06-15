@@ -43,6 +43,8 @@ import { SubjectsList, SubjectCreate, SubjectEdit } from "../modules/curriculum/
 import { CurriculumDocumentsList, CurriculumDocumentCreate } from "../modules/curriculum/documents";
 import { MailDashboard, IncomingMailList, OutgoingMailList, DispositionsList, IncomingMailCreate, OutgoingMailCreate } from "../modules/mail";
 import { RecruitmentDashboard, VacanciesList, ApplicantsList, ApplicantShow, VacancyCreate, ApplicantCreate } from "../modules/recruitment";
+import { AcademicDashboard, Gradebook, ReportCards, ReportPrint } from "../modules/academic";
+import { SarprasDashboard, AssetsList, AssetLoansList, ProcurementsList } from "../modules/sarpras";
 
 export default function App() {
   return (
@@ -260,6 +262,31 @@ export default function App() {
             show: "/recruitment/applicants/show/:id",
             meta: { canDelete: true },
           },
+          {
+            name: "academic_grades",
+            list: "/academic/gradebook",
+            meta: { canDelete: false },
+          },
+          {
+            name: "academic_report_cards",
+            list: "/academic/reports",
+            meta: { canDelete: false },
+          },
+          {
+            name: "assets",
+            list: "/sarpras/assets",
+            meta: { canDelete: true },
+          },
+          {
+            name: "asset_loans",
+            list: "/sarpras/asset-loans",
+            meta: { canDelete: true },
+          },
+          {
+            name: "procurements",
+            list: "/sarpras/procurements",
+            meta: { canDelete: true },
+          },
         ]}
         options={{
           syncWithLocation: true,
@@ -425,6 +452,20 @@ export default function App() {
                   <Route path="applicants" element={<ApplicantsList />} />
                   <Route path="applicants/create" element={<ApplicantCreate />} />
                   <Route path="applicants/show/:id" element={<ApplicantShow />} />
+                </Route>
+
+                <Route path="/academic">
+                  <Route index element={<AcademicDashboard />} />
+                  <Route path="gradebook" element={<Gradebook />} />
+                  <Route path="reports" element={<ReportCards />} />
+                  <Route path="report-print" element={<ReportPrint />} />
+                </Route>
+
+                <Route path="/sarpras">
+                  <Route index element={<SarprasDashboard />} />
+                  <Route path="assets" element={<AssetsList />} />
+                  <Route path="asset-loans" element={<AssetLoansList />} />
+                  <Route path="procurements" element={<ProcurementsList />} />
                 </Route>
 
               </Route>
