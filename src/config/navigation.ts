@@ -14,7 +14,6 @@ import {
   Receipt,
   CreditCard,
   Tag,
-  Tag,
   CheckCircle,
   Inbox,
   Briefcase
