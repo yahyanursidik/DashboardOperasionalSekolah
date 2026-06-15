@@ -393,8 +393,10 @@ const UsersTab: React.FC = () => {
   const { mutate: createRole } = useCreate();
   const { mutate: deleteRole } = useDelete();
 
-  const [modalMode, setModalMode] = useState<"create" | null>(null);
+  const [modalMode, setModalMode] = useState<"create" | "create_user" | null>(null);
   const [formData, setFormData] = useState({ user_id: "", role_id: "", unit_id: "" });
+  const [newUserFormData, setNewUserFormData] = useState({ email: "", password: "", fullName: "", role_id: "", unit_id: "" });
+  const [isCreatingUser, setIsCreatingUser] = useState(false);
 
   const handleSave = () => {
     if (!formData.user_id || !formData.role_id) return;
@@ -414,6 +416,39 @@ const UsersTab: React.FC = () => {
     }
   };
 
+  const handleCreateUser = async () => {
+    if (!newUserFormData.email || !newUserFormData.password || !newUserFormData.fullName || !newUserFormData.role_id) return;
+    setIsCreatingUser(true);
+    try {
+      const response = await fetch("/api/create-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: newUserFormData.email,
+          password: newUserFormData.password,
+          fullName: newUserFormData.fullName,
+          roleId: newUserFormData.role_id,
+          unitId: newUserFormData.unit_id || undefined,
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || "Gagal membuat user");
+      }
+
+      toast.success("Akun baru berhasil dibuat!");
+      setModalMode(null);
+      // Reset form
+      setNewUserFormData({ email: "", password: "", fullName: "", role_id: "", unit_id: "" });
+    } catch (err: any) {
+      toast.error(err.message || "Terjadi kesalahan saat membuat akun");
+    } finally {
+      setIsCreatingUser(false);
+    }
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
       <div className="flex justify-between items-center">
@@ -421,12 +456,20 @@ const UsersTab: React.FC = () => {
           <h3 className="text-lg font-bold">Manajemen Pengguna (RBAC)</h3>
           <p className="text-sm text-muted-foreground">Kelola hak akses dan peran (Role) untuk semua staf dan guru.</p>
         </div>
-        <button 
-          onClick={() => setModalMode("create")}
-          className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition-colors shadow-sm font-medium text-sm"
-        >
-          + Tetapkan Hak Akses
-        </button>
+        <div className="flex gap-2">
+          <button 
+            onClick={() => setModalMode("create_user")}
+            className="bg-emerald-600 text-white px-4 py-2 rounded-md hover:bg-emerald-700 transition-colors shadow-sm font-medium text-sm"
+          >
+            + Buat Akun Baru
+          </button>
+          <button 
+            onClick={() => setModalMode("create")}
+            className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition-colors shadow-sm font-medium text-sm"
+          >
+            Tetapkan Hak Akses
+          </button>
+        </div>
       </div>
 
       <div className="border rounded-xl overflow-hidden">
@@ -516,6 +559,71 @@ const UsersTab: React.FC = () => {
             className="w-full flex justify-center items-center gap-2 bg-primary text-primary-foreground py-2.5 rounded-md hover:bg-primary/90 font-medium disabled:opacity-50"
           >
             Simpan Penetapan Akses
+          </button>
+        </div>
+      </SettingsModal>
+
+      <SettingsModal isOpen={modalMode === "create_user"} onClose={() => setModalMode(null)} title="Buat Akun Pengguna Baru">
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Nama Lengkap</label>
+            <input 
+              type="text"
+              value={newUserFormData.fullName} 
+              onChange={e => setNewUserFormData({...newUserFormData, fullName: e.target.value})} 
+              className="w-full border rounded-md px-3 py-2 outline-none focus:border-primary bg-background"
+              placeholder="Contoh: Budi Santoso"
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Email (Untuk Login)</label>
+            <input 
+              type="email"
+              value={newUserFormData.email} 
+              onChange={e => setNewUserFormData({...newUserFormData, email: e.target.value})} 
+              className="w-full border rounded-md px-3 py-2 outline-none focus:border-primary bg-background"
+              placeholder="budi@contoh.com"
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Password Baru</label>
+            <input 
+              type="text"
+              value={newUserFormData.password} 
+              onChange={e => setNewUserFormData({...newUserFormData, password: e.target.value})} 
+              className="w-full border rounded-md px-3 py-2 outline-none focus:border-primary bg-background"
+              placeholder="Minimal 6 karakter"
+            />
+            <p className="text-xs text-muted-foreground">Password ini digunakan user untuk login pertama kali.</p>
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Peran (Role) Utama</label>
+            <select 
+              value={newUserFormData.role_id} 
+              onChange={e => setNewUserFormData({...newUserFormData, role_id: e.target.value})} 
+              className="w-full border rounded-md px-3 py-2 outline-none focus:border-primary bg-background"
+            >
+              <option value="" disabled>Pilih peran...</option>
+              {rolesData?.data?.map((r: any) => <option key={r.id} value={r.id}>{r.name}</option>)}
+            </select>
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Cakupan Unit (Opsional)</label>
+            <select 
+              value={newUserFormData.unit_id} 
+              onChange={e => setNewUserFormData({...newUserFormData, unit_id: e.target.value})} 
+              className="w-full border rounded-md px-3 py-2 outline-none focus:border-primary bg-background"
+            >
+              <option value="">Global (Semua Unit)</option>
+              {unitsData?.data?.map((u: any) => <option key={u.id} value={u.id}>{u.name}</option>)}
+            </select>
+          </div>
+          <button 
+            onClick={handleCreateUser} 
+            disabled={!newUserFormData.email || !newUserFormData.password || !newUserFormData.fullName || !newUserFormData.role_id || isCreatingUser}
+            className="w-full flex justify-center items-center gap-2 bg-emerald-600 text-white py-2.5 rounded-md hover:bg-emerald-700 font-medium disabled:opacity-50"
+          >
+            {isCreatingUser ? "Sedang Membuat Akun..." : "Buat Akun Sekarang"}
           </button>
         </div>
       </SettingsModal>
