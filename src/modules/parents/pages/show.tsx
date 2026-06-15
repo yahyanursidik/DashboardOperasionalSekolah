@@ -4,6 +4,15 @@ import { PageHeader } from "../../../components/layout/PageHeader";
 import { User, Edit, ArrowLeft, Phone, Mail, MapPin, GraduationCap } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 
+const formatWhatsAppNumber = (phone: string) => {
+  if (!phone) return "";
+  let cleaned = phone.replace(/\D/g, "");
+  if (cleaned.startsWith("0")) {
+    cleaned = "62" + cleaned.substring(1);
+  }
+  return cleaned;
+};
+
 export const ParentShow: React.FC = () => {
   const { queryResult } = useShow();
   const { data, isLoading } = queryResult;
@@ -73,8 +82,22 @@ export const ParentShow: React.FC = () => {
             <div className="text-left border-t pt-4 space-y-4">
               <div className="flex items-start gap-3 text-sm">
                 <Phone className="w-4 h-4 text-muted-foreground mt-0.5" />
-                <div>
-                  <p className="font-medium">{record.phone || "-"}</p>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between">
+                    <p className="font-medium">{record.phone || "-"}</p>
+                    {record.phone && (
+                      <a 
+                        href={`https://wa.me/${formatWhatsAppNumber(record.phone)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="bg-green-100 text-green-700 hover:bg-green-200 px-2 py-0.5 rounded text-xs font-medium flex items-center gap-1 transition-colors"
+                        title="Hubungi via WhatsApp"
+                      >
+                        <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" className="css-i6dzq1"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
+                        WA
+                      </a>
+                    )}
+                  </div>
                   <p className="text-xs text-muted-foreground">Nomor HP / WhatsApp</p>
                 </div>
               </div>
