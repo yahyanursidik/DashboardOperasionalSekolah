@@ -31,18 +31,25 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         .in("key", ["app_name", "logo_url"]);
 
       if (error) {
-        console.error("Error fetching system settings:", error);
+        // Jika tabel belum ada (PGRST205), gunakan default tanpa spam console
+        if (error.code === "PGRST205" || error.code === "42P01") {
+          // Tabel belum dibuat, gunakan nilai default saja
+          return;
+        }
+        console.warn("Settings fetch warning:", error.message);
         return;
       }
 
       if (data) {
         (data as any[]).forEach((setting) => {
-          if (setting.key === "app_name") setAppName(setting.value || "TSLS Admin OS");
-          if (setting.key === "logo_url") setLogoUrl(setting.value || "");
+          // JSONB values dari Supabase sudah otomatis di-parse
+          const val = typeof setting.value === "string" ? setting.value : JSON.stringify(setting.value);
+          if (setting.key === "app_name") setAppName(val || "TSLS Admin OS");
+          if (setting.key === "logo_url") setLogoUrl(val || "");
         });
       }
     } catch (err) {
-      console.error("Failed to fetch settings", err);
+      // Gagal total, gunakan default
     } finally {
       setIsLoading(false);
     }

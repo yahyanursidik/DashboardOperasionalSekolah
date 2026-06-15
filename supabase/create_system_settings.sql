@@ -1,8 +1,10 @@
--- Migration to create system_settings table
+-- =========================================================================
+-- BUAT TABEL SYSTEM_SETTINGS (Pengaturan Sistem Global)
+-- =========================================================================
 
 CREATE TABLE IF NOT EXISTS public.system_settings (
     key TEXT PRIMARY KEY,
-    value JSONB NOT NULL,
+    value TEXT NOT NULL DEFAULT '',
     description TEXT,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
@@ -10,14 +12,17 @@ CREATE TABLE IF NOT EXISTS public.system_settings (
 -- RLS Configuration
 ALTER TABLE public.system_settings ENABLE ROW LEVEL SECURITY;
 
--- Allow public read (everyone can see settings like Logo)
+-- Izinkan SEMUA orang membaca settings (termasuk yang belum login)
+-- Ini penting agar logo & nama sekolah bisa tampil di halaman login
+DROP POLICY IF EXISTS "Public read access for system_settings" ON public.system_settings;
 CREATE POLICY "Public read access for system_settings" 
 ON public.system_settings 
 FOR SELECT 
+TO anon, authenticated
 USING (true);
 
--- Allow authenticated users with role to update (Admins)
--- For simplicity, we allow authenticated users to update, but in production, we should restrict by role
+-- Izinkan authenticated users untuk update
+DROP POLICY IF EXISTS "Authenticated users can update system_settings" ON public.system_settings;
 CREATE POLICY "Authenticated users can update system_settings" 
 ON public.system_settings 
 FOR UPDATE 
@@ -25,15 +30,17 @@ TO authenticated
 USING (true)
 WITH CHECK (true);
 
+-- Izinkan authenticated users untuk insert
+DROP POLICY IF EXISTS "Authenticated users can insert system_settings" ON public.system_settings;
 CREATE POLICY "Authenticated users can insert system_settings" 
 ON public.system_settings 
 FOR INSERT 
 TO authenticated
 WITH CHECK (true);
 
--- Insert default values
+-- Insert nilai default
 INSERT INTO public.system_settings (key, value, description)
 VALUES 
-  ('app_name', '"TSLS Admin OS"'::jsonb, 'Sistem Global Application Name'),
-  ('logo_url', '""'::jsonb, 'Global Logo URL')
+  ('app_name', 'TSLS Admin OS', 'Nama Aplikasi / Sekolah'),
+  ('logo_url', '', 'URL Logo Sekolah')
 ON CONFLICT (key) DO NOTHING;
