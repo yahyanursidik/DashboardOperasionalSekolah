@@ -16,19 +16,18 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
     return <span className={`${textClassName} animate-pulse text-transparent bg-muted rounded`}>Loading...</span>;
   }
 
-  if (logoUrl) {
-    return (
-      <img 
-        src={logoUrl} 
-        alt={appName} 
-        className={logoClassName}
-      />
-    );
-  }
-
   return (
-    <span className={textClassName}>
-      {appName}
-    </span>
+    <div className="flex items-center gap-2">
+      {logoUrl && (
+        <img 
+          src={logoUrl} 
+          alt={appName} 
+          className={logoClassName}
+        />
+      )}
+      <span className={textClassName}>
+        {appName}
+      </span>
+    </div>
   );
 };
