@@ -165,7 +165,27 @@ const DataHealthScore = () => {
     ]
   });
 
+  const { data: totalParents } = useList({ resource: "parents", pagination: { pageSize: 1 } });
+  const { data: completeParents } = useList({
+    resource: "parents",
+    pagination: { pageSize: 1 },
+    filters: [
+      { field: "phone", operator: "nnull", value: true }
+    ]
+  });
+
+  const { data: totalEmployees } = useList({ resource: "employees", pagination: { pageSize: 1 } });
+  const { data: completeEmployees } = useList({
+    resource: "employees",
+    pagination: { pageSize: 1 },
+    filters: [
+      { field: "nik", operator: "nnull", value: true }
+    ]
+  });
+
   const studentScore = totalStudents?.total ? Math.round((completeStudents?.total || 0) / totalStudents.total * 100) : 100;
+  const parentScore = totalParents?.total ? Math.round((completeParents?.total || 0) / totalParents.total * 100) : 100;
+  const employeeScore = totalEmployees?.total ? Math.round((completeEmployees?.total || 0) / totalEmployees.total * 100) : 100;
 
   return (
     <div className="bg-card rounded-2xl p-6 shadow-sm border">
@@ -188,20 +208,20 @@ const DataHealthScore = () => {
         <div>
           <div className="flex justify-between text-sm mb-1.5">
             <span className="font-medium text-muted-foreground">Kelengkapan Data Orang Tua</span>
-            <span className="font-bold">85%</span>
+            <span className="font-bold">{parentScore}%</span>
           </div>
           <div className="w-full bg-muted rounded-full h-2">
-            <div className="h-2 rounded-full bg-emerald-500" style={{ width: `85%` }}></div>
+            <div className={`h-2 rounded-full ${parentScore < 80 ? 'bg-amber-500' : 'bg-emerald-500'}`} style={{ width: `${parentScore}%` }}></div>
           </div>
         </div>
 
         <div>
           <div className="flex justify-between text-sm mb-1.5">
             <span className="font-medium text-muted-foreground">Kelengkapan Data Pegawai</span>
-            <span className="font-bold">100%</span>
+            <span className="font-bold">{employeeScore}%</span>
           </div>
           <div className="w-full bg-muted rounded-full h-2">
-            <div className="h-2 rounded-full bg-emerald-500" style={{ width: `100%` }}></div>
+            <div className={`h-2 rounded-full ${employeeScore < 80 ? 'bg-amber-500' : 'bg-emerald-500'}`} style={{ width: `${employeeScore}%` }}></div>
           </div>
         </div>
       </div>
@@ -311,6 +331,16 @@ const RecentActivity = () => {
 
 // --- WIDGET 7: Follow-up Alert ---
 const FollowupAlert = () => {
+  const { data, isLoading } = useList({
+    resource: "students",
+    pagination: { pageSize: 1 },
+    filters: [{ field: "nisn", operator: "null", value: true }]
+  });
+
+  const missingNisnCount = data?.total || 0;
+
+  if (isLoading || missingNisnCount === 0) return null;
+
   return (
     <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-900/50 rounded-2xl p-4 flex gap-4 items-start">
       <div className="p-2 bg-amber-100 dark:bg-amber-900/50 rounded-lg shrink-0">
@@ -318,9 +348,9 @@ const FollowupAlert = () => {
       </div>
       <div>
         <h4 className="font-semibold text-amber-900 dark:text-amber-500 mb-1">Perhatian Diperlukan</h4>
-        <p className="text-sm text-amber-800/80 dark:text-amber-500/80 mb-2">Terdapat 15 siswa yang belum melengkapi data NISN. Harap segera hubungi wali kelas terkait.</p>
+        <p className="text-sm text-amber-800/80 dark:text-amber-500/80 mb-2">Terdapat {missingNisnCount} siswa yang belum melengkapi data NISN. Harap segera perbarui data atau hubungi wali kelas terkait.</p>
         <Link to="/students" className="text-sm font-medium text-amber-700 dark:text-amber-400 hover:underline">
-          Lihat Data Siswa &rarr;
+          Lengkapi Data Siswa &rarr;
         </Link>
       </div>
     </div>

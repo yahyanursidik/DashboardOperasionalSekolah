@@ -47,7 +47,16 @@ import { MailDashboard, IncomingMailList, OutgoingMailList, DispositionsList, In
 import { RecruitmentDashboard, VacanciesList, ApplicantsList, ApplicantShow, VacancyCreate, ApplicantCreate } from "../modules/recruitment";
 import { AcademicDashboard, Gradebook, ReportCards, ReportPrint } from "../modules/academic";
 import { SarprasDashboard, AssetsList, AssetLoansList, ProcurementsList } from "../modules/sarpras";
-import { QuranRecordsList, QuranRecordForm } from "../modules/quran";
+import { 
+  QuranRecordsList, QuranRecordForm, 
+  QuranTargetsList, QuranTargetForm,
+  QuranAssessmentsList, QuranAssessmentForm
+} from "../modules/quran";
+
+import {
+  PaudActivitiesList, PaudActivityForm,
+  StppaAssessmentsList, StppaAssessmentForm
+} from "../modules/paud";
 
 import { PortalLayout } from "../modules/portal/portal-layout";
 import { PortalLogin } from "../modules/portal/portal-login";
@@ -56,6 +65,7 @@ import { PortalFinance } from "../modules/portal/portal-finance";
 import { PortalAcademic } from "../modules/portal/portal-academic";
 import { PortalJournals } from "../modules/portal/portal-journals";
 import { PortalQuran } from "../modules/portal/portal-quran";
+import { PortalPaud } from "../modules/portal/portal-paud";
 
 import { TeacherLayout } from "../modules/teacher-portal/teacher-layout";
 import { TeacherLogin } from "../modules/teacher-portal/teacher-login";
@@ -113,6 +123,42 @@ export default function App() {
             create: "/quran/create",
             edit: "/quran/edit/:id",
             show: "/quran/show/:id",
+            meta: {
+              canDelete: true,
+            },
+          },
+          {
+            name: "quran_targets",
+            list: "/quran-targets",
+            create: "/quran-targets/create",
+            edit: "/quran-targets/edit/:id",
+            meta: {
+              canDelete: true,
+            },
+          },
+          {
+            name: "quran_assessments",
+            list: "/quran-assessments",
+            create: "/quran-assessments/create",
+            edit: "/quran-assessments/edit/:id",
+            meta: {
+              canDelete: true,
+            },
+          },
+          {
+            name: "paud_activities",
+            list: "/paud-activities",
+            create: "/paud-activities/create",
+            edit: "/paud-activities/edit/:id",
+            meta: {
+              canDelete: true,
+            },
+          },
+          {
+            name: "paud_stppa_assessments",
+            list: "/stppa-assessments",
+            create: "/stppa-assessments/create",
+            edit: "/stppa-assessments/edit/:id",
             meta: {
               canDelete: true,
             },
@@ -440,6 +486,28 @@ export default function App() {
                 <Route path="/quran">
                   <Route index element={<QuranRecordsList />} />
                   <Route path="create" element={<QuranRecordForm />} />
+                  <Route path="edit/:id" element={<QuranRecordForm />} />
+                </Route>
+                <Route path="/quran-targets">
+                  <Route index element={<QuranTargetsList />} />
+                  <Route path="create" element={<QuranTargetForm />} />
+                  <Route path="edit/:id" element={<QuranTargetForm />} />
+                </Route>
+                <Route path="/quran-assessments">
+                  <Route index element={<QuranAssessmentsList />} />
+                  <Route path="create" element={<QuranAssessmentForm />} />
+                  <Route path="edit/:id" element={<QuranAssessmentForm />} />
+                </Route>
+
+                <Route path="/paud-activities">
+                  <Route index element={<PaudActivitiesList />} />
+                  <Route path="create" element={<PaudActivityForm />} />
+                  <Route path="edit/:id" element={<PaudActivityForm />} />
+                </Route>
+                <Route path="/stppa-assessments">
+                  <Route index element={<StppaAssessmentsList />} />
+                  <Route path="create" element={<StppaAssessmentForm />} />
+                  <Route path="edit/:id" element={<StppaAssessmentForm />} />
                 </Route>
 
                 <Route path="/curriculum">
@@ -514,6 +582,7 @@ export default function App() {
                 <Route path="finance" element={<PortalFinance />} />
                 <Route path="academic" element={<PortalAcademic />} />
                 <Route path="quran" element={<PortalQuran />} />
+                <Route path="paud" element={<PortalPaud />} />
                 <Route path="journals" element={<PortalJournals />} />
               </Route>
 

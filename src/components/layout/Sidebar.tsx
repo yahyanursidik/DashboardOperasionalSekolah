@@ -5,10 +5,22 @@ import { canAccessResource } from "../../lib/permissions";
 import { navigationConfig } from "../../config/navigation";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { BrandLogo } from "../common/BrandLogo";
+import { useCurrentUnit } from "../../app/providers/UnitProvider";
+import { useOne } from "@refinedev/core";
 
 export const Sidebar: React.FC = () => {
   const { roles } = useCurrentRoles();
   const location = useLocation();
+  const { activeUnitId } = useCurrentUnit();
+
+  const { data: unitData } = useOne({
+    resource: "units",
+    id: activeUnitId || "",
+    queryOptions: { enabled: !!activeUnitId }
+  });
+
+  const unitName = unitData?.data?.name?.toLowerCase() || "";
+  const isPaudUnit = unitName.includes("paud") || unitName.includes("tk") || unitName.includes("kb");
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -20,6 +32,11 @@ export const Sidebar: React.FC = () => {
       <ScrollArea className="flex-1">
         <nav className="px-4 py-6 space-y-6">
         {navigationConfig.map((group) => {
+          // Hide PAUD module if active unit is not PAUD
+          if (group.name === "Modul PAUD (KB/TK)" && !isPaudUnit && activeUnitId) {
+            return null;
+          }
+
           // Filter items based on permissions
           const visibleItems = group.items.filter(item => 
             !item.resource || canAccessResource(roles, item.resource)

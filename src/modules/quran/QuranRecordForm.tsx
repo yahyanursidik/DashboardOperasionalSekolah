@@ -1,5 +1,6 @@
 import React from "react";
 import { useForm } from "@refinedev/react-hook-form";
+import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useSelect } from "@refinedev/core";
@@ -18,6 +19,7 @@ const quranSchema = z.object({
   ayat_or_page: z.string().min(1, "Wajib diisi (Ayat / Halaman)"),
   fluency_score: z.enum(["Sangat Lancar", "Lancar", "Kurang Lancar", "Mengulang"]),
   notes: z.string().optional().nullable(),
+  class_id: z.string().optional(),
 });
 
 type QuranFormValues = z.infer<typeof quranSchema>;
@@ -50,11 +52,34 @@ export const QuranRecordForm: React.FC = () => {
 
   const recordType = watch("record_type");
 
+  const [selectedUnitId, setSelectedUnitId] = useState<string>("");
+  const [selectedClassId, setSelectedClassId] = useState<string>("");
+
+  const { options: unitOptions } = useSelect({
+    resource: "units",
+    optionLabel: "name",
+    optionValue: "id",
+    sorters: [{ field: "name", order: "asc" }],
+  });
+
+  const { options: classOptions } = useSelect({
+    resource: "classes",
+    optionLabel: "name",
+    optionValue: "id",
+    filters: selectedUnitId ? [{ field: "unit_id", operator: "eq", value: selectedUnitId }] : [],
+    queryOptions: { enabled: !!selectedUnitId },
+    sorters: [{ field: "name", order: "asc" }],
+  });
+
   const { options: studentOptions, queryResult: studentQuery } = useSelect({
     resource: "students",
     optionLabel: "full_name",
     optionValue: "id",
-    filters: [{ field: "status", operator: "eq", value: "active" }],
+    filters: selectedClassId ? [
+      { field: "class_id", operator: "eq", value: selectedClassId },
+      { field: "status", operator: "eq", value: "active" }
+    ] : [{ field: "status", operator: "eq", value: "active" }],
+    queryOptions: { enabled: !!selectedClassId },
   });
 
   return (
@@ -91,19 +116,52 @@ export const QuranRecordForm: React.FC = () => {
         <div className="p-6 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             
+            {/* Filter Unit & Kelas */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Unit</label>
+              <select
+                value={selectedUnitId}
+                onChange={(e) => {
+                  setSelectedUnitId(e.target.value);
+                  setSelectedClassId("");
+                }}
+                className="w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-primary/50 outline-none bg-background"
+              >
+                <option value="">-- Pilih Unit --</option>
+                {unitOptions?.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Kelas</label>
+              <select
+                value={selectedClassId}
+                onChange={(e) => setSelectedClassId(e.target.value)}
+                disabled={!selectedUnitId}
+                className="w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-primary/50 outline-none bg-background disabled:opacity-50"
+              >
+                <option value="">-- Pilih Kelas --</option>
+                {classOptions?.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+
             {/* Siswa & Tanggal */}
-            <div className="space-y-2 md:col-span-2">
+            <div className="space-y-2">
               <label className="text-sm font-medium">Nama Siswa <span className="text-destructive">*</span></label>
               <select
                 {...register("student_id")}
                 className="w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none bg-background"
                 disabled={studentQuery.isLoading}
               >
-                <option value="">-- Pilih Siswa --</option>
+                <option value="">{selectedClassId ? "-- Pilih Siswa --" : "-- Pilih Kelas Terlebih Dahulu --"}</option>
                 {studentOptions?.map(opt => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
                 ))}
               </select>
+              <input type="hidden" {...register("class_id")} value={selectedClassId} />
               {errors.student_id && <p className="text-xs text-destructive">{errors.student_id.message as string}</p>}
             </div>
 

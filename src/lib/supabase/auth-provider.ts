@@ -119,18 +119,25 @@ export const authProvider: AuthBindings = {
     if (!authData?.user) return null;
 
     try {
-      const { data: userRoles } = await supabaseClient
+      const { data: userRoles, error } = await supabaseClient
         .from("user_roles")
         .select("unit_id, roles(name)")
         .eq("user_id", authData.user.id);
       
+      console.log("DEBUG getPermissions userRoles:", userRoles, "error:", error);
+
+      if (error) {
+        console.error("DEBUG getPermissions error fetching roles:", error);
+      }
+
       if (!userRoles) return [];
 
       return userRoles.map((ur: any) => ({
         role: ur.roles?.name,
         unit_id: ur.unit_id,
       }));
-    } catch {
+    } catch (e) {
+      console.error("DEBUG getPermissions exception:", e);
       return [];
     }
   },

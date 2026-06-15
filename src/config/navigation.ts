@@ -21,7 +21,11 @@ import {
   FileBadge,
   Package,
   Truck,
-  ShoppingCart
+  ShoppingCart,
+  Target,
+  Award,
+  Camera,
+  CheckSquare
 } from "lucide-react";
 import type { RoleName } from "../lib/permissions";
 
@@ -65,10 +69,39 @@ export const navigationConfig: NavigationGroup[] = [
         resource: "academic_report_cards",
       },
       {
-        title: "Tahsin & Tahfidz",
+        title: "Mutaba'ah (Harian)",
         href: "/quran",
         icon: BookOpen,
         resource: "quran_records",
+      },
+      {
+        title: "Target Qur'an",
+        href: "/quran-targets",
+        icon: Target,
+        resource: "quran_targets",
+      },
+      {
+        title: "Munaqosyah/Ujian",
+        href: "/quran-assessments",
+        icon: Award,
+        resource: "quran_assessments",
+      },
+    ],
+  },
+  {
+    name: "Modul PAUD (KB/TK)",
+    items: [
+      {
+        title: "Jurnal Kegiatan (Foto)",
+        href: "/paud-activities",
+        icon: Camera,
+        resource: "paud_activities",
+      },
+      {
+        title: "Penilaian STPPA",
+        href: "/stppa-assessments",
+        icon: CheckSquare,
+        resource: "paud_stppa_assessments",
       },
     ],
   },
@@ -104,6 +137,12 @@ export const navigationConfig: NavigationGroup[] = [
         href: "/master-data",
         icon: Database,
         resource: "settings",
+      },
+      {
+        title: "Dokumen Kurikulum",
+        href: "/curriculum/documents",
+        icon: FileText,
+        resource: "curriculum_documents",
       },
       {
         title: "Dokumen & Surat",

@@ -3,15 +3,32 @@ import { Link, useLocation } from "react-router-dom";
 import { useCurrentRoles } from "../../hooks/useAuth";
 import { canAccessResource } from "../../lib/permissions";
 import { navigationConfig } from "../../config/navigation";
+import { useCurrentUnit } from "../../app/providers/UnitProvider";
+import { useOne } from "@refinedev/core";
 
 export const MobileBottomNav: React.FC = () => {
   const { roles } = useCurrentRoles();
   const location = useLocation();
+  const { activeUnitId } = useCurrentUnit();
+
+  const { data: unitData } = useOne({
+    resource: "units",
+    id: activeUnitId || "",
+    queryOptions: { enabled: !!activeUnitId }
+  });
+
+  const unitName = unitData?.data?.name?.toLowerCase() || "";
+  const isPaudUnit = unitName.includes("paud") || unitName.includes("tk") || unitName.includes("kb");
 
   const isActive = (path: string) => location.pathname === path;
 
   // Flatten and filter items, taking only the first 4 for the bottom nav
-  const flatItems = navigationConfig.flatMap(group => group.items);
+  const flatItems = navigationConfig.filter(group => {
+    if (group.name === "Modul PAUD (KB/TK)" && !isPaudUnit && activeUnitId) {
+      return false;
+    }
+    return true;
+  }).flatMap(group => group.items);
   const visibleItems = flatItems.filter(item => 
     !item.resource || canAccessResource(roles, item.resource)
   ).slice(0, 4); // Only top 4 to fit comfortably

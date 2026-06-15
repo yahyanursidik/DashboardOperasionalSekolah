@@ -1,15 +1,22 @@
 import React, { useState, useEffect } from "react";
 import { useOutletContext } from "react-router-dom";
 import { supabaseClient } from "../../lib/supabase/client";
-import { BookOpen, Search, CheckCircle } from "lucide-react";
+import { BookOpen, CheckCircle, Info } from "lucide-react";
 import { useAcademicYear } from "../../app/providers/AcademicYearProvider";
 import { toast } from "sonner";
 
 export const TeacherQuran: React.FC = () => {
   const { employee } = useOutletContext<any>();
+  const [units, setUnits] = useState<any[]>([]);
+  const [classes, setClasses] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [search, setSearch] = useState("");
+  
+  const [selectedUnitId, setSelectedUnitId] = useState("");
+  const [selectedClassId, setSelectedClassId] = useState("");
+  
+  const [lastRecord, setLastRecord] = useState<any>(null);
+  const [isLoadingLastRecord, setIsLoadingLastRecord] = useState(false);
+
   const { activeYearId, activeSemesterId } = useAcademicYear();
 
   const [formData, setFormData] = useState({
@@ -22,26 +29,83 @@ export const TeacherQuran: React.FC = () => {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Fetch Units on mount
   useEffect(() => {
+    const fetchUnits = async () => {
+      const { data } = await supabaseClient.from("units").select("id, name").order("name");
+      if (data) setUnits(data);
+    };
+    fetchUnits();
+  }, []);
+
+  // Fetch Classes when Unit changes
+  useEffect(() => {
+    if (!selectedUnitId) {
+      setClasses([]);
+      setSelectedClassId("");
+      return;
+    }
+    const fetchClasses = async () => {
+      const { data } = await supabaseClient.from("classes").select("id, name").eq("unit_id", selectedUnitId).order("name");
+      if (data) setClasses(data);
+    };
+    fetchClasses();
+  }, [selectedUnitId]);
+
+  // Fetch Students when Class changes
+  useEffect(() => {
+    if (!selectedClassId) {
+      setStudents([]);
+      setFormData(prev => ({ ...prev, student_id: "" }));
+      return;
+    }
     const fetchStudents = async () => {
-      try {
-        // Simple fetch all active students for MVP. 
-        // In real app, filter by classes this teacher teaches.
-        const { data } = await supabaseClient
-          .from("students")
-          .select("id, full_name, nis, classes(name)")
-          .eq("status", "active")
-          .order("full_name");
-        
-        if (data) setStudents(data);
-      } catch (error) {
-        console.error("Error fetching students:", error);
-      } finally {
-        setIsLoading(false);
-      }
+      const { data } = await supabaseClient
+        .from("students")
+        .select("id, full_name")
+        .eq("class_id", selectedClassId)
+        .eq("status", "active")
+        .order("full_name");
+      if (data) setStudents(data);
     };
     fetchStudents();
-  }, []);
+  }, [selectedClassId]);
+
+  // Fetch Last Record when Student and Record Type changes
+  useEffect(() => {
+    if (!formData.student_id) {
+      setLastRecord(null);
+      return;
+    }
+    
+    const fetchLastRecord = async () => {
+      setIsLoadingLastRecord(true);
+      try {
+        const { data } = await supabaseClient
+          .from("quran_records")
+          .select("surah_or_jilid, ayat_or_page, date")
+          .eq("student_id", formData.student_id)
+          .eq("record_type", formData.record_type)
+          .order("date", { ascending: false })
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .single();
+        
+        setLastRecord(data || null);
+        
+        // Auto-fill surah/jilid based on last record to save time
+        if (data && !formData.surah_or_jilid) {
+          setFormData(prev => ({ ...prev, surah_or_jilid: data.surah_or_jilid }));
+        }
+      } catch (e) {
+        setLastRecord(null);
+      } finally {
+        setIsLoadingLastRecord(false);
+      }
+    };
+    
+    fetchLastRecord();
+  }, [formData.student_id, formData.record_type]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,6 +120,7 @@ export const TeacherQuran: React.FC = () => {
         .from("quran_records")
         .insert({
           ...formData,
+          class_id: selectedClassId,
           employee_id: employee.id,
           academic_year_id: activeYearId,
           semester_id: activeSemesterId,
@@ -65,7 +130,16 @@ export const TeacherQuran: React.FC = () => {
       if (error) throw error;
       
       toast.success("Capaian berhasil disimpan!");
-      setFormData(prev => ({ ...prev, surah_or_jilid: "", ayat_or_page: "", notes: "" }));
+      
+      // Update last record to the one just submitted
+      setLastRecord({
+        surah_or_jilid: formData.surah_or_jilid,
+        ayat_or_page: formData.ayat_or_page,
+        date: new Date().toISOString()
+      });
+      
+      // Clear specific fields
+      setFormData(prev => ({ ...prev, ayat_or_page: "", notes: "" }));
     } catch (error: any) {
       console.error(error);
       toast.error("Gagal menyimpan capaian");
@@ -73,8 +147,6 @@ export const TeacherQuran: React.FC = () => {
       setIsSubmitting(false);
     }
   };
-
-  const filteredStudents = students.filter(s => s.full_name.toLowerCase().includes(search.toLowerCase()));
 
   return (
     <div className="p-4 space-y-6">
@@ -107,22 +179,71 @@ export const TeacherQuran: React.FC = () => {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-gray-700">Siswa <span className="text-red-500">*</span></label>
-            <div className="relative">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          
+          {/* Unit & Class Selector */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Unit</label>
               <select 
-                className="w-full border rounded-xl pl-9 pr-4 py-2.5 text-sm bg-gray-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none appearance-none"
-                value={formData.student_id}
-                onChange={e => setFormData({...formData, student_id: e.target.value})}
+                className="w-full border rounded-xl px-3 py-2.5 text-sm bg-gray-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none appearance-none"
+                value={selectedUnitId}
+                onChange={e => setSelectedUnitId(e.target.value)}
               >
-                <option value="">-- Pilih Siswa --</option>
-                {students.map(s => (
-                  <option key={s.id} value={s.id}>{s.full_name} ({s.classes?.name || 'Tanpa Kelas'})</option>
+                <option value="">-- Pilih Unit --</option>
+                {units.map(u => (
+                  <option key={u.id} value={u.id}>{u.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Kelas</label>
+              <select 
+                className="w-full border rounded-xl px-3 py-2.5 text-sm bg-gray-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none appearance-none disabled:opacity-50"
+                value={selectedClassId}
+                onChange={e => setSelectedClassId(e.target.value)}
+                disabled={!selectedUnitId}
+              >
+                <option value="">-- Pilih Kelas --</option>
+                {classes.map(c => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
               </select>
             </div>
           </div>
+
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Siswa <span className="text-red-500">*</span></label>
+            <select 
+              className="w-full border rounded-xl px-3 py-2.5 text-sm bg-gray-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none appearance-none disabled:opacity-50"
+              value={formData.student_id}
+              onChange={e => setFormData({...formData, student_id: e.target.value})}
+              disabled={!selectedClassId}
+            >
+              <option value="">{selectedClassId ? "-- Pilih Siswa --" : "-- Pilih Kelas Terlebih Dahulu --"}</option>
+              {students.map(s => (
+                <option key={s.id} value={s.id}>{s.full_name}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Last Record Info */}
+          {formData.student_id && (
+            <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3 flex items-start gap-2">
+              <Info className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+              <div className="text-xs text-emerald-800">
+                {isLoadingLastRecord ? (
+                  "Mengecek setoran terakhir..."
+                ) : lastRecord ? (
+                  <>
+                    <strong>Setoran terakhir:</strong> {lastRecord.surah_or_jilid} (Ayat/Hal: {lastRecord.ayat_or_page}) <br/>
+                    <span className="text-emerald-600/80">Pada tanggal: {new Date(lastRecord.date).toLocaleDateString('id-ID')}</span>
+                  </>
+                ) : (
+                  "Belum ada riwayat setoran di tipe ini."
+                )}
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
