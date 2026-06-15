@@ -1,7 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { PageHeader } from "../../../components/layout/PageHeader";
-import { Users, CalendarCheck, FileText, ClipboardList, Clock } from "lucide-react";
+import { Users, CalendarCheck, FileText, ClipboardList, Clock, PieChart } from "lucide-react";
 
 export const ReportsDashboard: React.FC = () => {
   const reports = [
@@ -11,6 +11,13 @@ export const ReportsDashboard: React.FC = () => {
       icon: Users,
       href: "/reports/students",
       color: "bg-blue-100 text-blue-600",
+    },
+    {
+      title: "Analitik Visual",
+      description: "Dashboard analitik untuk melihat tren, statistik kelas, absensi, dan data komprehensif lainnya.",
+      icon: PieChart,
+      href: "/reports/analytics",
+      color: "bg-indigo-100 text-indigo-600",
     },
     {
       title: "Laporan Absensi",

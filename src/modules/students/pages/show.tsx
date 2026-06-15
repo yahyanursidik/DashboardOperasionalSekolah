@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useShow, useList, useCreate } from "@refinedev/core";
 import { PageHeader } from "../../../components/layout/PageHeader";
-import { User, Edit, ArrowLeft, Users, Plus, X, BookOpen, Star, AlertTriangle, ShieldAlert, Award, Activity, Eye, GraduationCap, History, Bookmark, CheckSquare } from "lucide-react";
+import { User, Edit, ArrowLeft, Users, Plus, X, BookOpen, Star, AlertTriangle, ShieldAlert, Award, Activity, Eye, GraduationCap, History, Bookmark, CheckSquare, HeartPulse, PhoneCall } from "lucide-react";
 import { AuditHistory } from "../../../components/common/AuditHistory";
 import { Link, useNavigate } from "react-router-dom";
 import { calculateCompleteness } from "./list";
@@ -247,6 +247,66 @@ export const StudentShow: React.FC = () => {
                     </div>
                   );
                 })}
+              </div>
+            )}
+          </div>
+
+          <div className="bg-card rounded-xl border shadow-sm p-6 border-rose-200">
+            <h3 className="font-semibold text-lg flex items-center gap-2 mb-6 border-b pb-4 text-rose-900">
+              <HeartPulse className="w-5 h-5 text-rose-600" /> Data Kesehatan & Medis
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-y-4 gap-x-8">
+              <div>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider font-bold mb-1">Golongan Darah</p>
+                <div className="flex items-center gap-2">
+                  <span className="font-medium text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
+                    {record.blood_type || "-"}
+                  </span>
+                </div>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider font-bold mb-1">Alergi Makanan / Obat</p>
+                <p className="font-medium">{record.allergies || "-"}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider font-bold mb-1">Riwayat Penyakit Menahun</p>
+                <p className="font-medium">{record.medical_history || "-"}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider font-bold mb-1">Kebutuhan Khusus / Disabilitas</p>
+                <p className="font-medium">{record.special_needs || "-"}</p>
+              </div>
+              <div className="md:col-span-2">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider font-bold mb-1">Riwayat & Catatan UKS</p>
+                <div className="bg-muted/30 p-3 rounded-md text-sm whitespace-pre-wrap">
+                  {record.uks_history || "Tidak ada riwayat medis di sekolah."}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-card rounded-xl border shadow-sm p-6 border-orange-200">
+            <h3 className="font-semibold text-lg flex items-center gap-2 mb-6 border-b pb-4 text-orange-900">
+              <PhoneCall className="w-5 h-5 text-orange-600" /> Kontak Darurat Khusus
+            </h3>
+            {record.emergency_contact_name || record.emergency_contact_phone ? (
+              <div className="flex items-center gap-4 bg-orange-50 p-4 rounded-xl border border-orange-100">
+                <div className="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center shrink-0">
+                  <PhoneCall className="w-6 h-6 text-orange-600" />
+                </div>
+                <div>
+                  <p className="font-bold text-lg text-orange-950">{record.emergency_contact_name || "Tanpa Nama"}</p>
+                  <p className="text-orange-800 font-medium font-mono mt-0.5">{record.emergency_contact_phone || "-"}</p>
+                </div>
+                <div className="ml-auto">
+                  <span className="bg-orange-200 text-orange-800 text-xs font-bold uppercase px-3 py-1 rounded-full">
+                    Hubungan: {record.emergency_contact_relation || "-"}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-muted/30 border border-dashed rounded-lg p-6 text-center">
+                <p className="text-sm text-muted-foreground">Tidak ada kontak darurat tambahan yang didaftarkan.</p>
               </div>
             )}
           </div>

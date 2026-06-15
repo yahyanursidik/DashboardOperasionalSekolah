@@ -199,8 +199,7 @@ export const AcademicCalendar: React.FC = () => {
     <div className="space-y-6 max-w-7xl mx-auto pb-12">
       <PageHeader 
         title="Kalender Akademik Dual" 
-        subtitle="Masehi & Hijriah (Umm al-Qura)" 
-        icon={<CalendarIcon className="w-8 h-8 text-emerald-600" />}
+        description="Masehi & Hijriah (Umm al-Qura)" 
       />
 
       <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">

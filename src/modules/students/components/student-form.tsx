@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useSelect } from "@refinedev/core";
 import { useNavigate } from "react-router-dom";
-import { Save, ArrowLeft, User, GraduationCap, MapPin, FileText } from "lucide-react";
+import { Save, ArrowLeft, User, GraduationCap, MapPin, FileText, HeartPulse, PhoneCall } from "lucide-react";
 import { useCurrentUnit } from "../../../app/providers/UnitProvider";
 import { PhotoUpload } from "../../../components/common/PhotoUpload";
 
@@ -24,6 +24,18 @@ const studentSchema = z.object({
   address: z.string().optional().nullable(),
   notes_admin: z.string().optional().nullable(),
   photo_url: z.string().optional().nullable(),
+
+  // Health Data
+  blood_type: z.string().optional().nullable(),
+  allergies: z.string().optional().nullable(),
+  medical_history: z.string().optional().nullable(),
+  special_needs: z.string().optional().nullable(),
+  uks_history: z.string().optional().nullable(),
+
+  // Emergency Contacts
+  emergency_contact_name: z.string().optional().nullable(),
+  emergency_contact_phone: z.string().optional().nullable(),
+  emergency_contact_relation: z.string().optional().nullable(),
 });
 
 type StudentFormValues = z.infer<typeof studentSchema>;
@@ -229,7 +241,7 @@ export const StudentForm: React.FC<StudentFormProps> = ({ action }) => {
         <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
           <div className="bg-muted/40 px-6 py-4 border-b flex items-center gap-2">
             <MapPin className="w-5 h-5 text-amber-600" />
-            <h3 className="font-semibold text-lg">3. Alamat & Kontak Darurat</h3>
+            <h3 className="font-semibold text-lg">3. Alamat Tempat Tinggal</h3>
           </div>
           <div className="p-6">
             <div className="space-y-2">
@@ -244,11 +256,101 @@ export const StudentForm: React.FC<StudentFormProps> = ({ action }) => {
           </div>
         </div>
 
-        {/* SECTION 4: Catatan Administrasi */}
+        {/* SECTION 4: Data Kesehatan */}
+        <div className="bg-card rounded-xl border shadow-sm overflow-hidden border-rose-200">
+          <div className="bg-rose-50 px-6 py-4 border-b border-rose-200 flex items-center gap-2">
+            <HeartPulse className="w-5 h-5 text-rose-600" />
+            <h3 className="font-semibold text-lg text-rose-900">4. Data Kesehatan Siswa</h3>
+          </div>
+          <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Golongan Darah</label>
+              <select
+                {...register("blood_type")}
+                className="w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all"
+              >
+                <option value="">Pilih Golongan Darah</option>
+                <option value="A">A</option>
+                <option value="B">B</option>
+                <option value="AB">AB</option>
+                <option value="O">O</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Alergi Makanan / Obat</label>
+              <input
+                {...register("allergies")}
+                placeholder="Contoh: Udang, Amoxicillin"
+                className="w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Riwayat Penyakit Menahun</label>
+              <input
+                {...register("medical_history")}
+                placeholder="Contoh: Asma, Tipes"
+                className="w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Kebutuhan Khusus / Disabilitas</label>
+              <input
+                {...register("special_needs")}
+                placeholder="Tuna Rungu, Intoleransi Laktosa, dll"
+                className="w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all"
+              />
+            </div>
+            <div className="space-y-2 md:col-span-2">
+              <label className="text-sm font-medium">Catatan / Riwayat UKS</label>
+              <textarea
+                {...register("uks_history")}
+                rows={2}
+                placeholder="Catatan penanganan medis di sekolah..."
+                className="w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all resize-none"
+              ></textarea>
+            </div>
+          </div>
+        </div>
+
+        {/* SECTION 5: Kontak Darurat Khusus */}
+        <div className="bg-card rounded-xl border shadow-sm overflow-hidden border-orange-200">
+          <div className="bg-orange-50 px-6 py-4 border-b border-orange-200 flex items-center gap-2">
+            <PhoneCall className="w-5 h-5 text-orange-600" />
+            <h3 className="font-semibold text-lg text-orange-900">5. Kontak Darurat (Kondisi Mendesak)</h3>
+          </div>
+          <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Nama Kontak</label>
+              <input
+                {...register("emergency_contact_name")}
+                placeholder="Nama Lengkap"
+                className="w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Nomor Telepon / WhatsApp</label>
+              <input
+                {...register("emergency_contact_phone")}
+                placeholder="0812..."
+                className="w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Hubungan dengan Siswa</label>
+              <input
+                {...register("emergency_contact_relation")}
+                placeholder="Contoh: Paman, Kakek, Kakak"
+                className="w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* SECTION 6: Catatan Administrasi */}
         <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
           <div className="bg-muted/40 px-6 py-4 border-b flex items-center gap-2">
             <FileText className="w-5 h-5 text-purple-600" />
-            <h3 className="font-semibold text-lg">4. Catatan Administrasi</h3>
+            <h3 className="font-semibold text-lg">6. Catatan Administrasi</h3>
           </div>
           <div className="p-6">
             <div className="space-y-2">
