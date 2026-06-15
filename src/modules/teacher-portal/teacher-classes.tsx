@@ -82,10 +82,15 @@ export const TeacherClasses: React.FC = () => {
           <div key={cls.id} className="bg-white border rounded-2xl shadow-sm overflow-hidden">
             <div className="p-4 border-b bg-gray-50 flex justify-between items-center">
               <div>
-                <h3 className="font-bold text-gray-900 text-lg">{cls.name}</h3>
+                <h3 className="font-bold text-gray-900 text-lg flex items-center gap-2">
+                  {cls.name}
+                  {cls.homeroom_teacher_id === employee.id && (
+                    <span className="bg-amber-100 text-amber-700 text-[10px] px-2 py-0.5 rounded-full border border-amber-200 uppercase tracking-wide">Wali Kelas</span>
+                  )}
+                </h3>
                 <p className="text-xs text-muted-foreground mt-0.5">Tingkat: {cls.level}</p>
               </div>
-              <div className="bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-bold">
+              <div className="bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-bold shrink-0">
                 {cls.capacity} Siswa
               </div>
             </div>

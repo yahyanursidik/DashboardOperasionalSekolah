@@ -73,9 +73,22 @@ export const TeacherLayout: React.FC = () => {
             <div>
               <p className="text-xs opacity-80">Selamat datang,</p>
               <h2 className="font-bold text-lg leading-tight">{employee.full_name}</h2>
-              <p className="text-[10px] font-medium bg-black/20 inline-block px-2 py-0.5 rounded mt-1">
-                {employee.position === 'guru' ? 'Guru / Pengajar' : employee.position} - NIK: {employee.nik}
-              </p>
+              <div className="flex flex-wrap gap-1 mt-1.5">
+                <span className="text-[9px] font-medium bg-black/20 px-2 py-0.5 rounded">
+                  NIK: {employee.nik}
+                </span>
+                {employee.teacher_roles && employee.teacher_roles.length > 0 ? (
+                  employee.teacher_roles.map((role: string, idx: number) => (
+                    <span key={idx} className="text-[9px] font-bold bg-white/20 text-white px-2 py-0.5 rounded">
+                      {role}
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-[9px] font-bold bg-white/20 text-white px-2 py-0.5 rounded">
+                    {employee.position === 'guru' ? 'Guru Umum' : employee.position}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </div>

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useOutletContext, Link } from "react-router-dom";
 import { supabaseClient } from "../../lib/supabase/client";
-import { Calendar, Clock, CheckSquare, BookOpen, ChevronRight, UserCheck } from "lucide-react";
+import { Calendar, Clock, CheckSquare, BookOpen, ChevronRight, UserCheck, Users, AlertTriangle } from "lucide-react";
 
 export const TeacherDashboard: React.FC = () => {
   const { employee } = useOutletContext<any>();
@@ -86,14 +86,30 @@ export const TeacherDashboard: React.FC = () => {
             <div className="bg-emerald-100 p-3 rounded-full text-emerald-600">
               <UserCheck className="w-6 h-6" />
             </div>
-            <span className="text-xs font-bold text-gray-700">Absen Kelas</span>
+            <span className="text-xs font-bold text-gray-700 text-center">Absen Kelas</span>
           </Link>
           <Link to="/teacher/journals" className="bg-white p-4 rounded-2xl shadow-sm border flex flex-col items-center justify-center gap-3 hover:border-primary/50 hover:shadow-md transition">
             <div className="bg-blue-100 p-3 rounded-full text-blue-600">
               <BookOpen className="w-6 h-6" />
             </div>
-            <span className="text-xs font-bold text-gray-700">Tulis Jurnal</span>
+            <span className="text-xs font-bold text-gray-700 text-center">Tulis Jurnal</span>
           </Link>
+          {employee?.teacher_roles?.includes("Guru Piket") && (
+            <button className="bg-white p-4 rounded-2xl shadow-sm border flex flex-col items-center justify-center gap-3 hover:border-amber-500/50 hover:shadow-md transition" onClick={() => alert("Fitur Guru Piket: Segera hadir!")}>
+              <div className="bg-amber-100 p-3 rounded-full text-amber-600">
+                <Users className="w-6 h-6" />
+              </div>
+              <span className="text-xs font-bold text-gray-700 text-center">Rekap Sekolah (Piket)</span>
+            </button>
+          )}
+          {employee?.teacher_roles?.includes("Guru Bimbingan dan Konseling") && (
+            <button className="bg-white p-4 rounded-2xl shadow-sm border flex flex-col items-center justify-center gap-3 hover:border-rose-500/50 hover:shadow-md transition" onClick={() => alert("Fitur Penanganan BK: Segera hadir!")}>
+              <div className="bg-rose-100 p-3 rounded-full text-rose-600">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <span className="text-xs font-bold text-gray-700 text-center">Konseling (BK)</span>
+            </button>
+          )}
         </div>
       </div>
 
