@@ -51,6 +51,11 @@ export const navigationConfig: NavigationGroup[] = [
         href: "/",
         icon: Home,
       },
+      {
+        title: "Kalender Akademik",
+        href: "/calendar",
+        icon: CalendarCheck,
+      },
     ],
   },
   {

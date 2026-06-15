@@ -104,19 +104,30 @@ export const ReportPrint: React.FC = () => {
           <h2 className="text-xl font-bold">{data.classObj?.units?.name || "TSLS School"}</h2>
         </div>
 
-        {/* Identity Table */}
-        <table className="w-full text-sm mb-6">
-          <tbody>
-            <tr>
-              <td className="w-32 py-1 font-semibold">Nama Siswa</td><td className="w-4">:</td><td>{data.student.full_name}</td>
-              <td className="w-32 py-1 font-semibold">Kelas</td><td className="w-4">:</td><td>{data.classObj?.name}</td>
-            </tr>
-            <tr>
-              <td className="py-1 font-semibold">NIS/NISN</td><td>:</td><td>{data.student.nis || "-"} / {data.student.nisn || "-"}</td>
-              <td className="py-1 font-semibold">Semester</td><td>:</td><td>{data.semester?.name}</td>
-            </tr>
-          </tbody>
-        </table>
+          {/* Identity Table & Photo */}
+          <div className="flex gap-6 mb-6 items-start">
+            {data.student.photo_url && (
+              <div className="w-24 h-32 border-2 border-black p-1 shrink-0 bg-white">
+                <img 
+                  src={data.student.photo_url.startsWith('http') ? data.student.photo_url : `https://ebdkupeqmpqrdfketgab.supabase.co/storage/v1/object/public/school-documents/${data.student.photo_url}`}
+                  alt={data.student.full_name}
+                  className="w-full h-full object-cover grayscale"
+                />
+              </div>
+            )}
+            <table className="w-full text-sm">
+              <tbody>
+                <tr>
+                  <td className="w-32 py-1 font-semibold">Nama Siswa</td><td className="w-4">:</td><td>{data.student.full_name}</td>
+                  <td className="w-32 py-1 font-semibold">Kelas</td><td className="w-4">:</td><td>{data.classObj?.name}</td>
+                </tr>
+                <tr>
+                  <td className="py-1 font-semibold">NIS/NISN</td><td>:</td><td>{data.student.nis || "-"} / {data.student.nisn || "-"}</td>
+                  <td className="py-1 font-semibold">Semester</td><td>:</td><td>{data.semester?.name}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
 
         {/* Main Grades */}
         <div className="mb-6">

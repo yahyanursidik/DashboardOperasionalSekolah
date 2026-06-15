@@ -47,6 +47,7 @@ import { MailDashboard, IncomingMailList, OutgoingMailList, DispositionsList, In
 import { RecruitmentDashboard, VacanciesList, ApplicantsList, ApplicantShow, VacancyCreate, ApplicantCreate } from "../modules/recruitment";
 import { AcademicDashboard, Gradebook, ReportCards, ReportPrint } from "../modules/academic";
 import { SarprasDashboard, AssetsList, AssetLoansList, ProcurementsList } from "../modules/sarpras";
+import { AcademicCalendar } from "../modules/calendar";
 import { 
   QuranRecordsList, QuranRecordForm, 
   QuranTargetsList, QuranTargetForm,
@@ -75,6 +76,8 @@ import { TeacherJournals } from "../modules/teacher-portal/teacher-journals";
 import { TeacherLeaves } from "../modules/teacher-portal/teacher-leaves";
 import { TeacherQuran } from "../modules/teacher-portal/teacher-quran";
 import { TeacherPaud } from "../modules/teacher-portal/teacher-paud";
+
+import { BendaharaLayout, BendaharaLogin } from "../modules/bendahara-portal";
 
 export default function App() {
   return (
@@ -475,10 +478,14 @@ export default function App() {
                   <Route path="documents" element={<DocumentReport />} />
                   <Route path="tasks" element={<TaskReport />} />
                   <Route path="employee-attendance" element={<ReportEmployeeAttendance />} />
-                  <Route path="leaves" element={<ReportLeaves />} />
-                </Route>
+                <Route path="leaves" element={<ReportLeaves />} />
+              </Route>
 
-                <Route path="/student-journals">
+              <Route path="/calendar">
+                <Route index element={<AcademicCalendar />} />
+              </Route>
+
+              <Route path="/student-journals">
                   <Route index element={<StudentJournalsList />} />
                   <Route path="create" element={<StudentJournalCreate />} />
                   <Route path="edit/:id" element={<StudentJournalEdit />} />
@@ -595,6 +602,16 @@ export default function App() {
                 <Route path="paud" element={<TeacherPaud />} />
                 <Route path="journals" element={<TeacherJournals />} />
                 <Route path="leaves" element={<TeacherLeaves />} />
+              </Route>
+
+              <Route path="/bendahara/login" element={<BendaharaLogin />} />
+              <Route path="/bendahara" element={<BendaharaLayout />}>
+                <Route index element={<FinanceDashboard />} />
+                <Route path="invoices" element={<InvoicesList />} />
+                <Route path="verifications" element={<PaymentVerifications />} />
+                <Route path="expenses" element={<SchoolExpenses />} />
+                <Route path="students" element={<StudentsList />} />
+                <Route path="categories" element={<FinanceCategories />} />
               </Route>
 
             </Routes>

@@ -172,8 +172,16 @@ export const StudentShow: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1 space-y-6">
           <div className="bg-card rounded-xl border shadow-sm p-6 text-center">
-            <div className="w-24 h-24 mx-auto rounded-full bg-primary/10 flex items-center justify-center border-4 border-white shadow-sm mb-4">
-              <User className="w-12 h-12 text-primary/50" />
+            <div className="w-24 h-24 mx-auto rounded-full bg-primary/10 flex items-center justify-center border-4 border-white shadow-sm mb-4 overflow-hidden">
+              {record.photo_url ? (
+                <img 
+                  src={record.photo_url.startsWith('http') ? record.photo_url : `https://ebdkupeqmpqrdfketgab.supabase.co/storage/v1/object/public/school-documents/${record.photo_url}`} 
+                  alt={record.full_name} 
+                  className="w-full h-full object-cover" 
+                />
+              ) : (
+                <User className="w-12 h-12 text-primary/50" />
+              )}
             </div>
             <h2 className="text-xl font-bold">{record.full_name}</h2>
             <p className="text-sm text-muted-foreground mb-4">Panggilan: {record.nickname || "-"}</p>

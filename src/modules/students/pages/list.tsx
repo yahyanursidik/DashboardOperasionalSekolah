@@ -62,12 +62,28 @@ export const StudentsList: React.FC = () => {
         accessorKey: "full_name",
         header: "Nama Siswa",
         cell: function render({ row, getValue }) {
+          const photoUrl = row.original.photo_url;
           return (
-            <div className="flex flex-col">
-              <span className="font-semibold text-foreground">{getValue<string>()}</span>
-              {row.original.nickname && (
-                <span className="text-xs text-muted-foreground">Panggilan: {row.original.nickname}</span>
-              )}
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0 overflow-hidden border">
+                {photoUrl ? (
+                  <img 
+                    src={photoUrl.startsWith('http') ? photoUrl : `https://ebdkupeqmpqrdfketgab.supabase.co/storage/v1/object/public/school-documents/${photoUrl}`}
+                    alt={getValue<string>()}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span className="font-bold text-primary/50 text-xs">
+                    {getValue<string>().charAt(0)}
+                  </span>
+                )}
+              </div>
+              <div className="flex flex-col">
+                <span className="font-semibold text-foreground">{getValue<string>()}</span>
+                {row.original.nickname && (
+                  <span className="text-xs text-muted-foreground">Panggilan: {row.original.nickname}</span>
+                )}
+              </div>
             </div>
           );
         },
@@ -95,18 +111,20 @@ export const StudentsList: React.FC = () => {
       },
       {
         id: "unit",
-        accessorKey: "units.name",
         header: "Unit",
         cell: function render({ row }) {
-          return <span className="text-xs font-bold px-2 py-1 bg-muted rounded-md">{row.original.units?.name || "-"}</span>;
+          const u = row.original.units as any;
+          const name = Array.isArray(u) ? u[0]?.name : u?.name;
+          return <span className="text-xs font-bold px-2 py-1 bg-muted rounded-md">{name || "-"}</span>;
         },
       },
       {
         id: "class",
-        accessorKey: "classes.name",
         header: "Kelas",
         cell: function render({ row }) {
-          return <span className="font-medium">{row.original.classes?.name || "Belum ada"}</span>;
+          const c = row.original.classes as any;
+          const name = Array.isArray(c) ? c[0]?.name : c?.name;
+          return <span className="font-medium">{name || "Belum ada"}</span>;
         },
       },
       {

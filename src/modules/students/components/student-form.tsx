@@ -6,6 +6,7 @@ import { useSelect } from "@refinedev/core";
 import { useNavigate } from "react-router-dom";
 import { Save, ArrowLeft, User, GraduationCap, MapPin, FileText } from "lucide-react";
 import { useCurrentUnit } from "../../../app/providers/UnitProvider";
+import { PhotoUpload } from "../../../components/common/PhotoUpload";
 
 const studentSchema = z.object({
   full_name: z.string().min(1, "Nama Lengkap wajib diisi"),
@@ -22,6 +23,7 @@ const studentSchema = z.object({
   
   address: z.string().optional().nullable(),
   notes_admin: z.string().optional().nullable(),
+  photo_url: z.string().optional().nullable(),
 });
 
 type StudentFormValues = z.infer<typeof studentSchema>;
@@ -84,9 +86,19 @@ export const StudentForm: React.FC<StudentFormProps> = ({ action }) => {
             <User className="w-5 h-5 text-primary" />
             <h3 className="font-semibold text-lg">1. Identitas Siswa</h3>
           </div>
-          <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Nama Lengkap <span className="text-destructive">*</span></label>
+          
+          <div className="p-6 flex flex-col md:flex-row gap-8">
+            <div className="w-full md:w-1/3 flex flex-col items-center border-r pr-0 md:pr-8 border-transparent md:border-border">
+              <label className="text-sm font-semibold mb-4 text-center">Foto Siswa</label>
+              <PhotoUpload 
+                value={watch("photo_url") || null} 
+                onChange={(url) => register("photo_url").onChange({ target: { name: "photo_url", value: url } })} 
+              />
+            </div>
+            
+            <div className="w-full md:w-2/3 grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Nama Lengkap <span className="text-destructive">*</span></label>
               <input
                 {...register("full_name")}
                 placeholder="Sesuai Akta Kelahiran"
@@ -135,6 +147,7 @@ export const StudentForm: React.FC<StudentFormProps> = ({ action }) => {
                   className="w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all"
                 />
               </div>
+            </div>
             </div>
           </div>
         </div>
