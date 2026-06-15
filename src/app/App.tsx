@@ -53,6 +53,13 @@ import { PortalFinance } from "../modules/portal/portal-finance";
 import { PortalAcademic } from "../modules/portal/portal-academic";
 import { PortalJournals } from "../modules/portal/portal-journals";
 
+import { TeacherLayout } from "../modules/teacher-portal/teacher-layout";
+import { TeacherLogin } from "../modules/teacher-portal/teacher-login";
+import { TeacherDashboard } from "../modules/teacher-portal/teacher-dashboard";
+import { TeacherClasses } from "../modules/teacher-portal/teacher-classes";
+import { TeacherJournals } from "../modules/teacher-portal/teacher-journals";
+import { TeacherLeaves } from "../modules/teacher-portal/teacher-leaves";
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -494,6 +501,14 @@ export default function App() {
                 <Route path="finance" element={<PortalFinance />} />
                 <Route path="academic" element={<PortalAcademic />} />
                 <Route path="journals" element={<PortalJournals />} />
+              </Route>
+
+              <Route path="/teacher/login" element={<TeacherLogin />} />
+              <Route path="/teacher" element={<TeacherLayout />}>
+                <Route index element={<TeacherDashboard />} />
+                <Route path="classes" element={<TeacherClasses />} />
+                <Route path="journals" element={<TeacherJournals />} />
+                <Route path="leaves" element={<TeacherLeaves />} />
               </Route>
 
             </Routes>

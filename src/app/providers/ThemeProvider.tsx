@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 
 type Theme = "dark" | "light" | "system";
-type ColorTheme = "emerald" | "ocean" | "rose" | "slate";
+type ColorTheme = "emerald" | "ocean" | "rose" | "slate" | "islamic";
 
 type ThemeProviderProps = {
   children: React.ReactNode;
@@ -56,7 +56,7 @@ export function ThemeProvider({
     }
 
     // Apply color theme
-    root.classList.remove("theme-emerald", "theme-ocean", "theme-rose", "theme-slate");
+    root.classList.remove("theme-emerald", "theme-ocean", "theme-rose", "theme-slate", "theme-islamic");
     if (colorTheme !== "emerald") {
       root.classList.add(`theme-${colorTheme}`);
     }

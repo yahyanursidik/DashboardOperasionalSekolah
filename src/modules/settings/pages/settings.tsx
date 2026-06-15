@@ -254,7 +254,16 @@ const AppearanceSettings: React.FC = () => {
           <p className="text-sm text-muted-foreground">Pilih tema warna utama aplikasi.</p>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+          <button 
+            onClick={() => setColorTheme("islamic")}
+            className={`flex flex-col items-center justify-center gap-3 p-4 border-2 rounded-xl transition-all ${colorTheme === "islamic" ? "border-emerald-700 bg-amber-50/50 dark:bg-emerald-950/30" : "border-border hover:border-emerald-600/50 bg-background"}`}
+          >
+            <div className="w-10 h-10 rounded-full bg-[#31825c] flex items-center justify-center">
+              {colorTheme === "islamic" && <Check className="w-5 h-5 text-white" />}
+            </div>
+            <span className="font-medium text-sm text-center">Nuansa Islami<br/><span className="text-[10px] text-muted-foreground font-normal">(Anti-Lelah)</span></span>
+          </button>
           <button 
             onClick={() => setColorTheme("emerald")}
             className={`flex flex-col items-center justify-center gap-3 p-4 border-2 rounded-xl transition-all ${colorTheme === "emerald" ? "border-emerald-600 bg-emerald-50 dark:bg-emerald-950/20" : "border-border hover:border-emerald-500/50 bg-background"}`}
