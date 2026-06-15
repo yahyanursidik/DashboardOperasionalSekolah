@@ -58,9 +58,12 @@ export const PortalLogin: React.FC = () => {
 
            // Jika signup berhasil, panggil RPC untuk menautkan akun
            if (signup.data?.session) {
-             await supabaseClient.rpc('link_my_account');
+             console.log("Memanggil RPC link_my_account...");
+             const rpcResult = await supabaseClient.rpc('link_my_account');
+             console.log("Hasil RPC link_my_account:", rpcResult);
            }
         } else {
+           console.log("Login dengan password123 berhasil");
            authData = retry.data;
            authError = retry.error;
         }
@@ -71,10 +74,18 @@ export const PortalLogin: React.FC = () => {
         return;
       }
 
-      toast.success("Login berhasil!");
+      // Login berhasil! Sesi secara otomatis disimpan di LocalStorage oleh Supabase.
+      console.log("Login berhasil, authData:", authData);
+      
+      // PASTIKAN SELALU PANGGIL LINK RPC WALAUPUN SIGNIN NORMAL BERHASIL!
+      console.log("Memastikan akun tertaut via RPC...");
+      await supabaseClient.rpc('link_my_account');
+
+      toast.success(`Selamat datang, Wali Siswa!`);
       navigate("/portal");
     } catch (err: any) {
-      toast.error(err.message || "Terjadi kesalahan sistem. Coba lagi nanti.");
+      console.error("Login Error Catch:", err);
+      toast.error(err.message || "Terjadi kesalahan sistem saat login.");
     } finally {
       setIsLoading(false);
     }

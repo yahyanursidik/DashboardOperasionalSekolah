@@ -28,12 +28,13 @@ export const TeacherLayout: React.FC = () => {
         .single();
 
       if (error || !empData) {
-        console.error("Employee not found for this user");
+        console.error("Employee not found for this user", error, empData);
         await supabaseClient.auth.signOut();
         navigate("/teacher/login");
         return;
       }
 
+      console.log("Employee found:", empData);
       setEmployee(empData);
     };
 
