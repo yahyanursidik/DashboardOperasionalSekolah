@@ -11,14 +11,14 @@ DECLARE
     prt_email text;
 BEGIN
     FOR prt IN 
-        SELECT id, nik, email, full_name, user_id 
+        SELECT id, email, full_name, user_id 
         FROM public.parents 
         WHERE user_id IS NULL
     LOOP
         new_user_id := gen_random_uuid();
         
-        -- Gunakan email asli jika ada, jika tidak buat email dummy dari NIK
-        prt_email := COALESCE(prt.email, prt.nik || '@parent.demo');
+        -- Gunakan email asli jika ada, jika tidak buat email dummy dari ID
+        prt_email := COALESCE(prt.email, prt.id || '@parent.demo');
 
         -- 1. Insert ke auth.users
         INSERT INTO auth.users (
