@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useOutletContext } from "react-router-dom";
-import { supabaseClient } from "../../../lib/supabase/client";
+import { supabaseClient } from "../../lib/supabase/client";
 import { Calendar, Plus, Clock, CheckCircle, XCircle } from "lucide-react";
 
 export const TeacherLeaves: React.FC = () => {

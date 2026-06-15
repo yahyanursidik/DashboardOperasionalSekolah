@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Outlet, useNavigate, useLocation, Link } from "react-router-dom";
 import { Home, Users, BookOpen, Calendar, LogOut, CheckSquare } from "lucide-react";
-import { useSystemSettings } from "../../../app/providers/SettingsProvider";
+import { useSystemSettings } from "../../app/providers/SettingsProvider";
 
 export const TeacherLayout: React.FC = () => {
   const [employee, setEmployee] = useState<any>(null);

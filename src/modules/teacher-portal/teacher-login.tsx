@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabaseClient } from "../../../lib/supabase/client";
+import { supabaseClient } from "../../lib/supabase/client";
 import { BookOpen, ArrowRight, AlertCircle, Mail, User } from "lucide-react";
-import { useSystemSettings } from "../../../app/providers/SettingsProvider";
+import { useSystemSettings } from "../../app/providers/SettingsProvider";
 
 export const TeacherLogin: React.FC = () => {
   const [identifier, setIdentifier] = useState("");

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useOutletContext, Link } from "react-router-dom";
-import { supabaseClient } from "../../../lib/supabase/client";
+import { supabaseClient } from "../../lib/supabase/client";
 import { Calendar, Clock, CheckSquare, BookOpen, ChevronRight, UserCheck } from "lucide-react";
 
 export const TeacherDashboard: React.FC = () => {
