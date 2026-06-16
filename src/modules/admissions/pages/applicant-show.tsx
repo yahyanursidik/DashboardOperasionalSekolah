@@ -1,13 +1,42 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { PageHeader } from "../../../components/layout/PageHeader";
-import { User, FileText, CheckCircle, ChevronLeft, Download, AlertCircle, Info, ClipboardList, GraduationCap } from "lucide-react";
+import { User, FileText, CheckCircle, ChevronLeft, Download, AlertCircle, Info, ClipboardList, GraduationCap, Users, MapPin, Phone, Mail, Briefcase, Link as LinkIcon } from "lucide-react";
 import { mockApplicants } from "../mock";
 
 export const ApplicantShow: React.FC = () => {
   const { id } = useParams();
 
   const applicant = mockApplicants.find(a => a.id === id) || mockApplicants[0];
+
+  const [testDone, setTestDone] = useState(false);
+  const [isPassed, setIsPassed] = useState(false);
+
+  useEffect(() => {
+    // In simulation, we tie the testDone flag globally for the demo.
+    // In real app, this would be per-applicant ID in database.
+    const isTestDone = localStorage.getItem('spmbTestCompleted') === 'true';
+    const isPass = localStorage.getItem('spmbPassed') === 'true';
+    setTestDone(isTestDone);
+    setIsPassed(isPass);
+  }, []);
+
+  const handleMarkTestDone = () => {
+    const newValue = !testDone;
+    setTestDone(newValue);
+    localStorage.setItem('spmbTestCompleted', newValue ? 'true' : 'false');
+    // Dispatch event so other tabs/components update
+    window.dispatchEvent(new Event('spmbProgressUpdated'));
+    alert(newValue ? 'Simulasi: Pendaftar ditandai SUDAH hadir tes!' : 'Simulasi: Kehadiran tes dibatalkan.');
+  };
+
+  const handleMarkPassed = () => {
+    const newValue = !isPassed;
+    setIsPassed(newValue);
+    localStorage.setItem('spmbPassed', newValue ? 'true' : 'false');
+    window.dispatchEvent(new Event('spmbProgressUpdated'));
+    alert(newValue ? 'Simulasi: Pendaftar ditandai LULUS SELEKSI!' : 'Simulasi: Kelulusan dibatalkan.');
+  };
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
@@ -163,6 +192,117 @@ export const ApplicantShow: React.FC = () => {
               </li>
             </ul>
           </div>
+
+          {/* Profil Orang Tua / Wali */}
+          {applicant.parentsInfo && (
+            <div className="bg-card border rounded-2xl p-6 shadow-sm">
+              <h3 className="font-bold text-lg border-b pb-3 mb-4 flex items-center gap-2">
+                <Users className="w-5 h-5 text-blue-500" /> Profil Orang Tua / Wali
+              </h3>
+              
+              <div className="space-y-6">
+                {/* Alamat & Maps */}
+                <div>
+                  <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
+                    <MapPin className="w-4 h-4 text-muted-foreground" /> Alamat Domisili
+                  </h4>
+                  <p className="text-sm text-muted-foreground mb-3">{applicant.parentsInfo.address}</p>
+                  <div className="w-full h-48 rounded-xl overflow-hidden border bg-muted/20">
+                    <iframe 
+                      src={applicant.parentsInfo.mapUrl} 
+                      width="100%" 
+                      height="100%" 
+                      style={{ border: 0 }} 
+                      allowFullScreen 
+                      loading="lazy" 
+                      referrerPolicy="no-referrer-when-downgrade"
+                      title="Lokasi Alamat"
+                    ></iframe>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4 border-t">
+                  {/* Ayah */}
+                  <div className="space-y-3">
+                    <h4 className="font-bold text-sm text-blue-800 bg-blue-50 px-3 py-1.5 rounded-lg inline-block">Data Ayah</h4>
+                    <div className="space-y-2 text-sm">
+                      <div>
+                        <p className="text-muted-foreground text-xs">Nama Lengkap</p>
+                        <p className="font-semibold">{applicant.parentsInfo.father.name}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Briefcase className="w-4 h-4 text-muted-foreground shrink-0" />
+                        <span>{applicant.parentsInfo.father.occupation}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Phone className="w-4 h-4 text-muted-foreground shrink-0" />
+                        <span>{applicant.parentsInfo.father.phone} (WA Aktif)</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Mail className="w-4 h-4 text-muted-foreground shrink-0" />
+                        <span className="truncate">{applicant.parentsInfo.father.email}</span>
+                      </div>
+                      <div>
+                        <span className="inline-block px-2 py-1 bg-slate-100 text-slate-700 rounded text-xs font-medium">
+                          Status: {applicant.parentsInfo.father.status}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Ibu */}
+                  <div className="space-y-3">
+                    <h4 className="font-bold text-sm text-rose-800 bg-rose-50 px-3 py-1.5 rounded-lg inline-block">Data Ibu</h4>
+                    <div className="space-y-2 text-sm">
+                      <div>
+                        <p className="text-muted-foreground text-xs">Nama Lengkap</p>
+                        <p className="font-semibold">{applicant.parentsInfo.mother.name}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Briefcase className="w-4 h-4 text-muted-foreground shrink-0" />
+                        <span>{applicant.parentsInfo.mother.occupation}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Phone className="w-4 h-4 text-muted-foreground shrink-0" />
+                        <span>{applicant.parentsInfo.mother.phone} (WA Aktif)</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Mail className="w-4 h-4 text-muted-foreground shrink-0" />
+                        <span className="truncate">{applicant.parentsInfo.mother.email}</span>
+                      </div>
+                      <div>
+                        <span className="inline-block px-2 py-1 bg-slate-100 text-slate-700 rounded text-xs font-medium">
+                          Status: {applicant.parentsInfo.mother.status}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Anak yang bersekolah disini */}
+                {applicant.parentsInfo.siblingsInSchool.length > 0 && (
+                  <div className="pt-4 border-t">
+                    <h4 className="font-semibold text-sm mb-3 flex items-center gap-2">
+                      <LinkIcon className="w-4 h-4 text-muted-foreground" /> Data Anak di Sekolah Ini
+                    </h4>
+                    <div className="space-y-2">
+                      {applicant.parentsInfo.siblingsInSchool.map((sibling, idx) => (
+                        <div key={idx} className="flex items-center justify-between p-3 border rounded-lg bg-slate-50">
+                          <div>
+                            <p className="font-medium text-sm">{sibling.name}</p>
+                            <p className="text-xs text-muted-foreground">{sibling.unit} - {sibling.grade}</p>
+                          </div>
+                          <button className="text-xs font-medium text-primary hover:underline">
+                            Lihat Profil
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Kolom Kanan: Aksi & Status */}
@@ -181,13 +321,34 @@ export const ApplicantShow: React.FC = () => {
               <button className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg text-sm transition-colors shadow-sm flex items-center justify-center gap-2">
                 <CheckCircle className="w-4 h-4" /> Validasi Semua Berkas
               </button>
+              
+              <button 
+                onClick={handleMarkTestDone}
+                className={`w-full py-2.5 font-medium rounded-lg text-sm transition-colors flex items-center justify-center gap-2 border ${
+                  testDone 
+                    ? 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100' 
+                    : 'border-indigo-500 text-indigo-600 hover:bg-indigo-50'
+                }`}
+              >
+                <CheckCircle className="w-4 h-4" /> 
+                {testDone ? 'Batalkan Kehadiran Tes' : 'Tandai Hadir Tes & Wawancara'}
+              </button>
+
               {(applicant.unit === 'SMP' || applicant.unit === 'SMA') && (
                 <button className="w-full py-2.5 border border-primary text-primary hover:bg-primary/5 font-medium rounded-lg text-sm transition-colors">
                   Input Nilai Ujian
                 </button>
               )}
-              <button className="w-full py-2.5 border border-amber-500 text-amber-600 hover:bg-amber-50 font-medium rounded-lg text-sm transition-colors">
-                Tandai Lulus Seleksi
+              <button 
+                onClick={handleMarkPassed}
+                className={`w-full py-2.5 font-medium rounded-lg text-sm transition-colors flex items-center justify-center gap-2 border ${
+                  isPassed 
+                    ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100' 
+                    : 'border-amber-500 text-amber-600 hover:bg-amber-50'
+                }`}
+              >
+                <CheckCircle className="w-4 h-4" /> 
+                {isPassed ? 'Batalkan Kelulusan' : 'Tandai Lulus Seleksi'}
               </button>
             </div>
           </div>

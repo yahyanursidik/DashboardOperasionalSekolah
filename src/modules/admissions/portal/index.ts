@@ -3,3 +3,7 @@ export * from "./spmb-dashboard";
 export * from "./spmb-form";
 export * from "./spmb-documents";
 export * from "./spmb-announcement";
+export * from "./spmb-login";
+export * from "./spmb-register";
+export * from "./spmb-checklist";
+export * from "./spmb-payment";

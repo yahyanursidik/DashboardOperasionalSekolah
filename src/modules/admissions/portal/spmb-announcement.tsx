@@ -3,8 +3,9 @@ import { Link } from "react-router-dom";
 import { Award, ChevronLeft, Calendar } from "lucide-react";
 
 export const SpmbAnnouncement: React.FC = () => {
-  // Mock status: 'waiting', 'accepted', 'rejected'
-  const resultStatus: string = 'accepted'; 
+  // Read simulation status from localStorage
+  const isPassed = localStorage.getItem('spmbPassed') === 'true';
+  const resultStatus: string = isPassed ? 'accepted' : 'waiting'; 
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">

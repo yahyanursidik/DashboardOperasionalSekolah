@@ -297,6 +297,12 @@ export const navigationConfig: NavigationGroup[] = [
         icon: Tag,
         resource: "finance_categories",
       },
+      {
+        title: "Pengaturan Biaya SPMB",
+        href: "/finance/spmb-fees",
+        icon: Settings,
+        resource: "student_invoices",
+      },
     ],
   },
   {

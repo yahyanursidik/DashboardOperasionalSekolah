@@ -4,7 +4,8 @@ import { Link } from "react-router-dom";
 import { 
   Users, UserPlus, Building, ClipboardList, 
   Megaphone, UploadCloud, CheckCircle2, 
-  AlertCircle, Clock, Activity, Briefcase
+  AlertCircle, Clock, Activity, Briefcase,
+  Wallet, GraduationCap, TrendingUp, CalendarCheck, FileText
 } from "lucide-react";
 import { useCurrentUnit } from "../../../app/providers/UnitProvider";
 import { useAcademicYear } from "../../../app/providers/AcademicYearProvider";
@@ -21,27 +22,42 @@ const GreetingCard = () => {
     queryOptions: { enabled: !!activeUnitId },
   });
 
-  const { data: yearData } = useOne({
-    resource: "academic_years",
-    id: activeYearId || "",
-    queryOptions: { enabled: !!activeYearId },
+  const { data: allUnits } = useList({
+    resource: "units",
+    pagination: { mode: "off" },
+    filters: [{ field: "is_active", operator: "eq", value: true }]
   });
 
+  const unitName = activeUnitId ? (unitData?.data?.name || "Memuat...") : "Semua Unit (Seluruh Sekolah)";
+
   return (
-    <div className="bg-gradient-to-br from-primary/90 to-primary text-primary-foreground rounded-2xl p-6 sm:p-8 shadow-sm flex flex-col justify-center">
-      <h2 className="text-2xl sm:text-3xl font-bold mb-2">Assalamualaikum, {identity?.full_name?.split(' ')[0] || "Admin"}!</h2>
-      <p className="text-primary-foreground/80 mb-6 text-sm sm:text-base">
-        Selamat datang di pusat kendali operasional TSLS.
-      </p>
-      
-      <div className="grid grid-cols-2 gap-4 mt-auto">
-        <div className="bg-white/10 rounded-xl p-4 backdrop-blur-sm">
-          <p className="text-xs text-primary-foreground/70 uppercase tracking-wider font-semibold mb-1">Unit Aktif</p>
-          <p className="font-medium truncate">{unitData?.data?.name || "Memuat..."}</p>
+    <div className="bg-gradient-to-br from-primary/90 to-primary text-primary-foreground rounded-2xl p-6 sm:p-8 shadow-sm flex flex-col justify-center h-full relative overflow-hidden">
+      {/* Decorative element */}
+      <div className="absolute -right-10 -top-10 w-48 h-48 bg-white/10 rounded-full blur-3xl pointer-events-none"></div>
+
+      <div className="relative z-10">
+        <h2 className="text-2xl sm:text-3xl font-bold mb-2">Assalamualaikum, {identity?.full_name?.split(' ')[0] || "Admin"}!</h2>
+        <p className="text-primary-foreground/80 text-sm sm:text-base mb-6">
+          Selamat datang di pusat kendali operasional TSLS.
+        </p>
+        
+        <div className="inline-flex items-center gap-3 bg-white/10 border border-white/20 rounded-full px-4 py-2 backdrop-blur-md shadow-inner mt-2">
+          <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shrink-0 shadow-[0_0_8px_rgba(52,211,153,0.8)]"></div>
+          <span className="text-sm font-medium tracking-wide">
+            Filter Terpilih: <strong className="text-white font-bold ml-1">{unitName}</strong>
+          </span>
         </div>
-        <div className="bg-white/10 rounded-xl p-4 backdrop-blur-sm">
-          <p className="text-xs text-primary-foreground/70 uppercase tracking-wider font-semibold mb-1">Tahun Ajaran</p>
-          <p className="font-medium truncate">{yearData?.data?.name || "Memuat..."}</p>
+
+        <div className="mt-6 pt-4 border-t border-white/10">
+          <p className="text-[10px] text-primary-foreground/70 uppercase tracking-wider font-bold mb-2">Jenjang Sekolah (Unit) Yang Beroperasi:</p>
+          <div className="flex flex-wrap gap-2">
+            {allUnits?.data?.map(u => (
+              <span key={u.id} className="px-2.5 py-1 rounded-md bg-white/10 text-xs font-medium border border-white/5">
+                {u.name}
+              </span>
+            ))}
+            {!allUnits?.data && <span className="text-xs text-primary-foreground/50">Memuat data...</span>}
+          </div>
         </div>
       </div>
     </div>
@@ -51,12 +67,12 @@ const GreetingCard = () => {
 // --- WIDGET 2: Quick Actions ---
 const QuickActions = () => {
   const actions = [
-    { label: "Tambah Siswa", icon: UserPlus, href: "/students/create", color: "bg-blue-50 text-blue-600" },
-    { label: "Tambah Guru", icon: Briefcase, href: "/employees/create", color: "bg-emerald-50 text-emerald-600" },
-    { label: "Tambah Kelas", icon: Building, href: "/classes/create", color: "bg-amber-50 text-amber-600" },
+    { label: "Pendaftar SPMB", icon: GraduationCap, href: "/admissions/applicants", color: "bg-indigo-50 text-indigo-600" },
+    { label: "Buat Tagihan", icon: Wallet, href: "/finance/invoices", color: "bg-emerald-50 text-emerald-600" },
+    { label: "Input Absensi", icon: CalendarCheck, href: "/attendance", color: "bg-blue-50 text-blue-600" },
+    { label: "Tambah Siswa", icon: UserPlus, href: "/students/create", color: "bg-amber-50 text-amber-600" },
     { label: "Buat Task", icon: ClipboardList, href: "/tasks/create", color: "bg-purple-50 text-purple-600" },
     { label: "Pengumuman", icon: Megaphone, href: "/communications", color: "bg-rose-50 text-rose-600" },
-    { label: "Upload Dokumen", icon: UploadCloud, href: "/documents", color: "bg-cyan-50 text-cyan-600" },
   ];
 
   return (
@@ -133,17 +149,17 @@ const TodaySummary = () => {
   ];
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 gap-4 h-full">
       {stats.map((stat, idx) => {
         const Icon = stat.icon;
         return (
-          <div key={idx} className="bg-card rounded-2xl p-5 shadow-sm border flex items-center gap-4">
-            <div className="p-3 bg-primary/10 text-primary rounded-xl">
-              <Icon className="w-6 h-6" />
+          <div key={idx} className="bg-card rounded-2xl p-4 shadow-sm border flex flex-col items-center justify-center text-center gap-2">
+            <div className="p-2.5 bg-primary/10 text-primary rounded-xl">
+              <Icon className="w-5 h-5" />
             </div>
             <div>
-              <p className="text-2xl font-bold">{stat.value}</p>
-              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">{stat.label}</p>
+              <p className="text-xl font-bold leading-none">{stat.value}</p>
+              <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider mt-1">{stat.label}</p>
             </div>
           </div>
         );
@@ -358,21 +374,122 @@ const FollowupAlert = () => {
 };
 
 
+// --- WIDGET 8: SPMB Snapshot ---
+const SpmbSnapshot = () => {
+  // Using some mock data for the dashboard widget
+  const stats = {
+    total: 125,
+    verified: 80,
+    passed: 45,
+    waiting: 20
+  };
+
+  return (
+    <div className="bg-card rounded-2xl p-6 shadow-sm border flex flex-col h-full">
+      <div className="flex items-center gap-2 mb-4">
+        <GraduationCap className="w-5 h-5 text-indigo-500" />
+        <h3 className="text-lg font-semibold">Pendaftaran SPMB</h3>
+      </div>
+      
+      <div className="flex-1 grid grid-cols-2 gap-3">
+        <div className="bg-indigo-50 p-4 rounded-xl">
+          <p className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider">Total Pendaftar</p>
+          <p className="text-2xl font-black text-indigo-900 mt-1">{stats.total}</p>
+        </div>
+        <div className="bg-emerald-50 p-4 rounded-xl">
+          <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">Lulus Seleksi</p>
+          <p className="text-2xl font-black text-emerald-900 mt-1">{stats.passed}</p>
+        </div>
+        <div className="bg-amber-50 p-4 rounded-xl">
+          <p className="text-[10px] font-bold text-amber-600 uppercase tracking-wider">Menunggu</p>
+          <p className="text-2xl font-black text-amber-900 mt-1">{stats.waiting}</p>
+        </div>
+        <div className="bg-blue-50 p-4 rounded-xl">
+          <p className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">Berkas Valid</p>
+          <p className="text-2xl font-black text-blue-900 mt-1">{stats.verified}</p>
+        </div>
+      </div>
+      <Link to="/admissions" className="mt-4 text-sm font-bold text-indigo-600 hover:text-indigo-700 hover:bg-indigo-100 flex items-center gap-1 justify-center py-2.5 bg-indigo-50 rounded-xl transition-colors">
+        Kelola Pendaftar &rarr;
+      </Link>
+    </div>
+  );
+};
+
+// --- WIDGET 9: Finance Snapshot ---
+const FinanceSnapshot = () => {
+  const incoming = 125000000;
+  const target = 150000000;
+  const percentage = Math.round((incoming/target)*100);
+  const pending = 24;
+  const verifying = 5;
+
+  return (
+    <div className="bg-card rounded-2xl p-6 shadow-sm border flex flex-col h-full">
+      <div className="flex items-center gap-2 mb-4">
+        <Wallet className="w-5 h-5 text-emerald-500" />
+        <h3 className="text-lg font-semibold">Ringkasan Keuangan</h3>
+      </div>
+      
+      <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl p-5 text-white mb-4">
+        <p className="text-emerald-100 text-xs font-bold uppercase tracking-wider mb-1">Pemasukan Bulan Ini</p>
+        <h4 className="text-2xl font-black">Rp 125 Juta</h4>
+        
+        <div className="mt-4">
+          <div className="flex justify-between text-xs mb-1.5 text-emerald-50">
+            <span className="font-medium">Target Pencapaian</span>
+            <span className="font-bold">{percentage}%</span>
+          </div>
+          <div className="w-full bg-emerald-900/30 rounded-full h-2">
+            <div className="bg-white h-2 rounded-full" style={{ width: `${percentage}%` }}></div>
+          </div>
+        </div>
+      </div>
+      
+      <div className="grid grid-cols-2 gap-3 mt-auto">
+        <Link to="/finance/invoices" className="flex flex-col p-3 rounded-xl border hover:bg-muted/50 transition-colors group">
+          <span className="text-[10px] font-bold text-muted-foreground group-hover:text-foreground uppercase tracking-wider">Tagihan Tertunda</span>
+          <span className="font-black mt-1 text-amber-600 text-lg">{pending} Siswa</span>
+        </Link>
+        <Link to="/finance/verifications" className="flex flex-col p-3 rounded-xl border hover:bg-muted/50 transition-colors group">
+          <span className="text-[10px] font-bold text-muted-foreground group-hover:text-foreground uppercase tracking-wider">Verifikasi Bayar</span>
+          <span className="font-black mt-1 text-blue-600 text-lg">{verifying} Berkas</span>
+        </Link>
+      </div>
+    </div>
+  );
+};
+
+
 // --- MAIN DASHBOARD PAGE ---
 export const DashboardPage = () => {
   return (
     <div className="max-w-7xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       
-      {/* Top Row: Greeting & Quick Actions */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <GreetingCard />
-        <QuickActions />
+      {/* Top Row: Greeting & Stats */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
+          <GreetingCard />
+        </div>
+        <div>
+          <TodaySummary />
+        </div>
       </div>
 
-      {/* Stats Row */}
-      <TodaySummary />
+      {/* Middle Row: Quick Actions, SPMB, Finance */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div>
+          <QuickActions />
+        </div>
+        <div>
+          <SpmbSnapshot />
+        </div>
+        <div>
+          <FinanceSnapshot />
+        </div>
+      </div>
 
-      {/* Middle Row: Alerts & Tasks */}
+      {/* Bottom Row: Alerts & Tasks */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           <FollowupAlert />

@@ -7,17 +7,20 @@ import { mockApplicants, getSpmbSettings } from "../mock";
 export const ApplicantsList: React.FC = () => {
   const currentAcademicYear = getSpmbSettings().academicYear;
   const [selectedYear, setSelectedYear] = React.useState(currentAcademicYear);
+  const [selectedStatus, setSelectedStatus] = React.useState("Semua");
   const [searchQuery, setSearchQuery] = React.useState("");
 
   const filteredApplicants = mockApplicants.filter(app => {
     const matchesYear = selectedYear === "Semua" || app.academicYear === selectedYear;
     const matchesSearch = app.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           app.id.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesYear && matchesSearch;
+    const matchesStatus = selectedStatus === "Semua" || app.status === selectedStatus;
+    return matchesYear && matchesSearch && matchesStatus;
   });
 
   // Get unique years from mock data, ensure current is always there
   const allYears = Array.from(new Set([...mockApplicants.map(a => a.academicYear), currentAcademicYear])).sort().reverse();
+  const allStatuses = Array.from(new Set(mockApplicants.map(a => a.status))).sort();
 
   return (
     <div className="space-y-6">
@@ -52,9 +55,19 @@ export const ApplicantsList: React.FC = () => {
               </select>
               <CalendarDays className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
             </div>
-            <button className="flex items-center gap-2 border px-4 py-2 rounded-lg text-sm font-medium hover:bg-muted transition-colors justify-center">
-              <Filter className="w-4 h-4" /> Filter Status
-            </button>
+            <div className="relative w-full sm:w-auto">
+              <select 
+                value={selectedStatus}
+                onChange={(e) => setSelectedStatus(e.target.value)}
+                className="w-full sm:w-auto appearance-none bg-white border px-4 py-2 pr-10 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/20"
+              >
+                <option value="Semua">Semua Status</option>
+                {allStatuses.map(status => (
+                  <option key={status} value={status}>{status}</option>
+                ))}
+              </select>
+              <Filter className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+            </div>
           </div>
         </div>
 

@@ -15,7 +15,7 @@ export const Topbar: React.FC = () => {
     resource: "academic_years", 
     optionLabel: "name", 
     optionValue: "id",
-    filters: [{ field: "is_active", operator: "eq", value: true }]
+    sorters: [{ field: "name", order: "desc" }]
   });
 
   // Auto-select active year

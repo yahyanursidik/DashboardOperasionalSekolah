@@ -153,30 +153,121 @@ export const SpmbForm: React.FC = () => {
             )}
 
             {step === 2 && (
-              <div className="space-y-4 animate-in slide-in-from-right-4">
-                <h3 className="text-xl font-bold mb-4">Data Orang Tua / Wali</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Nama Ayah</label>
-                    <input type="text" className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20" />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Pekerjaan Ayah</label>
-                    <input type="text" className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20" />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Nama Ibu</label>
-                    <input type="text" className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20" />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Pekerjaan Ibu</label>
-                    <input type="text" className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20" />
-                  </div>
-                  <div className="space-y-2 md:col-span-2">
-                    <label className="text-sm font-medium">Nomor WhatsApp Aktif</label>
-                    <input type="tel" className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20" placeholder="08..." />
+              <div className="space-y-8 animate-in slide-in-from-right-4">
+                
+                {/* Bagian Ayah */}
+                <div>
+                  <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-blue-800 border-b pb-2">Data Ayah Kandung</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Nama Ayah</label>
+                      <input type="text" className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20" placeholder="Nama Lengkap Ayah" />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">NIK Ayah</label>
+                      <input type="text" className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20" placeholder="16 Digit NIK" />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Pendidikan Terakhir Ayah</label>
+                      <select className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 bg-white">
+                        <option>Pilih Pendidikan</option>
+                        <option>SD/Sederajat</option>
+                        <option>SMP/Sederajat</option>
+                        <option>SMA/Sederajat</option>
+                        <option>D3 / Sarjana Muda</option>
+                        <option>S1 / Sarjana</option>
+                        <option>S2 / Magister</option>
+                        <option>S3 / Doktor</option>
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Pekerjaan Ayah</label>
+                      <input type="text" className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20" placeholder="Pekerjaan / Profesi" />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Penghasilan Rata-rata Ayah</label>
+                      <select className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 bg-white">
+                        <option>Pilih Penghasilan</option>
+                        <option>Kurang dari Rp 2.000.000</option>
+                        <option>Rp 2.000.000 - Rp 5.000.000</option>
+                        <option>Rp 5.000.000 - Rp 10.000.000</option>
+                        <option>Rp 10.000.000 - Rp 20.000.000</option>
+                        <option>Lebih dari Rp 20.000.000</option>
+                      </select>
+                    </div>
+                    <div className="space-y-2 md:col-span-2">
+                      <label className="text-sm font-medium">Nomor WhatsApp Ayah</label>
+                      <input type="tel" className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20" placeholder="08..." />
+                    </div>
                   </div>
                 </div>
+
+                {/* Bagian Ibu */}
+                <div>
+                  <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-rose-800 border-b pb-2">Data Ibu Kandung</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Nama Ibu</label>
+                      <input type="text" className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20" placeholder="Nama Lengkap Ibu" />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">NIK Ibu</label>
+                      <input type="text" className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20" placeholder="16 Digit NIK" />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Pendidikan Terakhir Ibu</label>
+                      <select className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 bg-white">
+                        <option>Pilih Pendidikan</option>
+                        <option>SD/Sederajat</option>
+                        <option>SMP/Sederajat</option>
+                        <option>SMA/Sederajat</option>
+                        <option>D3 / Sarjana Muda</option>
+                        <option>S1 / Sarjana</option>
+                        <option>S2 / Magister</option>
+                        <option>S3 / Doktor</option>
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Pekerjaan Ibu</label>
+                      <input type="text" className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20" placeholder="Pekerjaan / Profesi (Cth: Ibu Rumah Tangga)" />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Penghasilan Rata-rata Ibu</label>
+                      <select className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 bg-white">
+                        <option>Pilih Penghasilan</option>
+                        <option>Tidak Berpenghasilan</option>
+                        <option>Kurang dari Rp 2.000.000</option>
+                        <option>Rp 2.000.000 - Rp 5.000.000</option>
+                        <option>Rp 5.000.000 - Rp 10.000.000</option>
+                        <option>Rp 10.000.000 - Rp 20.000.000</option>
+                        <option>Lebih dari Rp 20.000.000</option>
+                      </select>
+                    </div>
+                    <div className="space-y-2 md:col-span-2">
+                      <label className="text-sm font-medium">Nomor WhatsApp Ibu</label>
+                      <input type="tel" className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20" placeholder="08..." />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bagian Alamat Rumah */}
+                <div>
+                  <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-emerald-800 border-b pb-2">Informasi Tempat Tinggal</h3>
+                  <div className="grid grid-cols-1 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Alamat Lengkap Domisili</label>
+                      <textarea rows={3} className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20" placeholder="Jalan, RT/RW, Kelurahan, Kecamatan, Kota, Provinsi, Kode Pos"></textarea>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Tautan (Link) Google Maps Rumah</label>
+                      <div className="flex gap-2">
+                        <input type="url" className="flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 font-mono text-sm" placeholder="https://maps.app.goo.gl/..." />
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">Tempelkan link Google Maps alamat rumah Anda untuk mempermudah survei atau kunjungan guru.</p>
+                    </div>
+                  </div>
+                </div>
+
               </div>
             )}
 

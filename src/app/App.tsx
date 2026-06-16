@@ -39,7 +39,7 @@ import { SettingsPage } from "../modules/settings";
 import { StudentMassPromotion } from "../modules/students/pages/mass-promotion";
 import { CommunicationsPage } from "../modules/communications";
 import { StudentJournalsList, StudentJournalCreate, StudentJournalEdit } from "../modules/student-journals/pages";
-import { FinanceDashboard, InvoicesList, PaymentVerifications, SchoolExpenses, FinanceCategories } from "../modules/finance/pages";
+import { FinanceDashboard, InvoicesList, PaymentVerifications, SchoolExpenses, FinanceCategories, SpmbFeesConfig } from "../modules/finance/pages";
 import { CurriculumDashboard } from "../modules/curriculum/dashboard";
 import { SubjectsList, SubjectCreate, SubjectEdit } from "../modules/curriculum/subjects";
 import { CurriculumDocumentsList, CurriculumDocumentCreate } from "../modules/curriculum/documents";
@@ -68,7 +68,7 @@ import { PortalAcademic } from "../modules/portal/portal-academic";
 import { PortalJournals } from "../modules/portal/portal-journals";
 import { PortalQuran } from "../modules/portal/portal-quran";
 import { PortalPaud } from "../modules/portal/portal-paud";
-import { SpmbLayout, SpmbDashboard, SpmbForm, SpmbDocuments, SpmbAnnouncement } from "../modules/admissions/portal";
+import { SpmbLayout, SpmbDashboard, SpmbForm, SpmbDocuments, SpmbAnnouncement, SpmbLogin, SpmbRegister, SpmbChecklist, SpmbPayment } from "../modules/admissions/portal";
 
 import { TeacherLayout } from "../modules/teacher-portal/teacher-layout";
 import { TeacherLogin } from "../modules/teacher-portal/teacher-login";
@@ -551,6 +551,7 @@ export default function App() {
                   <Route path="verifications" element={<PaymentVerifications />} />
                   <Route path="expenses" element={<SchoolExpenses />} />
                   <Route path="categories" element={<FinanceCategories />} />
+                  <Route path="spmb-fees" element={<SpmbFeesConfig />} />
                 </Route>
 
                 <Route path="/mail">
@@ -618,8 +619,12 @@ export default function App() {
 
               <Route path="/spmb" element={<SpmbLayout />}>
                 <Route index element={<SpmbDashboard />} />
+                <Route path="login" element={<SpmbLogin />} />
+                <Route path="register" element={<SpmbRegister />} />
                 <Route path="form" element={<SpmbForm />} />
                 <Route path="documents" element={<SpmbDocuments />} />
+                <Route path="checklist" element={<SpmbChecklist />} />
+                <Route path="payment" element={<SpmbPayment />} />
                 <Route path="announcement" element={<SpmbAnnouncement />} />
               </Route>
 
