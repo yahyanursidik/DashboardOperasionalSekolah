@@ -356,8 +356,8 @@ export const SubjectTeacherDirectory: React.FC = () => {
     resource: "teacher_assignments",
     pagination: { pageSize: 2000 },
     filters: [
-      { field: "is_active", operator: "eq", value: true },
-      ...(activeYearId ? [{ field: "academic_year_id", operator: "eq", value: activeYearId }] : []),
+      { field: "is_active", operator: "eq" as const, value: true },
+      ...(activeYearId ? [{ field: "academic_year_id", operator: "eq" as const, value: activeYearId }] : []),
     ],
     meta: {
       select: "*, employees(id, full_name, position, status, nik), units(id, name), classes(id, name)",
@@ -592,7 +592,7 @@ export const SubjectTeacherDirectory: React.FC = () => {
                     return (
                       <tr
                         key={subject.id}
-                        onClick={() => setSelectedSubjectId(isSelected ? null : subject.id)}
+                        onClick={() => setSelectedSubjectId(isSelected ? null : (subject.id ?? null))}
                         className={`hover:bg-muted/30 transition-colors cursor-pointer ${isSelected ? "bg-primary/5 border-l-4 border-l-primary" : ""}`}
                       >
                         <td className="px-5 py-3.5">
@@ -640,7 +640,7 @@ export const SubjectTeacherDirectory: React.FC = () => {
                         </td>
                         <td className="px-5 py-3.5">
                           <button
-                            onClick={(e) => { e.stopPropagation(); setSelectedSubjectId(isSelected ? null : subject.id); }}
+                            onClick={(e) => { e.stopPropagation(); setSelectedSubjectId(isSelected ? null : (subject.id ?? null)); }}
                             className="flex items-center gap-1 text-xs font-medium text-primary hover:underline"
                           >
                             <Eye className="w-3.5 h-3.5" /> Detail

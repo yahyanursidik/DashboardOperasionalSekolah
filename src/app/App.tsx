@@ -49,6 +49,7 @@ import { AdmissionsDashboard, AdmissionsSettings, AdmissionsReports, ApplicantsL
 import { AcademicDashboard, Gradebook, ReportCards, ReportPrint } from "../modules/academic";
 import { SarprasDashboard, AssetsList, AssetLoansList, ProcurementsList } from "../modules/sarpras";
 import { AcademicCalendar } from "../modules/calendar";
+import { PkgList, PkgCreate, PkgShow, PkgHistory, PkgSettings } from "../modules/pkg";
 import { 
   QuranRecordsList, QuranRecordForm, 
   QuranTargetsList, QuranTargetForm,
@@ -359,6 +360,14 @@ export default function App() {
             meta: { canDelete: false },
           },
           {
+            name: "pkg_assessments",
+            list: "/pkg",
+            create: "/pkg/create",
+            show: "/pkg/show/:id",
+            edit: "/pkg/edit/:id",
+            meta: { label: "PKG / Kinerja Guru", canDelete: true },
+          },
+          {
             name: "assets",
             list: "/sarpras/assets",
             meta: { canDelete: true },
@@ -595,6 +604,15 @@ export default function App() {
                   <Route path="assets" element={<AssetsList />} />
                   <Route path="asset-loans" element={<AssetLoansList />} />
                   <Route path="procurements" element={<ProcurementsList />} />
+                </Route>
+
+                <Route path="/pkg">
+                  <Route index element={<PkgList />} />
+                  <Route path="create" element={<PkgCreate />} />
+                  <Route path="show/:id" element={<PkgShow />} />
+                  <Route path="edit/:id" element={<PkgCreate />} />
+                  <Route path="history/:employeeId" element={<PkgHistory />} />
+                  <Route path="settings" element={<PkgSettings />} />
                 </Route>
 
               </Route>

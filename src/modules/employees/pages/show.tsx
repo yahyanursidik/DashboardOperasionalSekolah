@@ -319,8 +319,8 @@ export const EmployeeShow: React.FC = () => {
   const { data: assignmentsData, isLoading: assignmentsLoading, refetch: refetchAssignments } = useList({
     resource: "teacher_assignments",
     filters: [
-      { field: "employee_id", operator: "eq", value: record?.id },
-      ...(activeYearId ? [{ field: "academic_year_id", operator: "eq", value: activeYearId }] : []),
+      { field: "employee_id", operator: "eq" as const, value: record?.id as string },
+      ...(activeYearId ? [{ field: "academic_year_id", operator: "eq" as const, value: activeYearId }] : []),
     ],
     meta: { select: "*, units(name), classes(name)" },
     pagination: { pageSize: 100 },
@@ -675,8 +675,8 @@ export const EmployeeShow: React.FC = () => {
       <AssignmentModal
         open={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        employeeId={record?.id}
-        activeYearId={activeYearId}
+        employeeId={record?.id as string}
+        activeYearId={activeYearId ?? undefined}
         onSuccess={() => refetchAssignments()}
       />
     </div>

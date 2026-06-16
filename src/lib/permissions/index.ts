@@ -65,6 +65,9 @@ const ResourceAccessMap: Record<string, RoleName[]> = {
   // PAUD Module
   'paud_activities': ['super_admin', 'ketua_yayasan', 'kepsek', 'admin_unit', 'guru', 'wali_kelas'],
   'paud_stppa_assessments': ['super_admin', 'ketua_yayasan', 'kepsek', 'admin_unit', 'guru', 'wali_kelas'],
+
+  // PKG / Penilaian Kinerja Guru
+  'pkg_assessments': ['super_admin', 'ketua_yayasan', 'kepsek', 'wakasek', 'kepala_tu', 'admin_sekolah', 'admin_unit'],
 };
 
 export const canAccessResource = (scopes: UserRoleScope[] | undefined, resource: string): boolean => {

@@ -26,7 +26,8 @@ import {
   Award,
   Camera,
   CheckSquare,
-  TrendingUp
+  TrendingUp,
+  ClipboardCheck
 } from "lucide-react";
 import type { RoleName } from "../lib/permissions";
 
@@ -238,6 +239,18 @@ export const navigationConfig: NavigationGroup[] = [
         href: "/recruitment",
         icon: Briefcase,
         resource: "recruitment_vacancies",
+      },
+      {
+        title: "PKG / Kinerja Guru",
+        href: "/pkg",
+        icon: ClipboardCheck,
+        resource: "pkg_assessments",
+      },
+      {
+        title: "Pengaturan Instrumen PKG",
+        href: "/pkg/settings",
+        icon: Settings,
+        resource: "pkg_assessments",
       },
     ],
   },
