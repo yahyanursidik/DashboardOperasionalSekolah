@@ -28,7 +28,7 @@ import { AnnouncementsList, AnnouncementCreate, AnnouncementEdit, AnnouncementSh
 import { AuditLogsList } from "../modules/audit-logs";
 import { ReportsDashboard, StudentReport, AttendanceReport, DocumentReport, TaskReport, ReportEmployeeAttendance, ReportLeaves, VisualAnalytics } from "../modules/reports";
 
-import { EmployeesList, EmployeeCreate, EmployeeEdit } from "../modules/employees";
+import { EmployeesList, EmployeeCreate, EmployeeEdit, EmployeeShow } from "../modules/employees";
 import { EmployeeAttendanceList } from "../modules/attendance/pages/employee-attendance";
 import { SchedulesList, ScheduleCreate, ScheduleEdit } from "../modules/schedules";
 import { LeavesList, LeaveCreate, LeaveShow } from "../modules/leaves";
@@ -41,7 +41,7 @@ import { CommunicationsPage } from "../modules/communications";
 import { StudentJournalsList, StudentJournalCreate, StudentJournalEdit } from "../modules/student-journals/pages";
 import { FinanceDashboard, InvoicesList, PaymentVerifications, SchoolExpenses, FinanceCategories, SpmbFeesConfig } from "../modules/finance/pages";
 import { CurriculumDashboard } from "../modules/curriculum/dashboard";
-import { SubjectsList, SubjectCreate, SubjectEdit } from "../modules/curriculum/subjects";
+import { SubjectsList, SubjectCreate, SubjectEdit, SubjectTeacherDirectory } from "../modules/curriculum/subjects";
 import { CurriculumDocumentsList, CurriculumDocumentCreate } from "../modules/curriculum/documents";
 import { MailDashboard, IncomingMailList, OutgoingMailList, DispositionsList, IncomingMailCreate, OutgoingMailCreate } from "../modules/mail";
 import { RecruitmentDashboard, VacanciesList, ApplicantsList, ApplicantShow, VacancyCreate, ApplicantCreate } from "../modules/recruitment";
@@ -263,6 +263,7 @@ export default function App() {
             list: "/employees",
             create: "/employees/create",
             edit: "/employees/edit/:id",
+            show: "/employees/show/:id",
             meta: { canDelete: true },
           },
           {
@@ -440,10 +441,11 @@ export default function App() {
                 </Route>
 
                 <Route path="employees">
-                  <Route index element={<EmployeesList />} />
-                  <Route path="create" element={<EmployeeCreate />} />
-                  <Route path="edit/:id" element={<EmployeeEdit />} />
-                </Route>
+                   <Route index element={<EmployeesList />} />
+                   <Route path="create" element={<EmployeeCreate />} />
+                   <Route path="edit/:id" element={<EmployeeEdit />} />
+                   <Route path="show/:id" element={<EmployeeShow />} />
+                 </Route>
 
                 <Route path="schedules">
                   <Route index element={<SchedulesList />} />
@@ -533,17 +535,18 @@ export default function App() {
                 </Route>
 
                 <Route path="/curriculum">
-                  <Route index element={<CurriculumDashboard />} />
-                  <Route path="subjects">
-                    <Route index element={<SubjectsList />} />
-                    <Route path="create" element={<SubjectCreate />} />
-                    <Route path="edit/:id" element={<SubjectEdit />} />
-                  </Route>
-                  <Route path="documents">
-                    <Route index element={<CurriculumDocumentsList />} />
-                    <Route path="create" element={<CurriculumDocumentCreate />} />
-                  </Route>
-                </Route>
+                   <Route index element={<CurriculumDashboard />} />
+                   <Route path="subjects">
+                     <Route index element={<SubjectsList />} />
+                     <Route path="create" element={<SubjectCreate />} />
+                     <Route path="edit/:id" element={<SubjectEdit />} />
+                     <Route path="directory" element={<SubjectTeacherDirectory />} />
+                   </Route>
+                   <Route path="documents">
+                     <Route index element={<CurriculumDocumentsList />} />
+                     <Route path="create" element={<CurriculumDocumentCreate />} />
+                   </Route>
+                 </Route>
 
                 <Route path="/finance">
                   <Route index element={<FinanceDashboard />} />

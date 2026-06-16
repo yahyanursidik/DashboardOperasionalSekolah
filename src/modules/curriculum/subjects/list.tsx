@@ -4,7 +4,7 @@ import { useList, useDelete } from "@refinedev/core";
 import { flexRender } from "@tanstack/react-table";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useNavigate, Link } from "react-router-dom";
-import { Edit, Plus, Trash2, ArrowLeft } from "lucide-react";
+import { Edit, Plus, Trash2, ArrowLeft, Users } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { useCurrentUnit } from "../../../app/providers/UnitProvider";
 
@@ -122,12 +122,21 @@ export const SubjectsList: React.FC = () => {
           title="Manajemen Mata Pelajaran"
           description="Kelola daftar mata pelajaran Nasional dan Khas Sekolah."
           action={
-            <Link
-              to="/curriculum/subjects/create"
-              className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition-colors shadow-sm font-medium text-sm"
-            >
-              <Plus className="w-4 h-4" /> Tambah Mapel
-            </Link>
+            <div className="flex gap-2">
+              <Link
+                to="/curriculum/subjects/directory"
+                className="flex items-center gap-2 border px-4 py-2 rounded-md hover:bg-muted transition-colors font-medium text-sm"
+              >
+                <Users className="w-4 h-4" />
+                Direktori Mapel → Guru
+              </Link>
+              <Link
+                to="/curriculum/subjects/create"
+                className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition-colors shadow-sm font-medium text-sm"
+              >
+                <Plus className="w-4 h-4" /> Tambah Mapel
+              </Link>
+            </div>
           }
         />
       </div>

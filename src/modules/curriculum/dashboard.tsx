@@ -88,12 +88,21 @@ export const CurriculumDashboard: React.FC = () => {
             <Link to="/curriculum/subjects" className="p-4 rounded-xl border bg-muted/20 hover:bg-muted/50 transition-colors group">
               <BookOpen className="w-8 h-8 text-blue-600 mb-3 group-hover:scale-110 transition-transform" />
               <h4 className="font-semibold">Mata Pelajaran</h4>
-              <p className="text-xs text-muted-foreground mt-1">Kelola data mata pelajaran, pengelompokan Nasional & Khas.</p>
+              <p className="text-xs text-muted-foreground mt-1">Kelola data mata pelajaran, pengelompokan Nasional &amp; Khas.</p>
             </Link>
             <Link to="/curriculum/documents" className="p-4 rounded-xl border bg-muted/20 hover:bg-muted/50 transition-colors group">
               <FileText className="w-8 h-8 text-purple-600 mb-3 group-hover:scale-110 transition-transform" />
-              <h4 className="font-semibold">Modul Ajar & Dokumen</h4>
+              <h4 className="font-semibold">Modul Ajar &amp; Dokumen</h4>
               <p className="text-xs text-muted-foreground mt-1">Unggah Modul Ajar, ATP, CP, dan kaitkan ke Kelas/Mapel.</p>
+            </Link>
+            <Link to="/curriculum/subjects/directory" className="p-4 rounded-xl border bg-amber-50 border-amber-200 hover:bg-amber-100 transition-colors group col-span-full">
+              <div className="flex items-center gap-3">
+                <Layers className="w-8 h-8 text-amber-600 group-hover:scale-110 transition-transform shrink-0" />
+                <div>
+                  <h4 className="font-semibold text-amber-800">Direktori Mapel → Guru</h4>
+                  <p className="text-xs text-amber-700 mt-0.5">Lihat siapa yang mengajar setiap mata pelajaran. Bantu perencanaan penugasan &amp; penjadwalan.</p>
+                </div>
+              </div>
             </Link>
           </div>
         </div>
