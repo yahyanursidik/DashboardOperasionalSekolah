@@ -144,7 +144,7 @@ export const SpmbDashboard: React.FC = () => {
           <div className="inline-flex items-center gap-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg px-4 py-2 mt-2">
             <span className="text-sm font-medium text-indigo-100">Jenjang Dibuka:</span>
             <div className="flex gap-2">
-              {settings.openUnits?.map(unit => (
+              {settings.openUnits?.map((unit: string) => (
                 <span key={unit} className="bg-white/20 px-2 py-0.5 rounded text-xs font-bold tracking-wide">
                   {unit}
                 </span>
@@ -290,8 +290,8 @@ export const SpmbDashboard: React.FC = () => {
             
             {settings.openUnits && settings.openUnits.length > 0 ? (
               <div className="space-y-4 mb-6">
-                {settings.openUnits.map(unit => {
-                  const fee = financeSettings.unitFees.find(f => f.unit === unit);
+                {settings.openUnits.map((unit: string) => {
+                  const fee = financeSettings.unitFees.find((f: any) => f.unit === unit);
                   if (!fee) return null;
                   return (
                     <div key={unit} className="bg-slate-50 border rounded-xl p-4">
@@ -300,7 +300,7 @@ export const SpmbDashboard: React.FC = () => {
                       </div>
                       <p className="text-2xl font-black text-slate-800">Rp {fee.amount.toLocaleString('id-ID')}</p>
                       <ul className="text-xs text-slate-500 mt-3 space-y-1">
-                        {fee.details.map((detail, idx) => (
+                        {fee.details.map((detail: string, idx: number) => (
                           <li key={idx}>• {detail}</li>
                         ))}
                       </ul>
@@ -317,18 +317,18 @@ export const SpmbDashboard: React.FC = () => {
                             <div className="grid grid-cols-2 gap-2 mb-3">
                               <div className="bg-blue-50/50 border border-blue-100 rounded-lg p-2">
                                 <p className="text-[9px] font-bold text-blue-600 uppercase mb-0.5">Total Ikhwan</p>
-                                <p className="text-sm font-black text-blue-900">Rp {fee.postAdmissionFees.reduce((sum, f) => (f.type === 'umum' || f.type === 'ikhwan') ? sum + f.amount : sum, 0).toLocaleString('id-ID')}</p>
+                                <p className="text-sm font-black text-blue-900">Rp {fee.postAdmissionFees.reduce((sum: number, f: any) => (f.type === 'umum' || f.type === 'ikhwan') ? sum + f.amount : sum, 0).toLocaleString('id-ID')}</p>
                               </div>
                               <div className="bg-rose-50/50 border border-rose-100 rounded-lg p-2">
                                 <p className="text-[9px] font-bold text-rose-600 uppercase mb-0.5">Total Akhwat</p>
-                                <p className="text-sm font-black text-rose-900">Rp {fee.postAdmissionFees.reduce((sum, f) => (f.type === 'umum' || f.type === 'akhwat') ? sum + f.amount : sum, 0).toLocaleString('id-ID')}</p>
+                                <p className="text-sm font-black text-rose-900">Rp {fee.postAdmissionFees.reduce((sum: number, f: any) => (f.type === 'umum' || f.type === 'akhwat') ? sum + f.amount : sum, 0).toLocaleString('id-ID')}</p>
                               </div>
                             </div>
 
                             <div className="border-t border-slate-200/60 pt-2 mt-2">
                               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Rincian Komponen</p>
                               <ul className="text-xs text-slate-600 space-y-2">
-                                {fee.postAdmissionFees.map((pf, idx) => (
+                                {fee.postAdmissionFees.map((pf: any, idx: number) => (
                                   <li key={idx} className="flex justify-between items-start">
                                     <span className="flex-1">
                                       {pf.name}
@@ -359,7 +359,7 @@ export const SpmbDashboard: React.FC = () => {
             <h3 className="font-bold text-sm text-slate-700 uppercase tracking-wider mb-4 border-b pb-2">Metode Pembayaran</h3>
             
             <div className="space-y-4 mb-6">
-              {financeSettings.banks.map((bank, idx) => (
+              {financeSettings.banks.map((bank: any, idx: number) => (
                 <div key={idx} className="flex gap-3 items-center p-3 border border-emerald-100 bg-emerald-50/50 rounded-lg">
                   <Wallet className="w-6 h-6 text-emerald-600 shrink-0" />
                   <div>
