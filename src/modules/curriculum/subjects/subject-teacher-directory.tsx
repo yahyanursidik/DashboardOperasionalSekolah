@@ -592,7 +592,7 @@ export const SubjectTeacherDirectory: React.FC = () => {
                     return (
                       <tr
                         key={subject.id}
-                        onClick={() => setSelectedSubjectId(isSelected ? null : (subject.id ?? null))}
+                        onClick={() => setSelectedSubjectId(isSelected ? null : String(subject.id))}
                         className={`hover:bg-muted/30 transition-colors cursor-pointer ${isSelected ? "bg-primary/5 border-l-4 border-l-primary" : ""}`}
                       >
                         <td className="px-5 py-3.5">
@@ -640,7 +640,7 @@ export const SubjectTeacherDirectory: React.FC = () => {
                         </td>
                         <td className="px-5 py-3.5">
                           <button
-                            onClick={(e) => { e.stopPropagation(); setSelectedSubjectId(isSelected ? null : (subject.id ?? null)); }}
+                            onClick={(e) => { e.stopPropagation(); setSelectedSubjectId(isSelected ? null : String(subject.id)); }}
                             className="flex items-center gap-1 text-xs font-medium text-primary hover:underline"
                           >
                             <Eye className="w-3.5 h-3.5" /> Detail
