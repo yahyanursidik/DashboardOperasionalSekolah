@@ -45,6 +45,7 @@ import { SubjectsList, SubjectCreate, SubjectEdit } from "../modules/curriculum/
 import { CurriculumDocumentsList, CurriculumDocumentCreate } from "../modules/curriculum/documents";
 import { MailDashboard, IncomingMailList, OutgoingMailList, DispositionsList, IncomingMailCreate, OutgoingMailCreate } from "../modules/mail";
 import { RecruitmentDashboard, VacanciesList, ApplicantsList, ApplicantShow, VacancyCreate, ApplicantCreate } from "../modules/recruitment";
+import { AdmissionsDashboard, AdmissionsSettings, AdmissionsReports, ApplicantsList as AdmissionsApplicantsList, ApplicantShow as AdmissionsApplicantShow } from "../modules/admissions/pages";
 import { AcademicDashboard, Gradebook, ReportCards, ReportPrint } from "../modules/academic";
 import { SarprasDashboard, AssetsList, AssetLoansList, ProcurementsList } from "../modules/sarpras";
 import { AcademicCalendar } from "../modules/calendar";
@@ -67,6 +68,7 @@ import { PortalAcademic } from "../modules/portal/portal-academic";
 import { PortalJournals } from "../modules/portal/portal-journals";
 import { PortalQuran } from "../modules/portal/portal-quran";
 import { PortalPaud } from "../modules/portal/portal-paud";
+import { SpmbLayout, SpmbDashboard, SpmbForm, SpmbDocuments, SpmbAnnouncement } from "../modules/admissions/portal";
 
 import { TeacherLayout } from "../modules/teacher-portal/teacher-layout";
 import { TeacherLogin } from "../modules/teacher-portal/teacher-login";
@@ -335,6 +337,17 @@ export default function App() {
             meta: { canDelete: true },
           },
           {
+            name: "admissions",
+            list: "/admissions",
+            meta: { label: "SPMB" }
+          },
+          {
+            name: "admissions_applicants",
+            list: "/admissions/applicants",
+            show: "/admissions/applicants/:id",
+            meta: { label: "Data Pendaftar", parent: "admissions" }
+          },
+          {
             name: "academic_grades",
             list: "/academic/gradebook",
             meta: { canDelete: false },
@@ -558,6 +571,14 @@ export default function App() {
                   <Route path="applicants/show/:id" element={<ApplicantShow />} />
                 </Route>
 
+                <Route path="/admissions">
+                  <Route index element={<AdmissionsDashboard />} />
+                  <Route path="settings" element={<AdmissionsSettings />} />
+                  <Route path="reports" element={<AdmissionsReports />} />
+                  <Route path="applicants" element={<AdmissionsApplicantsList />} />
+                  <Route path="applicants/:id" element={<AdmissionsApplicantShow />} />
+                </Route>
+
                 <Route path="/academic">
                   <Route index element={<AcademicDashboard />} />
                   <Route path="gradebook" element={<Gradebook />} />
@@ -593,6 +614,13 @@ export default function App() {
                 <Route path="quran" element={<PortalQuran />} />
                 <Route path="paud" element={<PortalPaud />} />
                 <Route path="journals" element={<PortalJournals />} />
+              </Route>
+
+              <Route path="/spmb" element={<SpmbLayout />}>
+                <Route index element={<SpmbDashboard />} />
+                <Route path="form" element={<SpmbForm />} />
+                <Route path="documents" element={<SpmbDocuments />} />
+                <Route path="announcement" element={<SpmbAnnouncement />} />
               </Route>
 
               <Route path="/teacher/login" element={<TeacherLogin />} />

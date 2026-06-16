@@ -25,7 +25,8 @@ import {
   Target,
   Award,
   Camera,
-  CheckSquare
+  CheckSquare,
+  TrendingUp
 } from "lucide-react";
 import type { RoleName } from "../lib/permissions";
 
@@ -171,6 +172,24 @@ export const navigationConfig: NavigationGroup[] = [
         href: "/students",
         icon: Users,
         resource: "students",
+      },
+      {
+        title: "Penerimaan Murid Baru (SPMB)",
+        href: "/admissions",
+        icon: GraduationCap,
+        resource: "admissions",
+      },
+      {
+        title: "Pengaturan SPMB",
+        href: "/admissions/settings",
+        icon: Settings,
+        resource: "admissions",
+      },
+      {
+        title: "Laporan SPMB",
+        href: "/admissions/reports",
+        icon: TrendingUp,
+        resource: "admissions",
       },
       {
         title: "Orang Tua / Wali",
