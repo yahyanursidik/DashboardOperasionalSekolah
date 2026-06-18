@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { Outlet, useNavigate, useLocation, Link } from "react-router-dom";
 import { supabaseClient } from "../../lib/supabase/client";
-import { Home, Wallet, BookOpen, Clock, LogOut, Smile } from "lucide-react";
+import { Home, Wallet, BookOpen, Clock, LogOut, Smile, ClipboardList, Bell } from "lucide-react";
+import { useSystemSettings } from "../../app/providers/SettingsProvider";
 
 export const PortalLayout: React.FC = () => {
   const navigate = useNavigate();
@@ -59,12 +60,15 @@ export const PortalLayout: React.FC = () => {
 
   if (!student) return <div className="min-h-screen flex items-center justify-center bg-gray-50">Memuat...</div>;
 
+  const { logoUrl } = useSystemSettings();
+
   const navItems = [
     { name: "Beranda", path: "/portal", icon: Home },
     { name: "Akademik", path: "/portal/academic", icon: BookOpen },
     { name: "PAUD", path: "/portal/paud", icon: Smile },
     { name: "Al-Qur'an", path: "/portal/quran", icon: BookOpen },
     { name: "Keuangan", path: "/portal/finance", icon: Wallet },
+    { name: "Catatan", path: "/portal/journals", icon: ClipboardList },
   ];
 
   return (
@@ -73,17 +77,27 @@ export const PortalLayout: React.FC = () => {
       <header className="bg-white border-b sticky top-0 z-50">
         <div className="max-w-md mx-auto px-4 py-3 flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold text-lg">
-              {student.full_name?.charAt(0)}
+            <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center overflow-hidden shrink-0">
+              {logoUrl ? (
+                <img src={logoUrl} alt="Logo" className="w-full h-full object-contain p-1" />
+              ) : (
+                <span className="text-emerald-700 font-bold text-lg">{student.full_name?.charAt(0)}</span>
+              )}
             </div>
             <div>
-              <h1 className="text-sm font-bold text-gray-900 leading-tight">{student.full_name}</h1>
+              <h1 className="text-sm font-bold text-gray-900 leading-tight line-clamp-1">{student.full_name}</h1>
               <p className="text-xs text-muted-foreground">{student.nisn || "NISN -"} • {student.classes?.name || "Kelas -"}</p>
             </div>
           </div>
-          <button onClick={handleLogout} className="p-2 text-gray-500 hover:text-red-600 rounded-full hover:bg-red-50 transition-colors">
-            <LogOut className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-1 shrink-0">
+            <button onClick={() => navigate('/portal/announcements')} className="p-2 text-gray-500 hover:text-emerald-600 rounded-full hover:bg-emerald-50 transition-colors relative">
+              <Bell className="w-5 h-5" />
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
+            </button>
+            <button onClick={handleLogout} className="p-2 text-gray-500 hover:text-red-600 rounded-full hover:bg-red-50 transition-colors">
+              <LogOut className="w-5 h-5" />
+            </button>
+          </div>
         </div>
       </header>
 

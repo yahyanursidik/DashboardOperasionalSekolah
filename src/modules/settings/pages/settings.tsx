@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useGetIdentity, useUpdate, useList, useCreate, useDelete } from "@refinedev/core";
 import { PageHeader } from "../../../components/layout/PageHeader";
-import { User, Users, Bell, Shield, Moon, Sun, Monitor, Palette, Check, Save } from "lucide-react";
+import { User, Users, Bell, Shield, Moon, Sun, Monitor, Palette, Check, Save, Type, Image as ImageIcon, Globe } from "lucide-react";
 import { useTheme } from "../../../app/providers/ThemeProvider";
 import { useSystemSettings } from "../../../app/providers/SettingsProvider";
 import { supabaseClient } from "../../../lib/supabase/client";
@@ -157,38 +157,53 @@ const ProfileSettings: React.FC = () => {
 
 const AppearanceSettings: React.FC = () => {
   const { theme, setTheme, colorTheme, setColorTheme } = useTheme();
-  const { appName, logoUrl, refreshSettings } = useSystemSettings();
+  const { appName, logoUrl, faviconUrl, loginCoverUrl, fontFamily, refreshSettings } = useSystemSettings();
   
   const [formData, setFormData] = useState({
     appName: appName || "TSLS Admin OS",
     logoUrl: logoUrl || "",
+    faviconUrl: faviconUrl || "",
+    loginCoverUrl: loginCoverUrl || "",
+    fontFamily: fontFamily || "Inter",
   });
   const [isSaving, setIsSaving] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [uploadingFavicon, setUploadingFavicon] = useState(false);
+  const [uploadingCover, setUploadingCover] = useState(false);
 
   // Sync state if context changes
   useEffect(() => {
     setFormData({
       appName: appName,
       logoUrl: logoUrl,
+      faviconUrl: faviconUrl,
+      loginCoverUrl: loginCoverUrl,
+      fontFamily: fontFamily,
     });
-  }, [appName, logoUrl]);
+  }, [appName, logoUrl, faviconUrl, loginCoverUrl, fontFamily]);
 
   const handleSaveIdentity = async () => {
     setIsSaving(true);
     try {
-      // Upsert app_name
-      const { error: err1 } = await supabaseClient
-        .from("system_settings")
-        .upsert({ key: "app_name", value: `"${formData.appName}"`, description: "Global Application Name" });
-        
-      // Upsert logo_url
-      const { error: err2 } = await supabaseClient
-        .from("system_settings")
-        .upsert({ key: "logo_url", value: `"${formData.logoUrl}"`, description: "Global Logo URL" });
+      const updates = [
+        { key: "app_name", value: formData.appName, description: "Global Application Name" },
+        { key: "logo_url", value: formData.logoUrl, description: "Global Logo URL" },
+        { key: "favicon_url", value: formData.faviconUrl, description: "Global Favicon URL" },
+        { key: "login_cover_url", value: formData.loginCoverUrl, description: "Login Background Cover URL" },
+        { key: "font_family", value: formData.fontFamily, description: "Global Typography Font Family" }
+      ];
 
-      if (err1 || err2) throw new Error("Gagal menyimpan pengaturan");
+      for (const update of updates) {
+        const { error } = await supabaseClient
+          .from("system_settings")
+          .upsert(update, { onConflict: 'key' });
+        if (error) {
+          console.error(`Error saving ${update.key}:`, error);
+          throw new Error(error.message || "Gagal menyimpan pengaturan");
+        }
+      }
       
-      toast.success("Identitas aplikasi berhasil disimpan");
+      toast.success("Pengaturan tampilan berhasil disimpan");
       refreshSettings();
     } catch (err: any) {
       toast.error(err.message || "Terjadi kesalahan");
@@ -197,17 +212,59 @@ const AppearanceSettings: React.FC = () => {
     }
   };
 
+  const handleFileUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>, 
+    folder: string, 
+    setUploadingState: React.Dispatch<React.SetStateAction<boolean>>,
+    fieldKey: 'logoUrl' | 'faviconUrl' | 'loginCoverUrl',
+    maxSizeMB: number
+  ) => {
+    try {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      if (file.size > maxSizeMB * 1024 * 1024) {
+        toast.error(`Ukuran file maksimal ${maxSizeMB}MB`);
+        return;
+      }
+
+      setUploadingState(true);
+
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${folder}_${Date.now()}.${fileExt}`;
+      const filePath = `${folder}/${fileName}`;
+
+      const { error: uploadError } = await supabaseClient.storage
+        .from("assets")
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabaseClient.storage
+        .from("assets")
+        .getPublicUrl(filePath);
+
+      setFormData(prev => ({ ...prev, [fieldKey]: data.publicUrl }));
+      toast.success("File berhasil diunggah. Jangan lupa klik Simpan.");
+    } catch (err: any) {
+      toast.error(err.message || "Gagal mengunggah file");
+    } finally {
+      setUploadingState(false);
+      if (e.target) e.target.value = '';
+    }
+  };
+
   return (
-    <div className="max-w-2xl space-y-10 animate-in fade-in slide-in-from-bottom-2 duration-300">
+    <div className="max-w-3xl space-y-10 animate-in fade-in slide-in-from-bottom-2 duration-300">
       
       {/* Identitas Aplikasi Section */}
       <div className="space-y-4">
         <div>
-          <h3 className="text-lg font-bold">Identitas Aplikasi</h3>
-          <p className="text-sm text-muted-foreground">Atur nama aplikasi dan logo yang akan ditampilkan di seluruh sistem.</p>
+          <h3 className="text-lg font-bold">Identitas Aplikasi & Login</h3>
+          <p className="text-sm text-muted-foreground">Atur nama aplikasi, logo, favicon, dan gambar latar untuk halaman login.</p>
         </div>
         
-        <div className="space-y-4 bg-muted/20 p-5 rounded-xl border">
+        <div className="space-y-6 bg-muted/20 p-5 rounded-xl border">
           <div className="space-y-2">
             <label className="text-sm font-medium">Nama Aplikasi</label>
             <input 
@@ -219,19 +276,84 @@ const AppearanceSettings: React.FC = () => {
             />
           </div>
           
-          <div className="space-y-2">
-            <label className="text-sm font-medium">URL Logo</label>
-            <input 
-              type="text" 
-              value={formData.logoUrl} 
-              onChange={(e) => setFormData({ ...formData, logoUrl: e.target.value })}
-              className="w-full border rounded-md px-3 py-2 outline-none focus:border-primary transition-colors bg-background" 
-              placeholder="Contoh: https://example.com/logo.png"
-            />
-            <p className="text-xs text-muted-foreground">Kosongkan jika hanya ingin menampilkan teks nama aplikasi.</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Logo */}
+            <div className="space-y-3">
+              <label className="text-sm font-medium">Logo Aplikasi</label>
+              <div className="flex gap-4">
+                <div className="w-16 h-16 rounded-lg border-2 border-dashed flex items-center justify-center bg-background overflow-hidden shrink-0">
+                  {formData.logoUrl ? (
+                    <img src={formData.logoUrl} alt="Logo" className="w-full h-full object-contain p-1" />
+                  ) : (
+                    <Palette className="w-6 h-6 text-muted-foreground opacity-30" />
+                  )}
+                </div>
+                <div className="flex-1 space-y-1">
+                  <input 
+                    type="file" 
+                    accept="image/*"
+                    onChange={(e) => handleFileUpload(e, 'logos', setUploadingLogo, 'logoUrl', 2)}
+                    disabled={uploadingLogo}
+                    className="w-full text-xs text-muted-foreground file:mr-2 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-medium file:bg-primary/10 file:text-primary hover:file:bg-primary/20 cursor-pointer disabled:opacity-50"
+                  />
+                  {uploadingLogo && <p className="text-[10px] text-primary animate-pulse">Mengunggah...</p>}
+                  <p className="text-[10px] text-muted-foreground">Maks 2MB.</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Favicon */}
+            <div className="space-y-3">
+              <label className="text-sm font-medium">Favicon (Ikon Tab Browser)</label>
+              <div className="flex gap-4">
+                <div className="w-16 h-16 rounded-lg border-2 border-dashed flex items-center justify-center bg-background overflow-hidden shrink-0">
+                  {formData.faviconUrl ? (
+                    <img src={formData.faviconUrl} alt="Favicon" className="w-full h-full object-contain p-1" />
+                  ) : (
+                    <Globe className="w-6 h-6 text-muted-foreground opacity-30" />
+                  )}
+                </div>
+                <div className="flex-1 space-y-1">
+                  <input 
+                    type="file" 
+                    accept="image/png, image/x-icon, image/jpeg, image/svg+xml"
+                    onChange={(e) => handleFileUpload(e, 'favicons', setUploadingFavicon, 'faviconUrl', 1)}
+                    disabled={uploadingFavicon}
+                    className="w-full text-xs text-muted-foreground file:mr-2 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-medium file:bg-primary/10 file:text-primary hover:file:bg-primary/20 cursor-pointer disabled:opacity-50"
+                  />
+                  {uploadingFavicon && <p className="text-[10px] text-primary animate-pulse">Mengunggah...</p>}
+                  <p className="text-[10px] text-muted-foreground">Rasio 1:1, Maks 1MB.</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Cover Login */}
+            <div className="space-y-3 md:col-span-2">
+              <label className="text-sm font-medium">Gambar Latar Belakang Login (Cover)</label>
+              <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+                <div className="w-full sm:w-32 h-20 rounded-lg border-2 border-dashed flex items-center justify-center bg-background overflow-hidden shrink-0">
+                  {formData.loginCoverUrl ? (
+                    <img src={formData.loginCoverUrl} alt="Cover" className="w-full h-full object-cover" />
+                  ) : (
+                    <ImageIcon className="w-6 h-6 text-muted-foreground opacity-30" />
+                  )}
+                </div>
+                <div className="flex-1 space-y-1 w-full">
+                  <input 
+                    type="file" 
+                    accept="image/*"
+                    onChange={(e) => handleFileUpload(e, 'covers', setUploadingCover, 'loginCoverUrl', 5)}
+                    disabled={uploadingCover}
+                    className="w-full text-xs text-muted-foreground file:mr-2 file:py-1.5 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-medium file:bg-primary/10 file:text-primary hover:file:bg-primary/20 cursor-pointer disabled:opacity-50"
+                  />
+                  {uploadingCover && <p className="text-[10px] text-primary animate-pulse">Mengunggah...</p>}
+                  <p className="text-[10px] text-muted-foreground">Format lanskap disarankan. Maks 5MB.</p>
+                </div>
+              </div>
+            </div>
           </div>
           
-          <div className="pt-2">
+          <div className="pt-2 mt-2 border-t border-border/50">
             <button 
               onClick={handleSaveIdentity}
               disabled={isSaving}
@@ -241,6 +363,42 @@ const AppearanceSettings: React.FC = () => {
               {isSaving ? "Menyimpan..." : "Simpan Identitas"}
             </button>
           </div>
+        </div>
+      </div>
+
+      {/* Typography Section */}
+      <div className="space-y-4">
+        <div>
+          <h3 className="text-lg font-bold flex items-center gap-2">
+            <Type className="w-5 h-5 text-primary" />
+            Tipografi Global
+          </h3>
+          <p className="text-sm text-muted-foreground">Pilih jenis huruf (font) yang akan digunakan di seluruh antarmuka sistem.</p>
+        </div>
+
+        <div className="bg-muted/20 p-5 rounded-xl border flex flex-col sm:flex-row gap-4 items-start sm:items-end">
+          <div className="space-y-2 flex-1 w-full">
+            <label className="text-sm font-medium">Jenis Huruf (Font Family)</label>
+            <select
+              value={formData.fontFamily}
+              onChange={(e) => setFormData({ ...formData, fontFamily: e.target.value })}
+              className="w-full border rounded-md px-3 py-2 outline-none focus:border-primary transition-colors bg-background"
+            >
+              <option value="Inter">Inter (Sleek & Modern)</option>
+              <option value="Roboto">Roboto (Classic & Readable)</option>
+              <option value="Outfit">Outfit (Playful & Geometric)</option>
+              <option value="Plus Jakarta Sans">Plus Jakarta Sans (Clean & Professional)</option>
+              <option value="System Default">System Default (Native OS Font)</option>
+            </select>
+          </div>
+          <button 
+            onClick={handleSaveIdentity}
+            disabled={isSaving}
+            className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 font-medium transition-colors text-sm disabled:opacity-50 shrink-0"
+          >
+            <Save className="w-4 h-4" />
+            Terapkan Font
+          </button>
         </div>
       </div>
 
@@ -345,6 +503,43 @@ const AppearanceSettings: React.FC = () => {
 };
 
 const SecuritySettings: React.FC = () => {
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!password || !confirmPassword) {
+      toast.error("Silakan isi kedua kolom kata sandi");
+      return;
+    }
+    if (password !== confirmPassword) {
+      toast.error("Konfirmasi kata sandi tidak cocok");
+      return;
+    }
+    if (password.length < 6) {
+      toast.error("Kata sandi minimal 6 karakter");
+      return;
+    }
+
+    setIsUpdating(true);
+    try {
+      const { error } = await supabaseClient.auth.updateUser({
+        password: password
+      });
+
+      if (error) throw error;
+      
+      toast.success("Kata sandi berhasil diperbarui");
+      setPassword("");
+      setConfirmPassword("");
+    } catch (err: any) {
+      toast.error(err.message || "Gagal memperbarui kata sandi");
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
   return (
     <div className="max-w-xl space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
       <div>
@@ -353,16 +548,47 @@ const SecuritySettings: React.FC = () => {
       </div>
 
       <div className="space-y-4">
-        <div className="p-4 border rounded-lg bg-orange-50/50 dark:bg-orange-950/20 border-orange-200 dark:border-orange-900">
-          <div className="flex gap-3">
-            <Bell className="w-5 h-5 text-orange-600 dark:text-orange-400 shrink-0" />
+        <div className="bg-muted/20 border rounded-xl p-5 space-y-4">
+          <div className="flex gap-3 items-center pb-4 border-b">
+            <Shield className="w-5 h-5 text-primary" />
             <div>
-              <h4 className="font-medium text-orange-800 dark:text-orange-300">Ganti Kata Sandi</h4>
-              <p className="text-sm text-orange-700/80 dark:text-orange-400/80 mt-1">
-                Untuk mengubah kata sandi, Anda dapat melakukannya melalui tautan "Lupa Kata Sandi" di halaman Login atau menghubungi Administrator Unit Anda.
-              </p>
+              <h4 className="font-medium text-foreground">Ganti Kata Sandi</h4>
+              <p className="text-xs text-muted-foreground mt-0.5">Sandi baru akan otomatis menggantikan sandi lama Anda.</p>
             </div>
           </div>
+          
+          <form onSubmit={handleUpdatePassword} className="space-y-4 pt-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Kata Sandi Baru</label>
+              <input 
+                type="password" 
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full border rounded-md px-3 py-2 outline-none focus:border-primary transition-colors bg-background" 
+                placeholder="Minimal 6 karakter"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Konfirmasi Kata Sandi Baru</label>
+              <input 
+                type="password" 
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="w-full border rounded-md px-3 py-2 outline-none focus:border-primary transition-colors bg-background" 
+                placeholder="Ketik ulang kata sandi baru"
+              />
+            </div>
+            
+            <div className="pt-2">
+              <button 
+                type="submit"
+                disabled={isUpdating || !password || !confirmPassword}
+                className="bg-primary text-primary-foreground px-6 py-2.5 rounded-md hover:bg-primary/90 font-medium transition-colors shadow-sm disabled:opacity-50 text-sm"
+              >
+                {isUpdating ? "Memperbarui..." : "Perbarui Kata Sandi"}
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     </div>

@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from "react";
 import { useOutletContext, Link } from "react-router-dom";
 import { supabaseClient } from "../../lib/supabase/client";
-import { Wallet, BookOpen, Clock, AlertCircle, TrendingUp, Calendar, CheckCircle, XCircle } from "lucide-react";
+import { Wallet, BookOpen, Clock, AlertCircle, TrendingUp, Calendar, CheckCircle, XCircle, Megaphone } from "lucide-react";
 
 export const PortalDashboard: React.FC = () => {
   const { student } = useOutletContext<any>();
   const [unpaidInvoices, setUnpaidInvoices] = useState(0);
   const [attendance, setAttendance] = useState({ present: 0, sick: 0, permission: 0, absent: 0 });
   const [recentJournal, setRecentJournal] = useState<any>(null);
+  const [recentAnnouncement, setRecentAnnouncement] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -47,6 +48,17 @@ export const PortalDashboard: React.FC = () => {
           .limit(1);
         if (journals && journals.length > 0) setRecentJournal(journals[0]);
 
+        // Fetch Recent Announcement
+        const { data: annData } = await supabaseClient
+          .from("announcements")
+          .select("title, content, publish_at, created_at")
+          .eq("status", "terkirim")
+          .in("target_type", ["all", "parents"])
+          .order("publish_at", { ascending: false })
+          .order("created_at", { ascending: false })
+          .limit(1);
+        if (annData && annData.length > 0) setRecentAnnouncement(annData[0]);
+
       } catch (err) {
         console.error("Error fetching dashboard data", err);
       } finally {
@@ -70,7 +82,7 @@ export const PortalDashboard: React.FC = () => {
       {/* Welcome Banner */}
       <div className="bg-gradient-to-br from-emerald-500 to-emerald-700 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden">
         <div className="relative z-10">
-          <h2 className="text-2xl font-bold mb-1">Halo, Orang Tua {student.full_name.split(' ')[0]}!</h2>
+          <h2 className="text-2xl font-bold mb-1">Assalamu'alykum, Abba dan Umma {student.full_name.split(' ')[0]}!</h2>
           <p className="text-emerald-100 text-sm opacity-90">Pantau selalu aktivitas dan perkembangan anak Anda.</p>
         </div>
         <div className="absolute right-[-20px] bottom-[-20px] opacity-10">
@@ -89,6 +101,26 @@ export const PortalDashboard: React.FC = () => {
             <p className="text-sm text-red-600 mt-0.5">Ada {unpaidInvoices} tagihan yang butuh perhatian Anda.</p>
           </div>
         </Link>
+      )}
+
+      {/* Recent Announcement */}
+      {recentAnnouncement && (
+        <div>
+          <div className="flex justify-between items-center mb-3 px-1">
+            <h3 className="font-bold text-gray-900 flex items-center gap-2">
+              <Megaphone className="w-5 h-5 text-amber-500" /> Pengumuman Terbaru
+            </h3>
+            <Link to="/portal/announcements" className="text-sm text-emerald-600 font-medium hover:underline">Lihat Semua</Link>
+          </div>
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 shadow-sm">
+            <h4 className="font-bold text-amber-900">{recentAnnouncement.title}</h4>
+            <p className="text-sm text-amber-800 mt-2 line-clamp-2">{recentAnnouncement.content}</p>
+            <div className="mt-3 flex items-center gap-2 text-xs text-amber-700/80 font-medium">
+              <Calendar className="w-3.5 h-3.5" />
+              {new Date(recentAnnouncement.publish_at || recentAnnouncement.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Attendance Stats */}

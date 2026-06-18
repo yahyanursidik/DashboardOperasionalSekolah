@@ -69,6 +69,7 @@ import { PortalAcademic } from "../modules/portal/portal-academic";
 import { PortalJournals } from "../modules/portal/portal-journals";
 import { PortalQuran } from "../modules/portal/portal-quran";
 import { PortalPaud } from "../modules/portal/portal-paud";
+import { PortalAnnouncements } from "../modules/portal/portal-announcements";
 import { SpmbLayout, SpmbDashboard, SpmbForm, SpmbDocuments, SpmbAnnouncement, SpmbLogin, SpmbRegister, SpmbChecklist, SpmbPayment } from "../modules/admissions/portal";
 
 import { TeacherLayout } from "../modules/teacher-portal/teacher-layout";
@@ -636,6 +637,7 @@ export default function App() {
                 <Route path="quran" element={<PortalQuran />} />
                 <Route path="paud" element={<PortalPaud />} />
                 <Route path="journals" element={<PortalJournals />} />
+                <Route path="announcements" element={<PortalAnnouncements />} />
               </Route>
 
               <Route path="/spmb" element={<SpmbLayout />}>

@@ -3,12 +3,14 @@ import { useNavigate } from "react-router-dom";
 import { supabaseClient } from "../../lib/supabase/client";
 import { GraduationCap, ArrowRight, UserCheck, KeyRound } from "lucide-react";
 import { toast } from "sonner";
+import { useSystemSettings } from "../../app/providers/SettingsProvider";
 
 export const PortalLogin: React.FC = () => {
   const [nisn, setNisn] = useState("");
   const [nis, setNis] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const { loginCoverUrl, logoUrl, appName } = useSystemSettings();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,19 +94,38 @@ export const PortalLogin: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-emerald-50 via-green-100/60 to-emerald-200 relative overflow-hidden">
+    <div 
+      className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-gradient-to-br from-emerald-50 via-green-100/60 to-emerald-200"
+      style={loginCoverUrl ? {
+        backgroundImage: `url(${loginCoverUrl})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat'
+      } : {}}
+    >
+      {/* Dark overlay if using cover image to ensure form readability */}
+      {loginCoverUrl && <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] z-0"></div>}
+
       {/* Decorative background blobs */}
-      <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-emerald-300 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob"></div>
-      <div className="absolute top-[20%] right-[-10%] w-72 h-72 bg-teal-300 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000"></div>
-      <div className="absolute bottom-[-20%] left-[20%] w-80 h-80 bg-green-300 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-4000"></div>
+      {!loginCoverUrl && (
+        <>
+          <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-emerald-300 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob"></div>
+          <div className="absolute top-[20%] right-[-10%] w-72 h-72 bg-teal-300 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000"></div>
+          <div className="absolute bottom-[-20%] left-[20%] w-80 h-80 bg-green-300 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-4000"></div>
+        </>
+      )}
       
       <div className="relative z-10 w-full max-w-md bg-white/60 backdrop-blur-xl rounded-3xl shadow-2xl overflow-hidden border border-white/50">
         <div className="bg-emerald-600/90 p-8 text-center border-b border-white/20">
-          <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-sm">
-            <GraduationCap className="w-8 h-8 text-white" />
+          <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-sm overflow-hidden">
+            {logoUrl ? (
+              <img src={logoUrl} alt="Logo" className="w-full h-full object-contain p-2" />
+            ) : (
+              <GraduationCap className="w-8 h-8 text-white" />
+            )}
           </div>
           <h1 className="text-2xl font-bold text-white">Portal Orang Tua</h1>
-          <p className="text-emerald-100 mt-2 text-sm">Pantau perkembangan anak Anda dengan mudah</p>
+          <p className="text-emerald-100 mt-2 text-sm">{appName || "Pantau perkembangan anak Anda dengan mudah"}</p>
         </div>
         
         <div className="p-8">
