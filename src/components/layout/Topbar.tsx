@@ -1,11 +1,15 @@
 import React, { useEffect } from "react";
 import { useLogout, useSelect } from "@refinedev/core";
-import { LogOut, Building, Search, Bell, Calendar } from "lucide-react";
+import { LogOut, Building, Search, Bell, Calendar, Menu } from "lucide-react";
 import { useCurrentUser } from "../../hooks/useAuth";
 import { useCurrentUnit } from "../../app/providers/UnitProvider";
 import { useAcademicYear } from "../../app/providers/AcademicYearProvider";
 
-export const Topbar: React.FC = () => {
+interface TopbarProps {
+  onMenuClick?: () => void;
+}
+
+export const Topbar: React.FC<TopbarProps> = ({ onMenuClick }) => {
   const { mutate: logout } = useLogout();
   const { user } = useCurrentUser();
   const { activeUnitId, setActiveUnitId, availableUnits } = useCurrentUnit();
@@ -28,6 +32,14 @@ export const Topbar: React.FC = () => {
   return (
     <header className="h-16 border-b bg-white flex items-center justify-between px-4 sm:px-6 shadow-sm dark:bg-card shrink-0">
       <div className="flex items-center gap-4 flex-1">
+        {/* Mobile Menu Button */}
+        <button 
+          onClick={onMenuClick}
+          className="md:hidden p-2 -ml-2 text-muted-foreground hover:bg-muted rounded-md transition-colors"
+        >
+          <Menu className="w-6 h-6 text-primary" />
+        </button>
+
         {/* Global Search */}
         <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-muted rounded-full w-full max-w-sm border border-transparent focus-within:border-primary/30 focus-within:bg-background transition-all">
           <Search className="w-4 h-4 text-muted-foreground" />
