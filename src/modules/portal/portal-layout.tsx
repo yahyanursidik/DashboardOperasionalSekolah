@@ -115,7 +115,7 @@ export const PortalLayout: React.FC = () => {
               <Link
                 key={item.path}
                 to={item.path}
-                className={`flex flex-col items-center justify-center py-2 px-1 w-full shrink-0 ${isActive ? 'text-emerald-600' : 'text-gray-500 hover:text-gray-900'}`}
+                className={`flex flex-col items-center justify-center py-2 px-1 flex-1 ${isActive ? 'text-emerald-600' : 'text-gray-500 hover:text-gray-900'}`}
               >
                 <item.icon className={`w-5 h-5 mb-1 ${isActive ? 'stroke-[2.5px]' : ''}`} />
                 <span className="text-[10px] font-medium whitespace-nowrap">{item.name}</span>
