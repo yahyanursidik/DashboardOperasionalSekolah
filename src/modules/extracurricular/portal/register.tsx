@@ -124,7 +124,7 @@ export const ExtracurricularPortalRegister: React.FC = () => {
           Pendaftaran Siswa Eksternal
         </h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          Bergabung dengan program ekstrakurikuler Yayasan TSLS
+          Bergabung dengan program ekstrakurikuler TS Lab School
         </p>
       </div>
 

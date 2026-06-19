@@ -111,7 +111,7 @@ export const DocumentCreate: React.FC = () => {
                 <option value="">-- Pilih Pemilik Data --</option>
                 {ownerType === 'student' && studentOptions?.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 {ownerType === 'employee' && employeeOptions?.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                {ownerType === 'school' && <option value="00000000-0000-0000-0000-000000000000">Yayasan TSLS</option>}
+                {ownerType === 'school' && <option value="00000000-0000-0000-0000-000000000000">TS Lab School</option>}
               </select>
             </div>
 

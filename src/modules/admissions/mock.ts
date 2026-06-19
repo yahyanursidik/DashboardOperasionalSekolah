@@ -355,8 +355,8 @@ export const getSpmbFinanceSettings = (): SpmbFinanceSettings => {
       }
     ],
     banks: [
-      { id: '1', bankName: 'BSI (Bank Syariah Indonesia)', accountNumber: '712 345 6789', accountName: 'Yayasan TSLS' },
-      { id: '2', bankName: 'Bank Muamalat', accountNumber: '123 456 7890', accountName: 'Yayasan TSLS' }
+      { id: '1', bankName: 'BSI (Bank Syariah Indonesia)', accountNumber: '712 345 6789', accountName: 'TS Lab School' },
+      { id: '2', bankName: 'Bank Muamalat', accountNumber: '123 456 7890', accountName: 'TS Lab School' }
     ],
     qrisUrl: ''
   };

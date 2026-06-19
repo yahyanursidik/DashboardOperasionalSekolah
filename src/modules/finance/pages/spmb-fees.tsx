@@ -114,7 +114,7 @@ export const SpmbFeesConfig: React.FC = () => {
   };
 
   const handleAddBank = () => {
-    const newBank: BankAccount = { id: Date.now().toString(), bankName: "Bank Baru", accountNumber: "000", accountName: "Yayasan TSLS" };
+    const newBank: BankAccount = { id: Date.now().toString(), bankName: "Bank Baru", accountNumber: "000", accountName: "TS Lab School" };
     setSettings({ ...settings, banks: [...settings.banks, newBank] });
   };
 
