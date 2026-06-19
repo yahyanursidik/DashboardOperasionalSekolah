@@ -9,6 +9,7 @@ export type RoleName =
   | 'admin_unit'
   | 'admin_keuangan'
   | 'admin_dokumen'
+  | 'admin_spmb'
   | 'operator_absensi'
   | 'guru'
   | 'wali_kelas';
@@ -59,8 +60,8 @@ const ResourceAccessMap: Record<string, RoleName[]> = {
   'quran_assessments': ['super_admin', 'ketua_yayasan', 'kepsek', 'admin_unit', 'guru', 'wali_kelas'],
 
   // Admissions (SPMB)
-  'admissions': ['super_admin', 'ketua_yayasan', 'kepsek', 'wakasek', 'kepala_tu', 'admin_tu', 'admin_sekolah', 'admin_unit'],
-  'admissions_applicants': ['super_admin', 'ketua_yayasan', 'kepsek', 'wakasek', 'kepala_tu', 'admin_tu', 'admin_sekolah', 'admin_unit'],
+  'admissions': ['super_admin', 'ketua_yayasan', 'kepsek', 'wakasek', 'kepala_tu', 'admin_tu', 'admin_sekolah', 'admin_unit', 'admin_spmb'],
+  'admissions_applicants': ['super_admin', 'ketua_yayasan', 'kepsek', 'wakasek', 'kepala_tu', 'admin_tu', 'admin_sekolah', 'admin_unit', 'admin_spmb'],
 
   // PAUD Module
   'paud_activities': ['super_admin', 'ketua_yayasan', 'kepsek', 'admin_unit', 'guru', 'wali_kelas'],

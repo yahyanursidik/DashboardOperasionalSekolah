@@ -97,6 +97,7 @@ import { TeacherQuran } from "../modules/teacher-portal/teacher-quran";
 import { TeacherPaud } from "../modules/teacher-portal/teacher-paud";
 
 import { BendaharaLayout, BendaharaLogin } from "../modules/bendahara-portal";
+import { AdminSpmbLayout, AdminSpmbLogin } from "../modules/admin-spmb-portal";
 
 export default function App() {
   return (
@@ -727,6 +728,15 @@ export default function App() {
                 <Route path="expenses" element={<SchoolExpenses />} />
                 <Route path="students" element={<StudentsList />} />
                 <Route path="categories" element={<FinanceCategories />} />
+              </Route>
+
+              <Route path="/admin-spmb/login" element={<AdminSpmbLogin />} />
+              <Route path="/admin-spmb" element={<AdminSpmbLayout />}>
+                <Route index element={<AdmissionsDashboard />} />
+                <Route path="applicants" element={<AdmissionsApplicantsList />} />
+                <Route path="applicants/:id" element={<AdmissionsApplicantShow />} />
+                <Route path="reports" element={<AdmissionsReports />} />
+                <Route path="settings" element={<AdmissionsSettings />} />
               </Route>
 
             </Routes>
