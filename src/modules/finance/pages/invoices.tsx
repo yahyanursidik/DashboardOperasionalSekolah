@@ -1,9 +1,10 @@
 import React, { useState } from "react";
 import { useList, useCreate } from "@refinedev/core";
 import { PageHeader } from "../../../components/layout/PageHeader";
-import { Receipt, Plus, Search, Filter, AlertCircle, CheckCircle, Clock, Banknote, CreditCard } from "lucide-react";
+import { Receipt, Plus, Search, Filter, AlertCircle, CheckCircle, Clock, Banknote, CreditCard, Loader2 } from "lucide-react";
 import { useCurrentUnit } from "../../../app/providers/UnitProvider";
 import { useAcademicYear } from "../../../app/providers/AcademicYearProvider";
+import { supabaseClient } from "../../../lib/supabase/client";
 
 export const InvoicesList: React.FC = () => {
   const { activeUnitId } = useCurrentUnit();
@@ -12,8 +13,10 @@ export const InvoicesList: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
   const [generateForm, setGenerateForm] = useState({ title: "", category_id: "", amount: 0, due_date: "" });
   
+  const { data: categoriesData } = useList({ resource: "finance_categories" });
   // Payment / Installment Form
   const [paymentInvoice, setPaymentInvoice] = useState<any>(null);
   const [paymentForm, setPaymentForm] = useState({ amount_paid: 0, payment_method: "cash", notes: "" });
@@ -21,10 +24,51 @@ export const InvoicesList: React.FC = () => {
   const { mutate: createInvoice } = useCreate();
   const { mutate: createPayment } = useCreate();
 
-  const handleGenerate = (e: React.FormEvent) => {
+  const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
-    alert('Fitur Generate Tagihan Massal akan segera aktif ketika backend selesai. Untuk saat ini data tagihan bisa disiapkan melalui sistem Admin.');
-    setIsModalOpen(false);
+    if (!generateForm.title || !generateForm.amount || !generateForm.category_id) {
+      alert("Harap lengkapi semua field.");
+      return;
+    }
+    
+    setIsGenerating(true);
+    try {
+      // Get all active internal students for the unit
+      let query = supabaseClient.from('students').select('id').eq('status', 'AKTIF');
+      if (activeUnitId) query = query.eq('unit_id', activeUnitId);
+      
+      const { data: students, error: studentErr } = await query;
+      if (studentErr) throw studentErr;
+
+      if (!students || students.length === 0) {
+        alert("Tidak ada siswa aktif ditemukan untuk di-generate tagihannya.");
+        setIsGenerating(false);
+        return;
+      }
+
+      const newInvoices = (students as any[]).map(s => ({
+        student_id: s.id,
+        category_id: generateForm.category_id,
+        title: generateForm.title,
+        amount: generateForm.amount,
+        due_date: generateForm.due_date || new Date().toISOString().split('T')[0],
+        status: 'unpaid'
+      }));
+
+      const { error: insertErr } = await supabaseClient.from('student_invoices').insert(newInvoices);
+      if (insertErr) throw insertErr;
+
+      alert(`Berhasil membuat tagihan untuk ${students.length} siswa!`);
+      setIsModalOpen(false);
+      setGenerateForm({ title: "", category_id: "", amount: 0, due_date: "" });
+      // The useList should auto-revalidate or we can rely on realtime/refetch
+      window.location.reload();
+    } catch (err: any) {
+      console.error(err);
+      alert("Gagal men-generate tagihan: " + err.message);
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const handlePaymentSubmit = (e: React.FormEvent) => {
@@ -35,7 +79,8 @@ export const InvoicesList: React.FC = () => {
       resource: "payment_transactions",
       values: {
         invoice_id: paymentInvoice.id,
-        student_id: paymentInvoice.student_id,
+        student_id: paymentInvoice.student_id || null,
+        external_student_id: paymentInvoice.external_student_id || null,
         amount_paid: paymentForm.amount_paid,
         payment_method: paymentForm.payment_method,
         payment_date: new Date().toISOString().split('T')[0],
@@ -58,7 +103,7 @@ export const InvoicesList: React.FC = () => {
   const { data, isLoading } = useList({
     resource: "student_invoices",
     filters,
-    meta: { select: "*, students!inner(full_name, nis), finance_categories(name, is_recurring)" },
+    meta: { select: "*, students(full_name, nis), external_students(full_name, school_origin), finance_categories(name, is_recurring)" },
     sorters: [{ field: "created_at", order: "desc" }]
   });
 
@@ -66,9 +111,11 @@ export const InvoicesList: React.FC = () => {
   const filteredData = data?.data.filter(inv => {
     if (!searchTerm) return true;
     const searchLower = searchTerm.toLowerCase();
-    return inv.students?.full_name.toLowerCase().includes(searchLower) || 
+    const studentName = inv.students?.full_name || inv.external_students?.full_name || "";
+    const studentIdStr = inv.students?.nis || inv.external_students?.school_origin || "";
+    return studentName.toLowerCase().includes(searchLower) || 
            inv.title.toLowerCase().includes(searchLower) ||
-           inv.students?.nis?.toLowerCase().includes(searchLower);
+           studentIdStr.toLowerCase().includes(searchLower);
   }) || [];
 
   const getStatusBadge = (status: string) => {
@@ -154,8 +201,15 @@ export const InvoicesList: React.FC = () => {
                         <div className="text-[10px] text-muted-foreground mt-0.5 uppercase tracking-wider">{inv.finance_categories?.name}</div>
                       </td>
                       <td className="px-4 py-3">
-                        <div className="text-foreground">{inv.students?.full_name}</div>
-                        <div className="text-xs text-muted-foreground mt-0.5">NIS: {inv.students?.nis || '-'}</div>
+                        <div className="flex items-center gap-2">
+                          <div className="text-foreground font-semibold">{inv.students?.full_name || inv.external_students?.full_name}</div>
+                          {inv.external_student_id && (
+                            <span className="bg-indigo-100 text-indigo-700 text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">Eksternal</span>
+                          )}
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-0.5">
+                          {inv.students ? `NIS: ${inv.students.nis || '-'}` : `Asal: ${inv.external_students?.school_origin || '-'}`}
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-right">
                         <div>{(Number(inv.amount)).toLocaleString('id-ID')}</div>
@@ -207,16 +261,40 @@ export const InvoicesList: React.FC = () => {
               <button onClick={() => setIsModalOpen(false)} className="text-muted-foreground hover:text-foreground">✕</button>
             </div>
             <form onSubmit={handleGenerate} className="p-6 space-y-4">
-              <div className="bg-amber-50 text-amber-800 p-3 rounded-md text-xs border border-amber-200 font-medium">
-                Fitur otomatisasi tagihan massal sedang dalam tahap integrasi dengan server (Supabase Edge Functions). Silakan hubungi tim IT jika ada pembuatan tagihan mendesak.
+              <div className="bg-blue-50 text-blue-800 p-3 rounded-md text-xs border border-blue-200 font-medium">
+                Fitur ini akan men-generate tagihan ke <b>semua siswa aktif</b> di unit yang terpilih saat ini. Pastikan nominal dan judul tagihan sudah benar.
               </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Judul Tagihan</label>
-                <input required type="text" value={generateForm.title} onChange={e => setGenerateForm({...generateForm, title: e.target.value})} className="w-full border rounded-md px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary" placeholder="Misal: SPP Agustus 2024" />
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Kategori Tagihan</label>
+                  <select required value={generateForm.category_id} onChange={e => setGenerateForm({...generateForm, category_id: e.target.value})} className="w-full border rounded-md px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary">
+                    <option value="">Pilih Kategori...</option>
+                    {categoriesData?.data?.map((cat: any) => (
+                      <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Judul Tagihan</label>
+                  <input required type="text" value={generateForm.title} onChange={e => setGenerateForm({...generateForm, title: e.target.value})} className="w-full border rounded-md px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary" placeholder="Misal: SPP Agustus 2024" />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Nominal (Rp)</label>
+                    <input required type="number" value={generateForm.amount} onChange={e => setGenerateForm({...generateForm, amount: Number(e.target.value)})} className="w-full border rounded-md px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Jatuh Tempo</label>
+                    <input required type="date" value={generateForm.due_date} onChange={e => setGenerateForm({...generateForm, due_date: e.target.value})} className="w-full border rounded-md px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary" />
+                  </div>
+                </div>
               </div>
               <div className="pt-4 flex justify-end gap-3">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 border rounded-md text-sm font-medium hover:bg-muted transition-colors">Tutup</button>
-                <button type="submit" className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 transition-colors flex items-center gap-2"><CheckCircle className="w-4 h-4"/> Generate Tagihan Massal</button>
+                <button type="button" disabled={isGenerating} onClick={() => setIsModalOpen(false)} className="px-4 py-2 border rounded-md text-sm font-medium hover:bg-muted transition-colors disabled:opacity-50">Tutup</button>
+                <button type="submit" disabled={isGenerating} className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 transition-colors flex items-center gap-2 disabled:opacity-50">
+                  {isGenerating ? <Loader2 className="w-4 h-4 animate-spin"/> : <CheckCircle className="w-4 h-4"/>} 
+                  {isGenerating ? 'Memproses...' : 'Generate Tagihan'}
+                </button>
               </div>
             </form>
           </div>
@@ -239,7 +317,10 @@ export const InvoicesList: React.FC = () => {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Siswa:</span>
-                  <span className="font-medium">{paymentInvoice.students?.full_name}</span>
+                  <span className="font-medium">
+                    {paymentInvoice.students?.full_name || paymentInvoice.external_students?.full_name} 
+                    {paymentInvoice.external_student_id && ' (Eksternal)'}
+                  </span>
                 </div>
                 <div className="flex justify-between border-t pt-2 mt-2">
                   <span className="text-muted-foreground">Total Sisa Tunggakan:</span>

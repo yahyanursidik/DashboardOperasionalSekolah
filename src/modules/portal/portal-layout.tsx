@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Outlet, useNavigate, useLocation, Link } from "react-router-dom";
 import { supabaseClient } from "../../lib/supabase/client";
-import { Home, Wallet, BookOpen, Clock, LogOut, Smile, ClipboardList, Bell } from "lucide-react";
+import { Home, Wallet, BookOpen, Clock, LogOut, Smile, ClipboardList, Bell, Target } from "lucide-react";
 import { useSystemSettings } from "../../app/providers/SettingsProvider";
 
 export const PortalLayout: React.FC = () => {
@@ -65,6 +65,7 @@ export const PortalLayout: React.FC = () => {
   const navItems = [
     { name: "Beranda", path: "/portal", icon: Home },
     { name: "Akademik", path: "/portal/academic", icon: BookOpen },
+    { name: "Ekskul", path: "/portal/extracurricular", icon: Target },
     { name: "PAUD", path: "/portal/paud", icon: Smile },
     { name: "Qur'an", path: "/portal/quran", icon: BookOpen },
     { name: "Keuangan", path: "/portal/finance", icon: Wallet },
@@ -102,8 +103,13 @@ export const PortalLayout: React.FC = () => {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 w-full max-w-md mx-auto relative pb-20">
-        <Outlet context={{ student }} />
+      <main className="flex-1 w-full max-w-md mx-auto relative pb-28 flex flex-col">
+        <div className="flex-1">
+          <Outlet context={{ student }} />
+        </div>
+        <footer className="mt-8 text-center text-[10px] text-muted-foreground w-full pb-4">
+          &copy; {new Date().getFullYear()} TSLS OS. Disusun oleh <a href="https://yahyanursidik.my.id/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-medium">Yahya Nursidik</a>
+        </footer>
       </main>
 
       {/* Bottom Navigation (Mobile Friendly) */}

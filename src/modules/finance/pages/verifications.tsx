@@ -12,7 +12,7 @@ export const PaymentVerifications: React.FC = () => {
   const { data, isLoading } = useList({
     resource: "payment_transactions",
     filters,
-    meta: { select: "*, student_invoices(title, amount, discount, paid_amount), students(full_name, nis)" },
+    meta: { select: "*, student_invoices(title, amount, discount, paid_amount), students(full_name, nis), external_students(full_name, school_origin)" },
     sorters: [{ field: "created_at", order: "desc" }]
   });
 
@@ -65,7 +65,15 @@ export const PaymentVerifications: React.FC = () => {
               <div className="p-4 border-b bg-muted/20 flex justify-between items-start">
                 <div>
                   <h4 className="font-bold text-foreground text-sm line-clamp-1">{trx.student_invoices?.title}</h4>
-                  <p className="text-xs text-muted-foreground mt-0.5">{trx.students?.full_name} ({trx.students?.nis})</p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <p className="text-xs text-muted-foreground">
+                      {trx.students?.full_name || trx.external_students?.full_name} 
+                      {trx.students?.nis ? ` (${trx.students.nis})` : trx.external_students?.school_origin ? ` (${trx.external_students.school_origin})` : ''}
+                    </p>
+                    {trx.external_student_id && (
+                      <span className="bg-indigo-100 text-indigo-700 text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">Eksternal</span>
+                    )}
+                  </div>
                 </div>
                 {trx.status === 'pending_verification' && <span className="bg-amber-100 text-amber-800 border border-amber-200 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider flex items-center gap-1"><Clock className="w-3 h-3"/> Pending</span>}
                 {trx.status === 'verified' && <span className="bg-emerald-100 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider flex items-center gap-1"><CheckCircle className="w-3 h-3"/> Disetujui</span>}

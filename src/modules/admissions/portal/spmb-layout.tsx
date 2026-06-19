@@ -92,7 +92,7 @@ export const SpmbLayout: React.FC = () => {
 
       <footer className="bg-white border-t py-6 mt-auto">
         <div className="max-w-5xl mx-auto px-4 text-center text-sm text-muted-foreground">
-          &copy; {new Date().getFullYear()} TSLS OS. All rights reserved.
+          &copy; {new Date().getFullYear()} TSLS OS. Disusun oleh <a href="https://yahyanursidik.my.id/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-medium">Yahya Nursidik</a>
         </div>
       </footer>
     </div>

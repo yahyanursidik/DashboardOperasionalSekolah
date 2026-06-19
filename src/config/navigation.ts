@@ -247,6 +247,12 @@ export const navigationConfig: NavigationGroup[] = [
         resource: "pkg_assessments",
       },
       {
+        title: "Ekstrakurikuler",
+        href: "/extracurricular",
+        icon: Target,
+        resource: "extracurricular",
+      },
+      {
         title: "Pengaturan Instrumen PKG",
         href: "/pkg/settings",
         icon: Settings,

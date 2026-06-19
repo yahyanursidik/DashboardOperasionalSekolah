@@ -68,6 +68,9 @@ const ResourceAccessMap: Record<string, RoleName[]> = {
 
   // PKG / Penilaian Kinerja Guru
   'pkg_assessments': ['super_admin', 'ketua_yayasan', 'kepsek', 'wakasek', 'kepala_tu', 'admin_sekolah', 'admin_unit'],
+
+  // Ekstrakurikuler
+  'extracurricular': ['super_admin', 'ketua_yayasan', 'kepsek', 'wakasek', 'kepala_tu', 'admin_tu', 'admin_sekolah', 'admin_unit', 'guru', 'wali_kelas'],
 };
 
 export const canAccessResource = (scopes: UserRoleScope[] | undefined, resource: string): boolean => {

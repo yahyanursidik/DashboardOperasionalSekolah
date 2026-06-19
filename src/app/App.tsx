@@ -35,6 +35,19 @@ import { LeavesList, LeaveCreate, LeaveShow } from "../modules/leaves";
 import { SubstitutesList, SubstituteCreate, SubstituteEdit } from "../modules/substitutes";
 import { DashboardPage } from "../modules/dashboard";
 import { MasterDataDashboard } from "../modules/master-data";
+import { 
+  ExtracurricularDashboard, 
+  ProgramsList,
+  MembersList,
+  AttendanceList,
+  GradesList
+} from "../modules/extracurricular";
+import { 
+  ExtracurricularPortalLayout, 
+  ExtracurricularPortalDashboard, 
+  ExtracurricularPortalLogin, 
+  ExtracurricularPortalRegister 
+} from "../modules/extracurricular/portal";
 import { SettingsPage } from "../modules/settings";
 import { StudentMassPromotion } from "../modules/students/pages/mass-promotion";
 import { CommunicationsPage } from "../modules/communications";
@@ -64,12 +77,14 @@ import {
 import { PortalLayout } from "../modules/portal/portal-layout";
 import { PortalLogin } from "../modules/portal/portal-login";
 import { PortalDashboard } from "../modules/portal/portal-dashboard";
+import { PortalExtracurricular } from "../modules/portal/portal-extracurricular";
 import { PortalFinance } from "../modules/portal/portal-finance";
 import { PortalAcademic } from "../modules/portal/portal-academic";
 import { PortalJournals } from "../modules/portal/portal-journals";
 import { PortalQuran } from "../modules/portal/portal-quran";
 import { PortalPaud } from "../modules/portal/portal-paud";
 import { PortalAnnouncements } from "../modules/portal/portal-announcements";
+import { PrintInvoice } from "../modules/finance/pages/print-invoice";
 import { SpmbLayout, SpmbDashboard, SpmbForm, SpmbDocuments, SpmbAnnouncement, SpmbLogin, SpmbRegister, SpmbChecklist, SpmbPayment } from "../modules/admissions/portal";
 
 import { TeacherLayout } from "../modules/teacher-portal/teacher-layout";
@@ -383,6 +398,31 @@ export default function App() {
             list: "/sarpras/procurements",
             meta: { canDelete: true },
           },
+          {
+            name: "extracurricular",
+            list: "/extracurricular",
+            meta: { label: "Ekstrakurikuler" }
+          },
+          {
+            name: "extracurriculars",
+            list: "/extracurricular/programs",
+            meta: { label: "Katalog Ekskul", parent: "extracurricular", canDelete: true }
+          },
+          {
+            name: "extracurricular_members",
+            list: "/extracurricular/members",
+            meta: { label: "Data Peserta", parent: "extracurricular", canDelete: true }
+          },
+          {
+            name: "extracurricular_attendances",
+            list: "/extracurricular/attendance",
+            meta: { label: "Absensi", parent: "extracurricular", canDelete: true }
+          },
+          {
+            name: "extracurricular_grades",
+            list: "/extracurricular/grades",
+            meta: { label: "Penilaian & Rapor", parent: "extracurricular", canDelete: true }
+          },
         ]}
         options={{
           syncWithLocation: true,
@@ -616,6 +656,14 @@ export default function App() {
                   <Route path="settings" element={<PkgSettings />} />
                 </Route>
 
+                <Route path="/extracurricular">
+                  <Route index element={<ExtracurricularDashboard />} />
+                  <Route path="programs" element={<ProgramsList />} />
+                  <Route path="members" element={<MembersList />} />
+                  <Route path="attendance" element={<AttendanceList />} />
+                  <Route path="grades" element={<GradesList />} />
+                </Route>
+
               </Route>
               <Route
                 element={
@@ -632,6 +680,7 @@ export default function App() {
               <Route path="/portal/login" element={<PortalLogin />} />
               <Route path="/portal" element={<PortalLayout />}>
                 <Route index element={<PortalDashboard />} />
+                <Route path="extracurricular" element={<PortalExtracurricular />} />
                 <Route path="finance" element={<PortalFinance />} />
                 <Route path="academic" element={<PortalAcademic />} />
                 <Route path="quran" element={<PortalQuran />} />
@@ -639,6 +688,15 @@ export default function App() {
                 <Route path="journals" element={<PortalJournals />} />
                 <Route path="announcements" element={<PortalAnnouncements />} />
               </Route>
+
+              <Route path="/ekskul-portal/login" element={<ExtracurricularPortalLogin />} />
+              <Route path="/ekskul-portal/register" element={<ExtracurricularPortalRegister />} />
+              <Route path="/ekskul-portal" element={<ExtracurricularPortalLayout />}>
+                <Route index element={<ExtracurricularPortalDashboard />} />
+              </Route>
+
+              {/* Print Invoice Route (Standalone) */}
+              <Route path="/print-invoice/:id" element={<PrintInvoice />} />
 
               <Route path="/spmb" element={<SpmbLayout />}>
                 <Route index element={<SpmbDashboard />} />

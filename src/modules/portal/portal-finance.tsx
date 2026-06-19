@@ -111,14 +111,23 @@ export const PortalFinance: React.FC = () => {
                   </div>
                 </div>
 
-                {inv.status !== 'paid' && !hasPendingTx && (
+                <div className="flex gap-2">
                   <button 
-                    onClick={() => setSelectedInvoice(inv)}
-                    className="w-full py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 hover:bg-emerald-100 transition-colors"
+                    onClick={() => window.open(`/print-invoice/${inv.id}`, '_blank')}
+                    className="flex-1 py-2 bg-slate-100 text-slate-700 border border-slate-200 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 hover:bg-slate-200 transition-colors"
                   >
-                    <Upload className="w-4 h-4" /> Upload Bukti Transfer
+                    Cetak Tagihan
                   </button>
-                )}
+
+                  {inv.status !== 'paid' && !hasPendingTx && (
+                    <button 
+                      onClick={() => setSelectedInvoice(inv)}
+                      className="flex-[2] py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 hover:bg-emerald-100 transition-colors"
+                    >
+                      <Upload className="w-4 h-4" /> Upload Bukti
+                    </button>
+                  )}
+                </div>
               </div>
             );
           })}
