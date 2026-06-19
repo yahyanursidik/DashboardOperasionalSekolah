@@ -54,7 +54,11 @@ import { CommunicationsPage } from "../modules/communications";
 import { StudentJournalsList, StudentJournalCreate, StudentJournalEdit } from "../modules/student-journals/pages";
 import { FinanceDashboard, InvoicesList, PaymentVerifications, SchoolExpenses, FinanceCategories, SpmbFeesConfig } from "../modules/finance/pages";
 import { CurriculumDashboard } from "../modules/curriculum/dashboard";
-import { SubjectsList, SubjectCreate, SubjectEdit, SubjectTeacherDirectory } from "../modules/curriculum/subjects";
+import { SubjectsList, SubjectCreate, SubjectEdit, SubjectShow, SubjectTeacherDirectory } from "../modules/curriculum/subjects";
+import { SubjectCurriculumCreate, SubjectCurriculumEdit } from "../modules/curriculum/subject-curriculums";
+import { PaudThemeList } from "../modules/curriculum/paud-curriculums/list";
+import { PaudThemeCreate } from "../modules/curriculum/paud-curriculums/create";
+import { PaudThemeEdit } from "../modules/curriculum/paud-curriculums/edit";
 import { CurriculumDocumentsList, CurriculumDocumentCreate } from "../modules/curriculum/documents";
 import { MailDashboard, IncomingMailList, OutgoingMailList, DispositionsList, IncomingMailCreate, OutgoingMailCreate } from "../modules/mail";
 import { RecruitmentDashboard, VacanciesList, ApplicantsList, ApplicantShow, VacancyCreate, ApplicantCreate } from "../modules/recruitment";
@@ -323,6 +327,20 @@ export default function App() {
             list: "/curriculum/subjects",
             create: "/curriculum/subjects/create",
             edit: "/curriculum/subjects/edit/:id",
+            show: "/curriculum/subjects/show/:id",
+          },
+          {
+            name: "subject_curriculums",
+            create: "/curriculum/subject-curriculums/create",
+            edit: "/curriculum/subject-curriculums/edit/:id",
+            meta: { canDelete: true },
+          },
+          {
+            name: "paud_curriculums",
+            list: "/curriculum/paud",
+            create: "/curriculum/paud/create",
+            edit: "/curriculum/paud/edit/:id",
+            meta: { canDelete: true },
           },
           {
             name: "curriculum_documents",
@@ -619,7 +637,17 @@ export default function App() {
                      <Route index element={<SubjectsList />} />
                      <Route path="create" element={<SubjectCreate />} />
                      <Route path="edit/:id" element={<SubjectEdit />} />
+                     <Route path="show/:id" element={<SubjectShow />} />
                      <Route path="directory" element={<SubjectTeacherDirectory />} />
+                   </Route>
+                   <Route path="subject-curriculums">
+                     <Route path="create" element={<SubjectCurriculumCreate />} />
+                     <Route path="edit/:id" element={<SubjectCurriculumEdit />} />
+                   </Route>
+                   <Route path="paud">
+                     <Route index element={<PaudThemeList />} />
+                     <Route path="create" element={<PaudThemeCreate />} />
+                     <Route path="edit/:id" element={<PaudThemeEdit />} />
                    </Route>
                    <Route path="documents">
                      <Route index element={<CurriculumDocumentsList />} />

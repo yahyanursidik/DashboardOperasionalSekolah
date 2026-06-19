@@ -1,11 +1,13 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { KeyRound, ArrowRight } from "lucide-react";
+import { useSystemSettings } from "../../app/providers/SettingsProvider";
 
 export const CbtPortalLogin: React.FC = () => {
   const [token, setToken] = useState("");
   const [error, setError] = useState("");
   const navigate = useNavigate();
+  const { loginCoverUrl } = useSystemSettings();
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,7 +24,26 @@ export const CbtPortalLogin: React.FC = () => {
   };
 
   return (
-    <div className="w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-100">
+    <>
+      <div 
+        className="fixed inset-0 z-0 bg-gradient-to-br from-emerald-50 via-green-100/60 to-emerald-200"
+        style={loginCoverUrl ? {
+          backgroundImage: `url(${loginCoverUrl})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat'
+        } : {}}
+      >
+        {loginCoverUrl && <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"></div>}
+        {!loginCoverUrl && (
+          <>
+            <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-emerald-300 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob"></div>
+            <div className="absolute top-[20%] right-[-10%] w-72 h-72 bg-teal-300 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000"></div>
+            <div className="absolute bottom-[-20%] left-[20%] w-80 h-80 bg-green-300 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-4000"></div>
+          </>
+        )}
+      </div>
+      <div className="w-full max-w-md bg-white/60 backdrop-blur-xl rounded-3xl shadow-2xl overflow-hidden border border-white/50 relative z-10">
       <div className="bg-indigo-600 p-8 text-center">
         <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-sm">
           <KeyRound className="w-8 h-8 text-white" />
@@ -67,5 +88,6 @@ export const CbtPortalLogin: React.FC = () => {
         </div>
       </form>
     </div>
+    </>
   );
 };

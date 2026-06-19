@@ -4,7 +4,7 @@ import { useList, useDelete } from "@refinedev/core";
 import { flexRender } from "@tanstack/react-table";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useNavigate, Link } from "react-router-dom";
-import { Edit, Plus, Trash2, ArrowLeft, Users } from "lucide-react";
+import { Edit, Plus, Trash2, ArrowLeft, Users, Eye } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { useCurrentUnit } from "../../../app/providers/UnitProvider";
 
@@ -72,9 +72,16 @@ export const SubjectsList: React.FC = () => {
           return (
             <div className="flex items-center gap-2">
               <button
+                onClick={() => navigate(`/curriculum/subjects/show/${id}`)}
+                className="p-1.5 text-muted-foreground hover:text-emerald-600 transition-colors rounded-md hover:bg-emerald-50"
+                title="Lihat Detail (Kurikulum)"
+              >
+                <Eye className="w-4 h-4" />
+              </button>
+              <button
                 onClick={() => navigate(`/curriculum/subjects/edit/${id}`)}
                 className="p-1.5 text-muted-foreground hover:text-blue-600 transition-colors rounded-md hover:bg-blue-50"
-                title="Edit"
+                title="Edit Mapel"
               >
                 <Edit className="w-4 h-4" />
               </button>

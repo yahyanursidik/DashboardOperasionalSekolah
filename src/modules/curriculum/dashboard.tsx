@@ -1,6 +1,6 @@
 import React from "react";
 import { useList } from "@refinedev/core";
-import { BookOpen, FileText, Layers, TrendingUp } from "lucide-react";
+import { BookOpen, FileText, Layers, Palette, Users, BrainCircuit, LibraryBig, ArrowRight, ShieldCheck, Activity } from "lucide-react";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { useCurrentUnit } from "../../app/providers/UnitProvider";
 import { Link } from "react-router-dom";
@@ -14,114 +14,150 @@ export const CurriculumDashboard: React.FC = () => {
     pagination: { mode: "off" }
   });
 
-  const { data: documentsData } = useList({
-    resource: "curriculum_documents",
+  const { data: subjectCurriculumsData } = useList({
+    resource: "subject_curriculums",
     filters: activeUnitId ? [{ field: "subjects.unit_id", operator: "eq", value: activeUnitId }] : [],
     meta: { select: "*, subjects(unit_id)" },
     pagination: { mode: "off" }
   });
 
+  const { data: paudCurriculumsData } = useList({
+    resource: "paud_curriculums",
+    filters: activeUnitId ? [{ field: "unit_id", operator: "eq", value: activeUnitId }] : [],
+    pagination: { mode: "off" }
+  });
+
   const subjects = subjectsData?.data || [];
-  const documents = documentsData?.data || [];
-
-  const nasionalSubjects = subjects.filter(s => s.category === "Nasional");
-  const khasSubjects = subjects.filter(s => s.category === "Khas Sekolah");
-
-  const modulAjar = documents.filter(d => d.document_type === "Modul Ajar");
-  const otherDocs = documents.filter(d => d.document_type !== "Modul Ajar");
+  const subjectCurriculums = subjectCurriculumsData?.data || [];
+  const paudCurriculums = paudCurriculumsData?.data || [];
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Kurikulum & Pembelajaran"
-        description="Pusat administrasi Kurikulum Merdeka (Deep Learning) dan Kurikulum Khas Sekolah."
-      />
+    <div className="space-y-8 pb-8 animate-in fade-in duration-500">
+      {/* Hero Section */}
+      <div className="bg-gradient-to-br from-indigo-900 to-slate-900 rounded-3xl p-8 lg:p-12 text-white shadow-xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 p-8 opacity-10 rotate-12 scale-150 transform translate-x-1/4 -translate-y-1/4 pointer-events-none">
+          <BrainCircuit className="w-64 h-64" />
+        </div>
+        <div className="relative z-10 max-w-2xl space-y-5">
+          <span className="inline-flex items-center gap-1.5 bg-indigo-500/30 border border-indigo-400/30 px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider backdrop-blur-md text-indigo-100 shadow-sm">
+            <ShieldCheck className="w-4 h-4" /> Pusat Kurikulum & Pembelajaran
+          </span>
+          <h1 className="text-4xl lg:text-5xl font-extrabold tracking-tight leading-tight">Manajemen Kurikulum Modern</h1>
+          <p className="text-indigo-100/90 text-lg leading-relaxed font-medium">
+            Sistem terintegrasi untuk menyusun Capaian Pembelajaran, Alur Tujuan Pembelajaran, Prota, Promes, hingga Modul Ajar (RPPH) secara komprehensif menggunakan paradigma Kurikulum Merdeka.
+          </p>
+        </div>
+      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Stat Cards */}
-        <div className="bg-card p-5 rounded-xl border shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center shrink-0">
-            <BookOpen className="w-6 h-6" />
+      {/* Stats Section */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-5 hover:shadow-md transition-shadow relative overflow-hidden group">
+          <div className="absolute -right-4 -bottom-4 opacity-[0.03] group-hover:scale-110 transition-transform">
+            <LibraryBig className="w-32 h-32" />
           </div>
-          <div>
-            <p className="text-sm font-medium text-muted-foreground">Mata Pelajaran Nasional</p>
-            <h3 className="text-2xl font-bold">{nasionalSubjects.length}</h3>
+          <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center shrink-0 shadow-sm">
+            <LibraryBig className="w-7 h-7" />
+          </div>
+          <div className="relative z-10">
+            <p className="text-sm font-bold text-slate-500 uppercase tracking-wider">Mata Pelajaran</p>
+            <div className="flex items-baseline gap-2 mt-1">
+              <h3 className="text-4xl font-black text-slate-800 tracking-tight">{subjects.length}</h3>
+              <span className="text-xs font-bold text-blue-600 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-md">Total Mapel</span>
+            </div>
           </div>
         </div>
 
-        <div className="bg-card p-5 rounded-xl border shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center shrink-0">
-            <Layers className="w-6 h-6" />
+        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-5 hover:shadow-md transition-shadow relative overflow-hidden group">
+          <div className="absolute -right-4 -bottom-4 opacity-[0.03] group-hover:scale-110 transition-transform">
+            <BookOpen className="w-32 h-32" />
           </div>
-          <div>
-            <p className="text-sm font-medium text-muted-foreground">Mata Pelajaran Khas</p>
-            <h3 className="text-2xl font-bold">{khasSubjects.length}</h3>
+          <div className="w-14 h-14 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center shrink-0 shadow-sm">
+            <BookOpen className="w-7 h-7" />
           </div>
-        </div>
-
-        <div className="bg-card p-5 rounded-xl border shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center shrink-0">
-            <FileText className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-sm font-medium text-muted-foreground">Modul Ajar / RPP</p>
-            <h3 className="text-2xl font-bold">{modulAjar.length}</h3>
+          <div className="relative z-10">
+            <p className="text-sm font-bold text-slate-500 uppercase tracking-wider">Kurikulum SD</p>
+            <div className="flex items-baseline gap-2 mt-1">
+              <h3 className="text-4xl font-black text-slate-800 tracking-tight">{subjectCurriculums.length}</h3>
+              <span className="text-xs font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-md">Kelas Tersusun</span>
+            </div>
           </div>
         </div>
 
-        <div className="bg-card p-5 rounded-xl border shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center shrink-0">
-            <TrendingUp className="w-6 h-6" />
+        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-5 hover:shadow-md transition-shadow relative overflow-hidden group">
+          <div className="absolute -right-4 -bottom-4 opacity-[0.03] group-hover:scale-110 transition-transform">
+            <Palette className="w-32 h-32" />
           </div>
-          <div>
-            <p className="text-sm font-medium text-muted-foreground">Dokumen CP/ATP</p>
-            <h3 className="text-2xl font-bold">{otherDocs.length}</h3>
+          <div className="w-14 h-14 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center shrink-0 shadow-sm">
+            <Palette className="w-7 h-7" />
+          </div>
+          <div className="relative z-10">
+            <p className="text-sm font-bold text-slate-500 uppercase tracking-wider">Kurikulum PAUD</p>
+            <div className="flex items-baseline gap-2 mt-1">
+              <h3 className="text-4xl font-black text-slate-800 tracking-tight">{paudCurriculums.length}</h3>
+              <span className="text-xs font-bold text-rose-600 bg-rose-50 border border-rose-100 px-2 py-0.5 rounded-md">Jenjang Tersusun</span>
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Quick Actions */}
-        <div className="bg-card rounded-xl border shadow-sm p-6 space-y-4">
-          <h3 className="font-semibold text-lg border-b pb-3">Akses Cepat</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Link to="/curriculum/subjects" className="p-4 rounded-xl border bg-muted/20 hover:bg-muted/50 transition-colors group">
-              <BookOpen className="w-8 h-8 text-blue-600 mb-3 group-hover:scale-110 transition-transform" />
-              <h4 className="font-semibold">Mata Pelajaran</h4>
-              <p className="text-xs text-muted-foreground mt-1">Kelola data mata pelajaran, pengelompokan Nasional &amp; Khas.</p>
-            </Link>
-            <Link to="/curriculum/documents" className="p-4 rounded-xl border bg-muted/20 hover:bg-muted/50 transition-colors group">
-              <FileText className="w-8 h-8 text-purple-600 mb-3 group-hover:scale-110 transition-transform" />
-              <h4 className="font-semibold">Modul Ajar &amp; Dokumen</h4>
-              <p className="text-xs text-muted-foreground mt-1">Unggah Modul Ajar, ATP, CP, dan kaitkan ke Kelas/Mapel.</p>
-            </Link>
-            <Link to="/curriculum/subjects/directory" className="p-4 rounded-xl border bg-amber-50 border-amber-200 hover:bg-amber-100 transition-colors group col-span-full">
-              <div className="flex items-center gap-3">
-                <Layers className="w-8 h-8 text-amber-600 group-hover:scale-110 transition-transform shrink-0" />
-                <div>
-                  <h4 className="font-semibold text-amber-800">Direktori Mapel → Guru</h4>
-                  <p className="text-xs text-amber-700 mt-0.5">Lihat siapa yang mengajar setiap mata pelajaran. Bantu perencanaan penugasan &amp; penjadwalan.</p>
-                </div>
-              </div>
-            </Link>
-          </div>
+      {/* Main Modules Navigation */}
+      <div className="space-y-5">
+        <div className="flex items-center gap-3 px-1">
+          <div className="w-1.5 h-6 bg-indigo-600 rounded-full shadow-sm"></div>
+          <h3 className="font-extrabold text-2xl text-slate-800 tracking-tight">Modul Administrasi</h3>
         </div>
-
-        {/* Kurikulum Merdeka Info */}
-        <div className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-xl border shadow-sm p-6 flex flex-col justify-between relative overflow-hidden">
-          <div className="absolute top-0 right-0 p-8 opacity-10">
-            <BookOpen className="w-32 h-32" />
-          </div>
-          <div className="space-y-4 relative z-10">
-            <span className="bg-white/20 px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider backdrop-blur-md">Paradigma Baru</span>
-            <h3 className="font-bold text-2xl">Kurikulum Merdeka:<br/>Deep Learning</h3>
-            <p className="text-indigo-100 text-sm leading-relaxed max-w-sm">
-              Kelola administrasi pembelajaran berbasis eksplorasi mendalam. Kaitkan CP (Capaian Pembelajaran) dan ATP ke modul ajar yang dirancang spesifik untuk mendukung model *Deep Learning* di setiap kelas.
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Link to="/curriculum/subjects" className="group block bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:border-blue-300 hover:shadow-md hover:ring-4 hover:ring-blue-50 transition-all">
+            <div className="flex justify-between items-start mb-4">
+              <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center group-hover:scale-110 group-hover:bg-blue-600 group-hover:text-white transition-all shadow-sm">
+                <BookOpen className="w-7 h-7" />
+              </div>
+              <span className="text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity flex items-center text-sm font-bold bg-blue-50 px-3 py-1.5 rounded-full">Buka Modul <ArrowRight className="w-4 h-4 ml-1.5" /></span>
+            </div>
+            <h4 className="font-extrabold text-xl text-slate-800 mb-2">Mata Pelajaran & Kurikulum SD</h4>
+            <p className="text-slate-500 text-sm leading-relaxed font-medium">
+              Kelola master data mata pelajaran (Nasional & Khas), serta susun kerangka Deep Learning: CP, ATP, Prota, Promes, dan 18 Pertemuan Modul Ajar (SD).
             </p>
-          </div>
-          <Link to="/curriculum/documents/create" className="inline-flex mt-6 bg-white text-indigo-600 hover:bg-indigo-50 font-semibold px-4 py-2.5 rounded-lg w-max transition-colors text-sm items-center gap-2 relative z-10 shadow-sm">
-            <FileText className="w-4 h-4" />
-            Unggah Modul Baru
+          </Link>
+
+          <Link to="/curriculum/paud" className="group block bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:border-rose-300 hover:shadow-md hover:ring-4 hover:ring-rose-50 transition-all">
+            <div className="flex justify-between items-start mb-4">
+              <div className="w-14 h-14 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center group-hover:scale-110 group-hover:bg-rose-600 group-hover:text-white transition-all shadow-sm">
+                <Palette className="w-7 h-7" />
+              </div>
+              <span className="text-rose-600 opacity-0 group-hover:opacity-100 transition-opacity flex items-center text-sm font-bold bg-rose-50 px-3 py-1.5 rounded-full">Buka Modul <ArrowRight className="w-4 h-4 ml-1.5" /></span>
+            </div>
+            <h4 className="font-extrabold text-xl text-slate-800 mb-2">Kurikulum Tingkat PAUD</h4>
+            <p className="text-slate-500 text-sm leading-relaxed font-medium">
+              Manajemen komprehensif kurikulum PAUD (KB/TK). Menyusun Prota, Promes, Rencana Mingguan (RPPM) & Rencana Harian Berbasis Sentra/Area (RPPH).
+            </p>
+          </Link>
+
+          <Link to="/curriculum/subjects/directory" className="group block bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:border-amber-300 hover:shadow-md hover:ring-4 hover:ring-amber-50 transition-all">
+            <div className="flex justify-between items-start mb-4">
+              <div className="w-14 h-14 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center group-hover:scale-110 group-hover:bg-amber-500 group-hover:text-white transition-all shadow-sm">
+                <Users className="w-7 h-7" />
+              </div>
+              <span className="text-amber-600 opacity-0 group-hover:opacity-100 transition-opacity flex items-center text-sm font-bold bg-amber-50 px-3 py-1.5 rounded-full">Buka Modul <ArrowRight className="w-4 h-4 ml-1.5" /></span>
+            </div>
+            <h4 className="font-extrabold text-xl text-slate-800 mb-2">Direktori Guru Pengampu</h4>
+            <p className="text-slate-500 text-sm leading-relaxed font-medium">
+              Pemetaan guru mata pelajaran ke setiap kelas, pengelolaan jam mengajar mingguan (JP), dan distribusi beban kerja tenaga pendidik.
+            </p>
+          </Link>
+
+          <Link to="/curriculum/documents" className="group block bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:border-purple-300 hover:shadow-md hover:ring-4 hover:ring-purple-50 transition-all">
+            <div className="flex justify-between items-start mb-4">
+              <div className="w-14 h-14 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center group-hover:scale-110 group-hover:bg-purple-600 group-hover:text-white transition-all shadow-sm">
+                <FileText className="w-7 h-7" />
+              </div>
+              <span className="text-purple-600 opacity-0 group-hover:opacity-100 transition-opacity flex items-center text-sm font-bold bg-purple-50 px-3 py-1.5 rounded-full">Buka Modul <ArrowRight className="w-4 h-4 ml-1.5" /></span>
+            </div>
+            <h4 className="font-extrabold text-xl text-slate-800 mb-2">Dokumen Pendukung</h4>
+            <p className="text-slate-500 text-sm leading-relaxed font-medium">
+              Repositori dokumen kurikulum tambahan. Unggah dan kelola file PDF pendukung seperti instrumen asesmen, pedoman, atau SK Kurikulum.
+            </p>
           </Link>
         </div>
       </div>
