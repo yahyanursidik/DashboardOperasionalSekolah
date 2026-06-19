@@ -619,36 +619,60 @@ const SettingsModal: React.FC<{ isOpen: boolean; onClose: () => void; title: str
 const UsersTab: React.FC = () => {
   const { data: userRolesData, isLoading } = useList({ 
     resource: "user_roles", 
-    meta: { select: "*, profiles(id, full_name, email), roles(id, name), units(id, name)" } 
+    meta: { select: "*, profiles(id, full_name), roles(id, name), units(id, name)" } 
   });
   const { data: profilesData } = useList({ resource: "profiles" });
   const { data: rolesData } = useList({ resource: "roles" });
   const { data: unitsData } = useList({ resource: "units" });
 
   const { mutate: createRole } = useCreate();
+  const { mutate: updateRole } = useUpdate();
   const { mutate: deleteRole } = useDelete();
 
-  const [modalMode, setModalMode] = useState<"create" | "create_user" | null>(null);
+  const [modalMode, setModalMode] = useState<"create" | "create_user" | "edit" | null>(null);
+  const [editId, setEditId] = useState<string | null>(null);
   const [formData, setFormData] = useState({ user_id: "", role_id: "", unit_id: "" });
   const [newUserFormData, setNewUserFormData] = useState({ email: "", password: "", fullName: "", role_id: "", unit_id: "" });
   const [isCreatingUser, setIsCreatingUser] = useState(false);
 
   const handleSave = () => {
     if (!formData.user_id || !formData.role_id) return;
-    createRole({
-      resource: "user_roles",
-      values: { 
-        user_id: formData.user_id, 
-        role_id: formData.role_id, 
-        unit_id: formData.unit_id || null 
-      }
-    }, { onSuccess: () => setModalMode(null) });
+    
+    if (modalMode === "edit" && editId) {
+      updateRole({
+        resource: "user_roles",
+        id: editId,
+        values: { 
+          role_id: formData.role_id, 
+          unit_id: formData.unit_id || null 
+        }
+      }, { onSuccess: () => { setModalMode(null); setEditId(null); } });
+    } else {
+      createRole({
+        resource: "user_roles",
+        values: { 
+          user_id: formData.user_id, 
+          role_id: formData.role_id, 
+          unit_id: formData.unit_id || null 
+        }
+      }, { onSuccess: () => setModalMode(null) });
+    }
   };
 
   const handleRevoke = (id: string) => {
-    if (confirm("Cabut hak akses ini?")) {
+    if (confirm("Apakah Anda yakin ingin menghapus hak akses ini?")) {
       deleteRole({ resource: "user_roles", id });
     }
+  };
+
+  const handleEdit = (ur: any) => {
+    setFormData({
+      user_id: ur.user_id,
+      role_id: ur.role_id,
+      unit_id: ur.unit_id || "",
+    });
+    setEditId(ur.id);
+    setModalMode("edit");
   };
 
   const handleCreateUser = async () => {
@@ -738,12 +762,20 @@ const UsersTab: React.FC = () => {
                     {ur.units?.name || 'Global (Semua Unit)'}
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <button 
-                      onClick={() => handleRevoke(ur.id)}
-                      className="text-red-600 hover:text-red-700 hover:underline text-xs font-medium"
-                    >
-                      Cabut Akses
-                    </button>
+                    <div className="flex items-center justify-end gap-3">
+                      <button 
+                        onClick={() => handleEdit(ur)}
+                        className="text-blue-600 hover:text-blue-700 hover:underline text-xs font-medium"
+                      >
+                        Edit
+                      </button>
+                      <button 
+                        onClick={() => handleRevoke(ur.id)}
+                        className="text-red-600 hover:text-red-700 hover:underline text-xs font-medium"
+                      >
+                        Hapus
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))
@@ -752,7 +784,7 @@ const UsersTab: React.FC = () => {
         </table>
       </div>
 
-      <SettingsModal isOpen={modalMode === "create"} onClose={() => setModalMode(null)} title="Tetapkan Hak Akses (Role)">
+      <SettingsModal isOpen={modalMode === "create" || modalMode === "edit"} onClose={() => { setModalMode(null); setEditId(null); }} title={modalMode === "edit" ? "Edit Hak Akses" : "Tetapkan Hak Akses (Role)"}>
         <div className="space-y-4">
           <div className="space-y-2">
             <label className="text-sm font-medium">Pilih Pengguna</label>
@@ -760,10 +792,12 @@ const UsersTab: React.FC = () => {
               value={formData.user_id} 
               onChange={e => setFormData({...formData, user_id: e.target.value})} 
               className="w-full border rounded-md px-3 py-2 outline-none focus:border-primary bg-background"
+              disabled={modalMode === "edit"}
             >
               <option value="" disabled>Pilih staf/guru...</option>
               {profilesData?.data?.map((p: any) => <option key={p.id} value={p.id}>{p.full_name} ({p.email})</option>)}
             </select>
+            {modalMode === "edit" && <p className="text-xs text-muted-foreground">Pengguna tidak dapat diubah saat mengedit hak akses.</p>}
           </div>
           <div className="space-y-2">
             <label className="text-sm font-medium">Pilih Peran (Role)</label>

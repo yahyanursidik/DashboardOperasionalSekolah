@@ -1,7 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { PageHeader } from "../../../components/layout/PageHeader";
-import { Briefcase, Users, UserCheck, UserX } from "lucide-react";
+import { Briefcase, Users, UserCheck, UserX, BookOpen } from "lucide-react";
 import { useList } from "@refinedev/core";
 
 export const RecruitmentDashboard: React.FC = () => {
@@ -90,10 +90,28 @@ export const RecruitmentDashboard: React.FC = () => {
           <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
             <Users className="w-5 h-5 text-emerald-600" /> Proses Pelamar (ATS)
           </h3>
-          <p className="text-sm text-muted-foreground mb-6">Lakukan pengecekan berkas, input nilai ujian Diniyah & Pedagogik, catat hasil wawancara, dan tempatkan kandidat yang lulus sebagai Pegawai.</p>
+          <p className="text-sm text-muted-foreground mb-6">Lakukan pengecekan berkas, catat hasil wawancara, dan tempatkan kandidat yang lulus sebagai Pegawai.</p>
           <Link to="/recruitment/applicants" className="inline-flex items-center justify-center px-4 py-2 bg-emerald-600 text-white font-medium text-sm rounded-lg hover:bg-emerald-700 transition-colors">
             Kelola Pelamar
           </Link>
+        </div>
+
+        <div className="bg-card rounded-xl border p-6 lg:col-span-2">
+          <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
+            <BookOpen className="w-5 h-5 text-indigo-600" /> Ujian Online (CBT)
+          </h3>
+          <p className="text-sm text-muted-foreground mb-6">Kelola bank soal, atur konfigurasi ujian online pelamar, dan pantau hasil kelulusan ujian secara real-time.</p>
+          <div className="flex flex-wrap gap-3">
+            <Link to="/recruitment/cbt/banks" className="inline-flex items-center justify-center px-4 py-2 bg-muted text-foreground font-medium text-sm rounded-lg hover:bg-muted/80 transition-colors">
+              Bank Soal
+            </Link>
+            <Link to="/recruitment/cbt/exams" className="inline-flex items-center justify-center px-4 py-2 bg-indigo-600 text-white font-medium text-sm rounded-lg hover:bg-indigo-700 transition-colors">
+              Pengaturan Ujian
+            </Link>
+            <Link to="/recruitment/cbt/results" className="inline-flex items-center justify-center px-4 py-2 border border-input text-foreground font-medium text-sm rounded-lg hover:bg-accent hover:text-accent-foreground transition-colors">
+              Hasil Ujian
+            </Link>
+          </div>
         </div>
       </div>
     </div>

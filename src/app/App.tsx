@@ -1,5 +1,5 @@
 import { Refine, Authenticated } from "@refinedev/core";
-import { BrowserRouter, Route, Routes, Outlet } from "react-router-dom";
+import { BrowserRouter, Route, Routes, Outlet, Navigate } from "react-router-dom";
 import routerBindings, { CatchAllNavigate, NavigateToResource } from "@refinedev/react-router-v6";
 import { authProvider } from "../lib/supabase/auth-provider";
 import { dataProvider } from "./providers/dataProvider";
@@ -58,6 +58,12 @@ import { SubjectsList, SubjectCreate, SubjectEdit, SubjectTeacherDirectory } fro
 import { CurriculumDocumentsList, CurriculumDocumentCreate } from "../modules/curriculum/documents";
 import { MailDashboard, IncomingMailList, OutgoingMailList, DispositionsList, IncomingMailCreate, OutgoingMailCreate } from "../modules/mail";
 import { RecruitmentDashboard, VacanciesList, ApplicantsList, ApplicantShow, VacancyCreate, ApplicantCreate } from "../modules/recruitment";
+import { CbtBanksList } from "../modules/recruitment/cbt/CbtBanksList";
+import { CbtQuestionsManager } from "../modules/recruitment/cbt/CbtQuestionsManager";
+import { CbtExamsList } from "../modules/recruitment/cbt/CbtExamsList";
+import { CbtExamBanksManager } from "../modules/recruitment/cbt/CbtExamBanksManager";
+import { CbtAttemptsList } from "../modules/recruitment/cbt/CbtAttemptsList";
+import { CbtAttemptShow } from "../modules/recruitment/cbt/CbtAttemptShow";
 import { AdmissionsDashboard, AdmissionsSettings, AdmissionsReports, ApplicantsList as AdmissionsApplicantsList, ApplicantShow as AdmissionsApplicantShow } from "../modules/admissions/pages";
 import { AcademicDashboard, Gradebook, ReportCards, ReportPrint } from "../modules/academic";
 import { SarprasDashboard, AssetsList, AssetLoansList, ProcurementsList } from "../modules/sarpras";
@@ -86,6 +92,9 @@ import { PortalPaud } from "../modules/portal/portal-paud";
 import { PortalAnnouncements } from "../modules/portal/portal-announcements";
 import { PrintInvoice } from "../modules/finance/pages/print-invoice";
 import { SpmbLayout, SpmbDashboard, SpmbForm, SpmbDocuments, SpmbAnnouncement, SpmbLogin, SpmbRegister, SpmbChecklist, SpmbPayment } from "../modules/admissions/portal";
+import { CbtPortalLayout } from "../modules/cbt-portal/CbtPortalLayout";
+import { CbtPortalLogin } from "../modules/cbt-portal/CbtPortalLogin";
+import { CbtPortalTestRoom } from "../modules/cbt-portal/CbtPortalTestRoom";
 
 import { TeacherLayout } from "../modules/teacher-portal/teacher-layout";
 import { TeacherLogin } from "../modules/teacher-portal/teacher-login";
@@ -353,6 +362,25 @@ export default function App() {
             list: "/recruitment/applicants",
             create: "/recruitment/applicants/create",
             show: "/recruitment/applicants/show/:id",
+            meta: { canDelete: true },
+          },
+          {
+            name: "cbt_banks",
+            list: "/recruitment/cbt/banks",
+            meta: { canDelete: true },
+          },
+          {
+            name: "cbt_questions",
+            meta: { canDelete: true },
+          },
+          {
+            name: "cbt_exams",
+            list: "/recruitment/cbt/exams",
+            meta: { canDelete: true },
+          },
+          {
+            name: "cbt_participants",
+            list: "/recruitment/cbt/results",
             meta: { canDelete: true },
           },
           {
@@ -624,6 +652,14 @@ export default function App() {
                   <Route path="applicants" element={<ApplicantsList />} />
                   <Route path="applicants/create" element={<ApplicantCreate />} />
                   <Route path="applicants/show/:id" element={<ApplicantShow />} />
+                  
+                  <Route path="cbt" element={<Navigate to="/recruitment/cbt/banks" replace />} />
+                  <Route path="cbt/banks" element={<CbtBanksList />} />
+                  <Route path="cbt/banks/:bankId/questions" element={<CbtQuestionsManager />} />
+                  <Route path="cbt/exams" element={<CbtExamsList />} />
+                  <Route path="cbt/exams/:examId/settings" element={<CbtExamBanksManager />} />
+                  <Route path="cbt/results" element={<CbtAttemptsList />} />
+                  <Route path="cbt/results/:participantId" element={<CbtAttemptShow />} />
                 </Route>
 
                 <Route path="/admissions">
@@ -694,6 +730,13 @@ export default function App() {
               <Route path="/ekskul-portal/register" element={<ExtracurricularPortalRegister />} />
               <Route path="/ekskul-portal" element={<ExtracurricularPortalLayout />}>
                 <Route index element={<ExtracurricularPortalDashboard />} />
+              </Route>
+
+              {/* CBT Portal */}
+              <Route path="/cbt" element={<CbtPortalLayout />}>
+                <Route index element={<CbtPortalLogin />} />
+                <Route path="login" element={<CbtPortalLogin />} />
+                <Route path="test/:token" element={<CbtPortalTestRoom />} />
               </Route>
 
               {/* Print Invoice Route (Standalone) */}

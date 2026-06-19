@@ -241,6 +241,12 @@ export const navigationConfig: NavigationGroup[] = [
         resource: "recruitment_vacancies",
       },
       {
+        title: "Ujian Online (CBT)",
+        href: "/recruitment/cbt/exams",
+        icon: BookOpen,
+        resource: "cbt_exams",
+      },
+      {
         title: "PKG / Kinerja Guru",
         href: "/pkg",
         icon: ClipboardCheck,
