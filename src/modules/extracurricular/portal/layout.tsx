@@ -55,9 +55,10 @@ export const ExtracurricularPortalLayout: React.FC = () => {
       </main>
       
       <footer className="bg-white border-t py-6 mt-auto">
-        <div className="max-w-7xl mx-auto px-4 text-center text-sm text-muted-foreground">
-          &copy; {new Date().getFullYear()} TSLS OS. Disusun oleh <a href="https://yahyanursidik.my.id/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-medium">Yahya Nursidik</a>
-        </div>
+          <div className="max-w-7xl mx-auto px-4 text-center text-sm text-muted-foreground">
+            &copy; {new Date().getFullYear()} TS Lab School. Sistem Ekstrakurikuler.<br/>
+            Disusun oleh <a href="https://yahyanursidik.my.id/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-medium">Yahya Nursidik</a>
+          </div>
       </footer>
     </div>
   );

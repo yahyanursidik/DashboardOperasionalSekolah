@@ -121,7 +121,8 @@ export const AdminSpmbLayout: React.FC = () => {
             <Outlet />
           </div>
           <footer className="mt-8 text-center text-xs text-muted-foreground w-full pb-4 md:pb-8">
-            &copy; {new Date().getFullYear()} TSLS OS. Disusun oleh <a href="https://yahyanursidik.my.id/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-medium">Yahya Nursidik</a>
+            &copy; {new Date().getFullYear()} TS Lab School. Sistem Penerimaan Siswa Baru.<br/>
+            Disusun oleh <a href="https://yahyanursidik.my.id/" target="_blank" rel="noopener noreferrer" className="hover:underline font-medium">Yahya Nursidik</a>
           </footer>
         </main>
 

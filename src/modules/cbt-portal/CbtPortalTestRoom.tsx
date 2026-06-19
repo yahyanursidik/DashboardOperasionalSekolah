@@ -173,12 +173,28 @@ export const CbtPortalTestRoom: React.FC = () => {
     if (!participant) return;
     
     if (confirm("Apakah Anda yakin ingin menyelesaikan ujian ini? Jawaban tidak dapat diubah lagi.")) {
+      // Calculate Score
+      const totalWeight = questions.reduce((sum, q) => sum + (q.weight || 1), 0);
+      
+      let earnedWeight = 0;
+      Object.entries(answers).forEach(([qId, optId]) => {
+        const q = questions.find(x => x.id === qId);
+        if (q && q.correct_option_id === optId) {
+          earnedWeight += (q.weight || 1);
+        }
+      });
+      
+      const finalScore = totalWeight > 0 ? Math.round((earnedWeight / totalWeight) * 100) : 0;
+      const isPassed = finalScore >= (exam?.passing_grade || 0);
+
       updateParticipant({
         resource: "cbt_participants",
         id: participant!.id,
         values: { 
           status: 'completed', 
-          completed_at: new Date().toISOString() 
+          completed_at: new Date().toISOString(),
+          score: finalScore,
+          is_passed: isPassed
         }
       }, {
         onSuccess: () => {

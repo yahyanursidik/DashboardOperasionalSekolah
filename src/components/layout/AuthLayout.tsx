@@ -30,7 +30,7 @@ export const AuthLayout: React.FC = () => {
       <div className="w-full max-w-md p-6 sm:p-8 relative z-10 flex flex-col items-center">
         <Outlet />
         <footer className="mt-8 text-center text-xs text-white/80 w-full drop-shadow-md">
-          &copy; {new Date().getFullYear()} TSLS OS. Disusun oleh <a href="https://yahyanursidik.my.id/" target="_blank" rel="noopener noreferrer" className="text-white hover:underline font-bold">Yahya Nursidik</a>
+          &copy; {new Date().getFullYear()} TS Lab School. Disusun oleh <a href="https://yahyanursidik.my.id/" target="_blank" rel="noopener noreferrer" className="text-white hover:underline font-bold">Yahya Nursidik</a>
         </footer>
       </div>
     </div>

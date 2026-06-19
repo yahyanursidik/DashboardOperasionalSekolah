@@ -23,7 +23,8 @@ export const CbtPortalLayout: React.FC = () => {
       </main>
 
       <footer className="py-6 text-center text-sm text-slate-400 bg-white border-t mt-auto">
-        &copy; {new Date().getFullYear()} TS Lab School. Sistem Ujian Online Terpadu.
+        &copy; {new Date().getFullYear()} TS Lab School. Sistem Ujian Online Terpadu.<br/>
+        Disusun oleh <a href="https://yahyanursidik.my.id/" target="_blank" rel="noopener noreferrer" className="hover:underline font-medium">Yahya Nursidik</a>
       </footer>
     </div>
   );
