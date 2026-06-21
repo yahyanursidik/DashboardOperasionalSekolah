@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useTable, useDelete } from "@refinedev/core";
 import { Link, useNavigate } from "react-router-dom";
 import { PageHeader } from "../../../components/layout/PageHeader";
-import { Plus, Trash2, Search, Filter, Eye, Phone, Mail } from "lucide-react";
+import { Plus, Trash2, Search, Filter, Eye, Phone, Mail, ChevronLeft, ChevronRight } from "lucide-react";
 
 const STATUS_COLORS: Record<string, string> = {
   berkas_masuk: "bg-slate-100 text-slate-700",
@@ -31,6 +31,7 @@ export const ApplicantsList: React.FC = () => {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setSearchQuery(q);
+    setCurrent(1);
   };
 
   const filters: any[] = [];
@@ -45,11 +46,12 @@ export const ApplicantsList: React.FC = () => {
     });
   }
 
-  const { tableQueryResult } = useTable({
+  const { tableQueryResult, current, setCurrent, pageCount } = useTable({
     resource: "recruitment_applicants",
     meta: { select: "*, recruitment_vacancies(title, position)" },
     filters: { permanent: filters },
-    sorters: { initial: [{ field: "created_at", order: "desc" }] }
+    sorters: { initial: [{ field: "created_at", order: "desc" }] },
+    pagination: { current: 1, pageSize: 10 }
   });
 
   const { mutate: deleteApplicant } = useDelete();
@@ -100,7 +102,10 @@ export const ApplicantsList: React.FC = () => {
           <Filter className="w-4 h-4 text-muted-foreground" />
           <select 
             value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
+            onChange={(e) => {
+              setFilterStatus(e.target.value);
+              setCurrent(1);
+            }}
             className="border rounded-md px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/50 min-w-[200px]"
           >
             <option value="">Semua Tahapan</option>
@@ -170,6 +175,53 @@ export const ApplicantsList: React.FC = () => {
                 )}
               </tbody>
             </table>
+          </div>
+        )}
+        
+        {pageCount > 1 && (
+          <div className="bg-gray-50 px-6 py-4 border-t flex items-center justify-between">
+            <p className="text-sm text-muted-foreground font-medium">
+              Halaman <span className="text-gray-900">{current}</span> dari <span className="text-gray-900">{pageCount}</span>
+            </p>
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={() => setCurrent(p => Math.max(1, p - 1))}
+                disabled={current === 1}
+                className="p-2 rounded-lg border bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              
+              <div className="flex items-center gap-1">
+                {Array.from({ length: Math.min(5, pageCount) }).map((_, i) => {
+                  let pageNum = current;
+                  if (current <= 3) pageNum = i + 1;
+                  else if (current >= pageCount - 2) pageNum = pageCount - 4 + i;
+                  else pageNum = current - 2 + i;
+                  
+                  if (pageNum > 0 && pageNum <= pageCount) {
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => setCurrent(pageNum)}
+                        className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${current === pageNum ? 'bg-primary text-white shadow-sm' : 'hover:bg-gray-100 text-gray-600'}`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  }
+                  return null;
+                })}
+              </div>
+
+              <button 
+                onClick={() => setCurrent(p => Math.min(pageCount, p + 1))}
+                disabled={current === pageCount}
+                className="p-2 rounded-lg border bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         )}
       </div>

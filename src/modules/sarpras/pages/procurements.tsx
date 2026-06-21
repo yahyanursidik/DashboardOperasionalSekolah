@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useTable, useList, useUpdate, useCreate } from "@refinedev/core";
 import { Plus, Check, X, ShoppingCart, DollarSign, X as XIcon } from "lucide-react";
 
-export const ProcurementsList: React.FC = () => {
+export const ProcurementsList: React.FC<{ isTabMode?: boolean }> = ({ isTabMode }) => {
   const { tableQueryResult } = useTable({
     resource: "procurements",
     meta: { select: "*, employees!requester_id(full_name), units(name)" },
@@ -87,18 +87,28 @@ export const ProcurementsList: React.FC = () => {
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <ShoppingCart className="w-6 h-6" /> Pengajuan Pengadaan (Procurement)
-          </h1>
-          <p className="text-muted-foreground text-sm mt-1">Kelola permohonan pembelian barang sarpras dari berbagai unit</p>
+    <div className={isTabMode ? "space-y-6" : "p-6 max-w-7xl mx-auto space-y-6 animate-in fade-in duration-500"}>
+      {!isTabMode && (
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+              <ShoppingCart className="w-6 h-6" /> Pengajuan Pengadaan (Procurement)
+            </h1>
+            <p className="text-muted-foreground text-sm mt-1">Kelola permohonan pembelian barang sarpras dari berbagai unit</p>
+          </div>
+          <button onClick={() => setIsModalOpen(true)} className="flex items-center gap-2 bg-primary text-primary-foreground px-5 py-2.5 rounded-lg hover:bg-primary/90 transition-all shadow-md hover:shadow-lg font-semibold text-sm active:scale-95">
+            <Plus className="w-5 h-5" /> Buat Pengajuan
+          </button>
         </div>
-        <button onClick={() => setIsModalOpen(true)} className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition-colors shadow-sm font-medium text-sm">
-          <Plus className="w-4 h-4" /> Buat Pengajuan
-        </button>
-      </div>
+      )}
+
+      {isTabMode && (
+        <div className="flex justify-end mb-4">
+          <button onClick={() => setIsModalOpen(true)} className="flex items-center gap-2 bg-primary text-primary-foreground px-5 py-2.5 rounded-lg hover:bg-primary/90 transition-all shadow-md hover:shadow-lg font-semibold text-sm active:scale-95">
+            <Plus className="w-5 h-5" /> Buat Pengajuan
+          </button>
+        </div>
+      )}
 
       <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
         <div className="overflow-x-auto">

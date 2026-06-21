@@ -70,7 +70,7 @@ import { CbtAttemptsList } from "../modules/recruitment/cbt/CbtAttemptsList";
 import { CbtAttemptShow } from "../modules/recruitment/cbt/CbtAttemptShow";
 import { AdmissionsDashboard, AdmissionsSettings, AdmissionsReports, ApplicantsList as AdmissionsApplicantsList, ApplicantShow as AdmissionsApplicantShow } from "../modules/admissions/pages";
 import { AcademicDashboard, Gradebook, ReportCards, ReportPrint } from "../modules/academic";
-import { SarprasDashboard, AssetsList, AssetLoansList, ProcurementsList } from "../modules/sarpras";
+import { SarprasDashboard, AssetsList, AssetLoansList, ProcurementsList, UnifiedAssetsDashboard } from "../modules/sarpras";
 import { AcademicCalendar } from "../modules/calendar";
 import { PkgList, PkgCreate, PkgShow, PkgHistory, PkgSettings } from "../modules/pkg";
 import { 
@@ -433,17 +433,17 @@ export default function App() {
           {
             name: "assets",
             list: "/sarpras/assets",
-            meta: { canDelete: true },
+            meta: { canDelete: true, label: "Manajemen Aset" },
           },
           {
             name: "asset_loans",
             list: "/sarpras/asset-loans",
-            meta: { canDelete: true },
+            meta: { canDelete: true, hide: true },
           },
           {
             name: "procurements",
             list: "/sarpras/procurements",
-            meta: { canDelete: true },
+            meta: { canDelete: true, hide: true },
           },
           {
             name: "extracurricular",
@@ -707,7 +707,7 @@ export default function App() {
 
                 <Route path="/sarpras">
                   <Route index element={<SarprasDashboard />} />
-                  <Route path="assets" element={<AssetsList />} />
+                  <Route path="assets" element={<UnifiedAssetsDashboard />} />
                   <Route path="asset-loans" element={<AssetLoansList />} />
                   <Route path="procurements" element={<ProcurementsList />} />
                 </Route>

@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useTable, useDelete, useList, useCreate } from "@refinedev/core";
 import { PageHeader } from "../../../components/layout/PageHeader";
-import { Trash2, User, Clock, CheckCircle2, XCircle, Plus, Eye } from "lucide-react";
+import { Trash2, User, Clock, CheckCircle2, XCircle, Plus, Eye, Search } from "lucide-react";
 import { Modal } from "../../../components/common/Modal";
 
 export const CbtAttemptsList: React.FC = () => {
@@ -17,10 +17,17 @@ export const CbtAttemptsList: React.FC = () => {
   const { mutate: deleteParticipant } = useDelete();
   const { mutate: createParticipant } = useCreate();
 
-  const { data: applicantsData } = useList({ resource: "recruitment_applicants" });
-  const { data: examsData } = useList({ resource: "cbt_exams" });
+  const { data: applicantsData } = useList({ 
+    resource: "recruitment_applicants",
+    pagination: { pageSize: 1000 }
+  });
+  const { data: examsData } = useList({ 
+    resource: "cbt_exams",
+    pagination: { pageSize: 1000 }
+  });
 
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [applicantSearch, setApplicantSearch] = useState("");
   const [formData, setFormData] = useState({
     applicant_id: "",
     exam_id: ""
@@ -45,9 +52,15 @@ export const CbtAttemptsList: React.FC = () => {
       onSuccess: () => {
         setIsModalOpen(false);
         setFormData({ applicant_id: "", exam_id: "" });
+        setApplicantSearch("");
       }
     });
   };
+
+  const filteredApplicants = applicantsData?.data?.filter((a: any) => 
+    a.full_name?.toLowerCase().includes(applicantSearch.toLowerCase()) || 
+    a.email?.toLowerCase().includes(applicantSearch.toLowerCase())
+  );
 
   return (
     <div className="space-y-6">
@@ -151,16 +164,29 @@ export const CbtAttemptsList: React.FC = () => {
         <div className="space-y-4">
           <div className="space-y-2">
             <label className="text-sm font-medium">Pilih Pelamar</label>
-            <select
-              value={formData.applicant_id}
-              onChange={e => setFormData({...formData, applicant_id: e.target.value})}
-              className="w-full border rounded-md px-3 py-2 outline-none focus:border-primary bg-background"
-            >
-              <option value="">-- Pilih Pelamar --</option>
-              {applicantsData?.data.map((a: any) => (
-                <option key={a.id} value={a.id}>{a.full_name} ({a.email})</option>
-              ))}
-            </select>
+            <div className="flex flex-col gap-2">
+              <div className="relative">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="text"
+                  placeholder="Cari nama pelamar..."
+                  value={applicantSearch}
+                  onChange={(e) => setApplicantSearch(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 border rounded-md outline-none focus:border-primary text-sm"
+                />
+              </div>
+              <select
+                value={formData.applicant_id}
+                onChange={e => setFormData({...formData, applicant_id: e.target.value})}
+                className="w-full border rounded-md px-3 py-2 outline-none focus:border-primary bg-background"
+                size={filteredApplicants?.length && filteredApplicants.length > 5 ? 5 : undefined}
+              >
+                <option value="">-- Pilih Pelamar --</option>
+                {filteredApplicants?.map((a: any) => (
+                  <option key={a.id} value={a.id}>{a.full_name} ({a.email})</option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <div className="space-y-2">
