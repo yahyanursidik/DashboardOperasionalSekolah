@@ -1,19 +1,58 @@
 import React, { useState } from "react";
 import { useTable, useUpdate, useCreate, useSelect } from "@refinedev/core";
 import { PageHeader } from "../../../components/layout/PageHeader";
-import { Users, CheckCircle, XCircle, Clock, Save, FileText } from "lucide-react";
+import { Users, CheckCircle, XCircle, Clock, Save, FileText, Loader2, Play, ChevronLeft, ChevronRight } from "lucide-react";
+import { toast } from "sonner";
+
+// --- TABLE PAGINATION ---
+const TablePagination: React.FC<{
+  currentPage: number;
+  totalPages: number;
+  totalItems: number;
+  itemsPerPage: number;
+  onPageChange: (page: number) => void;
+}> = ({ currentPage, totalPages, totalItems, itemsPerPage, onPageChange }) => {
+  const actualTotalPages = Math.max(1, totalPages);
+  const start = totalItems === 0 ? 0 : ((currentPage - 1) * itemsPerPage) + 1;
+  const end = Math.min(currentPage * itemsPerPage, totalItems);
+  return (
+    <div className="flex items-center justify-between px-6 py-3 border-t bg-muted/20 mt-auto">
+      <p className="text-sm text-muted-foreground">
+        Menampilkan <span className="font-medium text-foreground">{start}-{end}</span> dari <span className="font-medium text-foreground">{totalItems}</span> data
+      </p>
+      <div className="flex items-center gap-1">
+        <button
+          onClick={() => onPageChange(currentPage - 1)}
+          disabled={currentPage === 1}
+          className="p-1.5 rounded-md hover:bg-muted text-muted-foreground disabled:opacity-30 transition-colors"
+        >
+          <ChevronLeft className="w-5 h-5" />
+        </button>
+        <span className="text-sm font-medium px-2">{currentPage} / {actualTotalPages}</span>
+        <button
+          onClick={() => onPageChange(currentPage + 1)}
+          disabled={currentPage >= actualTotalPages}
+          className="p-1.5 rounded-md hover:bg-muted text-muted-foreground disabled:opacity-30 transition-colors"
+        >
+          <ChevronRight className="w-5 h-5" />
+        </button>
+      </div>
+    </div>
+  );
+};
 
 export const EmployeeAttendanceList: React.FC = () => {
   const today = new Date().toISOString().split('T')[0];
   const [selectedDate, setSelectedDate] = useState(today);
   const [filterUnit, setFilterUnit] = useState("");
   const [filterPosition, setFilterPosition] = useState("");
+  const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
 
   const { options: unitOptions } = useSelect({ resource: "units", optionLabel: "name", optionValue: "id" });
 
-  const { tableQueryResult } = useTable({
+  const { tableQueryResult, current, pageSize, setCurrent, pageCount } = useTable({
     resource: "employees",
-    pagination: { mode: "off" },
+    pagination: { current: 1, pageSize: 15 },
     filters: {
       permanent: [
         { field: "status", operator: "eq", value: "active" },
@@ -30,6 +69,7 @@ export const EmployeeAttendanceList: React.FC = () => {
   const { mutate: createAttendance } = useCreate();
 
   const handleStatusChange = (employee: any, newStatus: string) => {
+    setLoadingStates(prev => ({ ...prev, [employee.id]: true }));
     const existingRecord = employee.employee_attendance?.find((a: any) => a.date === selectedDate);
     
     if (existingRecord) {
@@ -38,6 +78,15 @@ export const EmployeeAttendanceList: React.FC = () => {
         id: existingRecord.id,
         values: { status: newStatus },
         invalidates: ["list"]
+      }, {
+        onSuccess: () => {
+          toast.success("Status kehadiran diperbarui");
+          setLoadingStates(prev => ({ ...prev, [employee.id]: false }));
+        },
+        onError: () => {
+          toast.error("Gagal memperbarui status");
+          setLoadingStates(prev => ({ ...prev, [employee.id]: false }));
+        }
       });
     } else {
       createAttendance({
@@ -48,11 +97,21 @@ export const EmployeeAttendanceList: React.FC = () => {
           status: newStatus,
         },
         invalidates: ["list"]
+      }, {
+        onSuccess: () => {
+          toast.success("Kehadiran berhasil dicatat");
+          setLoadingStates(prev => ({ ...prev, [employee.id]: false }));
+        },
+        onError: () => {
+          toast.error("Gagal mencatat kehadiran");
+          setLoadingStates(prev => ({ ...prev, [employee.id]: false }));
+        }
       });
     }
   };
 
   const handleTimeChange = (employee: any, field: 'time_in'|'time_out', time: string) => {
+    setLoadingStates(prev => ({ ...prev, [employee.id]: true }));
     const existingRecord = employee.employee_attendance?.find((a: any) => a.date === selectedDate);
     
     if (existingRecord) {
@@ -61,6 +120,15 @@ export const EmployeeAttendanceList: React.FC = () => {
         id: existingRecord.id,
         values: { [field]: time },
         invalidates: ["list"]
+      }, {
+        onSuccess: () => {
+          toast.success("Jam berhasil disimpan");
+          setLoadingStates(prev => ({ ...prev, [employee.id]: false }));
+        },
+        onError: () => {
+          toast.error("Gagal memperbarui jam");
+          setLoadingStates(prev => ({ ...prev, [employee.id]: false }));
+        }
       });
     } else {
       createAttendance({
@@ -72,8 +140,23 @@ export const EmployeeAttendanceList: React.FC = () => {
           [field]: time,
         },
         invalidates: ["list"]
+      }, {
+        onSuccess: () => {
+          toast.success("Jam dicatat & status diubah menjadi Hadir");
+          setLoadingStates(prev => ({ ...prev, [employee.id]: false }));
+        },
+        onError: () => {
+          toast.error("Gagal mencatat jam");
+          setLoadingStates(prev => ({ ...prev, [employee.id]: false }));
+        }
       });
     }
+  };
+
+  const setTimeNow = (employee: any, field: 'time_in'|'time_out') => {
+    const now = new Date();
+    const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+    handleTimeChange(employee, field, timeStr);
   };
 
   const employees = tableQueryResult?.data?.data || [];
@@ -170,53 +253,78 @@ export const EmployeeAttendanceList: React.FC = () => {
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <div className="flex justify-center gap-1">
+                        <div className="flex justify-center gap-1.5 relative">
+                          {loadingStates[emp.id] && (
+                            <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-10 backdrop-blur-[1px] rounded-md">
+                              <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                            </div>
+                          )}
                           <button
                             onClick={() => handleStatusChange(emp, 'present')}
-                            className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors ${status === 'present' ? 'bg-green-500 text-white shadow-sm' : 'bg-gray-100 text-gray-500 hover:bg-green-100 hover:text-green-600'}`}
+                            disabled={loadingStates[emp.id]}
+                            className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all disabled:opacity-50 ${status === 'present' ? 'bg-emerald-500 text-white shadow-md scale-105' : 'bg-slate-100 text-slate-500 hover:bg-emerald-100 hover:text-emerald-700'}`}
                           >
                             Hadir
                           </button>
                           <button
                             onClick={() => handleStatusChange(emp, 'sick')}
-                            className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors ${status === 'sick' ? 'bg-yellow-500 text-white shadow-sm' : 'bg-gray-100 text-gray-500 hover:bg-yellow-100 hover:text-yellow-600'}`}
+                            disabled={loadingStates[emp.id]}
+                            className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all disabled:opacity-50 ${status === 'sick' ? 'bg-amber-500 text-white shadow-md scale-105' : 'bg-slate-100 text-slate-500 hover:bg-amber-100 hover:text-amber-700'}`}
                           >
                             Sakit
                           </button>
                           <button
                             onClick={() => handleStatusChange(emp, 'leave')}
-                            className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors ${status === 'leave' ? 'bg-blue-500 text-white shadow-sm' : 'bg-gray-100 text-gray-500 hover:bg-blue-100 hover:text-blue-600'}`}
+                            disabled={loadingStates[emp.id]}
+                            className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all disabled:opacity-50 ${status === 'leave' ? 'bg-blue-500 text-white shadow-md scale-105' : 'bg-slate-100 text-slate-500 hover:bg-blue-100 hover:text-blue-700'}`}
                           >
                             Izin
                           </button>
                           <button
                             onClick={() => handleStatusChange(emp, 'absent')}
-                            className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors ${status === 'absent' ? 'bg-red-500 text-white shadow-sm' : 'bg-gray-100 text-gray-500 hover:bg-red-100 hover:text-red-600'}`}
+                            disabled={loadingStates[emp.id]}
+                            className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all disabled:opacity-50 ${status === 'absent' ? 'bg-rose-500 text-white shadow-md scale-105' : 'bg-slate-100 text-slate-500 hover:bg-rose-100 hover:text-rose-700'}`}
                           >
                             Alpa
                           </button>
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        <div className="flex justify-center">
+                        <div className="flex items-center justify-center gap-1">
                           <input 
                             type="time" 
                             value={record?.time_in || ''}
                             onChange={(e) => handleTimeChange(emp, 'time_in', e.target.value)}
-                            disabled={!status}
-                            className="border rounded px-2 py-1 text-sm outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
+                            disabled={!status || loadingStates[emp.id]}
+                            className="border rounded px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50 bg-background shadow-sm"
                           />
+                          <button 
+                            onClick={() => setTimeNow(emp, 'time_in')}
+                            disabled={!status || loadingStates[emp.id]}
+                            className="p-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-md transition-colors disabled:opacity-50 border border-indigo-100"
+                            title="Set waktu sekarang"
+                          >
+                            <Play className="w-3.5 h-3.5" />
+                          </button>
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        <div className="flex justify-center">
+                        <div className="flex items-center justify-center gap-1">
                           <input 
                             type="time" 
                             value={record?.time_out || ''}
                             onChange={(e) => handleTimeChange(emp, 'time_out', e.target.value)}
-                            disabled={!status}
-                            className="border rounded px-2 py-1 text-sm outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
+                            disabled={!status || loadingStates[emp.id]}
+                            className="border rounded px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50 bg-background shadow-sm"
                           />
+                          <button 
+                            onClick={() => setTimeNow(emp, 'time_out')}
+                            disabled={!status || loadingStates[emp.id]}
+                            className="p-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-md transition-colors disabled:opacity-50 border border-indigo-100"
+                            title="Set waktu sekarang"
+                          >
+                            <Play className="w-3.5 h-3.5" />
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -224,6 +332,14 @@ export const EmployeeAttendanceList: React.FC = () => {
                 })}
               </tbody>
             </table>
+            
+            <TablePagination
+              currentPage={current}
+              totalPages={pageCount}
+              totalItems={tableQueryResult?.data?.total || 0}
+              itemsPerPage={pageSize}
+              onPageChange={setCurrent}
+            />
           </div>
         )}
       </div>

@@ -8,9 +8,13 @@ import {
   Eye, Edit, Plus, Search, Users, Shield, BookOpen,
   Filter, LayoutGrid, LayoutList, Phone, Building2,
   UserCheck, UserX, GraduationCap, Briefcase, TrendingUp,
-  ChevronRight, Star, Clock
+  ChevronRight, Star, Clock, UploadCloud, Download, FileSpreadsheet
 } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
+import Papa from "papaparse";
+import { supabaseClient } from "../../../lib/supabase/client";
+import { toast } from "sonner";
+import { Modal } from "../../../components/common/Modal";
 
 // ─── Position label & color helpers ───────────────────────────────────────────
 const POSITION_MAP: Record<string, { label: string; color: string }> = {
@@ -165,6 +169,14 @@ export const EmployeesList: React.FC = () => {
 
   const { options: unitOptions } = useSelect({ resource: "units", optionLabel: "name", optionValue: "id" });
 
+  // Upload Modal State
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [uploadUnitId, setUploadUnitId] = useState("");
+  const [uploadPosition, setUploadPosition] = useState("");
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [previewData, setPreviewData] = useState<any[]>([]);
+
   // Load all employees for stats (no filter)
   const { data: allEmployeesData } = useList({
     resource: "employees",
@@ -204,6 +216,85 @@ export const EmployeesList: React.FC = () => {
     if (filterPosition) filters.push({ field: "position", operator: "eq", value: filterPosition });
     if (filterStatus) filters.push({ field: "status", operator: "eq", value: filterStatus });
     return filters;
+  };
+
+  const downloadTemplate = () => {
+    const csvContent = "Nama Lengkap,NIK,NUPTK,Jenis Kelamin (L/P),Tempat Lahir,Tanggal Lahir (YYYY-MM-DD),Agama,Alamat,No HP\nPegawai Contoh,1234567890123456,,L,Jakarta,1985-05-15,Islam,Jl. Merdeka No 1,08123456789";
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", "Template_Upload_Pegawai.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setUploadFile(file);
+      
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        complete: function(results) {
+          setPreviewData(results.data);
+        }
+      });
+    }
+  };
+
+  const processUpload = async () => {
+    if (!uploadFile) {
+      toast.error("Pilih file CSV yang akan diunggah!");
+      return;
+    }
+    
+    setIsUploading(true);
+    
+    try {
+      const validRows = previewData.filter((row: any) => row['Nama Lengkap']);
+      
+      if (validRows.length === 0) {
+        toast.error("File CSV kosong atau format tidak sesuai.");
+        setIsUploading(false);
+        return;
+      }
+
+      const employeesToInsert = validRows.map((row: any) => ({
+        full_name: row['Nama Lengkap'],
+        nik: row['NIK'] || null,
+        nuptk: row['NUPTK'] || null,
+        gender: row['Jenis Kelamin (L/P)'] === 'P' || row['Jenis Kelamin (L/P)']?.toLowerCase() === 'perempuan' ? 'P' : 'L',
+        birth_place: row['Tempat Lahir'] || null,
+        date_of_birth: row['Tanggal Lahir (YYYY-MM-DD)'] || null,
+        religion: row['Agama'] || 'Islam',
+        address: row['Alamat'] || null,
+        phone: row['No HP'] || null,
+        unit_id: uploadUnitId || null,
+        position: uploadPosition || 'lainnya',
+        status: 'active'
+      }));
+
+      const { error } = await supabaseClient.from('employees').insert(employeesToInsert);
+      
+      if (error) throw error;
+      
+      toast.success(`Berhasil mengunggah ${employeesToInsert.length} pegawai!`);
+      setIsUploadModalOpen(false);
+      setUploadFile(null);
+      setPreviewData([]);
+      setUploadUnitId("");
+      setUploadPosition("");
+      
+      tableQueryResult.refetch();
+    } catch (error: any) {
+      console.error(error);
+      toast.error("Gagal mengunggah data: " + error.message);
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const columns = React.useMemo<ColumnDef<any>[]>(
@@ -396,13 +487,22 @@ export const EmployeesList: React.FC = () => {
         title="Data Pegawai & Staf"
         description="Kelola data kepegawaian, penugasan mata pelajaran, dan informasi staf sekolah."
         action={
-          <Link
-            to="/employees/create"
-            className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors shadow-sm font-medium text-sm"
-          >
-            <Plus className="w-4 h-4" />
-            Tambah Pegawai
-          </Link>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsUploadModalOpen(true)}
+              className="flex items-center gap-2 bg-blue-50 text-blue-600 border border-blue-200 px-4 py-2 rounded-lg hover:bg-blue-100 transition-colors shadow-sm font-medium text-sm"
+            >
+              <UploadCloud className="w-4 h-4" />
+              Upload Masal
+            </button>
+            <Link
+              to="/employees/create"
+              className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors shadow-sm font-medium text-sm"
+            >
+              <Plus className="w-4 h-4" />
+              Tambah Pegawai
+            </Link>
+          </div>
         }
       />
 
@@ -589,6 +689,100 @@ export const EmployeesList: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Upload Modal */}
+      <Modal isOpen={isUploadModalOpen} onClose={() => !isUploading && setIsUploadModalOpen(false)} title="Upload Masal Data Pegawai">
+        <div className="space-y-4">
+          <div className="bg-blue-50 text-blue-800 p-4 rounded-lg text-sm flex gap-3 items-start border border-blue-100">
+            <FileSpreadsheet className="w-5 h-5 shrink-0 mt-0.5 text-blue-600" />
+            <div>
+              <p className="font-semibold mb-1">Panduan Upload</p>
+              <ul className="list-disc pl-4 space-y-1 text-blue-700/80">
+                <li>Unduh template CSV terlebih dahulu jika belum memilikinya.</li>
+                <li>Isi data pegawai sesuai format pada template. Kolom <b>Nama Lengkap</b> wajib diisi.</li>
+                <li>Pilih Jabatan dan Unit (opsional) di form ini agar diterapkan ke semua pegawai dalam file CSV tersebut.</li>
+              </ul>
+            </div>
+          </div>
+
+          <button
+            onClick={downloadTemplate}
+            className="w-full flex items-center justify-center gap-2 bg-white border-2 border-dashed border-gray-300 text-gray-700 hover:border-primary hover:text-primary px-4 py-3 rounded-xl transition-all font-medium text-sm"
+          >
+            <Download className="w-4 h-4" />
+            Download Template CSV
+          </button>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-gray-700">Jabatan Umum</label>
+              <select 
+                value={uploadPosition} 
+                onChange={(e) => setUploadPosition(e.target.value)} 
+                className="w-full border rounded-md px-3 py-2 outline-none focus:border-primary text-sm bg-white"
+              >
+                <option value="">-- Pilih Jabatan --</option>
+                <option value="guru">Guru / Pengajar</option>
+                <option value="tu">Tata Usaha</option>
+                <option value="satpam">Satpam</option>
+                <option value="cleaning_service">Cleaning Service</option>
+                <option value="lainnya">Lainnya</option>
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-gray-700">Unit (Opsional)</label>
+              <select 
+                value={uploadUnitId} 
+                onChange={(e) => setUploadUnitId(e.target.value)} 
+                className="w-full border rounded-md px-3 py-2 outline-none focus:border-primary text-sm bg-white"
+              >
+                <option value="">Lintas Unit</option>
+                {unitOptions?.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-gray-700">Upload File CSV</label>
+            <input 
+              type="file" 
+              accept=".csv"
+              onChange={handleFileChange}
+              className="w-full border rounded-md px-3 py-2 text-sm file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
+            />
+          </div>
+
+          {previewData.length > 0 && (
+            <div className="bg-gray-50 p-3 rounded-lg border text-sm text-center">
+              Ditemukan <span className="font-bold text-primary">{previewData.filter(r => r['Nama Lengkap']).length}</span> baris data pegawai yang valid siap untuk diunggah.
+            </div>
+          )}
+
+          <div className="pt-4 flex justify-end gap-3 border-t mt-4">
+            <button 
+              onClick={() => setIsUploadModalOpen(false)}
+              disabled={isUploading}
+              className="px-4 py-2 border rounded-md text-gray-600 hover:bg-gray-50 text-sm font-medium"
+            >
+              Batal
+            </button>
+            <button 
+              onClick={processUpload}
+              disabled={isUploading || !uploadFile}
+              className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 text-sm font-medium disabled:opacity-50 flex items-center gap-2"
+            >
+              {isUploading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Mengunggah...
+                </>
+              ) : (
+                "Mulai Upload"
+              )}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

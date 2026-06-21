@@ -4,7 +4,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import {
   Plus, Filter, ClipboardCheck, Users, TrendingUp,
-  Award, BarChart3, Eye, Edit, Search, Star, Calendar
+  Award, BarChart3, Eye, Edit, Search, Star, Calendar, Settings, ChevronLeft, ChevronRight
 } from "lucide-react";
 import { getPredikatColor, getTahunPelajaranOptions } from "../utils/calculator";
 
@@ -39,6 +39,43 @@ function StatCard({
     </div>
   );
 }
+
+// ── TABLE PAGINATION ──
+const TablePagination: React.FC<{
+  currentPage: number;
+  totalPages: number;
+  totalItems: number;
+  itemsPerPage: number;
+  onPageChange: (page: number) => void;
+}> = ({ currentPage, totalPages, totalItems, itemsPerPage, onPageChange }) => {
+  const actualTotalPages = Math.max(1, totalPages);
+  const start = totalItems === 0 ? 0 : ((currentPage - 1) * itemsPerPage) + 1;
+  const end = Math.min(currentPage * itemsPerPage, totalItems);
+  return (
+    <div className="flex items-center justify-between px-6 py-3 border-t bg-muted/20">
+      <p className="text-sm text-muted-foreground">
+        Menampilkan <span className="font-medium text-foreground">{start}-{end}</span> dari <span className="font-medium text-foreground">{totalItems}</span> data
+      </p>
+      <div className="flex items-center gap-1">
+        <button
+          onClick={() => onPageChange(currentPage - 1)}
+          disabled={currentPage === 1}
+          className="p-1.5 rounded-md hover:bg-muted text-muted-foreground disabled:opacity-30 transition-colors"
+        >
+          <ChevronLeft className="w-5 h-5" />
+        </button>
+        <span className="text-sm font-medium px-2">{currentPage} / {actualTotalPages}</span>
+        <button
+          onClick={() => onPageChange(currentPage + 1)}
+          disabled={currentPage >= actualTotalPages}
+          className="p-1.5 rounded-md hover:bg-muted text-muted-foreground disabled:opacity-30 transition-colors"
+        >
+          <ChevronRight className="w-5 h-5" />
+        </button>
+      </div>
+    </div>
+  );
+};
 
 // ── Distribution Bar ──────────────────────────────────────────────────────────
 function DistributionBar({ data }: { data: Record<string, number> }) {
@@ -84,6 +121,10 @@ export const PkgList: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [searchInput, setSearchInput] = useState("");
+  
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 15;
 
   const tahunOptions = getTahunPelajaranOptions();
 
@@ -105,13 +146,30 @@ export const PkgList: React.FC = () => {
 
   // Client-side search by employee name
   const records = useMemo(() => {
-    if (!searchQuery) return allRecords;
-    const q = searchQuery.toLowerCase();
-    return allRecords.filter((r: any) =>
-      r.employees?.full_name?.toLowerCase().includes(q) ||
-      r.tahun_pelajaran?.includes(q)
-    );
+    let filtered = allRecords;
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      filtered = allRecords.filter((r: any) =>
+        r.employees?.full_name?.toLowerCase().includes(q) ||
+        r.tahun_pelajaran?.includes(q)
+      );
+    }
+    return filtered;
   }, [allRecords, searchQuery]);
+
+  // Client-side Pagination
+  const paginatedRecords = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    const end = start + pageSize;
+    return records.slice(start, end);
+  }, [records, currentPage, pageSize]);
+  
+  const totalPages = Math.ceil(records.length / pageSize);
+
+  // Reset page to 1 when filters change
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [filterTahun, filterStatus, searchQuery]);
 
   // Stats
   const stats = useMemo(() => {
@@ -149,12 +207,20 @@ export const PkgList: React.FC = () => {
         title="Penilaian Kinerja Guru (PKG)"
         description="Kelola evaluasi kinerja tahunan guru sesuai instrumen Kemendikbud. Skor per kompetensi, nilai akhir, dan predikat kinerja."
         action={
-          <Link
-            to="/pkg/create"
-            className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2.5 rounded-lg hover:bg-primary/90 transition-colors shadow-sm font-medium text-sm"
-          >
-            <Plus className="w-4 h-4" /> Buat PKG Baru
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link
+              to="/pkg/settings"
+              className="flex items-center gap-2 bg-muted text-muted-foreground hover:text-foreground px-4 py-2.5 rounded-lg hover:bg-muted/80 transition-colors shadow-sm font-medium text-sm border"
+            >
+              <Settings className="w-4 h-4" /> Pengaturan Instrumen
+            </Link>
+            <Link
+              to="/pkg/create"
+              className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2.5 rounded-lg hover:bg-primary/90 transition-colors shadow-sm font-medium text-sm"
+            >
+              <Plus className="w-4 h-4" /> Buat PKG Baru
+            </Link>
+          </div>
         }
       />
 
@@ -273,7 +339,7 @@ export const PkgList: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {records.map((r: any) => (
+                {paginatedRecords.map((r: any) => (
                   <tr key={r.id} className="hover:bg-muted/30 transition-colors group">
                     <td className="px-6 py-4">
                       <div>
@@ -355,6 +421,14 @@ export const PkgList: React.FC = () => {
                 ))}
               </tbody>
             </table>
+            
+            <TablePagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={records.length}
+              itemsPerPage={pageSize}
+              onPageChange={setCurrentPage}
+            />
           </div>
         )}
       </div>

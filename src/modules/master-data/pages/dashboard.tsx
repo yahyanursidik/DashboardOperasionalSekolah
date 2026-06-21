@@ -1,7 +1,8 @@
-import React, { useState, useMemo } from "react";
-import { useList, useUpdate, useCreate } from "@refinedev/core";
+import React, { useState, useMemo, useEffect } from "react";
+import { useList, useUpdate, useCreate, useDelete } from "@refinedev/core";
 import { PageHeader } from "../../../components/layout/PageHeader";
-import { Plus, Building, Calendar, BookOpen, Edit2, ToggleLeft, ToggleRight, X, Save, Search, Inbox, Loader2 } from "lucide-react";
+import { Plus, Building, Calendar, BookOpen, Edit2, ToggleLeft, ToggleRight, X, Save, Search, Inbox, Loader2, Trash2, AlertTriangle, ChevronLeft, ChevronRight } from "lucide-react";
+import { toast } from "sonner";
 
 // Utility for formatting dates
 const formatDate = (dateString?: string | null) => {
@@ -96,17 +97,101 @@ const Modal: React.FC<{ isOpen: boolean; onClose: () => void; title: string; chi
   );
 };
 
+// --- TABLE PAGINATION ---
+const TablePagination: React.FC<{
+  currentPage: number;
+  totalPages: number;
+  totalItems: number;
+  itemsPerPage: number;
+  onPageChange: (page: number) => void;
+}> = ({ currentPage, totalPages, totalItems, itemsPerPage, onPageChange }) => {
+  const actualTotalPages = Math.max(1, totalPages);
+  const start = totalItems === 0 ? 0 : ((currentPage - 1) * itemsPerPage) + 1;
+  const end = Math.min(currentPage * itemsPerPage, totalItems);
+  return (
+    <div className="flex items-center justify-between px-6 py-3 border-t bg-muted/20">
+      <p className="text-sm text-muted-foreground">
+        Menampilkan <span className="font-medium text-foreground">{start}-{end}</span> dari <span className="font-medium text-foreground">{totalItems}</span> data
+      </p>
+      <div className="flex items-center gap-1">
+        <button
+          onClick={() => onPageChange(currentPage - 1)}
+          disabled={currentPage === 1}
+          className="p-1.5 rounded-md hover:bg-muted text-muted-foreground disabled:opacity-30 transition-colors"
+        >
+          <ChevronLeft className="w-5 h-5" />
+        </button>
+        <span className="text-sm font-medium px-2">{currentPage} / {actualTotalPages}</span>
+        <button
+          onClick={() => onPageChange(currentPage + 1)}
+          disabled={currentPage >= actualTotalPages}
+          className="p-1.5 rounded-md hover:bg-muted text-muted-foreground disabled:opacity-30 transition-colors"
+        >
+          <ChevronRight className="w-5 h-5" />
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// --- DELETE CONFIRM MODAL ---
+const DeleteConfirmModal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  title: string;
+  itemName: string;
+  warningText: string;
+  isDeleting: boolean;
+}> = ({ isOpen, onClose, onConfirm, title, itemName, warningText, isDeleting }) => {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="bg-background rounded-2xl shadow-xl border w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        <div className="p-6 text-center">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <AlertTriangle className="w-8 h-8 text-red-600" />
+          </div>
+          <h3 className="font-bold text-xl mb-2">{title}</h3>
+          <p className="text-muted-foreground text-sm mb-4">
+            Anda akan menghapus data <span className="font-semibold text-foreground">"{itemName}"</span> secara permanen.
+          </p>
+          <div className="bg-red-50 text-red-800 text-xs p-4 rounded-xl border border-red-100 text-left leading-relaxed">
+            <p className="font-bold mb-1.5 flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5"/> Peringatan Keamanan Database</p>
+            {warningText}
+          </div>
+        </div>
+        <div className="flex gap-3 px-6 pb-6 pt-2">
+          <button onClick={onClose} disabled={isDeleting} className="flex-1 py-2.5 text-sm font-semibold rounded-xl text-foreground bg-muted hover:bg-muted/80 transition-colors disabled:opacity-50">
+            Batal
+          </button>
+          <button onClick={onConfirm} disabled={isDeleting} className="flex-1 flex items-center justify-center gap-2 bg-red-600 text-white py-2.5 rounded-xl hover:bg-red-700 transition-colors font-semibold text-sm disabled:opacity-50 shadow-sm">
+            {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+            {isDeleting ? "Menghapus..." : "Ya, Hapus Data"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // --- TAB COMPONENTS ---
 
 const UnitsTab: React.FC = () => {
-  const { data, isLoading } = useList({ resource: "units" });
+  const { data, isLoading } = useList({ resource: "units", pagination: { mode: "off" } });
   const { mutate: create, isLoading: isCreating } = useCreate();
   const { mutate: update, isLoading: isUpdating } = useUpdate();
+  const { mutate: deleteMutate, isLoading: isDeleting } = useDelete();
 
   const [modalMode, setModalMode] = useState<"create" | "edit" | null>(null);
+  const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; id: string; name: string }>({ isOpen: false, id: "", name: "" });
   const [editId, setEditId] = useState<string | null>(null);
   const [formName, setFormName] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  useEffect(() => { setCurrentPage(1); }, [searchTerm]);
 
   const isSaving = isCreating || isUpdating;
 
@@ -122,10 +207,34 @@ const UnitsTab: React.FC = () => {
     }
   };
 
+  const confirmDelete = (id: string, name: string) => {
+    setDeleteModal({ isOpen: true, id, name });
+  };
+
+  const executeDelete = () => {
+    deleteMutate(
+      { resource: "units", id: deleteModal.id },
+      {
+        onSuccess: () => {
+          toast.success(`Unit ${deleteModal.name} berhasil dihapus.`);
+          setDeleteModal({ isOpen: false, id: "", name: "" });
+        },
+        onError: (error) => {
+          console.error("Delete Unit error:", error);
+          toast.error(`PENGHAPUSAN DITOLAK: Unit ${deleteModal.name} tidak bisa dihapus karena masih digunakan (terhubung) dengan data Kelas, Siswa, atau Pegawai.`);
+          setDeleteModal({ isOpen: false, id: "", name: "" });
+        }
+      }
+    );
+  };
+
   const filteredData = useMemo(() => {
     if (!data?.data) return [];
     return data.data.filter((item: any) => item.name?.toLowerCase().includes(searchTerm.toLowerCase()));
   }, [data, searchTerm]);
+
+  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+  const paginatedData = filteredData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   if (isLoading) return <div className="flex-1 flex justify-center items-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
 
@@ -157,14 +266,19 @@ const UnitsTab: React.FC = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {filteredData.map((unit: any) => (
+            {paginatedData.map((unit: any) => (
               <tr key={unit.id} className="hover:bg-muted/30 transition-colors group">
                 <td className="px-6 py-4 font-medium">{unit.name}</td>
                 <td className="px-6 py-4 text-muted-foreground font-mono text-xs bg-muted/30 rounded inline-block mt-3 ml-6">{unit.id}</td>
                 <td className="px-6 py-4 text-right">
-                  <button onClick={() => openEdit(unit)} className="p-2 text-muted-foreground hover:text-primary transition-colors rounded-lg hover:bg-primary/10 opacity-0 group-hover:opacity-100 focus:opacity-100" title="Edit Unit">
-                    <Edit2 className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={() => openEdit(unit)} className="p-2 text-muted-foreground hover:text-blue-600 transition-colors rounded-lg hover:bg-blue-50" title="Edit Unit">
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => confirmDelete(String(unit.id), unit.name)} className="p-2 text-muted-foreground hover:text-red-600 transition-colors rounded-lg hover:bg-red-50" title="Hapus Unit">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -181,6 +295,13 @@ const UnitsTab: React.FC = () => {
             )}
           </tbody>
         </table>
+        <TablePagination 
+          currentPage={currentPage} 
+          totalPages={totalPages} 
+          totalItems={filteredData.length} 
+          itemsPerPage={itemsPerPage} 
+          onPageChange={setCurrentPage} 
+        />
       </div>
 
       <Modal isOpen={!!modalMode} onClose={() => setModalMode(null)} title={modalMode === "create" ? "Tambah Unit Baru" : "Edit Unit"}>
@@ -190,7 +311,7 @@ const UnitsTab: React.FC = () => {
             <input 
               value={formName} 
               onChange={e => setFormName(e.target.value)} 
-              className="w-full border rounded-lg px-4 py-2.5 outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all" 
+              className="w-full border rounded-lg px-4 py-2.5 outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all bg-background" 
               placeholder="contoh: SDIT Al-Fatih" 
               autoFocus
             />
@@ -206,19 +327,35 @@ const UnitsTab: React.FC = () => {
           </div>
         </div>
       </Modal>
+
+      <DeleteConfirmModal
+        isOpen={deleteModal.isOpen}
+        onClose={() => setDeleteModal({ isOpen: false, id: "", name: "" })}
+        onConfirm={executeDelete}
+        title="Hapus Unit Pendidikan?"
+        itemName={deleteModal.name}
+        warningText="Penghapusan akan ditolak secara otomatis oleh sistem jika unit ini sedang berelasi dengan data Siswa, Kelas, atau Pegawai. Pastikan unit ini sudah dikosongkan sebelum dihapus."
+        isDeleting={isDeleting}
+      />
     </div>
   );
 };
 
 const AcademicYearsTab: React.FC = () => {
-  const { data, isLoading } = useList({ resource: "academic_years", sorters: [{ field: "name", order: "desc" }] });
+  const { data, isLoading } = useList({ resource: "academic_years", sorters: [{ field: "name", order: "desc" }], pagination: { mode: "off" } });
   const { mutate: create, isLoading: isCreating } = useCreate();
   const { mutate: update, isLoading: isUpdating } = useUpdate();
+  const { mutate: deleteMutate, isLoading: isDeleting } = useDelete();
 
   const [modalMode, setModalMode] = useState<"create" | "edit" | null>(null);
+  const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; id: string; name: string }>({ isOpen: false, id: "", name: "" });
   const [editId, setEditId] = useState<string | null>(null);
   const [formData, setFormData] = useState({ name: "", start_date: "", end_date: "" });
   const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  useEffect(() => { setCurrentPage(1); }, [searchTerm]);
 
   const isSaving = isCreating || isUpdating;
 
@@ -239,10 +376,34 @@ const AcademicYearsTab: React.FC = () => {
     update({ resource: "academic_years", id, values: { is_active: !currentStatus } });
   };
 
+  const confirmDelete = (id: string, name: string) => {
+    setDeleteModal({ isOpen: true, id, name });
+  };
+
+  const executeDelete = () => {
+    deleteMutate(
+      { resource: "academic_years", id: deleteModal.id },
+      {
+        onSuccess: () => {
+          toast.success(`Tahun Ajaran ${deleteModal.name} berhasil dihapus.`);
+          setDeleteModal({ isOpen: false, id: "", name: "" });
+        },
+        onError: (error) => {
+          console.error("Delete Academic Year error:", error);
+          toast.error(`PENGHAPUSAN DITOLAK: Tahun Ajaran ${deleteModal.name} tidak bisa dihapus karena telah digunakan dalam riwayat Semester, Nilai, atau Pembayaran.`);
+          setDeleteModal({ isOpen: false, id: "", name: "" });
+        }
+      }
+    );
+  };
+
   const filteredData = useMemo(() => {
     if (!data?.data) return [];
     return data.data.filter((item: any) => item.name?.toLowerCase().includes(searchTerm.toLowerCase()));
   }, [data, searchTerm]);
+
+  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+  const paginatedData = filteredData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   if (isLoading) return <div className="flex-1 flex justify-center items-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
 
@@ -275,7 +436,7 @@ const AcademicYearsTab: React.FC = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {filteredData.map((year: any) => (
+            {paginatedData.map((year: any) => (
               <tr key={year.id} className={`hover:bg-muted/30 transition-colors group ${year.is_active ? 'bg-primary/5' : ''}`}>
                 <td className="px-6 py-4 font-bold">{year.name}</td>
                 <td className="px-6 py-4 text-muted-foreground text-xs sm:text-sm">
@@ -291,9 +452,14 @@ const AcademicYearsTab: React.FC = () => {
                   </button>
                 </td>
                 <td className="px-6 py-4 text-right">
-                  <button onClick={() => openEdit(year)} className="p-2 text-muted-foreground hover:text-primary transition-colors rounded-lg hover:bg-primary/10 opacity-0 group-hover:opacity-100 focus:opacity-100" title="Edit Tahun Ajaran">
-                    <Edit2 className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={() => openEdit(year)} className="p-2 text-muted-foreground hover:text-blue-600 transition-colors rounded-lg hover:bg-blue-50" title="Edit Tahun Ajaran">
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => confirmDelete(String(year.id), year.name)} className="p-2 text-muted-foreground hover:text-red-600 transition-colors rounded-lg hover:bg-red-50" title="Hapus Tahun Ajaran">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -310,6 +476,13 @@ const AcademicYearsTab: React.FC = () => {
             )}
           </tbody>
         </table>
+        <TablePagination 
+          currentPage={currentPage} 
+          totalPages={totalPages} 
+          totalItems={filteredData.length} 
+          itemsPerPage={itemsPerPage} 
+          onPageChange={setCurrentPage} 
+        />
       </div>
 
       <Modal isOpen={!!modalMode} onClose={() => setModalMode(null)} title={modalMode === "create" ? "Tambah Tahun Ajaran" : "Edit Tahun Ajaran"}>
@@ -319,7 +492,7 @@ const AcademicYearsTab: React.FC = () => {
             <input 
               value={formData.name} 
               onChange={e => setFormData({...formData, name: e.target.value})} 
-              className="w-full border rounded-lg px-4 py-2.5 outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all" 
+              className="w-full border rounded-lg px-4 py-2.5 outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all bg-background" 
               placeholder="contoh: 2024/2025" 
               autoFocus
             />
@@ -327,11 +500,11 @@ const AcademicYearsTab: React.FC = () => {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Tanggal Mulai</label>
-              <input type="date" value={formData.start_date} onChange={e => setFormData({...formData, start_date: e.target.value})} className="w-full border rounded-lg px-4 py-2.5 outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all text-sm" />
+              <input type="date" value={formData.start_date} onChange={e => setFormData({...formData, start_date: e.target.value})} className="w-full border rounded-lg px-4 py-2.5 outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all text-sm bg-background" />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Tanggal Selesai</label>
-              <input type="date" value={formData.end_date} onChange={e => setFormData({...formData, end_date: e.target.value})} className="w-full border rounded-lg px-4 py-2.5 outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all text-sm" />
+              <input type="date" value={formData.end_date} onChange={e => setFormData({...formData, end_date: e.target.value})} className="w-full border rounded-lg px-4 py-2.5 outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all text-sm bg-background" />
             </div>
           </div>
           <div className="flex gap-3 justify-end pt-4 border-t mt-6">
@@ -345,20 +518,36 @@ const AcademicYearsTab: React.FC = () => {
           </div>
         </div>
       </Modal>
+
+      <DeleteConfirmModal
+        isOpen={deleteModal.isOpen}
+        onClose={() => setDeleteModal({ isOpen: false, id: "", name: "" })}
+        onConfirm={executeDelete}
+        title="Hapus Tahun Ajaran?"
+        itemName={deleteModal.name}
+        warningText="Menghapus Tahun Ajaran dapat merusak data operasional sebelumnya (misal Semester, Tagihan, atau Raport) jika sudah terhubung. Pastikan ini adalah tahun ajaran baru yang kosong."
+        isDeleting={isDeleting}
+      />
     </div>
   );
 };
 
 const SemestersTab: React.FC = () => {
-  const { data: yearsData } = useList({ resource: "academic_years", sorters: [{ field: "name", order: "desc" }] });
-  const { data, isLoading } = useList({ resource: "semesters", meta: { select: "*, academic_years(name)" } });
+  const { data: yearsData } = useList({ resource: "academic_years", sorters: [{ field: "name", order: "desc" }], pagination: { mode: "off" } });
+  const { data, isLoading } = useList({ resource: "semesters", meta: { select: "*, academic_years(name)" }, pagination: { mode: "off" } });
   const { mutate: create, isLoading: isCreating } = useCreate();
   const { mutate: update, isLoading: isUpdating } = useUpdate();
+  const { mutate: deleteMutate, isLoading: isDeleting } = useDelete();
 
   const [modalMode, setModalMode] = useState<"create" | "edit" | null>(null);
+  const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; id: string; name: string }>({ isOpen: false, id: "", name: "" });
   const [editId, setEditId] = useState<string | null>(null);
   const [formData, setFormData] = useState({ name: "Ganjil", academic_year_id: "", start_date: "", end_date: "" });
   const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  useEffect(() => { setCurrentPage(1); }, [searchTerm]);
 
   const isSaving = isCreating || isUpdating;
 
@@ -379,6 +568,27 @@ const SemestersTab: React.FC = () => {
     update({ resource: "semesters", id, values: { is_active: !currentStatus } });
   };
 
+  const confirmDelete = (id: string, name: string) => {
+    setDeleteModal({ isOpen: true, id, name });
+  };
+
+  const executeDelete = () => {
+    deleteMutate(
+      { resource: "semesters", id: deleteModal.id },
+      {
+        onSuccess: () => {
+          toast.success(`Semester ${deleteModal.name} berhasil dihapus.`);
+          setDeleteModal({ isOpen: false, id: "", name: "" });
+        },
+        onError: (error) => {
+          console.error("Delete Semester error:", error);
+          toast.error(`PENGHAPUSAN DITOLAK: Semester ${deleteModal.name} tidak bisa dihapus karena berelasi dengan data Jadwal atau Absensi.`);
+          setDeleteModal({ isOpen: false, id: "", name: "" });
+        }
+      }
+    );
+  };
+
   const filteredData = useMemo(() => {
     if (!data?.data) return [];
     return data.data.filter((item: any) => 
@@ -386,6 +596,9 @@ const SemestersTab: React.FC = () => {
       item.academic_years?.name?.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [data, searchTerm]);
+
+  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+  const paginatedData = filteredData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   if (isLoading) return <div className="flex-1 flex justify-center items-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
 
@@ -419,7 +632,7 @@ const SemestersTab: React.FC = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {filteredData.map((sem: any) => (
+            {paginatedData.map((sem: any) => (
               <tr key={sem.id} className={`hover:bg-muted/30 transition-colors group ${sem.is_active ? 'bg-primary/5' : ''}`}>
                 <td className="px-6 py-4 font-bold">{sem.name}</td>
                 <td className="px-6 py-4 text-muted-foreground">{sem.academic_years?.name || "-"}</td>
@@ -436,9 +649,14 @@ const SemestersTab: React.FC = () => {
                   </button>
                 </td>
                 <td className="px-6 py-4 text-right">
-                  <button onClick={() => openEdit(sem)} className="p-2 text-muted-foreground hover:text-primary transition-colors rounded-lg hover:bg-primary/10 opacity-0 group-hover:opacity-100 focus:opacity-100" title="Edit Semester">
-                    <Edit2 className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={() => openEdit(sem)} className="p-2 text-muted-foreground hover:text-blue-600 transition-colors rounded-lg hover:bg-blue-50" title="Edit Semester">
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => confirmDelete(String(sem.id), sem.name)} className="p-2 text-muted-foreground hover:text-red-600 transition-colors rounded-lg hover:bg-red-50" title="Hapus Semester">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -455,6 +673,13 @@ const SemestersTab: React.FC = () => {
             )}
           </tbody>
         </table>
+        <TablePagination 
+          currentPage={currentPage} 
+          totalPages={totalPages} 
+          totalItems={filteredData.length} 
+          itemsPerPage={itemsPerPage} 
+          onPageChange={setCurrentPage} 
+        />
       </div>
 
       <Modal isOpen={!!modalMode} onClose={() => setModalMode(null)} title={modalMode === "create" ? "Tambah Semester" : "Edit Semester"}>
@@ -476,11 +701,11 @@ const SemestersTab: React.FC = () => {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Tanggal Mulai</label>
-              <input type="date" value={formData.start_date} onChange={e => setFormData({...formData, start_date: e.target.value})} className="w-full border rounded-lg px-4 py-2.5 outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all text-sm" />
+              <input type="date" value={formData.start_date} onChange={e => setFormData({...formData, start_date: e.target.value})} className="w-full border rounded-lg px-4 py-2.5 outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all text-sm bg-background" />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Tanggal Selesai</label>
-              <input type="date" value={formData.end_date} onChange={e => setFormData({...formData, end_date: e.target.value})} className="w-full border rounded-lg px-4 py-2.5 outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all text-sm" />
+              <input type="date" value={formData.end_date} onChange={e => setFormData({...formData, end_date: e.target.value})} className="w-full border rounded-lg px-4 py-2.5 outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all text-sm bg-background" />
             </div>
           </div>
           <div className="flex gap-3 justify-end pt-4 border-t mt-6">
@@ -494,6 +719,16 @@ const SemestersTab: React.FC = () => {
           </div>
         </div>
       </Modal>
+
+      <DeleteConfirmModal
+        isOpen={deleteModal.isOpen}
+        onClose={() => setDeleteModal({ isOpen: false, id: "", name: "" })}
+        onConfirm={executeDelete}
+        title="Hapus Semester?"
+        itemName={deleteModal.name}
+        warningText="Semester tidak bisa dihapus jika sedang ada data jadwal pelajaran atau absensi yang berjalan di dalamnya. Penghapusan ini bersifat permanen."
+        isDeleting={isDeleting}
+      />
     </div>
   );
 };

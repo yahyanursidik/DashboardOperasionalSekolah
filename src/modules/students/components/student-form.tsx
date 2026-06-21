@@ -365,12 +365,12 @@ export const StudentForm: React.FC<StudentFormProps> = ({ action }) => {
           </div>
         </div>
 
-        {/* Actions */}
-        <div className="flex items-center justify-end gap-3 pt-4">
+        {/* Actions - Sticky Bottom Bar */}
+        <div className="sticky bottom-0 bg-card/95 backdrop-blur-sm p-4 border-t shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] mt-8 flex items-center justify-end gap-3 z-10 rounded-b-xl -mx-1">
           <button
             type="button"
             onClick={() => navigate("/students")}
-            className="flex items-center gap-2 px-6 py-2.5 border rounded-md hover:bg-muted transition-colors text-sm font-medium"
+            className="flex items-center gap-2 px-6 py-2.5 border rounded-md hover:bg-muted transition-colors text-sm font-medium bg-background"
           >
             <ArrowLeft className="w-4 h-4" />
             Batal

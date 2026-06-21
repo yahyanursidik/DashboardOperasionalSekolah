@@ -1,12 +1,46 @@
 import React, { useState } from "react";
-import { useShow, useList, useCreate } from "@refinedev/core";
+import { useShow, useList, useCreate, useDelete } from "@refinedev/core";
 import { PageHeader } from "../../../components/layout/PageHeader";
-import { User, Edit, ArrowLeft, Users, Plus, X, BookOpen, Star, AlertTriangle, ShieldAlert, Award, Activity, Eye, GraduationCap, History, Bookmark, CheckSquare, HeartPulse, PhoneCall } from "lucide-react";
+import { User, Edit, ArrowLeft, Users, Plus, X, BookOpen, Star, AlertTriangle, ShieldAlert, Award, Activity, Eye, GraduationCap, History, Bookmark, CheckSquare, HeartPulse, PhoneCall, Trash2, Loader2 } from "lucide-react";
 import { AuditHistory } from "../../../components/common/AuditHistory";
 import { Link, useNavigate } from "react-router-dom";
 import { calculateCompleteness } from "./list";
 import { ParentForm } from "../../parents/components/parent-form";
 import { AcademicHistoryModal } from "../components/AcademicHistoryModal";
+import { toast } from "sonner";
+
+const UnlinkConfirmModal: React.FC<{
+  isOpen: boolean;
+  parentName: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+  isDeleting: boolean;
+}> = ({ isOpen, parentName, onConfirm, onCancel, isDeleting }) => {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={() => !isDeleting && onCancel()}></div>
+      <div className="relative bg-card w-full max-w-md rounded-xl shadow-xl border overflow-hidden">
+        <div className="p-6 text-center">
+          <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Trash2 className="w-8 h-8" />
+          </div>
+          <h3 className="text-lg font-bold mb-2">Hapus Tautan Orang Tua?</h3>
+          <p className="text-muted-foreground text-sm">
+            Apakah Anda yakin ingin menghapus tautan dengan <span className="font-semibold text-foreground">{parentName}</span>? Data orang tua tetap ada, namun tidak lagi berelasi dengan siswa ini.
+          </p>
+        </div>
+        <div className="flex bg-muted/30 p-4 border-t gap-3 justify-end">
+          <button onClick={onCancel} disabled={isDeleting} className="px-4 py-2 border rounded-md text-sm font-medium hover:bg-muted transition-colors">Batal</button>
+          <button onClick={onConfirm} disabled={isDeleting} className="px-4 py-2 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700 transition-colors flex items-center gap-2">
+            {isDeleting && <Loader2 className="w-4 h-4 animate-spin" />}
+            Hapus Tautan
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export const StudentShow: React.FC = () => {
   const { queryResult } = useShow({
@@ -71,6 +105,13 @@ export const StudentShow: React.FC = () => {
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [linkMode, setLinkMode] = useState<"existing" | "new">("new");
   
+  // Tabs State
+  const [activeTab, setActiveTab] = useState<"parents" | "health" | "academic" | "journals">("parents");
+
+  // Unlink State
+  const { mutate: deleteMutate, isLoading: isUnlinking } = useDelete();
+  const [unlinkModal, setUnlinkModal] = useState<{ isOpen: boolean; linkId: string; parentName: string }>({ isOpen: false, linkId: "", parentName: "" });
+
   // Link mutation
   const { mutate: createLink, isLoading: isLinking } = useCreate();
 
@@ -107,6 +148,23 @@ export const StudentShow: React.FC = () => {
         setSelectedParentId("");
       }
     });
+  };
+
+  const handleUnlink = () => {
+    if (!unlinkModal.linkId) return;
+    deleteMutate(
+      { resource: "student_parent_links", id: unlinkModal.linkId },
+      {
+        onSuccess: () => {
+          toast.success("Tautan orang tua berhasil dihapus.");
+          setUnlinkModal({ isOpen: false, linkId: "", parentName: "" });
+          refetchParents();
+        },
+        onError: (error) => {
+          toast.error("Gagal menghapus tautan: " + error.message);
+        }
+      }
+    );
   };
 
   const handleHistorySaved = () => {
@@ -185,9 +243,22 @@ export const StudentShow: React.FC = () => {
             </div>
             <h2 className="text-xl font-bold">{record.full_name}</h2>
             <p className="text-sm text-muted-foreground mb-4">Panggilan: {record.nickname || "-"}</p>
-            <div className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full border mb-6 ${record.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
-              Status: {record.status}
-            </div>
+            {(() => {
+              const styles: Record<string, { bg: string, text: string, border: string, dot: string, label: string }> = {
+                active: { bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-200", dot: "bg-emerald-500", label: "Aktif" },
+                inactive: { bg: "bg-slate-50", text: "text-slate-700", border: "border-slate-200", dot: "bg-slate-400", label: "Nonaktif" },
+                graduated: { bg: "bg-indigo-50", text: "text-indigo-700", border: "border-indigo-200", dot: "bg-indigo-500", label: "Lulus" },
+                transferred: { bg: "bg-amber-50", text: "text-amber-700", border: "border-amber-200", dot: "bg-amber-500", label: "Pindah" },
+                dropped_out: { bg: "bg-rose-50", text: "text-rose-700", border: "border-rose-200", dot: "bg-rose-500", label: "Dikeluarkan" },
+              };
+              const style = styles[record.status] || styles.active;
+              return (
+                <div className={`inline-flex items-center gap-1.5 px-3 py-1 text-xs font-bold uppercase tracking-wider rounded-full border mb-6 ${style.bg} ${style.text} ${style.border}`}>
+                  <div className={`w-2 h-2 rounded-full ${style.dot} ${record.status === 'active' ? 'animate-pulse' : ''}`} />
+                  Status: {style.label}
+                </div>
+              );
+            })()}
             <div className="mt-2 pt-4 border-t">
               <div className="flex justify-between items-center text-sm mb-2">
                 <span className="font-medium">Kelengkapan Data</span>
@@ -201,7 +272,46 @@ export const StudentShow: React.FC = () => {
         </div>
 
         <div className="lg:col-span-2 space-y-6">
-          <div className="bg-card rounded-xl border shadow-sm p-6">
+          {/* TABS NAVIGATION */}
+          <div className="flex border-b overflow-x-auto hide-scrollbar bg-card rounded-t-xl">
+            <button
+              onClick={() => setActiveTab("parents")}
+              className={`flex items-center gap-2 px-6 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                activeTab === "parents" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+              }`}
+            >
+              <Users className="w-4 h-4" /> Orang Tua & Kontak
+            </button>
+            <button
+              onClick={() => setActiveTab("health")}
+              className={`flex items-center gap-2 px-6 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                activeTab === "health" ? "border-rose-500 text-rose-600" : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+              }`}
+            >
+              <HeartPulse className="w-4 h-4" /> Medis & Kesehatan
+            </button>
+            <button
+              onClick={() => setActiveTab("academic")}
+              className={`flex items-center gap-2 px-6 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                activeTab === "academic" ? "border-emerald-500 text-emerald-600" : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+              }`}
+            >
+              <History className="w-4 h-4" /> Akademik & Kelas
+            </button>
+            <button
+              onClick={() => setActiveTab("journals")}
+              className={`flex items-center gap-2 px-6 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                activeTab === "journals" ? "border-indigo-500 text-indigo-600" : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+              }`}
+            >
+              <BookOpen className="w-4 h-4" /> Jurnal & Rekam Jejak
+            </button>
+          </div>
+
+          {/* TAB CONTENT: PARENTS & CONTACT */}
+          {activeTab === "parents" && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+              <div className="bg-card rounded-xl rounded-tl-none border shadow-sm p-6">
             <div className="flex justify-between items-center mb-4">
               <h3 className="font-semibold text-lg flex items-center gap-2">
                 <Users className="w-5 h-5 text-blue-600" /> Orang Tua / Wali
@@ -244,6 +354,15 @@ export const StudentShow: React.FC = () => {
                           )}
                         </div>
                       </div>
+                      <div className="ml-auto">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setUnlinkModal({ isOpen: true, linkId: link.id, parentName: parent.full_name }); }}
+                          className="p-2 text-muted-foreground hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                          title="Hapus Tautan"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   );
                 })}
@@ -251,7 +370,7 @@ export const StudentShow: React.FC = () => {
             )}
           </div>
 
-          <div className="bg-card rounded-xl border shadow-sm p-6 border-rose-200">
+          <div className="bg-card rounded-xl border shadow-sm p-6 border-orange-200">
             <h3 className="font-semibold text-lg flex items-center gap-2 mb-6 border-b pb-4 text-rose-900">
               <HeartPulse className="w-5 h-5 text-rose-600" /> Data Kesehatan & Medis
             </h3>
@@ -366,8 +485,13 @@ export const StudentShow: React.FC = () => {
               </div>
             )}
           </div>
+          </div>
+          )}
 
-          <div className="bg-card rounded-xl border shadow-sm p-6">
+          {/* TAB CONTENT: JOURNALS */}
+          {activeTab === "journals" && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+              <div className="bg-card rounded-xl rounded-tl-none border shadow-sm p-6">
             <div className="flex justify-between items-center mb-6 border-b pb-4">
               <h3 className="font-semibold text-lg flex items-center gap-2">
                 <BookOpen className="w-5 h-5 text-indigo-600" /> Jurnal & Rekam Jejak
@@ -588,7 +712,10 @@ export const StudentShow: React.FC = () => {
               )}
             </div>
           )}
+            </div>
+          )}
 
+          {/* AUDIT */}
           <AuditHistory resource="students" resourceId={record.id as string} />
         </div>
       </div>
@@ -683,6 +810,15 @@ export const StudentShow: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* MODAL: Konfirmasi Unlink */}
+      <UnlinkConfirmModal
+        isOpen={unlinkModal.isOpen}
+        parentName={unlinkModal.parentName}
+        onConfirm={handleUnlink}
+        onCancel={() => setUnlinkModal({ isOpen: false, linkId: "", parentName: "" })}
+        isDeleting={isUnlinking}
+      />
 
     </div>
   );

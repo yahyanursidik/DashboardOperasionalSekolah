@@ -1,9 +1,45 @@
 import React, { useState, useMemo } from "react";
 import { useList, useGetIdentity } from "@refinedev/core";
 import { PageHeader } from "../../../components/layout/PageHeader";
-import { ArrowLeft, CheckSquare, Square, FilterX, AlertCircle, Save, GraduationCap } from "lucide-react";
+import { ArrowLeft, CheckSquare, Square, FilterX, AlertCircle, Save, GraduationCap, AlertTriangle, Loader2 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabaseClient } from "../../../lib/supabase/client";
+import { toast } from "sonner";
+
+const ConfirmProcessModal: React.FC<{
+  isOpen: boolean;
+  count: number;
+  actionType: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+  isProcessing: boolean;
+}> = ({ isOpen, count, actionType, onConfirm, onCancel, isProcessing }) => {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={() => !isProcessing && onCancel()}></div>
+      <div className="relative bg-card w-full max-w-md rounded-xl shadow-xl border overflow-hidden">
+        <div className="p-6 text-center">
+          <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4">
+            <AlertTriangle className="w-8 h-8" />
+          </div>
+          <h3 className="text-lg font-bold mb-2">Konfirmasi Proses Massal</h3>
+          <p className="text-muted-foreground text-sm">
+            Anda akan memproses <span className="font-semibold text-foreground">{count} siswa</span> dengan status <span className="font-bold text-foreground">"{actionType}"</span>.
+            Tindakan ini akan membuat riwayat akademik baru dan mengubah status penempatan siswa. Lanjutkan?
+          </p>
+        </div>
+        <div className="flex bg-muted/30 p-4 border-t gap-3 justify-end">
+          <button onClick={onCancel} disabled={isProcessing} className="px-4 py-2 border rounded-md text-sm font-medium hover:bg-muted transition-colors">Batal</button>
+          <button onClick={onConfirm} disabled={isProcessing} className="px-4 py-2 bg-amber-600 text-white rounded-md text-sm font-medium hover:bg-amber-700 transition-colors flex items-center gap-2">
+            {isProcessing && <Loader2 className="w-4 h-4 animate-spin" />}
+            Proses Sekarang
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export const StudentMassPromotion: React.FC = () => {
   const navigate = useNavigate();
@@ -24,6 +60,7 @@ export const StudentMassPromotion: React.FC = () => {
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processResult, setProcessResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean }>({ isOpen: false });
 
   // Fetch Master Data
   const { data: units } = useList({ resource: "units", pagination: { mode: "off" } });
@@ -69,24 +106,24 @@ export const StudentMassPromotion: React.FC = () => {
 
   const isGraduating = actionType === "Lulus" || actionType === "Pindah (Keluar)";
 
-  const handleProcess = async () => {
+  const handlePreProcess = () => {
     if (selectedStudentIds.length === 0) {
-      alert("Pilih minimal satu siswa untuk diproses.");
+      toast.error("Pilih minimal satu siswa untuk diproses.");
       return;
     }
     if (!targetAcademicYearId) {
-      alert("Tahun Ajaran tujuan wajib diisi.");
+      toast.error("Tahun Ajaran tujuan wajib diisi.");
       return;
     }
     if (!isGraduating && (!targetUnitId || !targetClassId)) {
-      alert("Unit dan Kelas tujuan wajib diisi.");
+      toast.error("Unit dan Kelas tujuan wajib diisi.");
       return;
     }
+    
+    setConfirmModal({ isOpen: true });
+  };
 
-    if (!confirm(`Anda yakin akan memproses ${selectedStudentIds.length} siswa dengan status "${actionType}"? Tindakan ini tidak dapat dibatalkan.`)) {
-      return;
-    }
-
+  const executeProcess = async () => {
     setIsProcessing(true);
     setProcessResult(null);
 
@@ -130,6 +167,7 @@ export const StudentMassPromotion: React.FC = () => {
 
       if (updateError) throw updateError;
 
+      toast.success(`Berhasil memproses ${selectedStudentIds.length} siswa.`);
       setProcessResult({
         success: true,
         message: `Berhasil memproses ${selectedStudentIds.length} siswa dengan status ${actionType}.`
@@ -139,13 +177,16 @@ export const StudentMassPromotion: React.FC = () => {
       refetchStudents();
       setSelectedStudentIds([]);
       setNotes("");
+      setConfirmModal({ isOpen: false });
 
     } catch (error: any) {
       console.error(error);
+      toast.error("Gagal memproses data.");
       setProcessResult({
         success: false,
         message: `Gagal memproses: ${error.message || "Kesalahan tidak diketahui"}`
       });
+      setConfirmModal({ isOpen: false });
     } finally {
       setIsProcessing(false);
     }
@@ -377,7 +418,7 @@ export const StudentMassPromotion: React.FC = () => {
             {/* STEP 4: EXECUTE */}
             <div className="p-4 border-t bg-background">
               <button
-                onClick={handleProcess}
+                onClick={handlePreProcess}
                 disabled={isProcessing || selectedStudentIds.length === 0 || !targetAcademicYearId || (!isGraduating && (!targetUnitId || !targetClassId))}
                 className="w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground py-3.5 rounded-xl font-semibold shadow-sm hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -401,6 +442,15 @@ export const StudentMassPromotion: React.FC = () => {
 
         </div>
       </div>
+
+      <ConfirmProcessModal
+        isOpen={confirmModal.isOpen}
+        count={selectedStudentIds.length}
+        actionType={actionType}
+        onConfirm={executeProcess}
+        onCancel={() => setConfirmModal({ isOpen: false })}
+        isProcessing={isProcessing}
+      />
     </div>
   );
 };
