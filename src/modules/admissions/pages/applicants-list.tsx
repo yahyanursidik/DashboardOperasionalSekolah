@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { PageHeader } from "../../../components/layout/PageHeader";
-import { Search, Filter, Eye, CheckCircle, XCircle, CalendarDays, ArrowUpDown, ChevronLeft, ChevronRight, Inbox, Trash2 } from "lucide-react";
+import { Search, Filter, Eye, CheckCircle, XCircle, CalendarDays, ArrowUpDown, ChevronLeft, ChevronRight, Inbox, Trash2, AlertTriangle } from "lucide-react";
 import { mockApplicants, getSpmbSettings } from "../mock";
 import type { Applicant } from "../mock";
 import { 
@@ -26,6 +26,19 @@ export const ApplicantsList: React.FC = () => {
   const [globalFilter, setGlobalFilter] = useState<string>("");
   const [sorting, setSorting] = useState<SortingState>([]);
 
+  // Modal State for user-friendly feedback
+  const [modalState, setModalState] = useState<{
+    isOpen: boolean;
+    type: 'verify' | 'reject' | 'remove' | null;
+    appId: string;
+    appName: string;
+  }>({
+    isOpen: false,
+    type: null,
+    appId: '',
+    appName: ''
+  });
+
   // Apply manual filters before passing to TanStack table
   const filteredData = useMemo(() => {
     return data.filter(app => {
@@ -36,23 +49,23 @@ export const ApplicantsList: React.FC = () => {
   }, [data, selectedYear, selectedStatus]);
 
   // Actions
-  const handleVerify = (id: string, name: string) => {
-    setData(prev => prev.map(app => app.id === id ? { ...app, status: 'Verifikasi Valid' } : app));
-    toast.success(`Berkas ${name} berhasil diverifikasi!`);
+  const handleOpenModal = (type: 'verify' | 'reject' | 'remove', id: string, name: string) => {
+    setModalState({ isOpen: true, type, appId: id, appName: name });
   };
 
-  const handleReject = (id: string, name: string) => {
-    if (confirm(`Apakah Anda yakin ingin menolak pendaftar ${name}?`)) {
-      setData(prev => prev.map(app => app.id === id ? { ...app, status: 'Ditolak' } : app));
-      toast.error(`Pendaftar ${name} telah ditolak.`);
+  const handleConfirmAction = () => {
+    const { type, appId, appName } = modalState;
+    if (type === 'verify') {
+      setData(prev => prev.map(app => app.id === appId ? { ...app, status: 'Verifikasi Valid' } : app));
+      toast.success(`Berkas pendaftaran ${appName} berhasil diverifikasi!`);
+    } else if (type === 'reject') {
+      setData(prev => prev.map(app => app.id === appId ? { ...app, status: 'Ditolak' } : app));
+      toast.error(`Pendaftar ${appName} telah ditolak.`);
+    } else if (type === 'remove') {
+      setData(prev => prev.filter(app => app.id !== appId));
+      toast.success(`Data pendaftar ${appName} berhasil dihapus permanen.`);
     }
-  };
-
-  const handleRemove = (id: string, name: string) => {
-    if (confirm(`PENGHAPUSAN PERMANEN: Apakah Anda yakin ingin menghapus data ${name}?`)) {
-      setData(prev => prev.filter(app => app.id !== id));
-      toast.success(`Data pendaftar ${name} berhasil dihapus.`);
-    }
+    setModalState({ isOpen: false, type: null, appId: '', appName: '' });
   };
 
   const columns = useMemo<ColumnDef<Applicant>[]>(() => [
@@ -119,7 +132,7 @@ export const ApplicantsList: React.FC = () => {
               <Eye className="w-4 h-4" />
             </Link>
             <button 
-              onClick={() => handleVerify(app.id, app.name)}
+              onClick={() => handleOpenModal('verify', app.id, app.name)}
               disabled={app.status === 'Verifikasi Valid' || app.status === 'Lulus Tes' || app.status === 'Ditolak'}
               className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-md transition-colors disabled:opacity-30 disabled:cursor-not-allowed" 
               title="Verifikasi"
@@ -127,7 +140,7 @@ export const ApplicantsList: React.FC = () => {
               <CheckCircle className="w-4 h-4" />
             </button>
             <button 
-              onClick={() => handleReject(app.id, app.name)}
+              onClick={() => handleOpenModal('reject', app.id, app.name)}
               disabled={app.status === 'Ditolak' || app.status === 'Lulus Tes'}
               className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-md transition-colors disabled:opacity-30 disabled:cursor-not-allowed" 
               title="Tolak"
@@ -135,7 +148,7 @@ export const ApplicantsList: React.FC = () => {
               <XCircle className="w-4 h-4" />
             </button>
             <button 
-              onClick={() => handleRemove(app.id, app.name)}
+              onClick={() => handleOpenModal('remove', app.id, app.name)}
               className="p-1.5 text-gray-500 hover:bg-red-50 hover:text-red-600 rounded-md transition-colors" 
               title="Hapus"
             >
@@ -171,7 +184,7 @@ export const ApplicantsList: React.FC = () => {
   const allStatuses = Array.from(new Set(mockApplicants.map(a => a.status))).sort();
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 relative">
       <PageHeader 
         title="Daftar Pendaftar SPMB" 
         description="Kelola dan verifikasi berkas calon siswa baru."
@@ -302,6 +315,61 @@ export const ApplicantsList: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Confirmation Modal */}
+      {modalState.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-background w-full max-w-md rounded-2xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6">
+              <div className="flex items-center gap-4 mb-4">
+                <div className={`p-3 rounded-full shrink-0 ${
+                  modalState.type === 'remove' ? 'bg-red-100 text-red-600' : 
+                  modalState.type === 'reject' ? 'bg-rose-100 text-rose-600' : 
+                  'bg-emerald-100 text-emerald-600'
+                }`}>
+                  {modalState.type === 'remove' && <Trash2 className="w-6 h-6" />}
+                  {modalState.type === 'reject' && <XCircle className="w-6 h-6" />}
+                  {modalState.type === 'verify' && <CheckCircle className="w-6 h-6" />}
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold">
+                    {modalState.type === 'remove' ? 'Hapus Pendaftar' : 
+                     modalState.type === 'reject' ? 'Tolak Pendaftar' : 
+                     'Verifikasi Berkas'}
+                  </h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {modalState.type === 'remove' ? `Anda akan menghapus data pendaftar atas nama ${modalState.appName} secara permanen. Tindakan ini tidak dapat dibatalkan.` : 
+                     modalState.type === 'reject' ? `Apakah Anda yakin ingin menolak pendaftar atas nama ${modalState.appName}?` : 
+                     `Verifikasi bahwa berkas pendaftar atas nama ${modalState.appName} sudah valid dan lengkap.`}
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="p-4 bg-muted/30 border-t flex justify-end gap-3">
+              <button
+                onClick={() => setModalState({ isOpen: false, type: null, appId: '', appName: '' })}
+                className="px-4 py-2 rounded-lg text-sm font-medium hover:bg-muted transition-colors border shadow-sm bg-background"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleConfirmAction}
+                className={`px-4 py-2 rounded-lg text-sm font-bold text-white shadow-sm transition-colors ${
+                  modalState.type === 'remove' ? 'bg-red-600 hover:bg-red-700' : 
+                  modalState.type === 'reject' ? 'bg-rose-600 hover:bg-rose-700' : 
+                  'bg-emerald-600 hover:bg-emerald-700'
+                }`}
+              >
+                {modalState.type === 'remove' ? 'Ya, Hapus Data' : 
+                 modalState.type === 'reject' ? 'Ya, Tolak' : 
+                 'Ya, Verifikasi'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };
