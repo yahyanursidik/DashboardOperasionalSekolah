@@ -383,6 +383,12 @@ export default function App() {
             meta: { canDelete: true },
           },
           {
+            name: "admissions_applicants",
+            list: "/admissions/applicants",
+            show: "/admissions/applicants/:id",
+            meta: { canDelete: true },
+          },
+          {
             name: "cbt_banks",
             list: "/recruitment/cbt/banks",
             meta: { canDelete: true },

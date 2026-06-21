@@ -1,9 +1,8 @@
 import React, { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { PageHeader } from "../../../components/layout/PageHeader";
-import { Search, Filter, Eye, CheckCircle, XCircle, CalendarDays, ArrowUpDown, ChevronLeft, ChevronRight, Inbox, Trash2, AlertTriangle } from "lucide-react";
-import { mockApplicants, getSpmbSettings } from "../mock";
-import type { Applicant } from "../mock";
+import { Search, Filter, Eye, CheckCircle, XCircle, CalendarDays, ArrowUpDown, ChevronLeft, ChevronRight, Inbox, Trash2, AlertTriangle, Loader2 } from "lucide-react";
+import { getSpmbSettings } from "../mock";
 import { 
   useReactTable, 
   getCoreRowModel, 
@@ -14,12 +13,50 @@ import {
 } from "@tanstack/react-table";
 import type { ColumnDef, SortingState } from "@tanstack/react-table";
 import { toast } from "sonner";
+import { useList, useUpdate, useDelete } from "@refinedev/core";
+
+// Extended interface with database ID
+interface ApplicantData {
+  id: string; // registration_number in DB
+  name: string;
+  nik: string;
+  dob: string;
+  academicYear: string;
+  unit: string;
+  school: string;
+  parentName: string;
+  parentPhone: string;
+  status: string;
+  score: number | '-';
+  dbId: string; // the actual UUID in DB
+}
 
 export const ApplicantsList: React.FC = () => {
   const currentAcademicYear = getSpmbSettings().academicYear;
   
-  // Local state to simulate backend updates
-  const [data, setData] = useState<Applicant[]>(mockApplicants);
+  // Fetch real data from Supabase
+  const { data: tableData, isLoading } = useList({
+    resource: "admissions_applicants",
+    pagination: { mode: "off" } // fetch all for client-side filtering
+  });
+  
+  const rawData = tableData?.data || [];
+
+  // Map database format to UI format
+  const data = useMemo<ApplicantData[]>(() => rawData.map(row => ({
+    id: row.registration_number,
+    name: row.name,
+    nik: row.nik,
+    dob: row.dob,
+    academicYear: row.academic_year,
+    unit: row.unit,
+    school: row.previous_school,
+    parentName: row.parent_name,
+    parentPhone: row.parent_phone,
+    status: row.status,
+    score: row.score ?? '-',
+    dbId: row.id
+  })), [rawData]);
   
   const [selectedYear, setSelectedYear] = useState<string>("Semua");
   const [selectedStatus, setSelectedStatus] = useState<string>("Semua");
@@ -39,6 +76,11 @@ export const ApplicantsList: React.FC = () => {
     appName: ''
   });
 
+  const { mutate: updateApplicant, isLoading: isUpdating } = useUpdate();
+  const { mutate: deleteApplicant, isLoading: isDeleting } = useDelete();
+
+  const isMutating = isUpdating || isDeleting;
+
   // Apply manual filters before passing to TanStack table
   const filteredData = useMemo(() => {
     return data.filter(app => {
@@ -55,20 +97,48 @@ export const ApplicantsList: React.FC = () => {
 
   const handleConfirmAction = () => {
     const { type, appId, appName } = modalState;
+    const applicant = data.find(a => a.id === appId);
+    if (!applicant) return;
+
     if (type === 'verify') {
-      setData(prev => prev.map(app => app.id === appId ? { ...app, status: 'Verifikasi Valid' } : app));
-      toast.success(`Berkas pendaftaran ${appName} berhasil diverifikasi!`);
+      updateApplicant({
+        resource: "admissions_applicants",
+        id: applicant.dbId,
+        values: { status: 'Verifikasi Valid' },
+        successNotification: false
+      }, {
+        onSuccess: () => {
+          toast.success(`Berkas pendaftaran ${appName} berhasil diverifikasi!`);
+          setModalState({ isOpen: false, type: null, appId: '', appName: '' });
+        }
+      });
     } else if (type === 'reject') {
-      setData(prev => prev.map(app => app.id === appId ? { ...app, status: 'Ditolak' } : app));
-      toast.error(`Pendaftar ${appName} telah ditolak.`);
+      updateApplicant({
+        resource: "admissions_applicants",
+        id: applicant.dbId,
+        values: { status: 'Ditolak' },
+        successNotification: false
+      }, {
+        onSuccess: () => {
+          toast.error(`Pendaftar ${appName} telah ditolak.`);
+          setModalState({ isOpen: false, type: null, appId: '', appName: '' });
+        }
+      });
     } else if (type === 'remove') {
-      setData(prev => prev.filter(app => app.id !== appId));
-      toast.success(`Data pendaftar ${appName} berhasil dihapus permanen.`);
+      deleteApplicant({
+        resource: "admissions_applicants",
+        id: applicant.dbId,
+        successNotification: false
+      }, {
+        onSuccess: () => {
+          toast.success(`Data pendaftar ${appName} berhasil dihapus permanen.`);
+          setModalState({ isOpen: false, type: null, appId: '', appName: '' });
+        }
+      });
     }
-    setModalState({ isOpen: false, type: null, appId: '', appName: '' });
   };
 
-  const columns = useMemo<ColumnDef<Applicant>[]>(() => [
+  const columns = useMemo<ColumnDef<ApplicantData>[]>(() => [
     {
       accessorKey: "id",
       header: "No. Registrasi",
@@ -180,8 +250,8 @@ export const ApplicantsList: React.FC = () => {
     },
   });
 
-  const allYears = Array.from(new Set([...mockApplicants.map(a => a.academicYear), currentAcademicYear])).sort().reverse();
-  const allStatuses = Array.from(new Set(mockApplicants.map(a => a.status))).sort();
+  const allYears = Array.from(new Set([...data.map(a => a.academicYear), currentAcademicYear])).sort().reverse();
+  const allStatuses = Array.from(new Set(data.map(a => a.status))).sort();
 
   return (
     <div className="space-y-6 relative">
@@ -236,6 +306,11 @@ export const ApplicantsList: React.FC = () => {
 
         {/* Table */}
         <div className="overflow-x-auto relative min-h-[400px]">
+          {isLoading && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/50 backdrop-blur-sm">
+              <Loader2 className="w-8 h-8 text-primary animate-spin" />
+            </div>
+          )}
           <table className="w-full text-sm text-left">
             <thead className="bg-muted/50 text-muted-foreground uppercase text-xs font-semibold border-b">
               {table.getHeaderGroups().map(headerGroup => (
@@ -262,13 +337,15 @@ export const ApplicantsList: React.FC = () => {
               ) : (
                 <tr>
                   <td colSpan={columns.length} className="px-6 py-20 text-center text-muted-foreground">
-                    <div className="flex flex-col items-center justify-center">
-                      <div className="bg-muted/50 p-4 rounded-full mb-4">
-                        <Inbox className="w-8 h-8 text-muted-foreground" />
+                    {!isLoading && (
+                      <div className="flex flex-col items-center justify-center">
+                        <div className="bg-muted/50 p-4 rounded-full mb-4">
+                          <Inbox className="w-8 h-8 text-muted-foreground" />
+                        </div>
+                        <p className="font-medium text-foreground">Data tidak ditemukan</p>
+                        <p className="text-xs mt-1">Belum ada data pendaftar yang cocok dengan filter atau pencarian Anda.</p>
                       </div>
-                      <p className="font-medium text-foreground">Data tidak ditemukan</p>
-                      <p className="text-xs mt-1">Belum ada data pendaftar yang cocok dengan filter atau pencarian Anda.</p>
-                    </div>
+                    )}
                   </td>
                 </tr>
               )}
@@ -349,18 +426,21 @@ export const ApplicantsList: React.FC = () => {
             <div className="p-4 bg-muted/30 border-t flex justify-end gap-3">
               <button
                 onClick={() => setModalState({ isOpen: false, type: null, appId: '', appName: '' })}
-                className="px-4 py-2 rounded-lg text-sm font-medium hover:bg-muted transition-colors border shadow-sm bg-background"
+                disabled={isMutating}
+                className="px-4 py-2 rounded-lg text-sm font-medium hover:bg-muted transition-colors border shadow-sm bg-background disabled:opacity-50"
               >
                 Batal
               </button>
               <button
                 onClick={handleConfirmAction}
-                className={`px-4 py-2 rounded-lg text-sm font-bold text-white shadow-sm transition-colors ${
+                disabled={isMutating}
+                className={`px-4 py-2 rounded-lg text-sm font-bold text-white shadow-sm transition-colors flex items-center gap-2 disabled:opacity-70 ${
                   modalState.type === 'remove' ? 'bg-red-600 hover:bg-red-700' : 
                   modalState.type === 'reject' ? 'bg-rose-600 hover:bg-rose-700' : 
                   'bg-emerald-600 hover:bg-emerald-700'
                 }`}
               >
+                {isMutating && <Loader2 className="w-4 h-4 animate-spin" />}
                 {modalState.type === 'remove' ? 'Ya, Hapus Data' : 
                  modalState.type === 'reject' ? 'Ya, Tolak' : 
                  'Ya, Verifikasi'}
