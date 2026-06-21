@@ -2,17 +2,17 @@ import React, { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { Search, Filter, Eye, CheckCircle, XCircle, CalendarDays, ArrowUpDown, ChevronLeft, ChevronRight, Inbox } from "lucide-react";
-import { mockApplicants, getSpmbSettings, Applicant } from "../mock";
+import { mockApplicants, getSpmbSettings } from "../mock";
+import type { Applicant } from "../mock";
 import { 
   useReactTable, 
   getCoreRowModel, 
   getPaginationRowModel, 
   getSortedRowModel, 
   getFilteredRowModel, 
-  flexRender, 
-  ColumnDef, 
-  SortingState 
+  flexRender 
 } from "@tanstack/react-table";
+import type { ColumnDef, SortingState } from "@tanstack/react-table";
 import { toast } from "sonner";
 
 export const ApplicantsList: React.FC = () => {
