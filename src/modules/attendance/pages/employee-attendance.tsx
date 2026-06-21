@@ -254,35 +254,35 @@ export const EmployeeAttendanceList: React.FC = () => {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex justify-center gap-1.5 relative">
-                          {loadingStates[emp.id] && (
+                          {loadingStates[emp.id as string] && (
                             <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-10 backdrop-blur-[1px] rounded-md">
                               <Loader2 className="w-5 h-5 animate-spin text-primary" />
                             </div>
                           )}
                           <button
                             onClick={() => handleStatusChange(emp, 'present')}
-                            disabled={loadingStates[emp.id]}
+                            disabled={loadingStates[emp.id as string]}
                             className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all disabled:opacity-50 ${status === 'present' ? 'bg-emerald-500 text-white shadow-md scale-105' : 'bg-slate-100 text-slate-500 hover:bg-emerald-100 hover:text-emerald-700'}`}
                           >
                             Hadir
                           </button>
                           <button
                             onClick={() => handleStatusChange(emp, 'sick')}
-                            disabled={loadingStates[emp.id]}
+                            disabled={loadingStates[emp.id as string]}
                             className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all disabled:opacity-50 ${status === 'sick' ? 'bg-amber-500 text-white shadow-md scale-105' : 'bg-slate-100 text-slate-500 hover:bg-amber-100 hover:text-amber-700'}`}
                           >
                             Sakit
                           </button>
                           <button
                             onClick={() => handleStatusChange(emp, 'leave')}
-                            disabled={loadingStates[emp.id]}
+                            disabled={loadingStates[emp.id as string]}
                             className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all disabled:opacity-50 ${status === 'leave' ? 'bg-blue-500 text-white shadow-md scale-105' : 'bg-slate-100 text-slate-500 hover:bg-blue-100 hover:text-blue-700'}`}
                           >
                             Izin
                           </button>
                           <button
                             onClick={() => handleStatusChange(emp, 'absent')}
-                            disabled={loadingStates[emp.id]}
+                            disabled={loadingStates[emp.id as string]}
                             className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all disabled:opacity-50 ${status === 'absent' ? 'bg-rose-500 text-white shadow-md scale-105' : 'bg-slate-100 text-slate-500 hover:bg-rose-100 hover:text-rose-700'}`}
                           >
                             Alpa
@@ -295,12 +295,12 @@ export const EmployeeAttendanceList: React.FC = () => {
                             type="time" 
                             value={record?.time_in || ''}
                             onChange={(e) => handleTimeChange(emp, 'time_in', e.target.value)}
-                            disabled={!status || loadingStates[emp.id]}
+                            disabled={!status || loadingStates[emp.id as string]}
                             className="border rounded px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50 bg-background shadow-sm"
                           />
                           <button 
                             onClick={() => setTimeNow(emp, 'time_in')}
-                            disabled={!status || loadingStates[emp.id]}
+                            disabled={!status || loadingStates[emp.id as string]}
                             className="p-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-md transition-colors disabled:opacity-50 border border-indigo-100"
                             title="Set waktu sekarang"
                           >
@@ -314,12 +314,12 @@ export const EmployeeAttendanceList: React.FC = () => {
                             type="time" 
                             value={record?.time_out || ''}
                             onChange={(e) => handleTimeChange(emp, 'time_out', e.target.value)}
-                            disabled={!status || loadingStates[emp.id]}
+                            disabled={!status || loadingStates[emp.id as string]}
                             className="border rounded px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50 bg-background shadow-sm"
                           />
                           <button 
                             onClick={() => setTimeNow(emp, 'time_out')}
-                            disabled={!status || loadingStates[emp.id]}
+                            disabled={!status || loadingStates[emp.id as string]}
                             className="p-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-md transition-colors disabled:opacity-50 border border-indigo-100"
                             title="Set waktu sekarang"
                           >
