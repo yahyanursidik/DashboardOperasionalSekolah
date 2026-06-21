@@ -1,34 +1,158 @@
-import React from "react";
+import React, { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { PageHeader } from "../../../components/layout/PageHeader";
-import { Search, Filter, Eye, CheckCircle, XCircle, CalendarDays } from "lucide-react";
-import { mockApplicants, getSpmbSettings } from "../mock";
+import { Search, Filter, Eye, CheckCircle, XCircle, CalendarDays, ArrowUpDown, ChevronLeft, ChevronRight, Inbox } from "lucide-react";
+import { mockApplicants, getSpmbSettings, Applicant } from "../mock";
+import { 
+  useReactTable, 
+  getCoreRowModel, 
+  getPaginationRowModel, 
+  getSortedRowModel, 
+  getFilteredRowModel, 
+  flexRender, 
+  ColumnDef, 
+  SortingState 
+} from "@tanstack/react-table";
+import { toast } from "sonner";
 
 export const ApplicantsList: React.FC = () => {
   const currentAcademicYear = getSpmbSettings().academicYear;
-  const [selectedYear, setSelectedYear] = React.useState(currentAcademicYear);
-  const [selectedStatus, setSelectedStatus] = React.useState("Semua");
-  const [searchQuery, setSearchQuery] = React.useState("");
-  const [currentPage, setCurrentPage] = React.useState(1);
-  const [itemsPerPage, setItemsPerPage] = React.useState(10);
+  
+  // Local state to simulate backend updates
+  const [data, setData] = useState<Applicant[]>(mockApplicants);
+  
+  const [selectedYear, setSelectedYear] = useState<string>("Semua");
+  const [selectedStatus, setSelectedStatus] = useState<string>("Semua");
+  const [globalFilter, setGlobalFilter] = useState<string>("");
+  const [sorting, setSorting] = useState<SortingState>([]);
 
-  const filteredApplicants = mockApplicants.filter(app => {
-    const matchesYear = selectedYear === "Semua" || app.academicYear === selectedYear;
-    const matchesSearch = app.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          app.id.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = selectedStatus === "Semua" || app.status === selectedStatus;
-    return matchesYear && matchesSearch && matchesStatus;
+  // Apply manual filters before passing to TanStack table
+  const filteredData = useMemo(() => {
+    return data.filter(app => {
+      const matchesYear = selectedYear === "Semua" || app.academicYear === selectedYear;
+      const matchesStatus = selectedStatus === "Semua" || app.status === selectedStatus;
+      return matchesYear && matchesStatus;
+    });
+  }, [data, selectedYear, selectedStatus]);
+
+  // Actions
+  const handleVerify = (id: string, name: string) => {
+    setData(prev => prev.map(app => app.id === id ? { ...app, status: 'Verifikasi Valid' } : app));
+    toast.success(`Berkas ${name} berhasil diverifikasi!`);
+  };
+
+  const handleReject = (id: string, name: string) => {
+    if (confirm(`Apakah Anda yakin ingin menolak pendaftar ${name}?`)) {
+      setData(prev => prev.map(app => app.id === id ? { ...app, status: 'Ditolak' } : app));
+      toast.error(`Pendaftar ${name} telah ditolak.`);
+    }
+  };
+
+  const columns = useMemo<ColumnDef<Applicant>[]>(() => [
+    {
+      accessorKey: "id",
+      header: "No. Registrasi",
+      cell: info => <span className="font-medium text-foreground">{info.getValue() as string}</span>
+    },
+    {
+      accessorKey: "name",
+      header: ({ column }) => (
+        <button className="flex items-center gap-1 hover:text-foreground transition-colors outline-none" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+          Nama Pendaftar
+          <ArrowUpDown className="w-3.5 h-3.5" />
+        </button>
+      ),
+    },
+    {
+      accessorKey: "unit",
+      header: "Unit",
+      cell: info => <span className="font-semibold">{info.getValue() as string}</span>
+    },
+    {
+      accessorKey: "school",
+      header: "Asal Sekolah",
+      cell: info => <span className="text-muted-foreground">{info.getValue() as string}</span>
+    },
+    {
+      accessorKey: "status",
+      header: "Status",
+      cell: ({ getValue }) => {
+        const status = getValue() as string;
+        let colorClass = "bg-amber-100 text-amber-700";
+        if (status === 'Lulus Tes') colorClass = "bg-emerald-100 text-emerald-700";
+        if (status === 'Verifikasi Valid') colorClass = "bg-blue-100 text-blue-700";
+        if (status === 'Berkas Lengkap') colorClass = "bg-purple-100 text-purple-700";
+        if (status === 'Ditolak') colorClass = "bg-rose-100 text-rose-700";
+        
+        return (
+          <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${colorClass}`}>
+            {status}
+          </span>
+        );
+      }
+    },
+    {
+      accessorKey: "score",
+      header: ({ column }) => (
+        <button className="flex items-center gap-1 hover:text-foreground transition-colors outline-none" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+          Nilai Tes
+          <ArrowUpDown className="w-3.5 h-3.5" />
+        </button>
+      ),
+      cell: info => <span className="font-bold">{info.getValue() as number}</span>
+    },
+    {
+      id: "actions",
+      header: () => <div className="text-center">Aksi</div>,
+      cell: ({ row }) => {
+        const app = row.original;
+        return (
+          <div className="flex items-center justify-center gap-1">
+            <Link to={`/admissions/applicants/${app.id}`} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md transition-colors" title="Lihat Detail">
+              <Eye className="w-4 h-4" />
+            </Link>
+            <button 
+              onClick={() => handleVerify(app.id, app.name)}
+              disabled={app.status === 'Verifikasi Valid' || app.status === 'Lulus Tes' || app.status === 'Ditolak'}
+              className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-md transition-colors disabled:opacity-30 disabled:cursor-not-allowed" 
+              title="Verifikasi"
+            >
+              <CheckCircle className="w-4 h-4" />
+            </button>
+            <button 
+              onClick={() => handleReject(app.id, app.name)}
+              disabled={app.status === 'Ditolak' || app.status === 'Lulus Tes'}
+              className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-md transition-colors disabled:opacity-30 disabled:cursor-not-allowed" 
+              title="Tolak"
+            >
+              <XCircle className="w-4 h-4" />
+            </button>
+          </div>
+        );
+      }
+    }
+  ], []);
+
+  const table = useReactTable({
+    data: filteredData,
+    columns,
+    state: {
+      sorting,
+      globalFilter,
+    },
+    onSortingChange: setSorting,
+    onGlobalFilterChange: setGlobalFilter,
+    getCoreRowModel: getCoreRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    initialState: {
+      pagination: {
+        pageSize: 10,
+      },
+    },
   });
 
-  // Reset page when filters change
-  React.useEffect(() => {
-    setCurrentPage(1);
-  }, [selectedYear, selectedStatus, searchQuery]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredApplicants.length / itemsPerPage));
-  const paginatedApplicants = filteredApplicants.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
-
-  // Get unique years from mock data, ensure current is always there
   const allYears = Array.from(new Set([...mockApplicants.map(a => a.academicYear), currentAcademicYear])).sort().reverse();
   const allStatuses = Array.from(new Set(mockApplicants.map(a => a.status))).sort();
 
@@ -39,24 +163,25 @@ export const ApplicantsList: React.FC = () => {
         description="Kelola dan verifikasi berkas calon siswa baru."
       />
 
-      <div className="bg-card border rounded-2xl shadow-sm overflow-hidden">
+      <div className="bg-card border rounded-2xl shadow-sm overflow-hidden flex flex-col">
+        {/* Toolbar */}
         <div className="p-4 border-b flex flex-col sm:flex-row gap-4 justify-between items-center bg-muted/20">
-          <div className="relative w-full sm:w-72">
+          <div className="relative w-full sm:w-80">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input 
               type="text" 
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Cari nama atau no registrasi..." 
-              className="w-full pl-9 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+              value={globalFilter ?? ''}
+              onChange={(e) => setGlobalFilter(e.target.value)}
+              placeholder="Cari nama, asal sekolah, atau registrasi..." 
+              className="w-full pl-9 pr-4 py-2 border rounded-lg text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all shadow-sm"
             />
           </div>
           <div className="flex gap-2 w-full sm:w-auto">
-            <div className="relative w-full sm:w-auto">
+            <div className="relative w-full sm:w-auto shadow-sm rounded-lg">
               <select 
                 value={selectedYear}
                 onChange={(e) => setSelectedYear(e.target.value)}
-                className="w-full sm:w-auto appearance-none bg-white border px-4 py-2 pr-10 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/20"
+                className="w-full sm:w-auto appearance-none bg-background border px-4 py-2 pr-10 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/20"
               >
                 <option value="Semua">Semua Tahun</option>
                 {allYears.map(year => (
@@ -65,68 +190,58 @@ export const ApplicantsList: React.FC = () => {
               </select>
               <CalendarDays className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
             </div>
-            <div className="relative w-full sm:w-auto">
+            <div className="relative w-full sm:w-auto shadow-sm rounded-lg">
               <select 
                 value={selectedStatus}
                 onChange={(e) => setSelectedStatus(e.target.value)}
-                className="w-full sm:w-auto appearance-none bg-white border px-4 py-2 pr-10 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/20"
+                className="w-full sm:w-auto appearance-none bg-background border px-4 py-2 pr-10 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/20"
               >
                 <option value="Semua">Semua Status</option>
                 {allStatuses.map(status => (
                   <option key={status} value={status}>{status}</option>
                 ))}
+                {!allStatuses.includes('Ditolak') && <option value="Ditolak">Ditolak</option>}
               </select>
               <Filter className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
             </div>
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        {/* Table */}
+        <div className="overflow-x-auto relative min-h-[400px]">
           <table className="w-full text-sm text-left">
-            <thead className="bg-muted/50 text-muted-foreground uppercase text-xs font-semibold">
-              <tr>
-                <th className="px-6 py-4">No. Registrasi</th>
-                <th className="px-6 py-4">Nama Pendaftar</th>
-                <th className="px-6 py-4">Unit</th>
-                <th className="px-6 py-4">Asal Sekolah</th>
-                <th className="px-6 py-4">Status</th>
-                <th className="px-6 py-4">Nilai Tes</th>
-                <th className="px-6 py-4 text-center">Aksi</th>
-              </tr>
+            <thead className="bg-muted/50 text-muted-foreground uppercase text-xs font-semibold border-b">
+              {table.getHeaderGroups().map(headerGroup => (
+                <tr key={headerGroup.id}>
+                  {headerGroup.headers.map(header => (
+                    <th key={header.id} className="px-6 py-4 whitespace-nowrap">
+                      {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                    </th>
+                  ))}
+                </tr>
+              ))}
             </thead>
             <tbody className="divide-y">
-              {filteredApplicants.length > 0 ? paginatedApplicants.map((app) => (
-                <tr key={app.id} className="hover:bg-muted/30 transition-colors">
-                  <td className="px-6 py-4 font-medium text-foreground">{app.id}</td>
-                  <td className="px-6 py-4">{app.name}</td>
-                  <td className="px-6 py-4 font-semibold">{app.unit}</td>
-                  <td className="px-6 py-4 text-muted-foreground">{app.school}</td>
-                  <td className="px-6 py-4">
-                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider
-                      ${app.status === 'Lulus Tes' ? 'bg-emerald-100 text-emerald-700' : 
-                        app.status === 'Verifikasi Valid' ? 'bg-blue-100 text-blue-700' : 
-                        app.status === 'Berkas Lengkap' ? 'bg-purple-100 text-purple-700' : 
-                        'bg-amber-100 text-amber-700'}`}>
-                      {app.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 font-semibold">{app.score}</td>
-                  <td className="px-6 py-4 flex items-center justify-center gap-2">
-                    <Link to={`/admissions/applicants/${app.id}`} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md transition-colors" title="Lihat Detail">
-                      <Eye className="w-4 h-4" />
-                    </Link>
-                    <button className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-md transition-colors" title="Verifikasi">
-                      <CheckCircle className="w-4 h-4" />
-                    </button>
-                    <button className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-md transition-colors" title="Tolak">
-                      <XCircle className="w-4 h-4" />
-                    </button>
-                  </td>
-                </tr>
-              )) : (
+              {table.getRowModel().rows.length > 0 ? (
+                table.getRowModel().rows.map(row => (
+                  <tr key={row.id} className="hover:bg-muted/30 transition-colors">
+                    {row.getVisibleCells().map(cell => (
+                      <td key={cell.id} className="px-6 py-4">
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </td>
+                    ))}
+                  </tr>
+                ))
+              ) : (
                 <tr>
-                  <td colSpan={7} className="px-6 py-8 text-center text-muted-foreground">
-                    Belum ada data pendaftar untuk tahun akademik atau kata kunci pencarian ini.
+                  <td colSpan={columns.length} className="px-6 py-20 text-center text-muted-foreground">
+                    <div className="flex flex-col items-center justify-center">
+                      <div className="bg-muted/50 p-4 rounded-full mb-4">
+                        <Inbox className="w-8 h-8 text-muted-foreground" />
+                      </div>
+                      <p className="font-medium text-foreground">Data tidak ditemukan</p>
+                      <p className="text-xs mt-1">Belum ada data pendaftar yang cocok dengan filter atau pencarian Anda.</p>
+                    </div>
                   </td>
                 </tr>
               )}
@@ -134,42 +249,40 @@ export const ApplicantsList: React.FC = () => {
           </table>
         </div>
 
-        {/* Pagination Controls */}
-        {filteredApplicants.length > 0 && (
-          <div className="flex items-center justify-between px-6 py-4 border-t bg-muted/20">
-            <div className="flex items-center gap-2">
+        {/* Pagination */}
+        {table.getRowModel().rows.length > 0 && (
+          <div className="flex items-center justify-between px-6 py-4 border-t bg-muted/10">
+            <div className="flex items-center gap-3">
               <span className="text-sm text-muted-foreground">
-                Halaman <strong>{currentPage}</strong> dari <strong>{totalPages}</strong> (Total: {filteredApplicants.length})
+                Halaman <span className="font-medium text-foreground">{table.getState().pagination.pageIndex + 1}</span> dari <span className="font-medium text-foreground">{table.getPageCount() || 1}</span>
+                <span className="ml-2 hidden sm:inline">(Total: {table.getFilteredRowModel().rows.length} pendaftar)</span>
               </span>
               <select
-                value={itemsPerPage}
-                onChange={(e) => {
-                  setItemsPerPage(Number(e.target.value));
-                  setCurrentPage(1);
-                }}
-                className="bg-background border border-input rounded-md text-sm px-2 py-1 ml-4 focus:ring-1 focus:ring-primary outline-none"
+                value={table.getState().pagination.pageSize}
+                onChange={e => table.setPageSize(Number(e.target.value))}
+                className="bg-background border rounded-md text-xs px-2 py-1 focus:ring-1 focus:ring-primary outline-none cursor-pointer"
               >
-                {[10, 20, 30, 40, 50].map((size) => (
-                  <option key={size} value={size}>
-                    Tampilkan {size}
+                {[10, 20, 30, 40, 50].map(pageSize => (
+                  <option key={pageSize} value={pageSize}>
+                    Tampilkan {pageSize}
                   </option>
                 ))}
               </select>
             </div>
             <div className="flex items-center gap-2">
               <button
-                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                disabled={currentPage === 1}
-                className="px-3 py-1 text-sm border rounded-md hover:bg-muted disabled:opacity-50 transition-colors"
+                onClick={() => table.previousPage()}
+                disabled={!table.getCanPreviousPage()}
+                className="p-1.5 border rounded-md hover:bg-muted disabled:opacity-50 transition-colors text-foreground bg-background"
               >
-                Sebelumnya
+                <ChevronLeft className="w-4 h-4" />
               </button>
               <button
-                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                disabled={currentPage === totalPages}
-                className="px-3 py-1 text-sm border rounded-md hover:bg-muted disabled:opacity-50 transition-colors"
+                onClick={() => table.nextPage()}
+                disabled={!table.getCanNextPage()}
+                className="p-1.5 border rounded-md hover:bg-muted disabled:opacity-50 transition-colors text-foreground bg-background"
               >
-                Selanjutnya
+                <ChevronRight className="w-4 h-4" />
               </button>
             </div>
           </div>
