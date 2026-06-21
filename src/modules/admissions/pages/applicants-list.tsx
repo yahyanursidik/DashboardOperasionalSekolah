@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { PageHeader } from "../../../components/layout/PageHeader";
-import { Search, Filter, Eye, CheckCircle, XCircle, CalendarDays, ArrowUpDown, ChevronLeft, ChevronRight, Inbox } from "lucide-react";
+import { Search, Filter, Eye, CheckCircle, XCircle, CalendarDays, ArrowUpDown, ChevronLeft, ChevronRight, Inbox, Trash2 } from "lucide-react";
 import { mockApplicants, getSpmbSettings } from "../mock";
 import type { Applicant } from "../mock";
 import { 
@@ -45,6 +45,13 @@ export const ApplicantsList: React.FC = () => {
     if (confirm(`Apakah Anda yakin ingin menolak pendaftar ${name}?`)) {
       setData(prev => prev.map(app => app.id === id ? { ...app, status: 'Ditolak' } : app));
       toast.error(`Pendaftar ${name} telah ditolak.`);
+    }
+  };
+
+  const handleRemove = (id: string, name: string) => {
+    if (confirm(`PENGHAPUSAN PERMANEN: Apakah Anda yakin ingin menghapus data ${name}?`)) {
+      setData(prev => prev.filter(app => app.id !== id));
+      toast.success(`Data pendaftar ${name} berhasil dihapus.`);
     }
   };
 
@@ -126,6 +133,13 @@ export const ApplicantsList: React.FC = () => {
               title="Tolak"
             >
               <XCircle className="w-4 h-4" />
+            </button>
+            <button 
+              onClick={() => handleRemove(app.id, app.name)}
+              className="p-1.5 text-gray-500 hover:bg-red-50 hover:text-red-600 rounded-md transition-colors" 
+              title="Hapus"
+            >
+              <Trash2 className="w-4 h-4" />
             </button>
           </div>
         );
