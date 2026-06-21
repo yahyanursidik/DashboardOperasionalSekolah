@@ -2,7 +2,7 @@ import React from "react";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, LineChart, Line } from "recharts";
 import { getSpmbReports } from "../mock";
-import { Users, UserCheck, UserX, TrendingUp } from "lucide-react";
+import { Users, UserCheck, UserX, TrendingUp, Download } from "lucide-react";
 
 export const AdmissionsReports: React.FC = () => {
   const reports = getSpmbReports();
@@ -19,13 +19,21 @@ export const AdmissionsReports: React.FC = () => {
     ? ((latestYear.totalApplicants - previousYear.totalApplicants) / previousYear.totalApplicants * 100).toFixed(1)
     : 0;
 
-  const acceptanceRate = ((totalAcceptedHistorically / totalHistorically) * 100).toFixed(1);
+  const acceptanceRate = totalHistorically > 0 
+    ? ((totalAcceptedHistorically / totalHistorically) * 100).toFixed(1) 
+    : "0.0";
 
   return (
     <div className="space-y-6">
       <PageHeader 
         title="Laporan Historis SPMB" 
         description="Analisis performa penerimaan siswa baru dari tahun ke tahun."
+        action={
+          <button className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg font-medium text-sm hover:bg-primary/90 transition-colors shadow-sm">
+            <Download className="w-4 h-4" />
+            <span>Ekspor Laporan</span>
+          </button>
+        }
       />
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -78,11 +86,11 @@ export const AdmissionsReports: React.FC = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
         {/* Chart 1: Komparasi Diterima vs Ditolak */}
-        <div className="bg-card border rounded-2xl p-6 shadow-sm">
+        <div className="bg-card border rounded-2xl p-6 shadow-sm flex flex-col">
           <h3 className="text-lg font-bold mb-6">Status Penerimaan per Tahun Akademik</h3>
-          <div className="h-[350px]">
+          <div className="h-[350px] w-full flex-1">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={reports} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
@@ -101,16 +109,16 @@ export const AdmissionsReports: React.FC = () => {
         </div>
 
         {/* Chart 2: Tren Pendaftar Baru */}
-        <div className="bg-card border rounded-2xl p-6 shadow-sm">
+        <div className="bg-card border rounded-2xl p-6 shadow-sm flex flex-col">
           <div className="flex justify-between items-start mb-6">
             <div>
               <h3 className="text-lg font-bold">Tren Pertumbuhan Pendaftar</h3>
               <p className="text-sm text-muted-foreground mt-1">
-                Tahun terakhir naik <span className="text-emerald-600 font-bold">+{growthRate}%</span>
+                Tahun terakhir mengalami kenaikan <span className="text-emerald-600 font-bold">+{growthRate}%</span>
               </p>
             </div>
           </div>
-          <div className="h-[350px]">
+          <div className="h-[350px] w-full flex-1">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={reports} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
@@ -135,6 +143,59 @@ export const AdmissionsReports: React.FC = () => {
         </div>
       </div>
 
+      {/* Tabel Data Historis */}
+      <div className="bg-card border rounded-2xl shadow-sm overflow-hidden mt-6">
+        <div className="p-5 border-b bg-muted/10">
+          <h3 className="text-lg font-bold">Rincian Historis per Tahun Akademik</h3>
+          <p className="text-sm text-muted-foreground mt-1">Data detail metrik pendaftaran dari waktu ke waktu.</p>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm text-left">
+            <thead className="bg-muted/30 text-muted-foreground text-xs uppercase font-medium">
+              <tr>
+                <th className="px-6 py-4">Tahun Akademik</th>
+                <th className="px-6 py-4 text-right">Total Pendaftar</th>
+                <th className="px-6 py-4 text-right">Diterima</th>
+                <th className="px-6 py-4 text-right">Ditolak</th>
+                <th className="px-6 py-4 text-right">Tingkat Kelulusan</th>
+                <th className="px-6 py-4 text-right">Pertumbuhan</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {reports.map((row, index) => {
+                const prev = index > 0 ? reports[index - 1] : null;
+                const growth = prev ? ((row.totalApplicants - prev.totalApplicants) / prev.totalApplicants * 100).toFixed(1) : '-';
+                const acceptance = ((row.accepted / row.totalApplicants) * 100).toFixed(1);
+                const isGrowthPositive = growth !== '-' && parseFloat(growth) > 0;
+                const isGrowthNegative = growth !== '-' && parseFloat(growth) < 0;
+
+                return (
+                  <tr key={row.academicYear} className="hover:bg-muted/20 transition-colors">
+                    <td className="px-6 py-4 font-semibold">{row.academicYear}</td>
+                    <td className="px-6 py-4 text-right font-medium">{row.totalApplicants}</td>
+                    <td className="px-6 py-4 text-right text-emerald-600 font-medium">{row.accepted}</td>
+                    <td className="px-6 py-4 text-right text-rose-600 font-medium">{row.rejected}</td>
+                    <td className="px-6 py-4 text-right">
+                      <span className="inline-flex items-center px-2 py-1 rounded bg-blue-50 text-blue-700 text-xs font-bold">
+                        {acceptance}%
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      {growth === '-' ? (
+                        <span className="text-muted-foreground">-</span>
+                      ) : (
+                        <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-bold ${isGrowthPositive ? 'bg-emerald-50 text-emerald-700' : isGrowthNegative ? 'bg-rose-50 text-rose-700' : 'bg-muted text-muted-foreground'}`}>
+                          {isGrowthPositive ? '+' : ''}{growth}%
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 };

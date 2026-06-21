@@ -27,7 +27,8 @@ import {
   Camera,
   CheckSquare,
   TrendingUp,
-  ClipboardCheck
+  ClipboardCheck,
+  Building
 } from "lucide-react";
 import type { RoleName } from "../lib/permissions";
 
@@ -270,22 +271,22 @@ export const navigationConfig: NavigationGroup[] = [
     name: "Sarpras & Inventaris",
     items: [
       {
-        title: "Katalog Aset",
+        title: "Manajemen Aset",
         href: "/sarpras/assets",
         icon: Package,
         resource: "assets",
       },
       {
-        title: "Peminjaman",
-        href: "/sarpras/asset-loans",
-        icon: Truck,
-        resource: "asset_loans",
+        title: "Data Ruangan",
+        href: "/sarpras/rooms",
+        icon: Building,
+        resource: "rooms",
       },
       {
-        title: "Pengadaan Barang",
-        href: "/sarpras/procurements",
-        icon: ShoppingCart,
-        resource: "procurements",
+        title: "Jadwal Ruangan",
+        href: "/sarpras/room-schedules",
+        icon: CalendarCheck,
+        resource: "room_schedules",
       },
     ]
   },

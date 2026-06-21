@@ -220,6 +220,44 @@ export const ParentsList: React.FC = () => {
             </table>
           </div>
         )}
+
+        {/* Pagination */}
+        {!isLoading && table.getRowModel().rows.length > 0 && (
+          <div className="flex items-center justify-between px-6 py-4 border-t bg-muted/20 mt-auto">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">
+                Halaman <strong>{table.getState().pagination.pageIndex + 1}</strong> dari <strong>{table.getPageCount()}</strong>
+              </span>
+              <select
+                value={table.getState().pagination.pageSize}
+                onChange={(e) => table.setPageSize(Number(e.target.value))}
+                className="bg-background border border-input rounded-md text-sm px-2 py-1 ml-4 focus:ring-1 focus:ring-primary outline-none"
+              >
+                {[10, 20, 30, 40, 50].map((pageSize) => (
+                  <option key={pageSize} value={pageSize}>
+                    Tampilkan {pageSize}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => table.previousPage()}
+                disabled={!table.getCanPreviousPage()}
+                className="px-3 py-1 text-sm border rounded-md hover:bg-muted disabled:opacity-50 transition-colors"
+              >
+                Sebelumnya
+              </button>
+              <button
+                onClick={() => table.nextPage()}
+                disabled={!table.getCanNextPage()}
+                className="px-3 py-1 text-sm border rounded-md hover:bg-muted disabled:opacity-50 transition-colors"
+              >
+                Selanjutnya
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -16,8 +16,12 @@ export const MembersList: React.FC = () => {
     },
     filters: selectedProgram ? [
       { field: "extracurricular_id", operator: "eq", value: selectedProgram }
-    ] : []
+    ] : [],
+    pagination: { mode: "off" }
   });
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const { mutate: update, isLoading: isUpdating } = useUpdate();
   const { mutate: deleteMutate } = useDelete();
@@ -45,6 +49,14 @@ export const MembersList: React.FC = () => {
     const studentName = item.student_id ? item.students?.full_name : item.external_students?.full_name;
     return studentName?.toLowerCase().includes(searchTerm.toLowerCase());
   }) || [];
+
+  // Reset page when search or filter changes
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, selectedProgram]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredData.length / itemsPerPage));
+  const paginatedData = filteredData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   return (
     <div className="space-y-6">
@@ -111,7 +123,7 @@ export const MembersList: React.FC = () => {
                   </td>
                 </tr>
               ) : (
-                filteredData.map((item: any) => {
+                paginatedData.map((item: any) => {
                   const isInternal = !!item.student_id;
                   const name = isInternal ? item.students?.full_name : item.external_students?.full_name;
                   const identifier = isInternal ? `NIS: ${item.students?.nis}` : item.external_students?.school_origin;
@@ -161,6 +173,47 @@ export const MembersList: React.FC = () => {
             </tbody>
           </table>
         </div>
+        
+        {/* Pagination Controls */}
+        {!isLoading && filteredData.length > 0 && (
+          <div className="flex items-center justify-between px-6 py-4 border-t bg-muted/20">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">
+                Halaman <strong>{currentPage}</strong> dari <strong>{totalPages}</strong> (Total: {filteredData.length})
+              </span>
+              <select
+                value={itemsPerPage}
+                onChange={(e) => {
+                  setItemsPerPage(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="bg-background border border-input rounded-md text-sm px-2 py-1 ml-4 focus:ring-1 focus:ring-primary outline-none"
+              >
+                {[10, 20, 30, 40, 50].map((size) => (
+                  <option key={size} value={size}>
+                    Tampilkan {size}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1 text-sm border rounded-md hover:bg-muted disabled:opacity-50 transition-colors"
+              >
+                Sebelumnya
+              </button>
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1 text-sm border rounded-md hover:bg-muted disabled:opacity-50 transition-colors"
+              >
+                Selanjutnya
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -242,13 +242,30 @@ export const getDashboardStats = () => {
 };
 
 export const getSpmbReports = () => {
-  // Mock data for SPMB historical reports
-  return [
-    { academicYear: '2023/2024', totalApplicants: 120, accepted: 90, rejected: 30 },
-    { academicYear: '2024/2025', totalApplicants: 145, accepted: 110, rejected: 35 },
-    { academicYear: '2025/2026', totalApplicants: 180, accepted: 135, rejected: 45 },
-    { academicYear: '2026/2027', totalApplicants: 210, accepted: 160, rejected: 50 },
-  ];
+  // Calculate historical reports from the real SPMB system data (mockApplicants)
+  const grouped = mockApplicants.reduce((acc, app) => {
+    if (!acc[app.academicYear]) {
+      acc[app.academicYear] = { 
+        academicYear: app.academicYear, 
+        totalApplicants: 0, 
+        accepted: 0, 
+        rejected: 0 
+      };
+    }
+    
+    acc[app.academicYear].totalApplicants += 1;
+    
+    if (app.status === 'Lulus Tes') {
+      acc[app.academicYear].accepted += 1;
+    } else if (app.status === 'Ditolak') {
+      acc[app.academicYear].rejected += 1;
+    }
+    
+    return acc;
+  }, {} as Record<string, any>);
+
+  // Return array sorted by academic year ascending
+  return Object.values(grouped).sort((a: any, b: any) => a.academicYear.localeCompare(b.academicYear));
 };
 
 // SPMB Settings API (Local Storage Mock)

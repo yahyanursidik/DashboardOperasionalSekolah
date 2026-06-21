@@ -2,8 +2,8 @@ import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { Users, FileCheck, XCircle, TrendingUp } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { getDashboardStats } from "../mock";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
+import { getDashboardStats, mockApplicants } from "../mock";
 
 export const AdmissionsDashboard: React.FC = () => {
   const statsData = getDashboardStats();
@@ -22,15 +22,33 @@ export const AdmissionsDashboard: React.FC = () => {
     { label: "Ditolak", value: statsData.rejected, icon: XCircle, color: "text-rose-600 bg-rose-100" },
   ];
 
+  const unitData = [
+    { name: 'PAUD/TK', value: mockApplicants.filter(a => a.unit === 'PAUD/TK').length },
+    { name: 'SD', value: mockApplicants.filter(a => a.unit === 'SD').length },
+    { name: 'SMP', value: mockApplicants.filter(a => a.unit === 'SMP').length },
+    { name: 'SMA', value: mockApplicants.filter(a => a.unit === 'SMA').length },
+  ].filter(d => d.value > 0);
+  
+  const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'];
+  const recentApplicants = [...mockApplicants].sort((a, b) => new Date(b.registrationDate).getTime() - new Date(a.registrationDate).getTime()).slice(0, 5);
+
   return (
     <div className="space-y-6">
       <PageHeader 
         title="Dashboard SPMB" 
         description="Pantau statistik dan corong (funnel) Seleksi Penerimaan Murid Baru."
         action={
-          <Link to="/admissions/applicants" className="bg-primary text-primary-foreground px-4 py-2 rounded-lg font-medium hover:bg-primary/90 transition-colors">
-            Kelola Pendaftar
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link to="/admissions/settings" className="px-4 py-2 border rounded-lg font-medium text-sm hover:bg-muted transition-colors">
+              Pengaturan
+            </Link>
+            <Link to="/admissions/reports" className="px-4 py-2 border rounded-lg font-medium text-sm hover:bg-muted transition-colors">
+              Laporan
+            </Link>
+            <Link to="/admissions/applicants" className="bg-primary text-primary-foreground px-4 py-2 rounded-lg font-medium text-sm hover:bg-primary/90 transition-colors shadow-sm">
+              Kelola Pendaftar
+            </Link>
+          </div>
         }
       />
 
@@ -53,18 +71,94 @@ export const AdmissionsDashboard: React.FC = () => {
 
 
 
-      <div className="bg-card border rounded-2xl p-6 shadow-sm mt-6">
-        <h3 className="text-lg font-bold mb-6">Funnel Pendaftaran</h3>
-        <div className="h-[300px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={funnelData} layout="vertical" margin={{ top: 0, right: 20, left: 40, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#e5e7eb" />
-              <XAxis type="number" />
-              <YAxis dataKey="name" type="category" width={100} tick={{ fontSize: 12, fill: '#374151' }} />
-              <Tooltip cursor={{ fill: '#f3f4f6' }} contentStyle={{ borderRadius: '8px' }} />
-              <Bar dataKey="jumlah" fill="#14b8a6" radius={[0, 4, 4, 0]} barSize={32} />
-            </BarChart>
-          </ResponsiveContainer>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+        <div className="bg-card border rounded-2xl p-6 shadow-sm">
+          <h3 className="text-lg font-bold mb-6">Funnel Pendaftaran</h3>
+          <div className="h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={funnelData} layout="vertical" margin={{ top: 0, right: 20, left: 40, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#e5e7eb" />
+                <XAxis type="number" />
+                <YAxis dataKey="name" type="category" width={110} tick={{ fontSize: 12, fill: '#374151' }} />
+                <Tooltip cursor={{ fill: '#f3f4f6' }} contentStyle={{ borderRadius: '8px' }} />
+                <Bar dataKey="jumlah" fill="#14b8a6" radius={[0, 4, 4, 0]} barSize={32} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="bg-card border rounded-2xl p-6 shadow-sm">
+          <h3 className="text-lg font-bold mb-6">Distribusi Pendaftar per Unit</h3>
+          <div className="h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={unitData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={80}
+                  outerRadius={110}
+                  paddingAngle={5}
+                  dataKey="value"
+                >
+                  {unitData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip contentStyle={{ borderRadius: '8px' }} />
+                <Legend verticalAlign="bottom" height={36} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+
+      {/* Pendaftar Terbaru */}
+      <div className="bg-card border rounded-2xl shadow-sm overflow-hidden mt-6">
+        <div className="p-5 border-b flex justify-between items-center bg-muted/10">
+          <div>
+            <h3 className="text-lg font-bold">Pendaftar Terbaru</h3>
+            <p className="text-sm text-muted-foreground mt-1">Calon siswa yang baru saja mendaftar.</p>
+          </div>
+          <Link to="/admissions/applicants" className="text-sm font-semibold text-primary hover:underline">
+            Lihat Semua
+          </Link>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm text-left">
+            <thead className="bg-muted/30 text-muted-foreground text-xs uppercase font-medium">
+              <tr>
+                <th className="px-6 py-4">Nama Pendaftar</th>
+                <th className="px-6 py-4">Unit Tujuan</th>
+                <th className="px-6 py-4">Tanggal Daftar</th>
+                <th className="px-6 py-4">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {recentApplicants.map((app) => (
+                <tr key={app.id} className="hover:bg-muted/20 transition-colors">
+                  <td className="px-6 py-4">
+                    <Link to={`/admissions/applicants/${app.id}`} className="font-semibold text-primary hover:underline">
+                      {app.name}
+                    </Link>
+                    <div className="text-xs text-muted-foreground">{app.id}</div>
+                  </td>
+                  <td className="px-6 py-4 font-medium">{app.unit}</td>
+                  <td className="px-6 py-4">{app.registrationDate}</td>
+                  <td className="px-6 py-4">
+                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider
+                      ${app.status === 'Lulus Tes' ? 'bg-emerald-100 text-emerald-700' : 
+                        app.status === 'Verifikasi Valid' ? 'bg-blue-100 text-blue-700' : 
+                        app.status === 'Berkas Lengkap' ? 'bg-purple-100 text-purple-700' : 
+                        app.status === 'Ditolak' ? 'bg-rose-100 text-rose-700' :
+                        'bg-amber-100 text-amber-700'}`}>
+                      {app.status}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
