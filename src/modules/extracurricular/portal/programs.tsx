@@ -32,7 +32,7 @@ export const ExtracurricularPortalPrograms: React.FC = () => {
   const { data: myMemberships, isLoading: loadingMemberships, refetch: refetchMemberships } = useList({
     resource: "extracurricular_members",
     filters: [
-      { field: "external_student_id", operator: "eq", value: externalProfile?.id }
+      { field: "external_student_id", operator: "eq", value: externalProfile?.id || "" }
     ],
     queryOptions: { enabled: !!externalProfile?.id }
   });

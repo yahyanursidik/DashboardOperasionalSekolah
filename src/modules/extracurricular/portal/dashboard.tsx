@@ -25,7 +25,7 @@ export const ExtracurricularPortalDashboard: React.FC = () => {
       select: "*, extracurriculars(name, schedule, coach_name)"
     },
     filters: [
-      { field: "external_student_id", operator: "eq", value: externalProfile?.id }
+      { field: "external_student_id", operator: "eq", value: externalProfile?.id || "" }
     ],
     queryOptions: { enabled: !!externalProfile?.id }
   });
@@ -33,7 +33,7 @@ export const ExtracurricularPortalDashboard: React.FC = () => {
   const { data: invoicesData, isLoading: loadingInvoices } = useList({
     resource: "student_invoices",
     filters: [
-      { field: "external_student_id", operator: "eq", value: externalProfile?.id }
+      { field: "external_student_id", operator: "eq", value: externalProfile?.id || "" }
     ],
     queryOptions: { enabled: !!externalProfile?.id }
   });
