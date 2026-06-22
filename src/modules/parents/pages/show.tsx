@@ -234,7 +234,7 @@ export const ParentShow: React.FC = () => {
             </a>
           )}
           <button
-            onClick={() => setDeleteConfirmId(record.id)}
+            onClick={() => setDeleteConfirmId(record?.id as string)}
             className="flex items-center justify-center gap-2 bg-red-50 text-red-600 border border-red-200 px-5 py-2.5 rounded-lg hover:bg-red-100 transition-colors shadow-sm font-medium text-sm"
           >
             <Trash2 className="w-4 h-4" /> Hapus Profil
