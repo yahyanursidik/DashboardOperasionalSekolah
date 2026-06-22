@@ -46,6 +46,7 @@ export const MembersList: React.FC = () => {
   };
 
   const filteredData = data?.data?.filter((item: any) => {
+    if (!searchTerm) return true;
     const studentName = item.student_id ? item.students?.full_name : item.external_students?.full_name;
     return studentName?.toLowerCase().includes(searchTerm.toLowerCase());
   }) || [];
