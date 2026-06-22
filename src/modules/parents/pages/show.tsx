@@ -1,11 +1,51 @@
 import React from "react";
-import { useShow, useList } from "@refinedev/core";
+import { useShow, useList, useDelete } from "@refinedev/core";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { 
   User, Edit, ArrowLeft, Phone, Mail, MapPin, GraduationCap, 
-  Users, Briefcase, CreditCard, BookOpen, Heart, Map, ExternalLink
+  Users, Briefcase, CreditCard, BookOpen, Heart, Map, ExternalLink, Trash2, Loader2, AlertTriangle
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
+import { toast } from "sonner";
+
+// ─── Modal Konfirmasi Lokal ──────────────────────────────────────────────────
+const ConfirmModal = ({ isOpen, onClose, onConfirm, isDeleting }: any) => {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
+      <div className="bg-card w-full max-w-sm rounded-xl shadow-xl border overflow-hidden animate-in zoom-in-95 duration-200">
+        <div className="p-6 space-y-6 text-center">
+          <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto">
+            <AlertTriangle className="w-8 h-8" />
+          </div>
+          <div>
+            <h4 className="text-lg font-bold text-foreground mb-2">Hapus Profil Orang Tua?</h4>
+            <p className="text-sm text-muted-foreground">
+              Tindakan ini tidak dapat dibatalkan. Menghapus data ini mungkin akan berdampak pada tautan data siswa yang terhubung.
+            </p>
+          </div>
+          <div className="flex gap-3 pt-4">
+            <button 
+              onClick={onClose}
+              disabled={isDeleting}
+              className="flex-1 px-4 py-2 bg-muted text-foreground hover:bg-muted/80 rounded-md font-semibold transition-colors"
+            >
+              Batal
+            </button>
+            <button 
+              onClick={onConfirm}
+              disabled={isDeleting}
+              className="flex-1 px-4 py-2 bg-red-600 text-white hover:bg-red-700 rounded-md font-semibold transition-colors flex items-center justify-center gap-2"
+            >
+              {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+              {isDeleting ? "Menghapus..." : "Hapus"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 const formatWhatsAppNumber = (phone: string) => {
@@ -57,6 +97,27 @@ export const ParentShow: React.FC = () => {
 
   const record = data?.data;
   const avatarColor = getAvatarColor(record?.full_name ?? "");
+
+  // Delete State
+  const { mutate: deleteParent } = useDelete();
+  const [deleteConfirmId, setDeleteConfirmId] = React.useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = React.useState(false);
+
+  const handleDelete = () => {
+    if (!record?.id) return;
+    setIsDeleting(true);
+    deleteParent(
+      { resource: "parents", id: record.id },
+      {
+        onSuccess: () => {
+          toast.success("Data orang tua berhasil dihapus");
+          navigate("/parents");
+        },
+        onError: () => toast.error("Gagal menghapus data orang tua"),
+        onSettled: () => setIsDeleting(false)
+      }
+    );
+  };
 
   // Fetch linked children
   const { data: childrenData, isLoading: childrenLoading } = useList({
@@ -172,6 +233,12 @@ export const ParentShow: React.FC = () => {
               <Mail className="w-4 h-4" /> Email
             </a>
           )}
+          <button
+            onClick={() => setDeleteConfirmId(record.id)}
+            className="flex items-center justify-center gap-2 bg-red-50 text-red-600 border border-red-200 px-5 py-2.5 rounded-lg hover:bg-red-100 transition-colors shadow-sm font-medium text-sm"
+          >
+            <Trash2 className="w-4 h-4" /> Hapus Profil
+          </button>
           <Link
             to={`/parents/edit/${record.id}`}
             className="flex items-center justify-center gap-2 bg-primary text-primary-foreground px-5 py-2.5 rounded-lg hover:bg-primary/90 transition-colors shadow-sm font-medium text-sm"
@@ -323,6 +390,14 @@ export const ParentShow: React.FC = () => {
 
         </div>
       </div>
+
+      {/* ── Confirm Delete Modal ── */}
+      <ConfirmModal 
+        isOpen={!!deleteConfirmId}
+        onClose={() => setDeleteConfirmId(null)}
+        onConfirm={handleDelete}
+        isDeleting={isDeleting}
+      />
     </div>
   );
 };

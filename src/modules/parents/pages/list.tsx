@@ -3,16 +3,55 @@ import { useTable } from "@refinedev/react-table";
 import { flexRender } from "@tanstack/react-table";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useNavigate, Link } from "react-router-dom";
-import { useList } from "@refinedev/core";
+import { useList, useDelete } from "@refinedev/core";
 import {
   Eye, Edit, Plus, Search, Users, Phone, LayoutGrid, LayoutList,
-  UploadCloud, Download, FileSpreadsheet, UserCheck, Shield, Mail, Briefcase, UserX
+  UploadCloud, Download, FileSpreadsheet, UserCheck, Shield, Mail, Briefcase, UserX, Trash2, Loader2, AlertTriangle
 } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import Papa from "papaparse";
 import { supabaseClient } from "../../../lib/supabase/client";
 import { toast } from "sonner";
 import { Modal } from "../../../components/common/Modal";
+
+// ─── Modal Konfirmasi Lokal ──────────────────────────────────────────────────
+const ConfirmModal = ({ isOpen, onClose, onConfirm, isDeleting }: any) => {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
+      <div className="bg-card w-full max-w-sm rounded-xl shadow-xl border overflow-hidden animate-in zoom-in-95 duration-200">
+        <div className="p-6 space-y-6 text-center">
+          <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto">
+            <AlertTriangle className="w-8 h-8" />
+          </div>
+          <div>
+            <h4 className="text-lg font-bold text-foreground mb-2">Hapus Data Orang Tua?</h4>
+            <p className="text-sm text-muted-foreground">
+              Tindakan ini tidak dapat dibatalkan. Menghapus data ini mungkin akan berdampak pada tautan data siswa yang terhubung.
+            </p>
+          </div>
+          <div className="flex gap-3 pt-4">
+            <button 
+              onClick={onClose}
+              disabled={isDeleting}
+              className="flex-1 px-4 py-2 bg-muted text-foreground hover:bg-muted/80 rounded-md font-semibold transition-colors"
+            >
+              Batal
+            </button>
+            <button 
+              onClick={onConfirm}
+              disabled={isDeleting}
+              className="flex-1 px-4 py-2 bg-red-600 text-white hover:bg-red-700 rounded-md font-semibold transition-colors flex items-center justify-center gap-2"
+            >
+              {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+              {isDeleting ? "Menghapus..." : "Hapus"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 const formatWhatsAppNumber = (phone: string) => {
@@ -58,7 +97,7 @@ function StatCard({ icon: Icon, label, value, color }: { icon: any; label: strin
   );
 }
 
-function ParentCard({ parent, onClick, onEdit }: { parent: any; onClick: () => void; onEdit: () => void }) {
+function ParentCard({ parent, onClick, onEdit, onDelete }: { parent: any; onClick: () => void; onEdit: () => void; onDelete: () => void }) {
   const avatarColor = getAvatarColor(parent.full_name ?? "?");
   const waNumber = formatWhatsAppNumber(parent.phone);
 
@@ -109,11 +148,14 @@ function ParentCard({ parent, onClick, onEdit }: { parent: any; onClick: () => v
       </div>
 
       <div className="flex gap-2 pt-2 border-t mt-auto">
-        <button onClick={(e) => { e.stopPropagation(); onClick(); }} className="flex-1 flex items-center justify-center gap-1 text-xs font-medium text-primary hover:bg-primary/10 py-1.5 rounded-md transition-colors">
+        <button onClick={(e) => { e.stopPropagation(); onClick(); }} className="flex-1 flex items-center justify-center gap-1 text-xs font-medium text-primary hover:bg-primary/10 py-1.5 rounded-md transition-colors" title="Lihat Detail">
           <Eye className="w-3.5 h-3.5" /> Detail
         </button>
-        <button onClick={(e) => { e.stopPropagation(); onEdit(); }} className="flex-1 flex items-center justify-center gap-1 text-xs font-medium text-muted-foreground hover:bg-muted py-1.5 rounded-md transition-colors">
+        <button onClick={(e) => { e.stopPropagation(); onEdit(); }} className="flex-1 flex items-center justify-center gap-1 text-xs font-medium text-muted-foreground hover:bg-muted py-1.5 rounded-md transition-colors" title="Edit Data">
           <Edit className="w-3.5 h-3.5" /> Edit
+        </button>
+        <button onClick={(e) => { e.stopPropagation(); onDelete(); }} className="flex-1 flex items-center justify-center gap-1 text-xs font-medium text-red-600 hover:bg-red-50 py-1.5 rounded-md transition-colors" title="Hapus Data">
+          <Trash2 className="w-3.5 h-3.5" /> Hapus
         </button>
       </div>
     </div>
@@ -126,6 +168,11 @@ export const ParentsList: React.FC = () => {
   const [q, setQ] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<"table" | "card">("table");
+
+  // Delete State
+  const { mutate: deleteParent } = useDelete();
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Mass Upload State
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
@@ -152,6 +199,22 @@ export const ParentsList: React.FC = () => {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setSearchQuery(q);
+  };
+
+  const handleDelete = () => {
+    if (!deleteConfirmId) return;
+    setIsDeleting(true);
+    deleteParent(
+      { resource: "parents", id: deleteConfirmId },
+      {
+        onSuccess: () => {
+          toast.success("Data orang tua berhasil dihapus");
+          setDeleteConfirmId(null);
+        },
+        onError: () => toast.error("Gagal menghapus data orang tua"),
+        onSettled: () => setIsDeleting(false)
+      }
+    );
   };
 
   const columns = React.useMemo<ColumnDef<any>[]>(
@@ -260,6 +323,13 @@ export const ParentsList: React.FC = () => {
                 title="Ubah Data"
               >
                 <Edit className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setDeleteConfirmId(getValue() as string)}
+                className="p-1.5 text-muted-foreground hover:text-red-600 transition-colors rounded-md hover:bg-red-50"
+                title="Hapus Data"
+              >
+                <Trash2 className="w-4 h-4" />
               </button>
             </div>
           );
@@ -467,6 +537,7 @@ export const ParentsList: React.FC = () => {
                 parent={row.original}
                 onClick={() => navigate(`/parents/show/${row.original.id}`)}
                 onEdit={() => navigate(`/parents/edit/${row.original.id}`)}
+                onDelete={() => setDeleteConfirmId(row.original.id)}
               />
             ))}
           </div>
@@ -602,6 +673,14 @@ export const ParentsList: React.FC = () => {
           </div>
         </div>
       </Modal>
+
+      {/* ── Confirm Delete Modal ── */}
+      <ConfirmModal 
+        isOpen={!!deleteConfirmId}
+        onClose={() => setDeleteConfirmId(null)}
+        onConfirm={handleDelete}
+        isDeleting={isDeleting}
+      />
     </div>
   );
 };

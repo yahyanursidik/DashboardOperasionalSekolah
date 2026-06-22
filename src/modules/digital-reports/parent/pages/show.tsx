@@ -141,7 +141,7 @@ export const ParentReportShow: React.FC = () => {
         <AlertCircle className="w-12 h-12 mx-auto mb-4 text-red-500" />
         <h2 className="text-xl font-bold mb-2">Akses Ditolak</h2>
         <p>Anda tidak memiliki akses untuk melihat rapor ini.</p>
-        <button onClick={() => navigate("/parent/reports")} className="mt-6 px-4 py-2 bg-red-100 hover:bg-red-200 text-red-800 font-semibold rounded-md">Kembali ke Daftar Rapor</button>
+        <button onClick={() => navigate("/portal/reports")} className="mt-6 px-4 py-2 bg-red-100 hover:bg-red-200 text-red-800 font-semibold rounded-md">Kembali ke Daftar Rapor</button>
       </div>
     );
   }
@@ -152,7 +152,7 @@ export const ParentReportShow: React.FC = () => {
         <Clock className="w-12 h-12 mx-auto mb-4 text-amber-500" />
         <h2 className="text-xl font-bold mb-2">Rapor Belum Tersedia</h2>
         <p>Rapor ini sedang diproses atau belum waktunya diterbitkan oleh sekolah.</p>
-        <button onClick={() => navigate("/parent/reports")} className="mt-6 px-4 py-2 bg-amber-100 hover:bg-amber-200 text-amber-900 font-semibold rounded-md">Kembali</button>
+        <button onClick={() => navigate("/portal/reports")} className="mt-6 px-4 py-2 bg-amber-100 hover:bg-amber-200 text-amber-900 font-semibold rounded-md">Kembali</button>
       </div>
     );
   }
@@ -169,11 +169,11 @@ export const ParentReportShow: React.FC = () => {
 
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 pb-24">
+    <div className="p-4 space-y-6 pb-24">
       
       {/* Navigation */}
       <button 
-        onClick={() => navigate("/parent/reports")} 
+        onClick={() => navigate("/portal/reports")} 
         className="inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors"
       >
         <ArrowLeft className="w-4 h-4" /> Kembali ke Daftar Rapor
@@ -183,7 +183,7 @@ export const ParentReportShow: React.FC = () => {
       <div className="bg-card rounded-2xl shadow-sm border overflow-hidden">
         
         {/* Cover / Header Section */}
-        <div className="bg-primary/5 p-8 border-b text-center relative overflow-hidden">
+        <div className="bg-primary/5 p-6 border-b text-center relative overflow-hidden">
           <div className="absolute top-0 right-0 p-8 opacity-5">
             <Award className="w-64 h-64" />
           </div>
@@ -193,9 +193,9 @@ export const ParentReportShow: React.FC = () => {
               Laporan ini disusun sebagai ikhtiar sekolah dan orang tua dalam membersamai perkembangan ananda. Semoga Allah mudahkan proses tumbuh dan belajarnya.
             </p>
             
-            <div className="bg-background rounded-xl p-6 shadow-sm border max-w-2xl mx-auto text-left flex items-center gap-6">
-              <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center shrink-0">
-                <User className="w-8 h-8 text-primary" />
+            <div className="bg-background rounded-xl p-4 md:p-6 shadow-sm border max-w-2xl mx-auto text-left flex items-center gap-4">
+              <div className="w-12 h-12 md:w-16 md:h-16 bg-primary/10 rounded-full flex items-center justify-center shrink-0">
+                <User className="w-6 h-6 md:w-8 md:h-8 text-primary" />
               </div>
               <div className="flex-1">
                 <h2 className="text-2xl font-bold text-foreground">{reportData.students?.full_name}</h2>
@@ -214,7 +214,7 @@ export const ParentReportShow: React.FC = () => {
         </div>
 
         {/* Content Body */}
-        <div className="p-8 space-y-10">
+        <div className="p-4 md:p-8 space-y-8">
           
           {/* Loop Assessment Sections */}
           {sortedSections.map((section: any) => {
@@ -300,7 +300,7 @@ export const ParentReportShow: React.FC = () => {
         </div>
 
         {/* Footer / Acknowledgment */}
-        <div className="bg-muted/20 p-8 border-t text-center">
+        <div className="bg-muted/20 p-5 md:p-8 border-t text-center">
           {hasRead ? (
             <div className="inline-flex flex-col items-center">
               <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mb-3">

@@ -1,21 +1,51 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, LineChart, Line } from "recharts";
-import { getSpmbReports } from "../mock";
-import { Users, UserCheck, UserX, TrendingUp, Download } from "lucide-react";
+import { Users, UserCheck, UserX, TrendingUp, Download, Loader2, Link as LinkIcon, BarChart3 } from "lucide-react";
+import { useList } from "@refinedev/core";
+import { Link } from "react-router-dom";
 
 export const AdmissionsReports: React.FC = () => {
-  const reports = getSpmbReports();
+  const { data: tableData, isLoading } = useList({
+    resource: "admissions_applicants",
+    pagination: { mode: "off" }
+  });
+
+  const reports = useMemo(() => {
+    const rawData = tableData?.data || [];
+    if (rawData.length === 0) return [];
+
+    const grouped: Record<string, any> = {};
+
+    rawData.forEach((app: any) => {
+      const year = app.academic_year || "Tanpa Tahun";
+      if (!grouped[year]) {
+        grouped[year] = { academicYear: year, totalApplicants: 0, accepted: 0, rejected: 0, processing: 0 };
+      }
+      
+      grouped[year].totalApplicants += 1;
+      
+      if (app.status === 'Lulus Tes') {
+        grouped[year].accepted += 1;
+      } else if (app.status === 'Ditolak') {
+        grouped[year].rejected += 1;
+      } else {
+        grouped[year].processing += 1; // Termasuk Menunggu Verifikasi, Berkas Lengkap, dll
+      }
+    });
+
+    return Object.values(grouped).sort((a: any, b: any) => a.academicYear.localeCompare(b.academicYear));
+  }, [tableData?.data]);
   
   // Calculate aggregate metrics
-  const totalHistorically = reports.reduce((acc, curr) => acc + curr.totalApplicants, 0);
-  const totalAcceptedHistorically = reports.reduce((acc, curr) => acc + curr.accepted, 0);
-  const totalRejectedHistorically = reports.reduce((acc, curr) => acc + curr.rejected, 0);
+  const totalHistorically = reports.reduce((acc: number, curr: any) => acc + curr.totalApplicants, 0);
+  const totalAcceptedHistorically = reports.reduce((acc: number, curr: any) => acc + curr.accepted, 0);
+  const totalRejectedHistorically = reports.reduce((acc: number, curr: any) => acc + curr.rejected, 0);
   
-  const latestYear = reports[reports.length - 1];
-  const previousYear = reports[reports.length - 2];
+  const latestYear = reports.length > 0 ? reports[reports.length - 1] : null;
+  const previousYear = reports.length > 1 ? reports[reports.length - 2] : null;
   
-  const growthRate = previousYear 
+  const growthRate = previousYear && previousYear.totalApplicants > 0
     ? ((latestYear.totalApplicants - previousYear.totalApplicants) / previousYear.totalApplicants * 100).toFixed(1)
     : 0;
 
@@ -23,16 +53,54 @@ export const AdmissionsReports: React.FC = () => {
     ? ((totalAcceptedHistorically / totalHistorically) * 100).toFixed(1) 
     : "0.0";
 
+  if (isLoading) {
+    return (
+      <div className="flex flex-col justify-center items-center py-32 text-muted-foreground gap-4">
+        <Loader2 className="w-10 h-10 animate-spin text-primary" />
+        <p className="font-medium">Memuat dan menghitung data historis...</p>
+      </div>
+    );
+  }
+
+  if (reports.length === 0) {
+    return (
+      <div className="space-y-6">
+        <PageHeader 
+          title="Laporan Historis SPMB" 
+          description="Analisis performa penerimaan siswa baru dari tahun ke tahun."
+        />
+        <div className="bg-card border rounded-2xl flex flex-col items-center justify-center p-24 text-center">
+          <div className="w-20 h-20 bg-muted/50 rounded-full flex items-center justify-center mb-6">
+            <BarChart3 className="w-10 h-10 text-muted-foreground" />
+          </div>
+          <h2 className="text-2xl font-bold text-foreground mb-2">Belum Ada Data Historis</h2>
+          <p className="text-muted-foreground max-w-md mx-auto mb-8">
+            Laporan tidak dapat ditampilkan karena belum ada pendaftar sama sekali di dalam database SPMB.
+          </p>
+          <Link to="/admissions/applicants" className="bg-primary text-primary-foreground px-6 py-3 rounded-lg font-bold shadow-sm hover:bg-primary/90 transition-colors inline-flex items-center gap-2">
+            Lihat Daftar Pendaftar
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader 
         title="Laporan Historis SPMB" 
         description="Analisis performa penerimaan siswa baru dari tahun ke tahun."
         action={
-          <button className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg font-medium text-sm hover:bg-primary/90 transition-colors shadow-sm">
-            <Download className="w-4 h-4" />
-            <span>Ekspor Laporan</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <Link to="/admissions" className="flex items-center gap-2 bg-muted text-foreground border px-4 py-2 rounded-lg font-medium text-sm hover:bg-muted/80 transition-colors shadow-sm">
+              <LinkIcon className="w-4 h-4" />
+              <span>Kembali ke Dashboard</span>
+            </Link>
+            <button className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg font-medium text-sm hover:bg-primary/90 transition-colors shadow-sm cursor-not-allowed opacity-80" title="Sedang Dalam Pengembangan">
+              <Download className="w-4 h-4" />
+              <span>Ekspor Laporan</span>
+            </button>
+          </div>
         }
       />
 
@@ -102,6 +170,7 @@ export const AdmissionsReports: React.FC = () => {
                 />
                 <Legend />
                 <Bar dataKey="accepted" name="Diterima" fill="#10b981" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="processing" name="Proses" fill="#f59e0b" radius={[4, 4, 0, 0]} />
                 <Bar dataKey="rejected" name="Ditolak" fill="#f43f5e" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -156,6 +225,7 @@ export const AdmissionsReports: React.FC = () => {
                 <th className="px-6 py-4">Tahun Akademik</th>
                 <th className="px-6 py-4 text-right">Total Pendaftar</th>
                 <th className="px-6 py-4 text-right">Diterima</th>
+                <th className="px-6 py-4 text-right">Dalam Proses</th>
                 <th className="px-6 py-4 text-right">Ditolak</th>
                 <th className="px-6 py-4 text-right">Tingkat Kelulusan</th>
                 <th className="px-6 py-4 text-right">Pertumbuhan</th>
@@ -174,6 +244,7 @@ export const AdmissionsReports: React.FC = () => {
                     <td className="px-6 py-4 font-semibold">{row.academicYear}</td>
                     <td className="px-6 py-4 text-right font-medium">{row.totalApplicants}</td>
                     <td className="px-6 py-4 text-right text-emerald-600 font-medium">{row.accepted}</td>
+                    <td className="px-6 py-4 text-right text-amber-600 font-medium">{row.processing}</td>
                     <td className="px-6 py-4 text-right text-rose-600 font-medium">{row.rejected}</td>
                     <td className="px-6 py-4 text-right">
                       <span className="inline-flex items-center px-2 py-1 rounded bg-blue-50 text-blue-700 text-xs font-bold">

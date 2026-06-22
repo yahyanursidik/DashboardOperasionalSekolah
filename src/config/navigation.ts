@@ -189,17 +189,6 @@ export const navigationConfig: NavigationGroup[] = [
     ],
   },
   {
-    name: "Portal Orang Tua",
-    items: [
-      {
-        title: "Rapor",
-        href: "/parent/reports",
-        icon: FileText,
-        resource: "student_parent_links", // Parents only
-      },
-    ],
-  },
-  {
     name: "Master Data",
     items: [
       {

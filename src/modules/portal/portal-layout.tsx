@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Outlet, useNavigate, useLocation, Link } from "react-router-dom";
 import { supabaseClient } from "../../lib/supabase/client";
-import { Home, Wallet, BookOpen, Clock, LogOut, Smile, ClipboardList, Bell, Target } from "lucide-react";
+import { Home, Wallet, BookOpen, Clock, LogOut, Smile, ClipboardList, Bell, Target, FileText } from "lucide-react";
 import { useSystemSettings } from "../../app/providers/SettingsProvider";
 
 export const PortalLayout: React.FC = () => {
@@ -65,6 +65,7 @@ export const PortalLayout: React.FC = () => {
   const navItems = [
     { name: "Beranda", path: "/portal", icon: Home },
     { name: "Akademik", path: "/portal/academic", icon: BookOpen },
+    { name: "e-Rapor", path: "/portal/reports", icon: FileText },
     { name: "Ekskul", path: "/portal/extracurricular", icon: Target },
     { name: "PAUD", path: "/portal/paud", icon: Smile },
     { name: "Qur'an", path: "/portal/quran", icon: BookOpen },

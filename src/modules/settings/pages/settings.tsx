@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useGetIdentity, useUpdate, useList, useCreate, useDelete } from "@refinedev/core";
 import { PageHeader } from "../../../components/layout/PageHeader";
-import { User, Users, Bell, Shield, Moon, Sun, Monitor, Palette, Check, Save, Type, Image as ImageIcon, Globe } from "lucide-react";
+import { User, Users, Bell, Shield, Moon, Sun, Monitor, Palette, Check, Save, Type, Image as ImageIcon, Globe, Search, Filter, Trash2, Edit2, SearchX, Loader2, UserPlus, AlertTriangle, ChevronLeft, ChevronRight } from "lucide-react";
 import { useTheme } from "../../../app/providers/ThemeProvider";
 import { useSystemSettings } from "../../../app/providers/SettingsProvider";
 import { supabaseClient } from "../../../lib/supabase/client";
@@ -617,13 +617,14 @@ const SettingsModal: React.FC<{ isOpen: boolean; onClose: () => void; title: str
 };
 
 const UsersTab: React.FC = () => {
-  const { data: userRolesData, isLoading } = useList({ 
+  const { data: userRolesData, isLoading, refetch } = useList({ 
     resource: "user_roles", 
-    meta: { select: "*, profiles(id, full_name), roles(id, name), units(id, name)" } 
+    meta: { select: "*, profiles(id, full_name), roles(id, name), units(id, name)" },
+    pagination: { mode: "off" }
   });
-  const { data: profilesData } = useList({ resource: "profiles" });
-  const { data: rolesData } = useList({ resource: "roles" });
-  const { data: unitsData } = useList({ resource: "units" });
+  const { data: profilesData } = useList({ resource: "profiles", pagination: { mode: "off" } });
+  const { data: rolesData } = useList({ resource: "roles", pagination: { mode: "off" } });
+  const { data: unitsData } = useList({ resource: "units", pagination: { mode: "off" } });
 
   const { mutate: createRole } = useCreate();
   const { mutate: updateRole } = useUpdate();
@@ -631,12 +632,24 @@ const UsersTab: React.FC = () => {
 
   const [modalMode, setModalMode] = useState<"create" | "create_user" | "edit" | null>(null);
   const [editId, setEditId] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [formData, setFormData] = useState({ user_id: "", role_id: "", unit_id: "" });
   const [newUserFormData, setNewUserFormData] = useState({ email: "", password: "", fullName: "", role_id: "", unit_id: "" });
-  const [isCreatingUser, setIsCreatingUser] = useState(false);
+  
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterRole, setFilterRole] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
+
+  // Reset ke halaman 1 ketika pencarian berubah
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterRole]);
 
   const handleSave = () => {
     if (!formData.user_id || !formData.role_id) return;
+    setIsSubmitting(true);
     
     if (modalMode === "edit" && editId) {
       updateRole({
@@ -646,7 +659,15 @@ const UsersTab: React.FC = () => {
           role_id: formData.role_id, 
           unit_id: formData.unit_id || null 
         }
-      }, { onSuccess: () => { setModalMode(null); setEditId(null); } });
+      }, { 
+        onSuccess: () => { 
+          toast.success("Hak akses berhasil diperbarui");
+          setModalMode(null); 
+          setEditId(null); 
+        },
+        onError: (err) => toast.error(err.message || "Gagal memperbarui hak akses"),
+        onSettled: () => setIsSubmitting(false)
+      });
     } else {
       createRole({
         resource: "user_roles",
@@ -655,14 +676,28 @@ const UsersTab: React.FC = () => {
           role_id: formData.role_id, 
           unit_id: formData.unit_id || null 
         }
-      }, { onSuccess: () => setModalMode(null) });
+      }, { 
+        onSuccess: () => {
+          toast.success("Hak akses berhasil ditetapkan");
+          setModalMode(null);
+        },
+        onError: (err) => toast.error(err.message || "Gagal menetapkan hak akses"),
+        onSettled: () => setIsSubmitting(false)
+      });
     }
   };
 
-  const handleRevoke = (id: string) => {
-    if (confirm("Apakah Anda yakin ingin menghapus hak akses ini?")) {
-      deleteRole({ resource: "user_roles", id });
-    }
+  const executeDelete = () => {
+    if (!deleteConfirmId) return;
+    setIsSubmitting(true);
+    deleteRole({ resource: "user_roles", id: deleteConfirmId }, {
+      onSuccess: () => {
+        toast.success("Hak akses berhasil dihapus");
+        setDeleteConfirmId(null);
+      },
+      onError: (err) => toast.error(err.message || "Gagal menghapus hak akses"),
+      onSettled: () => setIsSubmitting(false)
+    });
   };
 
   const handleEdit = (ur: any) => {
@@ -677,7 +712,7 @@ const UsersTab: React.FC = () => {
 
   const handleCreateUser = async () => {
     if (!newUserFormData.email || !newUserFormData.password || !newUserFormData.fullName || !newUserFormData.role_id) return;
-    setIsCreatingUser(true);
+    setIsSubmitting(true);
     try {
       const response = await fetch("/api/create-user", {
         method: "POST",
@@ -699,89 +734,193 @@ const UsersTab: React.FC = () => {
 
       toast.success("Akun baru berhasil dibuat!");
       setModalMode(null);
-      // Reset form
       setNewUserFormData({ email: "", password: "", fullName: "", role_id: "", unit_id: "" });
+      refetch();
     } catch (err: any) {
       toast.error(err.message || "Terjadi kesalahan saat membuat akun");
     } finally {
-      setIsCreatingUser(false);
+      setIsSubmitting(false);
     }
   };
 
+  // Client-side filtering
+  const filteredUsers = React.useMemo(() => {
+    if (!userRolesData?.data) return [];
+    return userRolesData.data.filter((ur: any) => {
+      const searchLower = searchTerm.toLowerCase();
+      const name = ur.profiles?.full_name?.toLowerCase() || '';
+      const email = ur.profiles?.email?.toLowerCase() || '';
+      
+      const matchSearch = searchTerm === "" ? true : (name.includes(searchLower) || email.includes(searchLower));
+      const matchRole = filterRole ? ur.role_id === filterRole : true;
+
+      return matchSearch && matchRole;
+    });
+  }, [userRolesData?.data, searchTerm, filterRole]);
+
+  const paginatedUsers = React.useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize;
+    return filteredUsers.slice(startIndex, startIndex + pageSize);
+  }, [filteredUsers, currentPage]);
+
+  const totalPages = Math.ceil(filteredUsers.length / pageSize);
+
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h3 className="text-lg font-bold">Manajemen Pengguna (RBAC)</h3>
           <p className="text-sm text-muted-foreground">Kelola hak akses dan peran (Role) untuk semua staf dan guru.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <button 
             onClick={() => setModalMode("create_user")}
-            className="bg-emerald-600 text-white px-4 py-2 rounded-md hover:bg-emerald-700 transition-colors shadow-sm font-medium text-sm"
+            className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-md hover:bg-emerald-700 transition-colors shadow-sm font-medium text-sm"
           >
-            + Buat Akun Baru
+            <UserPlus className="w-4 h-4" /> Buat Akun Baru
           </button>
           <button 
             onClick={() => setModalMode("create")}
-            className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition-colors shadow-sm font-medium text-sm"
+            className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition-colors shadow-sm font-medium text-sm"
           >
-            Tetapkan Hak Akses
+            <Shield className="w-4 h-4" /> Tetapkan Akses
           </button>
         </div>
       </div>
 
-      <div className="border rounded-xl overflow-hidden">
-        <table className="w-full text-sm text-left">
-          <thead className="bg-muted/50 text-muted-foreground text-xs uppercase font-medium border-b">
-            <tr>
-              <th className="px-6 py-4 whitespace-nowrap">Nama Pengguna</th>
-              <th className="px-6 py-4 whitespace-nowrap">Role (Peran)</th>
-              <th className="px-6 py-4 whitespace-nowrap">Unit / Cakupan</th>
-              <th className="px-6 py-4 whitespace-nowrap text-right">Aksi</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {isLoading ? (
-              <tr><td colSpan={4} className="px-6 py-8 text-center text-muted-foreground">Memuat data akses...</td></tr>
-            ) : userRolesData?.data?.length === 0 ? (
-              <tr><td colSpan={4} className="px-6 py-8 text-center text-muted-foreground">Belum ada hak akses yang ditetapkan.</td></tr>
-            ) : (
-              userRolesData?.data.map((ur: any) => (
-                <tr key={ur.id} className="hover:bg-muted/30 transition-colors">
-                  <td className="px-6 py-4">
-                    <div className="font-medium">{ur.profiles?.full_name || 'User Tidak Diketahui'}</div>
-                    <div className="text-xs text-muted-foreground">{ur.profiles?.email}</div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="px-2.5 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 rounded-full text-xs font-medium">
-                      {ur.roles?.name || 'Unknown'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-muted-foreground">
-                    {ur.units?.name || 'Global (Semua Unit)'}
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex items-center justify-end gap-3">
-                      <button 
-                        onClick={() => handleEdit(ur)}
-                        className="text-blue-600 hover:text-blue-700 hover:underline text-xs font-medium"
-                      >
-                        Edit
-                      </button>
-                      <button 
-                        onClick={() => handleRevoke(ur.id)}
-                        className="text-red-600 hover:text-red-700 hover:underline text-xs font-medium"
-                      >
-                        Hapus
-                      </button>
-                    </div>
+      <div className="bg-muted/20 p-4 border rounded-xl flex flex-col md:flex-row gap-4">
+        <div className="relative flex-1">
+          <Search className="w-4 h-4 absolute left-3 top-3 text-muted-foreground" />
+          <input 
+            type="text" 
+            placeholder="Cari nama atau email..."
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            className="w-full pl-9 pr-4 py-2 bg-background border rounded-lg text-sm focus:outline-none focus:border-primary"
+          />
+        </div>
+        <div className="relative md:w-64 shrink-0">
+          <Filter className="w-4 h-4 absolute left-3 top-3 text-muted-foreground" />
+          <select 
+            value={filterRole}
+            onChange={e => setFilterRole(e.target.value)}
+            className="w-full pl-9 pr-4 py-2 bg-background border rounded-lg text-sm focus:outline-none focus:border-primary appearance-none cursor-pointer"
+          >
+            <option value="">Semua Peran</option>
+            {rolesData?.data?.map((r: any) => <option key={r.id} value={r.id}>{r.name}</option>)}
+          </select>
+        </div>
+      </div>
+
+      <div className="border rounded-xl bg-card shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm text-left">
+            <thead className="bg-muted/50 text-muted-foreground text-xs uppercase font-medium border-b">
+              <tr>
+                <th className="px-6 py-4 whitespace-nowrap">Nama Pengguna</th>
+                <th className="px-6 py-4 whitespace-nowrap">Peran (Role)</th>
+                <th className="px-6 py-4 whitespace-nowrap">Cakupan Unit</th>
+                <th className="px-6 py-4 whitespace-nowrap text-right">Aksi</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {isLoading ? (
+                Array.from({ length: 3 }).map((_, i) => (
+                  <tr key={i}>
+                    <td className="px-6 py-4"><div className="h-10 bg-muted/50 rounded animate-pulse w-48"></div></td>
+                    <td className="px-6 py-4"><div className="h-6 bg-muted/50 rounded-full animate-pulse w-24"></div></td>
+                    <td className="px-6 py-4"><div className="h-6 bg-muted/50 rounded animate-pulse w-32"></div></td>
+                    <td className="px-6 py-4"><div className="h-8 bg-muted/50 rounded animate-pulse w-16 ml-auto"></div></td>
+                  </tr>
+                ))
+              ) : filteredUsers.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="px-6 py-16 text-center text-muted-foreground">
+                    <SearchX className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                    <p className="font-medium text-foreground">Tidak ada pengguna ditemukan</p>
+                    <p className="text-xs mt-1">Coba sesuaikan kata kunci atau filter pencarian.</p>
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : (
+                paginatedUsers.map((ur: any) => {
+                  const roleName = ur.roles?.name?.toLowerCase() || '';
+                  const roleColors = roleName.includes('admin') ? 'bg-red-100 text-red-800 border-red-200' 
+                                   : roleName.includes('principal') ? 'bg-purple-100 text-purple-800 border-purple-200'
+                                   : roleName.includes('teacher') ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                                   : 'bg-blue-100 text-blue-800 border-blue-200';
+                                   
+                  return (
+                    <tr key={ur.id} className="hover:bg-muted/30 transition-colors">
+                      <td className="px-6 py-4">
+                        <div className="font-semibold text-foreground">{ur.profiles?.full_name || 'User Tidak Diketahui'}</div>
+                        <div className="text-xs text-muted-foreground">{ur.profiles?.email}</div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`px-2.5 py-1 border rounded-full text-xs font-semibold ${roleColors}`}>
+                          {ur.roles?.name || 'Unknown'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        {ur.units?.name ? (
+                          <span className="px-2.5 py-1 bg-muted text-muted-foreground border rounded-md text-xs font-medium">
+                            {ur.units.name}
+                          </span>
+                        ) : (
+                          <span className="px-2.5 py-1 bg-slate-100 text-slate-600 border border-slate-200 rounded-md text-xs font-medium">
+                            Global (Semua Unit)
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button 
+                            onClick={() => handleEdit(ur)}
+                            className="p-1.5 text-blue-600 hover:bg-blue-50 hover:text-blue-700 rounded-md transition-colors"
+                            title="Edit Akses"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button 
+                            onClick={() => setDeleteConfirmId(ur.id)}
+                            className="p-1.5 text-red-600 hover:bg-red-50 hover:text-red-700 rounded-md transition-colors"
+                            title="Hapus Akses"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+        
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="bg-muted/10 border-t px-6 py-3 flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">
+              Menampilkan {((currentPage - 1) * pageSize) + 1} - {Math.min(currentPage * pageSize, filteredUsers.length)} dari {filteredUsers.length} pengguna
+            </span>
+            <div className="flex gap-1">
+              <button 
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="p-1 border rounded bg-background hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+              <button 
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="p-1 border rounded bg-background hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       <SettingsModal isOpen={modalMode === "create" || modalMode === "edit"} onClose={() => { setModalMode(null); setEditId(null); }} title={modalMode === "edit" ? "Edit Hak Akses" : "Tetapkan Hak Akses (Role)"}>
@@ -824,10 +963,11 @@ const UsersTab: React.FC = () => {
           </div>
           <button 
             onClick={handleSave} 
-            disabled={!formData.user_id || !formData.role_id}
+            disabled={!formData.user_id || !formData.role_id || isSubmitting}
             className="w-full flex justify-center items-center gap-2 bg-primary text-primary-foreground py-2.5 rounded-md hover:bg-primary/90 font-medium disabled:opacity-50"
           >
-            Simpan Penetapan Akses
+            {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+            {isSubmitting ? "Menyimpan..." : "Simpan Penetapan Akses"}
           </button>
         </div>
       </SettingsModal>
@@ -889,13 +1029,46 @@ const UsersTab: React.FC = () => {
           </div>
           <button 
             onClick={handleCreateUser} 
-            disabled={!newUserFormData.email || !newUserFormData.password || !newUserFormData.fullName || !newUserFormData.role_id || isCreatingUser}
+            disabled={!newUserFormData.email || !newUserFormData.password || !newUserFormData.fullName || !newUserFormData.role_id || isSubmitting}
             className="w-full flex justify-center items-center gap-2 bg-emerald-600 text-white py-2.5 rounded-md hover:bg-emerald-700 font-medium disabled:opacity-50"
           >
-            {isCreatingUser ? "Sedang Membuat Akun..." : "Buat Akun Sekarang"}
+            {isSubmitting && <Loader2 className="w-5 h-5 animate-spin" />}
+            {isSubmitting ? "Sedang Membuat Akun..." : "Buat Akun Sekarang"}
           </button>
         </div>
       </SettingsModal>
+
+      <SettingsModal isOpen={!!deleteConfirmId} onClose={() => setDeleteConfirmId(null)} title="Konfirmasi Hapus Akses">
+        <div className="space-y-6 text-center">
+          <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+            <AlertTriangle className="w-8 h-8" />
+          </div>
+          <div>
+            <h4 className="text-lg font-bold text-foreground mb-2">Hapus Hak Akses Pengguna?</h4>
+            <p className="text-sm text-muted-foreground px-4">
+              Pengguna ini tidak akan bisa lagi masuk atau mengakses fitur yang terkait dengan *role* ini. Apakah Anda yakin ingin melanjutkan?
+            </p>
+          </div>
+          <div className="flex gap-3 pt-4">
+            <button 
+              onClick={() => setDeleteConfirmId(null)}
+              className="flex-1 px-4 py-2 bg-muted text-foreground hover:bg-muted/80 rounded-md font-semibold transition-colors"
+              disabled={isSubmitting}
+            >
+              Batal
+            </button>
+            <button 
+              onClick={executeDelete}
+              className="flex-1 px-4 py-2 bg-red-600 text-white hover:bg-red-700 rounded-md font-semibold transition-colors flex items-center justify-center gap-2"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+              {isSubmitting ? "Menghapus..." : "Ya, Hapus"}
+            </button>
+          </div>
+        </div>
+      </SettingsModal>
+
     </div>
   );
 };

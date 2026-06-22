@@ -740,12 +740,6 @@ export default function App() {
                   <Route path="monitoring" element={<MonitoringDashboard />} />
                 </Route>
 
-                <Route path="/parent">
-                  <Route path="reports">
-                    <Route index element={<ParentReportList />} />
-                    <Route path=":id" element={<ParentReportShow />} />
-                  </Route>
-                </Route>
 
 
               <Route path="/calendar">
@@ -908,6 +902,10 @@ export default function App() {
                 <Route path="paud" element={<PortalPaud />} />
                 <Route path="journals" element={<PortalJournals />} />
                 <Route path="announcements" element={<PortalAnnouncements />} />
+                <Route path="reports">
+                  <Route index element={<ParentReportList />} />
+                  <Route path=":id" element={<ParentReportShow />} />
+                </Route>
               </Route>
 
               <Route path="/ekskul-portal/login" element={<ExtracurricularPortalLogin />} />

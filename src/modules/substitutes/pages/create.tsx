@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useCreate, useSelect } from "@refinedev/core";
 import { useNavigate } from "react-router-dom";
 import { PageHeader } from "../../../components/layout/PageHeader";
-import { ArrowLeft, Save, Calendar, Clock, MapPin, UserMinus, UserCheck, FileText } from "lucide-react";
+import { ArrowLeft, Save, Calendar, Clock, MapPin, UserMinus, UserCheck, FileText, Loader2 } from "lucide-react";
 import { useAcademicYear } from "../../../app/providers/AcademicYearProvider";
 import { useCurrentUnit } from "../../../app/providers/UnitProvider";
 import { toast } from "sonner";
@@ -182,7 +182,7 @@ export const SubstituteCreate: React.FC = () => {
               disabled={isSaving}
               className="flex items-center gap-2 bg-primary text-primary-foreground px-8 py-2.5 rounded-md hover:bg-primary/90 transition-colors shadow-sm font-medium text-sm disabled:opacity-70"
             >
-              <Save className="w-4 h-4" />
+              {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               {isSaving ? "Menyimpan..." : "Tugaskan Inval"}
             </button>
           </div>
