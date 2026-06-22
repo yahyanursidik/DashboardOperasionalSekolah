@@ -1,7 +1,7 @@
 import React from "react";
-import { Outlet, useNavigate, useLocation } from "react-router-dom";
+import { Outlet, useNavigate, useLocation, Link } from "react-router-dom";
 import { useGetIdentity, useLogout } from "@refinedev/core";
-import { Target, LogOut, Menu, User } from "lucide-react";
+import { Target, LogOut, Menu, User, LayoutDashboard, LayoutList } from "lucide-react";
 
 export const ExtracurricularPortalLayout: React.FC = () => {
   const { data: identity } = useGetIdentity<any>();
@@ -14,6 +14,8 @@ export const ExtracurricularPortalLayout: React.FC = () => {
   if (isAuthPage) {
     return <Outlet />;
   }
+
+  const isProgramsPage = location.pathname.includes('/ekskul-portal/programs');
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
@@ -45,6 +47,24 @@ export const ExtracurricularPortalLayout: React.FC = () => {
                 <LogOut className="w-5 h-5" />
               </button>
             </div>
+          </div>
+          
+          {/* Navigation Tabs */}
+          <div className="flex gap-6 mt-1 border-t pt-2">
+            <Link 
+              to="/ekskul-portal" 
+              className={`pb-3 px-1 text-sm font-medium flex items-center gap-2 border-b-2 transition-colors ${!isProgramsPage ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground hover:border-gray-300'}`}
+            >
+              <LayoutDashboard className="w-4 h-4" />
+              Dasbor Utama
+            </Link>
+            <Link 
+              to="/ekskul-portal/programs" 
+              className={`pb-3 px-1 text-sm font-medium flex items-center gap-2 border-b-2 transition-colors ${isProgramsPage ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground hover:border-gray-300'}`}
+            >
+              <LayoutList className="w-4 h-4" />
+              Daftar Program
+            </Link>
           </div>
         </div>
       </header>

@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { useList, useGetIdentity } from "@refinedev/core";
-import { Target, Calendar, CheckCircle, Award, Receipt } from "lucide-react";
+import { Target, Calendar, Award, Receipt, ArrowRight, Clock, CheckCircle2 } from "lucide-react";
 import { supabaseClient } from "../../../lib/supabase/client";
+import { Link } from "react-router-dom";
 
 export const ExtracurricularPortalDashboard: React.FC = () => {
   const { data: identity } = useGetIdentity<any>();
@@ -39,13 +40,12 @@ export const ExtracurricularPortalDashboard: React.FC = () => {
 
   const activePrograms = membersData?.data?.filter(m => m.status === 'ACTIVE' || m.status === 'PENDING') || [];
 
-
   return (
     <div className="space-y-6">
       <div className="bg-gradient-to-r from-primary to-primary/80 rounded-2xl p-8 text-white shadow-lg">
         <h2 className="text-3xl font-bold mb-2">Selamat Datang, {identity?.full_name || 'Siswa'}!</h2>
         <p className="text-primary-foreground/80 max-w-2xl">
-          Pantau jadwal ekstrakurikuler, lihat riwayat absensi, dan unduh rapor hasil belajarmu di portal ini.
+          Pantau jadwal ekstrakurikuler, status pendaftaran, riwayat absensi, dan unduh rapor hasil belajarmu di portal ini.
         </p>
       </div>
 
@@ -57,18 +57,35 @@ export const ExtracurricularPortalDashboard: React.FC = () => {
             </h3>
             
             {loadingMembers ? (
-              <div className="py-8 text-center text-muted-foreground">Memuat program...</div>
+              <div className="py-8 text-center text-muted-foreground animate-pulse">Memuat program...</div>
             ) : activePrograms.length === 0 ? (
-              <div className="py-12 text-center border-2 border-dashed rounded-xl">
-                <Target className="w-12 h-12 text-muted-foreground opacity-20 mx-auto mb-3" />
-                <p className="text-muted-foreground font-medium">Kamu belum mengikuti program apapun.</p>
-                <p className="text-sm text-muted-foreground mt-1">Silakan daftar program ekstrakurikuler terlebih dahulu.</p>
+              <div className="py-12 px-4 text-center border-2 border-dashed rounded-xl bg-slate-50/50">
+                <Target className="w-12 h-12 text-muted-foreground opacity-30 mx-auto mb-3" />
+                <h4 className="text-lg font-bold text-gray-900 mb-1">Belum Ada Program</h4>
+                <p className="text-muted-foreground mb-6">Kamu belum mendaftar program ekstrakurikuler apapun.</p>
+                <Link 
+                  to="/ekskul-portal/programs" 
+                  className="inline-flex items-center justify-center gap-2 bg-primary text-primary-foreground px-6 py-3 rounded-lg font-medium hover:bg-primary/90 transition-colors shadow-sm"
+                >
+                  Jelajahi Program <ArrowRight className="w-4 h-4" />
+                </Link>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {activePrograms.map((member: any) => (
-                  <div key={member.id} className="border rounded-xl p-5 hover:border-primary/50 transition-colors">
-                    <h4 className="font-bold text-lg text-primary">{member.extracurriculars?.name}</h4>
+                  <div key={member.id} className="border rounded-xl p-5 hover:border-primary/50 transition-colors relative overflow-hidden group">
+                    <div className="flex justify-between items-start mb-2">
+                      <h4 className="font-bold text-lg text-primary line-clamp-1 pr-2">{member.extracurriculars?.name}</h4>
+                      {member.status === 'PENDING' ? (
+                        <span className="inline-flex items-center gap-1 bg-amber-100 text-amber-700 text-[10px] font-bold px-2 py-1 rounded-full whitespace-nowrap">
+                          <Clock className="w-3 h-3" /> PENDING
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 bg-green-100 text-green-700 text-[10px] font-bold px-2 py-1 rounded-full whitespace-nowrap">
+                          <CheckCircle2 className="w-3 h-3" /> AKTIF
+                        </span>
+                      )}
+                    </div>
                     <div className="mt-4 space-y-2 text-sm text-muted-foreground">
                       <div className="flex items-start gap-2">
                         <Calendar className="w-4 h-4 mt-0.5 text-orange-500" />
@@ -81,6 +98,14 @@ export const ExtracurricularPortalDashboard: React.FC = () => {
                     </div>
                   </div>
                 ))}
+                
+                {/* Card to discover more programs */}
+                <Link to="/ekskul-portal/programs" className="border-2 border-dashed rounded-xl p-5 flex flex-col items-center justify-center text-center hover:bg-slate-50 transition-colors group cursor-pointer min-h-[140px]">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                    <Target className="w-5 h-5" />
+                  </div>
+                  <span className="font-medium text-primary">Daftar Program Lainnya</span>
+                </Link>
               </div>
             )}
           </div>
@@ -89,9 +114,10 @@ export const ExtracurricularPortalDashboard: React.FC = () => {
             <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
               <Award className="w-5 h-5 text-primary" /> Penilaian & Rapor Terakhir
             </h3>
-            <div className="py-8 text-center border-2 border-dashed rounded-xl">
+            <div className="py-8 text-center border-2 border-dashed rounded-xl bg-slate-50/50">
               <Award className="w-12 h-12 text-muted-foreground opacity-20 mx-auto mb-3" />
-              <p className="text-muted-foreground">Belum ada rapor yang diterbitkan untukmu.</p>
+              <p className="text-muted-foreground font-medium">Belum ada rapor yang diterbitkan.</p>
+              <p className="text-sm text-muted-foreground mt-1">Rapor akan muncul di sini setiap akhir semester.</p>
             </div>
           </div>
         </div>
@@ -102,10 +128,10 @@ export const ExtracurricularPortalDashboard: React.FC = () => {
               <Receipt className="w-5 h-5 text-primary" /> Tagihan Ekskul
             </h3>
             {loadingInvoices ? (
-               <div className="py-4 text-center text-muted-foreground text-sm">Memuat tagihan...</div>
+               <div className="py-4 text-center text-muted-foreground text-sm animate-pulse">Memuat tagihan...</div>
             ) : invoicesData?.data?.length === 0 ? (
-               <div className="py-6 text-center border border-dashed rounded-lg">
-                 <p className="text-muted-foreground text-sm">Belum ada tagihan.</p>
+               <div className="py-6 text-center border border-dashed rounded-lg bg-slate-50/50">
+                 <p className="text-muted-foreground text-sm font-medium">Belum ada tagihan.</p>
                </div>
             ) : (
                <div className="space-y-3">
@@ -121,7 +147,7 @@ export const ExtracurricularPortalDashboard: React.FC = () => {
                        <span className="font-bold text-primary text-sm">Rp {Number(invoice.amount).toLocaleString('id-ID')}</span>
                        <button 
                          onClick={() => window.open(`/print-invoice/${invoice.id}`, '_blank')}
-                         className="text-xs font-medium bg-primary/10 text-primary px-2 py-1 rounded hover:bg-primary hover:text-white transition-colors"
+                         className="text-xs font-medium bg-primary/10 text-primary px-3 py-1.5 rounded-md hover:bg-primary hover:text-white transition-colors"
                        >
                          Cetak
                        </button>
