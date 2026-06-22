@@ -1,6 +1,20 @@
 import type { AuthBindings } from "@refinedev/core";
 import { supabaseClient } from "./client";
 
+const getRedirectPath = () => {
+  if (typeof window !== "undefined") {
+    const path = window.location.pathname;
+    if (path.startsWith("/teacher")) return "/teacher/login";
+    if (path.startsWith("/portal")) return "/portal/login";
+    if (path.startsWith("/ekskul-portal")) return "/ekskul-portal/login";
+    if (path.startsWith("/cbt")) return "/cbt/login";
+    if (path.startsWith("/spmb")) return "/spmb/login";
+    if (path.startsWith("/bendahara")) return "/bendahara/login";
+    if (path.startsWith("/admin-spmb")) return "/admin-spmb/login";
+  }
+  return "/login";
+};
+
 export const authProvider: AuthBindings = {
   login: async ({ email, password }: any) => {
     try {
@@ -59,7 +73,7 @@ export const authProvider: AuthBindings = {
 
       return {
         success: true,
-        redirectTo: "/login",
+        redirectTo: getRedirectPath(),
       };
     } catch (error: any) {
       return {
@@ -83,7 +97,7 @@ export const authProvider: AuthBindings = {
             name: "Sesi Tidak Valid",
           },
           logout: true,
-          redirectTo: "/login",
+          redirectTo: getRedirectPath(),
         };
       }
 
@@ -95,7 +109,7 @@ export const authProvider: AuthBindings = {
             name: "Sesi Berakhir",
           },
           logout: true,
-          redirectTo: "/login",
+          redirectTo: getRedirectPath(),
         };
       }
 
@@ -110,7 +124,7 @@ export const authProvider: AuthBindings = {
           name: "Kesalahan Sistem",
         },
         logout: true,
-        redirectTo: "/login",
+        redirectTo: getRedirectPath(),
       };
     }
   },
@@ -174,7 +188,7 @@ export const authProvider: AuthBindings = {
     if (error?.status === 401 || error?.status === 403 || error?.code === "PGRST301") {
       return {
         logout: true,
-        redirectTo: "/login",
+        redirectTo: getRedirectPath(),
         error: new Error("Sesi Anda telah berakhir atau Anda tidak memiliki akses."),
       };
     }
