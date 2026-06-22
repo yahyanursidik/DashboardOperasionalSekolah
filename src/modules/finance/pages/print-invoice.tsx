@@ -2,9 +2,11 @@ import React, { useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { useOne } from "@refinedev/core";
 import { Receipt, Loader2, Printer, Building, QrCode, MessageCircle } from "lucide-react";
+import { useSystemSettings } from "../../../app/providers/SettingsProvider";
 
 export const PrintInvoice: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const { financeBankName, financeAccountNumber, financeAccountName, financeWaNumber } = useSystemSettings();
 
   const { data: invoiceData, isLoading } = useOne({
     resource: "student_invoices",
@@ -149,9 +151,9 @@ export const PrintInvoice: React.FC = () => {
                 <Building className="w-4 h-4 text-primary" /> Transfer Bank
               </h3>
               <div className="space-y-1.5 text-sm text-gray-600 bg-white p-3 rounded border">
-                <p>Bank: <strong className="text-gray-900">BSI (Bank Syariah Indonesia)</strong></p>
-                <p>No. Rekening: <strong className="text-gray-900 text-lg tracking-wider">1234567890</strong></p>
-                <p>Atas Nama: <strong className="text-gray-900">Yayasan Pendidikan TSLS</strong></p>
+                <p>Bank: <strong className="text-gray-900">{financeBankName || "BSI (Bank Syariah Indonesia)"}</strong></p>
+                <p>No. Rekening: <strong className="text-gray-900 text-lg tracking-wider">{financeAccountNumber || "1234567890"}</strong></p>
+                <p>Atas Nama: <strong className="text-gray-900">{financeAccountName || "Yayasan Pendidikan TSLS"}</strong></p>
               </div>
             </div>
             
@@ -170,7 +172,7 @@ export const PrintInvoice: React.FC = () => {
             <div className="sm:col-span-2 pt-5 border-t border-gray-200 mt-2 text-center">
               <p className="text-sm text-gray-600 mb-4 font-medium">Setelah melakukan pembayaran, harap konfirmasi melalui WhatsApp Bagian Keuangan dengan melampirkan bukti transfer:</p>
               <a 
-                href={`https://wa.me/628111111111?text=Halo%20Bagian%20Keuangan%20TSLS,%20saya%20ingin%20mengkonfirmasi%20pembayaran%20untuk%20Invoice%20${invoiceNumber}%20atas%20nama%20${encodeURIComponent(studentName)}`}
+                href={`https://wa.me/${financeWaNumber}?text=Halo%20Bagian%20Keuangan%20TSLS,%20saya%20ingin%20mengkonfirmasi%20pembayaran%20untuk%20Invoice%20${invoiceNumber}%20atas%20nama%20${encodeURIComponent(studentName)}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center justify-center gap-2 bg-[#25D366] text-white px-6 py-3 rounded-lg font-bold hover:bg-[#20b858] transition-colors shadow-sm print:hidden"
@@ -178,7 +180,7 @@ export const PrintInvoice: React.FC = () => {
                 <MessageCircle className="w-5 h-5" /> Konfirmasi via WhatsApp
               </a>
               <div className="hidden print:block font-bold text-sm text-gray-800 border p-3 rounded-lg bg-white">
-                Nomor WA Keuangan: 0811-1111-111
+                Nomor WA Keuangan: {financeWaNumber}
               </div>
             </div>
           </div>

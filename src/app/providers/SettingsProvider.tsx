@@ -7,6 +7,10 @@ interface SystemSettings {
   faviconUrl: string;
   loginCoverUrl: string;
   fontFamily: string;
+  financeBankName: string;
+  financeAccountNumber: string;
+  financeAccountName: string;
+  financeWaNumber: string;
   isLoading: boolean;
   refreshSettings: () => Promise<void>;
 }
@@ -17,6 +21,10 @@ const SettingsContext = createContext<SystemSettings>({
   faviconUrl: "",
   loginCoverUrl: "",
   fontFamily: "Inter",
+  financeBankName: "BSI (Bank Syariah Indonesia)",
+  financeAccountNumber: "1234567890",
+  financeAccountName: "Yayasan Pendidikan TSLS",
+  financeWaNumber: "628111111111",
   isLoading: true,
   refreshSettings: async () => {},
 });
@@ -29,6 +37,10 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [faviconUrl, setFaviconUrl] = useState("");
   const [loginCoverUrl, setLoginCoverUrl] = useState("");
   const [fontFamily, setFontFamily] = useState("Inter");
+  const [financeBankName, setFinanceBankName] = useState("BSI (Bank Syariah Indonesia)");
+  const [financeAccountNumber, setFinanceAccountNumber] = useState("1234567890");
+  const [financeAccountName, setFinanceAccountName] = useState("Yayasan Pendidikan TSLS");
+  const [financeWaNumber, setFinanceWaNumber] = useState("628111111111");
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchSettings = async () => {
@@ -37,7 +49,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       const { data, error } = await supabaseClient
         .from("system_settings")
         .select("key, value")
-        .in("key", ["app_name", "logo_url", "favicon_url", "login_cover_url", "font_family"]);
+        .in("key", ["app_name", "logo_url", "favicon_url", "login_cover_url", "font_family", "finance_bank_name", "finance_account_number", "finance_account_name", "finance_wa_number"]);
 
       if (error) {
         if (error.code === "PGRST205" || error.code === "42P01") {
@@ -58,6 +70,10 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           if (setting.key === "favicon_url") setFaviconUrl(val || "");
           if (setting.key === "login_cover_url") setLoginCoverUrl(val || "");
           if (setting.key === "font_family") setFontFamily(val || "Inter");
+          if (setting.key === "finance_bank_name") setFinanceBankName(val || "BSI (Bank Syariah Indonesia)");
+          if (setting.key === "finance_account_number") setFinanceAccountNumber(val || "1234567890");
+          if (setting.key === "finance_account_name") setFinanceAccountName(val || "Yayasan Pendidikan TSLS");
+          if (setting.key === "finance_wa_number") setFinanceWaNumber(val || "628111111111");
         });
       }
     } catch (err) {
@@ -112,7 +128,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [faviconUrl, fontFamily]);
 
   return (
-    <SettingsContext.Provider value={{ appName, logoUrl, faviconUrl, loginCoverUrl, fontFamily, isLoading, refreshSettings: fetchSettings }}>
+    <SettingsContext.Provider value={{ appName, logoUrl, faviconUrl, loginCoverUrl, fontFamily, financeBankName, financeAccountNumber, financeAccountName, financeWaNumber, isLoading, refreshSettings: fetchSettings }}>
       {children}
     </SettingsContext.Provider>
   );
