@@ -404,6 +404,12 @@ export const navigationConfig: NavigationGroup[] = [
         icon: Settings,
         resource: "student_invoices",
       },
+      {
+        title: "Pengaturan Keuangan",
+        href: "/finance/settings",
+        icon: Settings,
+        resource: "finance_settings",
+      },
     ],
   },
   {
