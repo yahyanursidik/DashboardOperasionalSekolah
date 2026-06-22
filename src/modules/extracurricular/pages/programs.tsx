@@ -75,13 +75,14 @@ export const ProgramsList: React.FC = () => {
     schedule: "",
     internal_fee: 0,
     external_fee: 0,
-    is_active: true
+    is_active: true,
+    program_type: "ROUTINE"
   });
 
   const isSaving = isCreating || isUpdating;
 
   const openCreate = () => {
-    setFormData({ name: "", description: "", coach_name: "", schedule: "", internal_fee: 0, external_fee: 0, is_active: true });
+    setFormData({ name: "", description: "", coach_name: "", schedule: "", internal_fee: 0, external_fee: 0, is_active: true, program_type: "ROUTINE" });
     setEditId(null);
     setModalMode("create");
   };
@@ -94,7 +95,8 @@ export const ProgramsList: React.FC = () => {
       schedule: item.schedule || "",
       internal_fee: item.internal_fee || 0,
       external_fee: item.external_fee || 0,
-      is_active: item.is_active
+      is_active: item.is_active,
+      program_type: item.program_type || "ROUTINE"
     });
     setEditId(item.id);
     setModalMode("edit");
@@ -160,6 +162,18 @@ export const ProgramsList: React.FC = () => {
       accessorKey: "coach_name",
       header: "Pelatih / PJ",
       cell: info => <span className="text-muted-foreground">{info.getValue() as string || '-'}</span>
+    },
+    {
+      accessorKey: "program_type",
+      header: "Tipe",
+      cell: info => {
+        const type = info.getValue() as string;
+        return (
+          <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${type === 'EVENT' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
+            {type === 'EVENT' ? '1 Momen' : 'Rutin'}
+          </span>
+        );
+      }
     },
     {
       accessorKey: "schedule",
@@ -440,8 +454,19 @@ export const ProgramsList: React.FC = () => {
                     min="0"
                   />
                 </div>
-                <div className="md:col-span-2 pt-2 border-t border-muted-foreground/10">
-                   <label className="flex items-center gap-3 cursor-pointer w-max group mt-4">
+                <div className="md:col-span-2 pt-2 border-t border-muted-foreground/10 grid grid-cols-1 md:grid-cols-2 gap-6">
+                   <div className="space-y-2 mt-2">
+                     <label className="text-sm font-semibold">Tipe Program</label>
+                     <select 
+                       value={formData.program_type}
+                       onChange={(e) => setFormData({...formData, program_type: e.target.value})}
+                       className="w-full border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-background shadow-sm"
+                     >
+                       <option value="ROUTINE">Rutin (Berkelanjutan)</option>
+                       <option value="EVENT">1 Momen Kegiatan (Event Sekali)</option>
+                     </select>
+                   </div>
+                   <label className="flex items-center gap-3 cursor-pointer w-max group mt-4 md:mt-10">
                      <div className="relative flex items-center">
                        <input 
                          type="checkbox" 

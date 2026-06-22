@@ -104,8 +104,15 @@ export const ExtracurricularPortalPrograms: React.FC = () => {
                 
                 return (
                   <div key={program.id} className="border rounded-2xl overflow-hidden hover:shadow-md transition-all flex flex-col bg-white group">
-                    <div className="p-5 flex-1">
-                      <h3 className="font-bold text-lg text-gray-900 mb-2 group-hover:text-primary transition-colors">{program.name}</h3>
+                    <div className="p-5 flex-1 relative">
+                      <div className="flex justify-between items-start mb-2">
+                        <h3 className="font-bold text-lg text-gray-900 group-hover:text-primary transition-colors pr-2">{program.name}</h3>
+                        {program.program_type === 'EVENT' ? (
+                          <span className="shrink-0 bg-purple-100 text-purple-700 text-[10px] font-bold px-2 py-1 rounded">1 Momen</span>
+                        ) : (
+                          <span className="shrink-0 bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-1 rounded">Rutin</span>
+                        )}
+                      </div>
                       <p className="text-sm text-muted-foreground line-clamp-2 mb-4 min-h-[40px]">
                         {program.description || "Tidak ada deskripsi tersedia."}
                       </p>
