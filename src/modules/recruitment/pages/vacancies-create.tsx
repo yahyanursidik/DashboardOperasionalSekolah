@@ -71,11 +71,19 @@ export const VacancyCreate: React.FC = () => {
                 className="w-full border rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-primary/50 bg-background"
               >
                 <option value="">Pilih Posisi...</option>
-                <option value="guru">Guru / Pendidik</option>
-                <option value="tu">Tata Usaha (TU)</option>
-                <option value="satpam">Keamanan / Satpam</option>
-                <option value="cleaning_service">Cleaning Service</option>
                 <option value="kepala_sekolah">Kepala Sekolah / Pimpinan</option>
+                <option value="wakasek">Wakil Kepala Sekolah</option>
+                <option value="guru">Guru / Tenaga Pendidik</option>
+                <option value="school_center">School Center</option>
+                <option value="bendahara">Bendahara / Keuangan</option>
+                <option value="penanggung_jawab">Penanggung Jawab</option>
+                <option value="bk">Bimbingan Konseling</option>
+                <option value="pustakawan">Pustakawan</option>
+                <option value="laboran">Laboran</option>
+                <option value="tu">Staff Tata Usaha / Administrasi</option>
+                <option value="satpam">Security / Keamanan</option>
+                <option value="cleaning_service">Cleaning Service</option>
+                <option value="lainnya">Posisi Lainnya</option>
               </select>
             </div>
 

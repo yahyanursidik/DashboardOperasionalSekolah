@@ -122,8 +122,14 @@ export const EmployeeCreate: React.FC = () => {
                 <option value="kepala_sekolah">Kepala Sekolah</option>
                 <option value="wakasek">Wakil Kepala Sekolah</option>
                 <option value="guru">Guru / Pengajar</option>
+                <option value="school_center">School Center</option>
+                <option value="bendahara">Bendahara / Keuangan</option>
+                <option value="penanggung_jawab">Penanggung Jawab</option>
+                <option value="bk">Bimbingan Konseling</option>
+                <option value="pustakawan">Pustakawan</option>
+                <option value="laboran">Laboran</option>
                 <option value="tu">Tata Usaha</option>
-                <option value="satpam">Satpam / Security</option>
+                <option value="satpam">Satpam</option>
                 <option value="cleaning_service">Cleaning Service</option>
                 <option value="lainnya">Lainnya</option>
               </select>
