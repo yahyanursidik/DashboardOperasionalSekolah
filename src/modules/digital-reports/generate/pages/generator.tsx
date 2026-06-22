@@ -69,7 +69,7 @@ export const ReportGenerator: React.FC = () => {
     filters: [
       { field: "class_id", operator: "eq", value: filterClass },
       { field: "report_period_id", operator: "eq", value: filterPeriod },
-      { field: "status", operator: "neq", value: "archived" }
+      { field: "status", operator: "ne", value: "archived" }
     ],
     queryOptions: { enabled: !!filterClass && !!filterPeriod }
   });
@@ -87,7 +87,7 @@ export const ReportGenerator: React.FC = () => {
         reportId: existingReport?.id,
         reportStatus: existingReport?.status
       };
-    }).sort((a, b) => (a.full_name || "").localeCompare(b.full_name || ""));
+    }).sort((a, b) => ((a as any).full_name || "").localeCompare((b as any).full_name || ""));
   }, [students?.data, existingReports?.data]);
 
   const readyToGenerateCount = previewData.filter(s => !s.hasDraft).length;
@@ -115,10 +115,12 @@ export const ReportGenerator: React.FC = () => {
 
       const { error: insertError } = await supabaseClient
         .from('student_reports')
-        .insert(reportInserts);
+        .insert(payload);
 
       if (insertError) throw insertError;
 
+      const selectedClass = classes?.data?.find(c => c.id === filterClass);
+      
       // Log audit
       await logAudit(
         user.id,
@@ -126,10 +128,10 @@ export const ReportGenerator: React.FC = () => {
         'student_reports_batch',
         filterClass,
         null,
-        { count: reportInserts.length, class_name: selectedClass?.name, report_period_id: filterPeriod }
+        { count: payload.length, class_name: selectedClass?.name, report_period_id: filterPeriod }
       );
 
-      toast.success(`Berhasil membuat ${reportInserts.length} draft rapor untuk kelas ${selectedClass?.name || ''}`);
+      toast.success(`Berhasil membuat ${payload.length} draft rapor untuk kelas ${selectedClass?.name || ''}`);
       refetchReports(); // Refresh the list
     } catch (error: any) {
       console.error(error);
@@ -271,8 +273,8 @@ export const ReportGenerator: React.FC = () => {
                   {previewData.map((student, idx) => (
                     <tr key={student.id} className={student.hasDraft ? "bg-muted/10" : "hover:bg-muted/30 transition-colors"}>
                       <td className="px-6 py-3 text-center text-muted-foreground">{idx + 1}</td>
-                      <td className="px-6 py-3 font-medium text-foreground">{student.full_name}</td>
-                      <td className="px-6 py-3 text-muted-foreground">{student.nisn || "-"}</td>
+                      <td className="px-6 py-3 font-medium text-foreground">{(student as any).full_name}</td>
+                      <td className="px-6 py-3 text-muted-foreground">{(student as any).nisn || "-"}</td>
                       <td className="px-6 py-3 text-center">
                         {student.hasDraft ? (
                           <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">

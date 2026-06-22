@@ -32,13 +32,15 @@ export const HomeroomReviewForm: React.FC = () => {
   const { data: user } = useGetIdentity<any>();
 
   // Data Fetching
-  const { queryResult: reportQuery, refetch: refetchReport } = useShow({
+  const { queryResult } = useShow({
     resource: "student_reports",
     id,
     meta: {
       select: "*, students(full_name, nisn), classes(name), report_periods(name), report_templates(*, sections:report_template_sections(*, items:report_template_items(*)))"
     }
   });
+  const reportQuery = queryResult;
+  const refetchReport = queryResult.refetch;
 
   const reportData = reportQuery.data?.data as any;
   const template = reportData?.report_templates;
@@ -63,7 +65,7 @@ export const HomeroomReviewForm: React.FC = () => {
     filters: [
       { field: "class_id", operator: "eq", value: reportData?.class_id },
       { field: "report_period_id", operator: "eq", value: reportData?.report_period_id },
-      { field: "status", operator: "neq", value: "archived" }
+      { field: "status", operator: "ne", value: "archived" }
     ],
     meta: { select: "id, students(full_name)" },
     queryOptions: { enabled: !!reportData?.class_id }
@@ -102,8 +104,8 @@ export const HomeroomReviewForm: React.FC = () => {
     if (notesData?.data) {
       const hrNote = notesData.data.find(n => n.note_type === 'homeroom_note');
       const advNote = notesData.data.find(n => n.note_type === 'home_advice');
-      if (hrNote) setHomeroomNote({ id: hrNote.id, text: hrNote.note });
-      if (advNote) setHomeAdviceNote({ id: advNote.id, text: advNote.note });
+      if (hrNote) setHomeroomNote({ id: hrNote.id as string, text: hrNote.note });
+      if (advNote) setHomeAdviceNote({ id: advNote.id as string, text: advNote.note });
     }
   }, [notesData?.data]);
 
@@ -124,8 +126,8 @@ export const HomeroomReviewForm: React.FC = () => {
         }).select('id').single();
         
         if (data) {
-          if (type === 'homeroom_note') setHomeroomNote({ id: data.id, text });
-          if (type === 'home_advice') setHomeAdviceNote({ id: data.id, text });
+          if (type === 'homeroom_note') setHomeroomNote({ id: (data as any).id, text });
+          if (type === 'home_advice') setHomeAdviceNote({ id: (data as any).id, text });
         }
       }
 

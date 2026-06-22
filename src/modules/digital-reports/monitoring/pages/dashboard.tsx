@@ -21,8 +21,8 @@ export const MonitoringDashboard: React.FC = () => {
     resource: "student_reports",
     pagination: { mode: "off" },
     filters: [
-      ...(filterClass ? [{ field: "class_id", operator: "eq", value: filterClass }] : []),
-      ...(filterPeriod ? [{ field: "report_period_id", operator: "eq", value: filterPeriod }] : [])
+      ...(filterClass ? [{ field: "class_id", operator: "eq", value: filterClass } as any] : []),
+      ...(filterPeriod ? [{ field: "report_period_id", operator: "eq", value: filterPeriod } as any] : [])
     ],
     meta: {
       select: "*, classes!inner(unit_id, name), report_periods!inner(name, publish_date), parent_report_reads(id)"

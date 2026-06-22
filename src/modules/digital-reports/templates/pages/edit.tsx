@@ -158,7 +158,7 @@ export const ReportTemplateEdit: React.FC = () => {
           }).select('id').single();
           
           if (error) throw error;
-          sectionId = newSec.id;
+          sectionId = (newSec as any).id;
         }
 
         sectionIdsToKeep.push(sectionId!);
@@ -197,7 +197,7 @@ export const ReportTemplateEdit: React.FC = () => {
               }).select('id').single();
               
               if (error) throw error;
-              itemId = newItem.id;
+              itemId = (newItem as any).id;
             }
             itemIdsToKeep.push(itemId!);
           }
@@ -220,11 +220,11 @@ export const ReportTemplateEdit: React.FC = () => {
       const sectionsToDelete = originalSectionIds.filter((id: string) => !sectionIdsToKeep.includes(id));
 
       if (itemsToDelete.length > 0) {
-        await supabaseClient.from('report_template_items').delete().in('id', itemsToDelete).catch(() => {});
+        try { await supabaseClient.from('report_template_items').delete().in('id', itemsToDelete); } catch (e) {}
       }
       
       if (sectionsToDelete.length > 0) {
-        await supabaseClient.from('report_template_sections').delete().in('id', sectionsToDelete).catch(() => {});
+        try { await supabaseClient.from('report_template_sections').delete().in('id', sectionsToDelete); } catch (e) {}
       }
 
       await logAudit(

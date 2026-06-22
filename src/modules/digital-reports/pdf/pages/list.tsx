@@ -25,7 +25,7 @@ export const GeneratePDFList: React.FC = () => {
 
   const { data: units } = useList({ resource: "units", pagination: { mode: "off" } });
   const { data: classes } = useList({ resource: "classes", pagination: { mode: "off" }, filters: filterUnit ? [{ field: "unit_id", operator: "eq", value: filterUnit }] : [] });
-  const { data: periods } = useList({ resource: "report_periods", pagination: { mode: "off" }, filters: [ { field: "status", operator: "in", value: ["draft", "active"] }, ...(filterUnit ? [{ field: "unit_id", operator: "eq", value: filterUnit }] : []) ] });
+  const { data: periods } = useList({ resource: "report_periods", pagination: { mode: "off" }, filters: [ { field: "status", operator: "in", value: ["draft", "active"] }, ...(filterUnit ? [{ field: "unit_id", operator: "eq", value: filterUnit } as any] : []) ] });
 
   // Fetch approved/published reports
   const { data: studentReports, isLoading, refetch } = useList({
@@ -33,8 +33,8 @@ export const GeneratePDFList: React.FC = () => {
     pagination: { mode: "off" },
     filters: [
       { field: "status", operator: "in", value: ["approved", "published"] },
-      ...(filterClass ? [{ field: "class_id", operator: "eq", value: filterClass }] : []),
-      ...(filterPeriod ? [{ field: "report_period_id", operator: "eq", value: filterPeriod }] : [])
+      ...(filterClass ? [{ field: "class_id", operator: "eq", value: filterClass } as any] : []),
+      ...(filterPeriod ? [{ field: "report_period_id", operator: "eq", value: filterPeriod } as any] : [])
     ],
     meta: {
       select: "*, students(full_name, nisn), classes!inner(unit_id, name), report_periods(*), report_templates(*, sections:report_template_sections(*, items:report_template_items(*))), report_pdf_exports(file_url, generated_at)"
@@ -69,11 +69,12 @@ export const GeneratePDFList: React.FC = () => {
       ]);
 
       const scoresMap: Record<string, any> = {};
-      scoresRes.data?.forEach(s => { scoresMap[s.item_id] = s; });
+      scoresRes.data?.forEach((s: any) => { scoresMap[s.item_id] = s; });
 
-      const homeroomNote = notesRes.data?.find(n => n.note_type === 'homeroom_note')?.note || "";
-      const homeAdviceNote = notesRes.data?.find(n => n.note_type === 'home_advice')?.note || "";
-      const principalNote = notesRes.data?.find(n => n.note_type === 'principal_note')?.note || "";
+      const notesData = (notesRes.data as any[]) || [];
+      const homeroomNote = notesData.find((n: any) => n.note_type === 'homeroom_note')?.note || "";
+      const homeAdviceNote = notesData.find((n: any) => n.note_type === 'home_advice')?.note || "";
+      const principalNote = notesData.find((n: any) => n.note_type === 'principal_note')?.note || "";
 
       // 2. Set render data so the hidden component renders it
       setRenderData({

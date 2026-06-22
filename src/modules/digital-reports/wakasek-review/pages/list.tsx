@@ -23,7 +23,7 @@ export const WakasekReviewList: React.FC = () => {
   const { data: classes } = useList({
     resource: "classes",
     pagination: { mode: "off" },
-    filters: activeUnitId ? [{ field: "unit_id", operator: "eq", value: activeUnitId }] : []
+    filters: activeUnitId ? [{ field: "unit_id", operator: "eq", value: activeUnitId } as any] : []
   });
 
   const { data: periods } = useList({
@@ -31,7 +31,7 @@ export const WakasekReviewList: React.FC = () => {
     pagination: { mode: "off" },
     filters: [
       { field: "status", operator: "in", value: ["draft", "active"] },
-      ...(activeUnitId ? [{ field: "unit_id", operator: "eq", value: activeUnitId }] : [])
+      ...(activeUnitId ? [{ field: "unit_id", operator: "eq", value: activeUnitId } as any] : [])
     ]
   });
 
@@ -39,9 +39,9 @@ export const WakasekReviewList: React.FC = () => {
     resource: "student_reports",
     pagination: { mode: "off" },
     filters: [
-      ...(filterClass ? [{ field: "class_id", operator: "eq", value: filterClass }] : []),
-      ...(filterPeriod ? [{ field: "report_period_id", operator: "eq", value: filterPeriod }] : []),
-      ...(filterStatus ? [{ field: "status", operator: "eq", value: filterStatus }] : [{ field: "status", operator: "neq", value: "archived" }])
+      ...(filterClass ? [{ field: "class_id", operator: "eq", value: filterClass } as any] : []),
+      ...(filterPeriod ? [{ field: "report_period_id", operator: "eq", value: filterPeriod } as any] : []),
+      ...(filterStatus ? [{ field: "status", operator: "eq", value: filterStatus } as any] : [{ field: "status", operator: "ne", value: "archived" } as any])
     ],
     meta: {
       select: "*, students(full_name, nisn, gender), classes!inner(unit_id, name)"

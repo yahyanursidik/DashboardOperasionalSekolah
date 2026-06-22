@@ -55,7 +55,7 @@ export const ApplicantsList: React.FC = () => {
     parentPhone: row.parent_phone,
     status: row.status,
     score: row.score ?? '-',
-    dbId: row.id
+    dbId: row.id as string
   })), [rawData]);
   
   const [selectedYear, setSelectedYear] = useState<string>("Semua");

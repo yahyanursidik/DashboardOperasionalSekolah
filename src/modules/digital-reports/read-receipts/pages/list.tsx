@@ -21,7 +21,7 @@ export const ReadReceiptsList: React.FC = () => {
   const { data: classes } = useList({
     resource: "classes",
     pagination: { mode: "off" },
-    filters: filterUnit ? [{ field: "unit_id", operator: "eq", value: filterUnit }] : []
+    filters: filterUnit ? [{ field: "unit_id", operator: "eq", value: filterUnit } as any] : []
   });
 
   const { data: periods } = useList({
@@ -29,7 +29,7 @@ export const ReadReceiptsList: React.FC = () => {
     pagination: { mode: "off" },
     filters: [
       { field: "status", operator: "in", value: ["draft", "active"] },
-      ...(filterUnit ? [{ field: "unit_id", operator: "eq", value: filterUnit }] : [])
+      ...(filterUnit ? [{ field: "unit_id", operator: "eq", value: filterUnit } as any] : [])
     ]
   });
 
@@ -39,8 +39,8 @@ export const ReadReceiptsList: React.FC = () => {
     pagination: { mode: "off" },
     filters: [
       { field: "status", operator: "eq", value: "published" },
-      ...(filterClass ? [{ field: "class_id", operator: "eq", value: filterClass }] : []),
-      ...(filterPeriod ? [{ field: "report_period_id", operator: "eq", value: filterPeriod }] : [])
+      ...(filterClass ? [{ field: "class_id", operator: "eq", value: filterClass } as any] : []),
+      ...(filterPeriod ? [{ field: "report_period_id", operator: "eq", value: filterPeriod } as any] : [])
     ],
     meta: {
       select: "*, students(full_name, nisn, student_parent_links(parents(profiles(full_name)))), classes!inner(unit_id, name), report_periods(name, publish_date), parent_report_reads(read_at)"

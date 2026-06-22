@@ -47,7 +47,7 @@ export const PublishReportList: React.FC = () => {
   const { data: classes } = useList({
     resource: "classes",
     pagination: { mode: "off" },
-    filters: filterUnit ? [{ field: "unit_id", operator: "eq", value: filterUnit }] : []
+    filters: filterUnit ? [{ field: "unit_id", operator: "eq", value: filterUnit } as any] : []
   });
 
   const { data: periods } = useList({
@@ -55,7 +55,7 @@ export const PublishReportList: React.FC = () => {
     pagination: { mode: "off" },
     filters: [
       { field: "status", operator: "in", value: ["draft", "active"] },
-      ...(filterUnit ? [{ field: "unit_id", operator: "eq", value: filterUnit }] : [])
+      ...(filterUnit ? [{ field: "unit_id", operator: "eq", value: filterUnit } as any] : [])
     ]
   });
 
@@ -65,9 +65,9 @@ export const PublishReportList: React.FC = () => {
     pagination: { mode: "off" },
     filters: [
       { field: "status", operator: "in", value: ["approved", "published"] },
-      ...(filterClass ? [{ field: "class_id", operator: "eq", value: filterClass }] : []),
-      ...(filterPeriod ? [{ field: "report_period_id", operator: "eq", value: filterPeriod }] : []),
-      ...(filterStatus ? [{ field: "status", operator: "eq", value: filterStatus }] : [])
+      ...(filterClass ? [{ field: "class_id", operator: "eq", value: filterClass } as any] : []),
+      ...(filterPeriod ? [{ field: "report_period_id", operator: "eq", value: filterPeriod } as any] : []),
+      ...(filterStatus ? [{ field: "status", operator: "eq", value: filterStatus } as any] : [])
     ],
     meta: {
       select: "*, students(full_name, nisn, gender), classes!inner(unit_id, name), report_periods(name, publish_date)"
@@ -427,7 +427,7 @@ export const PublishReportList: React.FC = () => {
                           </span>
                         ) : isApproved ? (
                           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-blue-700 uppercase">
-                            <CheckCircle2 className="w-3.5 h-3.5" /> Siap Publish
+                            <CheckCircle className="w-3.5 h-3.5" /> Siap Publish
                           </span>
                         ) : null}
                       </td>

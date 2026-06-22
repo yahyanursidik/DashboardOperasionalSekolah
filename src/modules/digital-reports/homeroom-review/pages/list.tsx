@@ -13,15 +13,15 @@ export const HomeroomReviewList: React.FC = () => {
   const { data: user } = useGetIdentity<any>();
   const { roles } = useCurrentRoles();
 
-  const isHomeroom = hasRole(roles, 'homeroom') || hasRole(roles, 'wali_kelas');
+  const isHomeroom = hasRole(roles, 'homeroom' as any) || hasRole(roles, 'wali_kelas' as any);
   
   // Extract classes where role is homeroom or wali_kelas
   const homeroomClassIds = React.useMemo(() => {
     if (!roles) return [];
     return Array.from(new Set(
       roles
-        .filter(r => r.role_type === 'homeroom' || r.role_type === 'wali_kelas')
-        .map(r => r.class_id)
+        .filter(r => (r as any).role_type === 'homeroom' || (r as any).role_type === 'wali_kelas')
+        .map(r => (r as any).class_id)
         .filter(Boolean)
     )) as string[];
   }, [roles]);
@@ -41,7 +41,7 @@ export const HomeroomReviewList: React.FC = () => {
     pagination: { mode: "off" },
     filters: [
       { field: "status", operator: "in", value: ["draft", "active"] },
-      ...(activeUnitId ? [{ field: "unit_id", operator: "eq", value: activeUnitId }] : [])
+      ...(activeUnitId ? [{ field: "unit_id", operator: "eq", value: activeUnitId } as any] : [])
     ]
   });
 
@@ -51,7 +51,7 @@ export const HomeroomReviewList: React.FC = () => {
     filters: [
       { field: "class_id", operator: "eq", value: filterClass },
       { field: "report_period_id", operator: "eq", value: filterPeriod },
-      { field: "status", operator: "neq", value: "archived" }
+      { field: "status", operator: "ne", value: "archived" }
     ],
     meta: {
       select: "*, students(full_name, nisn, gender)"

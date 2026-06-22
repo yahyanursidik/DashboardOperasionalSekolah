@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useShow, useList, useGetIdentity } from "@refinedev/core";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Loader2, CheckCircle, Heart, FileText, Download, Award, User, Clock } from "lucide-react";
+import { ArrowLeft, Loader2, CheckCircle, Heart, FileText, Download, Award, User, Clock, AlertCircle } from "lucide-react";
 import { supabaseClient } from "../../../../lib/supabase/client";
 import { toast } from "sonner";
 import { logAudit } from "../../../../lib/audit";
@@ -12,13 +12,15 @@ export const ParentReportShow: React.FC = () => {
   const { data: user } = useGetIdentity<any>();
 
   // Fetch Report Header Data
-  const { queryResult: reportQuery, refetch: refetchReport } = useShow({
+  const { queryResult } = useShow({
     resource: "student_reports",
     id,
     meta: {
       select: "*, students(full_name, nisn), classes(name), report_periods(name, academic_year_id, semester_id, report_type), report_templates(*, sections:report_template_sections(*, items:report_template_items(*))), report_pdf_exports(file_url)"
     }
   });
+  const reportQuery = queryResult;
+  const refetchReport = queryResult.refetch;
 
   const reportData = reportQuery.data?.data as any;
   const template = reportData?.report_templates;

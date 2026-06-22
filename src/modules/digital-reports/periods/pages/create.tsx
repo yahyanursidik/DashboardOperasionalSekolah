@@ -23,7 +23,7 @@ export const ReportPeriodCreate: React.FC = () => {
       redirect: "list",
       onMutationSuccess: async (data, variables, context) => {
         if (data?.data?.id) {
-          await logAudit(user?.id, 'create', 'report_periods', data.data.id, null, variables);
+          await logAudit(user?.id as string, 'create', 'report_periods', data.data.id as string, null, variables);
         }
       }
     },
@@ -36,7 +36,7 @@ export const ReportPeriodCreate: React.FC = () => {
   const { options: academicYearOptions } = useSelect({ resource: "academic_years" });
   const { options: semesterOptions } = useSelect({ 
     resource: "semesters",
-    filters: watchAcademicYearId ? [{ field: "academic_year_id", operator: "eq", value: watchAcademicYearId }] : []
+    filters: watchAcademicYearId ? [{ field: "academic_year_id", operator: "eq", value: watchAcademicYearId } as any] : []
   });
 
   const onSubmit = (data: any) => {

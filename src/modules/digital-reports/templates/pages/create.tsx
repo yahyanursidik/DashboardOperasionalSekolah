@@ -113,7 +113,7 @@ export const ReportTemplateCreate: React.FC = () => {
         const { data: sectionData, error: sectionError } = await supabaseClient
           .from('report_template_sections')
           .insert({
-            template_id: templateData.id,
+            template_id: (templateData as any).id,
             title: sec.title,
             description: sec.description,
             display_order: i + 1, // override with actual array order
@@ -129,7 +129,7 @@ export const ReportTemplateCreate: React.FC = () => {
 
         if (sec.items && sec.items.length > 0) {
           const itemsToInsert = sec.items.map((item, itemIdx) => ({
-            section_id: sectionData.id,
+            section_id: (sectionData as any).id,
             name: item.name,
             description: item.description,
             assessment_type: item.assessment_type,

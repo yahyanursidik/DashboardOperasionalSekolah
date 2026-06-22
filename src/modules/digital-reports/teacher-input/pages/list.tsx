@@ -19,7 +19,7 @@ export const TeacherInputList: React.FC = () => {
   // we will fetch classes within the unit, but ideally filtered by their assignments.
   const myClassIds = React.useMemo(() => {
     if (!roles) return [];
-    return Array.from(new Set(roles.map(r => r.class_id).filter(Boolean))) as string[];
+    return Array.from(new Set(roles.map(r => (r as any).class_id).filter(Boolean))) as string[];
   }, [roles]);
 
   const [filterClass, setFilterClass] = useState<string>(myClassIds.length === 1 ? myClassIds[0] : "");
@@ -29,7 +29,7 @@ export const TeacherInputList: React.FC = () => {
   const { data: classes } = useList({
     resource: "classes",
     pagination: { mode: "off" },
-    filters: activeUnitId ? [{ field: "unit_id", operator: "eq", value: activeUnitId }] : []
+    filters: activeUnitId ? [{ field: "unit_id", operator: "eq", value: activeUnitId } as any] : []
   });
 
   const { data: periods } = useList({
@@ -37,7 +37,7 @@ export const TeacherInputList: React.FC = () => {
     pagination: { mode: "off" },
     filters: [
       { field: "status", operator: "in", value: ["draft", "active"] },
-      ...(activeUnitId ? [{ field: "unit_id", operator: "eq", value: activeUnitId }] : [])
+      ...(activeUnitId ? [{ field: "unit_id", operator: "eq", value: activeUnitId } as any] : [])
     ]
   });
 
@@ -47,7 +47,7 @@ export const TeacherInputList: React.FC = () => {
     filters: [
       { field: "class_id", operator: "eq", value: filterClass },
       { field: "report_period_id", operator: "eq", value: filterPeriod },
-      { field: "status", operator: "neq", value: "archived" }
+      { field: "status", operator: "ne", value: "archived" }
     ],
     meta: {
       select: "*, students(full_name, nisn, gender)"

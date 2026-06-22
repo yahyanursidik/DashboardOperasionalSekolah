@@ -14,16 +14,18 @@ export const TeacherInputForm: React.FC = () => {
   const navigate = useNavigate();
   const { data: user } = useGetIdentity<any>();
   const { roles } = useCurrentRoles();
-  const isHomeroom = hasRole(roles, 'homeroom') || hasRole(roles, 'wali_kelas');
+  const isHomeroom = hasRole(roles, 'homeroom' as any) || hasRole(roles, 'wali_kelas' as any);
 
   // Fetch Report Data + Template
-  const { queryResult: reportQuery } = useShow({
+  const { queryResult } = useShow({
     resource: "student_reports",
     id,
     meta: {
       select: "*, students(full_name, nisn), classes(name), report_periods(name), report_templates(*, sections:report_template_sections(*, items:report_template_items(*)))"
     }
   });
+  const reportQuery = queryResult;
+  const refetchReport = queryResult.refetch;
 
   const reportData = reportQuery.data?.data as any;
   const template = reportData?.report_templates;
@@ -45,7 +47,7 @@ export const TeacherInputForm: React.FC = () => {
     filters: [
       { field: "class_id", operator: "eq", value: reportData?.class_id },
       { field: "report_period_id", operator: "eq", value: reportData?.report_period_id },
-      { field: "status", operator: "neq", value: "archived" }
+      { field: "status", operator: "ne", value: "archived" }
     ],
     meta: { select: "id, students(full_name)" },
     queryOptions: { enabled: !!reportData?.class_id }
@@ -117,13 +119,13 @@ export const TeacherInputForm: React.FC = () => {
         await supabaseClient.from('student_report_scores').update(payload).eq('id', scoreRow.id);
       } else {
         // Insert
-        payload.created_by = user.id;
-        const { data, error } = await supabaseClient.from('student_report_scores').insert(payload).select('id').single();
+        const payloadToInsert = { ...payload, created_by: user.id };
+        const { data, error } = await supabaseClient.from('student_report_scores').insert(payloadToInsert).select('id').single();
         if (error) throw error;
         // Update local map with new ID
         setScoresMap(prev => ({
           ...prev,
-          [itemId]: { ...prev[itemId], id: data.id }
+          [itemId]: { ...prev[itemId], id: (data as any).id }
         }));
       }
 

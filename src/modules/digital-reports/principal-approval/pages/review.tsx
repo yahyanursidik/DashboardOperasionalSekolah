@@ -29,13 +29,15 @@ export const PrincipalApprovalForm: React.FC = () => {
   const { data: user } = useGetIdentity<any>();
 
   // Data Fetching
-  const { queryResult: reportQuery, refetch: refetchReport } = useShow({
+  const { queryResult } = useShow({
     resource: "student_reports",
     id,
     meta: {
       select: "*, students(full_name, nisn), classes(name), report_periods(name), report_templates(*, sections:report_template_sections(*, items:report_template_items(*)))"
     }
   });
+  const reportQuery = queryResult;
+  const refetchReport = queryResult.refetch;
 
   const reportData = reportQuery.data?.data as any;
   const template = reportData?.report_templates;
@@ -87,7 +89,7 @@ export const PrincipalApprovalForm: React.FC = () => {
       const prNote = notesData.data.find(n => n.note_type === 'principal_note');
       if (hrNote) setHomeroomNote(hrNote.note);
       if (advNote) setHomeAdviceNote(advNote.note);
-      if (prNote) setPrincipalNote({ id: prNote.id, text: prNote.note });
+      if (prNote) setPrincipalNote({ id: prNote.id as string, text: prNote.note });
     }
   }, [notesData?.data]);
 
@@ -105,7 +107,7 @@ export const PrincipalApprovalForm: React.FC = () => {
           created_by: user.id,
           updated_by: user.id
         }).select('id').single();
-        if (data) setPrincipalNote({ id: data.id, text });
+        if (data) setPrincipalNote({ id: (data as any).id, text });
       }
 
       await logAudit(
