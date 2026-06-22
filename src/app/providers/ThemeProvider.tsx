@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 
 type Theme = "dark" | "light" | "system";
 type ColorTheme = "emerald" | "ocean" | "rose" | "slate" | "islamic";
@@ -43,16 +44,34 @@ export function ThemeProvider({
     () => (localStorage.getItem(colorStorageKey) as ColorTheme) || defaultColorTheme
   );
 
+  const location = useLocation();
+
   useEffect(() => {
     const root = window.document.documentElement;
 
     // Apply dark/light theme
     root.classList.remove("light", "dark");
-    if (theme === "system") {
-      const systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-      root.classList.add(systemTheme);
+    
+    // Force light mode on all portal pages for better UX
+    const isPortalRoute = 
+      location.pathname.includes('/portal') || 
+      location.pathname.includes('/ekskul-portal') ||
+      location.pathname.includes('/spmb') ||
+      location.pathname.includes('/cbt') ||
+      location.pathname.includes('/teacher') ||
+      location.pathname.includes('/bendahara');
+    
+    if (isPortalRoute) {
+      root.classList.add("light");
+      root.style.colorScheme = "light";
     } else {
-      root.classList.add(theme);
+      root.style.colorScheme = ""; // Reset
+      if (theme === "system") {
+        const systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        root.classList.add(systemTheme);
+      } else {
+        root.classList.add(theme);
+      }
     }
 
     // Apply color theme
@@ -61,7 +80,7 @@ export function ThemeProvider({
       root.classList.add(`theme-${colorTheme}`);
     }
 
-  }, [theme, colorTheme]);
+  }, [theme, colorTheme, location.pathname]);
 
   const value = {
     theme,
