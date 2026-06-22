@@ -4,3 +4,4 @@ export * from "./verifications";
 export * from "./expenses";
 export * from "./categories";
 export * from "./spmb-fees";
+export * from "./settings";

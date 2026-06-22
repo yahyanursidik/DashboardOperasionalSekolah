@@ -53,7 +53,7 @@ import { SettingsPage } from "../modules/settings";
 import { StudentMassPromotion } from "../modules/students/pages/mass-promotion";
 import { CommunicationsPage } from "../modules/communications";
 import { StudentJournalsList, StudentJournalCreate, StudentJournalEdit } from "../modules/student-journals/pages";
-import { FinanceDashboard, InvoicesList, PaymentVerifications, SchoolExpenses, FinanceCategories, SpmbFeesConfig } from "../modules/finance/pages";
+import { FinanceDashboard, InvoicesList, PaymentVerifications, SchoolExpenses, FinanceCategories, SpmbFeesConfig, FinanceSettings } from "../modules/finance/pages";
 import { CurriculumDashboard } from "../modules/curriculum/dashboard";
 import { SubjectsList, SubjectCreate, SubjectEdit, SubjectShow, SubjectTeacherDirectory } from "../modules/curriculum/subjects";
 import { SubjectCurriculumCreate, SubjectCurriculumEdit } from "../modules/curriculum/subject-curriculums";
@@ -242,6 +242,11 @@ export default function App() {
             name: "finance_categories",
             list: "/finance/categories",
             meta: { label: "Kategori Keuangan" }
+          },
+          {
+            name: "finance_settings",
+            list: "/finance/settings",
+            meta: { label: "Pengaturan Keuangan", parent: "finance" }
           },
           {
             name: "teachers",
@@ -811,6 +816,7 @@ export default function App() {
                   <Route path="expenses" element={<SchoolExpenses />} />
                   <Route path="categories" element={<FinanceCategories />} />
                   <Route path="spmb-fees" element={<SpmbFeesConfig />} />
+                  <Route path="settings" element={<FinanceSettings />} />
                 </Route>
 
                 <Route path="/mail">
