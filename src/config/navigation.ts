@@ -28,7 +28,11 @@ import {
   CheckSquare,
   TrendingUp,
   ClipboardCheck,
-  Building
+  Building,
+  ShieldCheck,
+  Send,
+  BarChart3,
+  FileDown
 } from "lucide-react";
 import type { RoleName } from "../lib/permissions";
 
@@ -97,6 +101,77 @@ export const navigationConfig: NavigationGroup[] = [
     ],
   },
   {
+    name: "Rapor Digital",
+    items: [
+      {
+        title: "Monitoring Rapor",
+        href: "/reports/monitoring",
+        icon: BarChart3,
+        resource: "student_reports", // Admin, Principal
+      },
+      {
+        title: "Periode Rapor",
+        href: "/reports/periods",
+        icon: CalendarCheck,
+        resource: "report_periods",
+      },
+      {
+        title: "Template Rapor",
+        href: "/reports/templates",
+        icon: FileBadge,
+        resource: "report_templates",
+      },
+      {
+        title: "Generate Rapor",
+        href: "/reports/generate",
+        icon: Target,
+        resource: "report_periods", // Using report_periods as placeholder access
+      },
+      {
+        title: "Input Guru",
+        href: "/reports/teacher-input",
+        icon: ClipboardCheck,
+        resource: "academic_grades", // Teachers who can grade can input
+      },
+      {
+        title: "Review Wali Kelas",
+        href: "/reports/homeroom-review",
+        icon: Users,
+        resource: "report_reviews", // Homerooms only
+      },
+      {
+        title: "Review Wakasek",
+        href: "/reports/wakasek-review",
+        icon: ShieldCheck,
+        resource: "report_publish_logs", // Principals / Wakasek
+      },
+      {
+        title: "Approval Kepsek",
+        href: "/reports/principal-approval",
+        icon: Award,
+        resource: "report_publish_logs", // Principals only
+      },
+      {
+        title: "Publish Rapor",
+        href: "/reports/publish",
+        icon: Send,
+        resource: "report_publish_logs", // Admin/Principals
+      },
+      {
+        title: "Pantau Tanda Terima",
+        href: "/reports/read-receipts",
+        icon: ClipboardCheck,
+        resource: "student_reports", // Admin, Principals, Homeroom
+      },
+      {
+        title: "Generate PDF",
+        href: "/reports/pdf",
+        icon: FileDown,
+        resource: "report_pdf_exports", // Admin
+      },
+    ],
+  },
+  {
     name: "Modul PAUD (KB/TK)",
     items: [
       {
@@ -110,6 +185,17 @@ export const navigationConfig: NavigationGroup[] = [
         href: "/stppa-assessments",
         icon: CheckSquare,
         resource: "paud_stppa_assessments",
+      },
+    ],
+  },
+  {
+    name: "Portal Orang Tua",
+    items: [
+      {
+        title: "Rapor",
+        href: "/parent/reports",
+        icon: FileText,
+        resource: "student_parent_links", // Parents only
       },
     ],
   },

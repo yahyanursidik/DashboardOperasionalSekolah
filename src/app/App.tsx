@@ -112,6 +112,28 @@ import { TeacherPaud } from "../modules/teacher-portal/teacher-paud";
 import { BendaharaLayout, BendaharaLogin } from "../modules/bendahara-portal";
 import { AdminSpmbLayout, AdminSpmbLogin } from "../modules/admin-spmb-portal";
 
+import { ReportPeriodsList, ReportPeriodCreate, ReportPeriodEdit, ReportPeriodShow } from "../modules/digital-reports/periods/pages";
+import { ReportTemplatesList, ReportTemplateCreate, ReportTemplateEdit, ReportTemplateShow } from "../modules/digital-reports/templates/pages";
+import { ReportGenerator } from "../modules/digital-reports/generate/pages";
+import { TeacherInputList, TeacherInputForm } from "../modules/digital-reports/teacher-input/pages";
+import { HomeroomReviewList, HomeroomReviewForm } from "../modules/digital-reports/homeroom-review/pages";
+import { WakasekReviewList, WakasekReviewForm } from "../modules/digital-reports/wakasek-review/pages";
+import { PrincipalApprovalList, PrincipalApprovalForm } from "../modules/digital-reports/principal-approval/pages";
+import { PublishReportList } from "../modules/digital-reports/publish/pages";
+import { ParentReportList, ParentReportShow } from "../modules/digital-reports/parent/pages";
+import { ReadReceiptsList } from "../modules/digital-reports/read-receipts/pages";
+import { GeneratePDFList } from "../modules/digital-reports/pdf/pages";
+import { MonitoringDashboard } from "../modules/digital-reports/monitoring/pages";
+
+
+
+
+
+
+
+
+
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -284,6 +306,81 @@ export default function App() {
             name: "reports",
             list: "/reports",
             meta: { canDelete: false },
+          },
+          {
+            name: "digital_reports",
+            meta: { label: "Rapor Digital" }
+          },
+          {
+            name: "report_periods",
+            list: "/reports/periods",
+            create: "/reports/periods/create",
+            edit: "/reports/periods/edit/:id",
+            show: "/reports/periods/show/:id",
+            meta: { label: "Periode Rapor", parent: "digital_reports" }
+          },
+          {
+            name: "report_templates",
+            list: "/reports/templates",
+            create: "/reports/templates/create",
+            edit: "/reports/templates/edit/:id",
+            show: "/reports/templates/show/:id",
+            meta: { label: "Template Rapor", parent: "digital_reports" }
+          },
+          {
+            name: "report_generator",
+            list: "/reports/generate",
+            meta: { label: "Generate Rapor", parent: "digital_reports", canDelete: false }
+          },
+          {
+            name: "teacher_input",
+            list: "/reports/teacher-input",
+            show: "/reports/teacher-input/:id",
+            meta: { label: "Input Guru", parent: "digital_reports", canDelete: false }
+          },
+          {
+            name: "homeroom_review",
+            list: "/reports/homeroom-review",
+            show: "/reports/homeroom-review/:id",
+            meta: { label: "Review Wali Kelas", parent: "digital_reports", canDelete: false }
+          },
+          {
+            name: "wakasek_review",
+            list: "/reports/wakasek-review",
+            show: "/reports/wakasek-review/:id",
+            meta: { label: "Review Wakasek", parent: "digital_reports", canDelete: false }
+          },
+          {
+            name: "principal_approval",
+            list: "/reports/principal-approval",
+            show: "/reports/principal-approval/:id",
+            meta: { label: "Approval Kepala Sekolah", parent: "digital_reports", canDelete: false }
+          },
+          {
+            name: "publish_report",
+            list: "/reports/publish",
+            meta: { label: "Publish Rapor", parent: "digital_reports", canDelete: false }
+          },
+          {
+            name: "parent_reports",
+            list: "/parent/reports",
+            show: "/parent/reports/:id",
+            meta: { label: "Rapor Anak", canDelete: false }
+          },
+          {
+            name: "read_receipts",
+            list: "/reports/read-receipts",
+            meta: { label: "Tanda Terima", parent: "digital_reports", canDelete: false }
+          },
+          {
+            name: "report_pdfs",
+            list: "/reports/pdf",
+            meta: { label: "Generate PDF", parent: "digital_reports", canDelete: false }
+          },
+          {
+            name: "monitoring",
+            list: "/reports/monitoring",
+            meta: { label: "Monitoring Rapor", parent: "digital_reports", canDelete: false }
           },
           {
             name: "student_academic_history",
@@ -607,8 +704,49 @@ export default function App() {
                   <Route path="documents" element={<DocumentReport />} />
                   <Route path="tasks" element={<TaskReport />} />
                   <Route path="employee-attendance" element={<ReportEmployeeAttendance />} />
-                <Route path="leaves" element={<ReportLeaves />} />
-              </Route>
+                  <Route path="leaves" element={<ReportLeaves />} />
+                  <Route path="periods">
+                    <Route index element={<ReportPeriodsList />} />
+                    <Route path="create" element={<ReportPeriodCreate />} />
+                    <Route path="edit/:id" element={<ReportPeriodEdit />} />
+                    <Route path="show/:id" element={<ReportPeriodShow />} />
+                  </Route>
+                  <Route path="templates">
+                    <Route index element={<ReportTemplatesList />} />
+                    <Route path="create" element={<ReportTemplateCreate />} />
+                    <Route path="edit/:id" element={<ReportTemplateEdit />} />
+                    <Route path="show/:id" element={<ReportTemplateShow />} />
+                  </Route>
+                  <Route path="generate" element={<ReportGenerator />} />
+                  <Route path="teacher-input">
+                    <Route index element={<TeacherInputList />} />
+                    <Route path=":id" element={<TeacherInputForm />} />
+                  </Route>
+                  <Route path="homeroom-review">
+                    <Route index element={<HomeroomReviewList />} />
+                    <Route path=":id" element={<HomeroomReviewForm />} />
+                  </Route>
+                  <Route path="wakasek-review">
+                    <Route index element={<WakasekReviewList />} />
+                    <Route path=":id" element={<WakasekReviewForm />} />
+                  </Route>
+                  <Route path="principal-approval">
+                    <Route index element={<PrincipalApprovalList />} />
+                    <Route path=":id" element={<PrincipalApprovalForm />} />
+                  </Route>
+                  <Route path="publish" element={<PublishReportList />} />
+                  <Route path="read-receipts" element={<ReadReceiptsList />} />
+                  <Route path="pdf" element={<GeneratePDFList />} />
+                  <Route path="monitoring" element={<MonitoringDashboard />} />
+                </Route>
+
+                <Route path="/parent">
+                  <Route path="reports">
+                    <Route index element={<ParentReportList />} />
+                    <Route path=":id" element={<ParentReportShow />} />
+                  </Route>
+                </Route>
+
 
               <Route path="/calendar">
                 <Route index element={<AcademicCalendar />} />
