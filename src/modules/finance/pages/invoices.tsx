@@ -16,7 +16,12 @@ export const InvoicesList: React.FC = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generateForm, setGenerateForm] = useState({ title: "", category_id: "", amount: 0, due_date: "" });
   
+  const [targetType, setTargetType] = useState<"all" | "ekskul">("all");
+  const [ekskulId, setEkskulId] = useState("");
+  
   const { data: categoriesData } = useList({ resource: "finance_categories" });
+  const { data: extracurricularsData } = useList({ resource: "extracurriculars" });
+  
   // Payment / Installment Form
   const [paymentInvoice, setPaymentInvoice] = useState<any>(null);
   const [paymentForm, setPaymentForm] = useState({ amount_paid: 0, payment_method: "cash", notes: "" });
@@ -31,37 +36,72 @@ export const InvoicesList: React.FC = () => {
       return;
     }
     
+    if (targetType === "ekskul" && !ekskulId) {
+      alert("Harap pilih program Ekstrakurikuler.");
+      return;
+    }
+    
     setIsGenerating(true);
     try {
-      // Get all active internal students for the unit
-      let query = supabaseClient.from('students').select('id').eq('status', 'AKTIF');
-      if (activeUnitId) query = query.eq('unit_id', activeUnitId);
+      let newInvoices: any[] = [];
       
-      const { data: students, error: studentErr } = await query;
-      if (studentErr) throw studentErr;
+      if (targetType === "all") {
+        // Get all active internal students for the unit
+        let query = supabaseClient.from('students').select('id').eq('status', 'AKTIF');
+        if (activeUnitId) query = query.eq('unit_id', activeUnitId);
+        
+        const { data: students, error: studentErr } = await query;
+        if (studentErr) throw studentErr;
 
-      if (!students || students.length === 0) {
-        alert("Tidak ada siswa aktif ditemukan untuk di-generate tagihannya.");
-        setIsGenerating(false);
-        return;
+        if (!students || students.length === 0) {
+          alert("Tidak ada siswa aktif ditemukan untuk di-generate tagihannya.");
+          setIsGenerating(false);
+          return;
+        }
+
+        newInvoices = (students as any[]).map(s => ({
+          student_id: s.id,
+          category_id: generateForm.category_id,
+          title: generateForm.title,
+          amount: generateForm.amount,
+          due_date: generateForm.due_date || new Date().toISOString().split('T')[0],
+          status: 'unpaid'
+        }));
+      } else {
+        // Target: Ekskul Members
+        const { data: members, error: membersErr } = await supabaseClient
+          .from('extracurricular_members')
+          .select('student_id, external_student_id')
+          .eq('extracurricular_id', ekskulId)
+          .eq('status', 'active');
+          
+        if (membersErr) throw membersErr;
+        
+        if (!members || members.length === 0) {
+          alert("Tidak ada anggota aktif ditemukan di ekskul tersebut.");
+          setIsGenerating(false);
+          return;
+        }
+        
+        newInvoices = (members as any[]).map(m => ({
+          student_id: m.student_id, // Could be null for external
+          external_student_id: m.external_student_id, // Could be null for internal
+          category_id: generateForm.category_id,
+          title: generateForm.title,
+          amount: generateForm.amount,
+          due_date: generateForm.due_date || new Date().toISOString().split('T')[0],
+          status: 'unpaid'
+        }));
       }
-
-      const newInvoices = (students as any[]).map(s => ({
-        student_id: s.id,
-        category_id: generateForm.category_id,
-        title: generateForm.title,
-        amount: generateForm.amount,
-        due_date: generateForm.due_date || new Date().toISOString().split('T')[0],
-        status: 'unpaid'
-      }));
 
       const { error: insertErr } = await supabaseClient.from('student_invoices').insert(newInvoices);
       if (insertErr) throw insertErr;
 
-      alert(`Berhasil membuat tagihan untuk ${students.length} siswa!`);
+      alert(`Berhasil membuat tagihan untuk ${newInvoices.length} siswa!`);
       setIsModalOpen(false);
       setGenerateForm({ title: "", category_id: "", amount: 0, due_date: "" });
-      // The useList should auto-revalidate or we can rely on realtime/refetch
+      setTargetType("all");
+      setEkskulId("");
       window.location.reload();
     } catch (err: any) {
       console.error(err);
@@ -261,10 +301,45 @@ export const InvoicesList: React.FC = () => {
               <button onClick={() => setIsModalOpen(false)} className="text-muted-foreground hover:text-foreground">✕</button>
             </div>
             <form onSubmit={handleGenerate} className="p-6 space-y-4">
-              <div className="bg-blue-50 text-blue-800 p-3 rounded-md text-xs border border-blue-200 font-medium">
-                Fitur ini akan men-generate tagihan ke <b>semua siswa aktif</b> di unit yang terpilih saat ini. Pastikan nominal dan judul tagihan sudah benar.
-              </div>
               <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium mb-2">Target Tagihan</label>
+                  <div className="flex gap-4">
+                    <label className="flex items-center gap-2 text-sm cursor-pointer">
+                      <input type="radio" name="targetType" checked={targetType === "all"} onChange={() => setTargetType("all")} className="text-primary focus:ring-primary" />
+                      Semua Siswa Aktif (Umum)
+                    </label>
+                    <label className="flex items-center gap-2 text-sm cursor-pointer">
+                      <input type="radio" name="targetType" checked={targetType === "ekskul"} onChange={() => setTargetType("ekskul")} className="text-primary focus:ring-primary" />
+                      Peserta Ekstrakurikuler
+                    </label>
+                  </div>
+                </div>
+
+                {targetType === "all" && (
+                  <div className="bg-blue-50 text-blue-800 p-3 rounded-md text-xs border border-blue-200 font-medium">
+                    Tagihan akan di-generate ke <b>semua siswa aktif</b> di unit yang terpilih saat ini.
+                  </div>
+                )}
+
+                {targetType === "ekskul" && (
+                  <div className="bg-emerald-50 text-emerald-800 p-3 rounded-md text-xs border border-emerald-200 font-medium mb-3">
+                    Tagihan hanya akan di-generate untuk anggota aktif dari ekskul yang dipilih, termasuk <b>siswa eksternal</b>.
+                  </div>
+                )}
+
+                {targetType === "ekskul" && (
+                  <div className="animate-in slide-in-from-top-2">
+                    <label className="block text-sm font-medium mb-1">Pilih Ekstrakurikuler</label>
+                    <select required value={ekskulId} onChange={e => setEkskulId(e.target.value)} className="w-full border rounded-md px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary">
+                      <option value="">Pilih Ekskul...</option>
+                      {extracurricularsData?.data?.map((eks: any) => (
+                        <option key={eks.id} value={eks.id}>{eks.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
                 <div>
                   <label className="block text-sm font-medium mb-1">Kategori Tagihan</label>
                   <select required value={generateForm.category_id} onChange={e => setGenerateForm({...generateForm, category_id: e.target.value})} className="w-full border rounded-md px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary">
