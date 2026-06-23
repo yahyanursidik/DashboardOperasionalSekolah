@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useList, useUpdate, useDelete } from "@refinedev/core";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { 
-  Users, Search, Loader2, Check, X, Trash2, Eye, 
+  Users, Search, Loader2, Check, X, Trash2, Eye, Activity,
   MapPin, Phone, Mail, User, HeartPulse, GraduationCap, Calendar
 } from "lucide-react";
 import { toast } from "sonner";
