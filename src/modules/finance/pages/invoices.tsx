@@ -73,7 +73,7 @@ export const InvoicesList: React.FC = () => {
           .from('extracurricular_members')
           .select('student_id, external_student_id')
           .eq('extracurricular_id', ekskulId)
-          .eq('status', 'active');
+          .eq('status', 'ACTIVE');
           
         if (membersErr) throw membersErr;
         
