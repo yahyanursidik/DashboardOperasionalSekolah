@@ -373,129 +373,179 @@ export const ProgramsList: React.FC = () => {
       />
 
       {modalMode && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-          <div className="bg-background rounded-2xl shadow-2xl border w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between px-6 py-5 border-b bg-muted/10">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center text-primary">
-                  {modalMode === "create" ? <Plus className="w-5 h-5" /> : <Edit2 className="w-5 h-5" />}
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-background rounded-2xl shadow-2xl border w-full max-w-3xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
+            
+            {/* Modal Header */}
+            <div className={`flex items-center justify-between px-8 py-6 text-white ${modalMode === "create" ? 'bg-gradient-to-r from-blue-600 to-indigo-600' : 'bg-gradient-to-r from-emerald-600 to-teal-600'}`}>
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm shadow-inner">
+                  {modalMode === "create" ? <Plus className="w-6 h-6 text-white" /> : <Edit2 className="w-6 h-6 text-white" />}
                 </div>
-                <h3 className="font-bold text-lg">{modalMode === "create" ? "Tambah Program Baru" : "Edit Program"}</h3>
+                <div>
+                  <h3 className="font-bold text-2xl tracking-tight">{modalMode === "create" ? "Tambah Program Ekskul" : "Edit Program Ekskul"}</h3>
+                  <p className="text-white/80 text-sm mt-0.5">{modalMode === "create" ? "Buat kegiatan ekstrakurikuler baru untuk siswa" : "Perbarui detail dan pengaturan program"}</p>
+                </div>
               </div>
-              <button onClick={() => setModalMode(null)} className="text-muted-foreground hover:text-foreground p-1.5 rounded-full hover:bg-muted transition-colors">
+              <button onClick={() => setModalMode(null)} className="text-white/70 hover:text-white bg-white/10 hover:bg-white/20 p-2.5 rounded-full transition-all">
                 <X className="w-5 h-5" />
               </button>
             </div>
             
-            <div className="p-6 max-h-[70vh] overflow-y-auto space-y-6">
-              <div className="space-y-2">
-                <label className="text-sm font-semibold">Nama Program Ekstrakurikuler <span className="text-rose-500">*</span></label>
-                <input 
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({...formData, name: e.target.value})}
-                  className="w-full border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-background shadow-sm"
-                  placeholder="Contoh: Futsal, Coding & Robotic, dll"
-                  autoFocus
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-semibold">Deskripsi / Profil Singkat</label>
-                <textarea 
-                  value={formData.description}
-                  onChange={(e) => setFormData({...formData, description: e.target.value})}
-                  className="w-full border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all min-h-[100px] bg-background shadow-sm"
-                  placeholder="Ceritakan tentang kegiatan ekskul ini..."
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Modal Body */}
+            <div className="p-8 overflow-y-auto space-y-8 bg-slate-50/50 flex-1">
+              
+              {/* Section 1: Informasi Dasar */}
+              <div className="bg-white p-6 rounded-xl border shadow-sm space-y-5">
+                <h4 className="font-bold text-slate-800 text-sm uppercase tracking-wider flex items-center gap-2 border-b pb-3">
+                  <Activity className="w-4 h-4 text-primary" /> Informasi Dasar Program
+                </h4>
+                
                 <div className="space-y-2">
-                  <label className="text-sm font-semibold">Nama Pelatih / Penanggung Jawab</label>
+                  <label className="text-sm font-bold text-slate-700">Nama Program <span className="text-rose-500">*</span></label>
                   <input 
                     type="text"
-                    value={formData.coach_name}
-                    onChange={(e) => setFormData({...formData, coach_name: e.target.value})}
-                    className="w-full border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-background shadow-sm"
-                    placeholder="Contoh: Kak Budi"
+                    value={formData.name}
+                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                    className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all text-slate-800 font-medium placeholder:font-normal"
+                    placeholder="Contoh: Futsal, Coding & Robotic, English Club"
+                    autoFocus
                   />
                 </div>
+
                 <div className="space-y-2">
-                  <label className="text-sm font-semibold">Jadwal Pelaksanaan</label>
-                  <input 
-                    type="text"
-                    value={formData.schedule}
-                    onChange={(e) => setFormData({...formData, schedule: e.target.value})}
-                    className="w-full border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-background shadow-sm"
-                    placeholder="Contoh: Rabu & Jumat, 15:30 - 17:00"
+                  <label className="text-sm font-bold text-slate-700">Deskripsi / Profil Singkat</label>
+                  <textarea 
+                    value={formData.description}
+                    onChange={(e) => setFormData({...formData, description: e.target.value})}
+                    className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all min-h-[100px] resize-y text-slate-800"
+                    placeholder="Ceritakan gambaran kegiatan, tujuan, atau manfaat ekskul ini bagi siswa..."
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-5 border rounded-xl bg-muted/10">
-                <div className="space-y-2">
-                  <label className="text-sm font-semibold">Biaya Siswa Internal (Rp)</label>
-                  <input 
-                    type="number"
-                    value={formData.internal_fee}
-                    onChange={(e) => setFormData({...formData, internal_fee: parseInt(e.target.value) || 0})}
-                    className="w-full border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-background shadow-sm font-mono"
-                    min="0"
-                  />
+              {/* Section 2: Pelatih & Jadwal */}
+              <div className="bg-white p-6 rounded-xl border shadow-sm">
+                <h4 className="font-bold text-slate-800 text-sm uppercase tracking-wider flex items-center gap-2 border-b pb-3 mb-5">
+                  <Target className="w-4 h-4 text-primary" /> Pelaksanaan & Pelatih
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-slate-700">Nama Pelatih / PJ</label>
+                    <input 
+                      type="text"
+                      value={formData.coach_name}
+                      onChange={(e) => setFormData({...formData, coach_name: e.target.value})}
+                      className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all text-slate-800"
+                      placeholder="Contoh: Kak Budi Setiawan"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-slate-700">Jadwal Pelaksanaan</label>
+                    <input 
+                      type="text"
+                      value={formData.schedule}
+                      onChange={(e) => setFormData({...formData, schedule: e.target.value})}
+                      className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all text-slate-800"
+                      placeholder="Contoh: Rabu & Jumat, 15:30 - 17:00"
+                    />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-semibold">Biaya Siswa Eksternal (Rp)</label>
-                  <input 
-                    type="number"
-                    value={formData.external_fee}
-                    onChange={(e) => setFormData({...formData, external_fee: parseInt(e.target.value) || 0})}
-                    className="w-full border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-background shadow-sm font-mono"
-                    min="0"
-                  />
+              </div>
+
+              {/* Section 3: Biaya & Pengaturan */}
+              <div className="bg-white p-6 rounded-xl border shadow-sm">
+                <h4 className="font-bold text-slate-800 text-sm uppercase tracking-wider flex items-center gap-2 border-b pb-3 mb-5">
+                  <Save className="w-4 h-4 text-primary" /> Pengaturan Biaya & Status
+                </h4>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-slate-700 flex justify-between">
+                      <span>Biaya Internal (Rp)</span>
+                      <span className="text-xs font-normal text-muted-foreground bg-slate-100 px-2 rounded">Siswa Dalam</span>
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-medium">Rp</span>
+                      <input 
+                        type="number"
+                        value={formData.internal_fee}
+                        onChange={(e) => setFormData({...formData, internal_fee: parseInt(e.target.value) || 0})}
+                        className="w-full border-2 border-slate-200 rounded-xl pl-12 pr-4 py-3 outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all font-mono text-lg text-slate-800"
+                        min="0"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-slate-700 flex justify-between">
+                      <span>Biaya Eksternal (Rp)</span>
+                      <span className="text-xs font-normal text-muted-foreground bg-slate-100 px-2 rounded">Siswa Luar</span>
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-medium">Rp</span>
+                      <input 
+                        type="number"
+                        value={formData.external_fee}
+                        onChange={(e) => setFormData({...formData, external_fee: parseInt(e.target.value) || 0})}
+                        className="w-full border-2 border-slate-200 rounded-xl pl-12 pr-4 py-3 outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all font-mono text-lg text-slate-800"
+                        min="0"
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div className="md:col-span-2 pt-2 border-t border-muted-foreground/10 grid grid-cols-1 md:grid-cols-2 gap-6">
-                   <div className="space-y-2 mt-2">
-                     <label className="text-sm font-semibold">Tipe Program</label>
-                     <select 
-                       value={formData.program_type}
-                       onChange={(e) => setFormData({...formData, program_type: e.target.value})}
-                       className="w-full border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-background shadow-sm"
-                     >
-                       <option value="ROUTINE">Rutin (Berkelanjutan)</option>
-                       <option value="EVENT">1 Momen Kegiatan (Event Sekali)</option>
-                     </select>
+
+                <div className="p-5 bg-indigo-50/50 rounded-xl border border-indigo-100 flex flex-col md:flex-row gap-6 md:items-center justify-between">
+                   <div className="space-y-1">
+                     <label className="text-sm font-bold text-indigo-900">Tipe Program Ekskul</label>
+                     <p className="text-xs text-indigo-700/80">Pilih apakah ini kegiatan mingguan rutin atau satu kali event saja.</p>
                    </div>
-                   <label className="flex items-center gap-3 cursor-pointer w-max group mt-4 md:mt-10">
-                     <div className="relative flex items-center">
+                   <select 
+                     value={formData.program_type}
+                     onChange={(e) => setFormData({...formData, program_type: e.target.value})}
+                     className="w-full md:w-64 border-2 border-indigo-200 rounded-xl px-4 py-2.5 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/20 transition-all bg-white text-indigo-900 font-medium cursor-pointer"
+                   >
+                     <option value="ROUTINE">Rutin (Berkelanjutan)</option>
+                     <option value="EVENT">1 Momen Kegiatan (Event)</option>
+                   </select>
+                </div>
+
+                <div className="mt-6">
+                  <label className="flex items-start gap-4 cursor-pointer p-4 rounded-xl hover:bg-slate-50 border-2 border-transparent hover:border-slate-100 transition-all group">
+                     <div className="relative flex items-center mt-0.5">
                        <input 
                          type="checkbox" 
                          checked={formData.is_active}
                          onChange={(e) => setFormData({...formData, is_active: e.target.checked})}
-                         className="w-5 h-5 rounded border-gray-300 text-primary focus:ring-primary transition-all cursor-pointer"
+                         className="w-6 h-6 rounded-md border-2 border-slate-300 text-primary focus:ring-primary focus:ring-offset-2 transition-all cursor-pointer"
                        />
                      </div>
-                     <span className="text-sm font-bold group-hover:text-primary transition-colors">Program Aktif (Terbuka untuk Pendaftaran)</span>
-                   </label>
+                     <div>
+                       <span className="text-base font-bold text-slate-800 group-hover:text-primary transition-colors block">Program Aktif (Terbuka untuk Pendaftaran)</span>
+                       <span className="text-sm text-slate-500 mt-0.5 block">Matikan centang ini jika kuota sudah penuh atau pendaftaran belum dibuka.</span>
+                     </div>
+                  </label>
                 </div>
+
               </div>
+
             </div>
             
-            <div className="p-5 border-t bg-muted/20 flex justify-end gap-3">
+            {/* Modal Footer */}
+            <div className="px-8 py-5 border-t bg-white flex flex-col-reverse sm:flex-row justify-end gap-3 rounded-b-2xl">
               <button 
                 onClick={() => setModalMode(null)} 
                 disabled={isSaving}
-                className="px-5 py-2.5 rounded-xl font-bold text-muted-foreground hover:bg-background hover:text-foreground transition-colors disabled:opacity-50 border border-transparent hover:border-border shadow-sm"
+                className="w-full sm:w-auto px-6 py-3 rounded-xl font-bold text-slate-600 hover:bg-slate-100 transition-colors disabled:opacity-50"
               >
-                Batal
+                Batalkan
               </button>
               <button 
                 onClick={handleSave}
                 disabled={isSaving || !formData.name.trim()}
-                className="flex items-center gap-2 bg-primary text-primary-foreground px-8 py-2.5 rounded-xl hover:bg-primary/90 transition-all shadow-md font-bold disabled:opacity-60 disabled:cursor-not-allowed transform active:scale-95"
+                className="w-full sm:w-auto flex justify-center items-center gap-2 bg-primary text-primary-foreground px-8 py-3 rounded-xl hover:bg-primary/90 transition-all shadow-lg shadow-primary/30 font-bold disabled:opacity-60 disabled:cursor-not-allowed transform active:scale-95"
               >
                 {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-                {isSaving ? "Menyimpan..." : "Simpan Program"}
+                {isSaving ? "Menyimpan Data..." : "Simpan Program Ekskul"}
               </button>
             </div>
           </div>
