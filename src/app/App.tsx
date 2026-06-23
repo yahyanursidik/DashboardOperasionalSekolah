@@ -972,6 +972,9 @@ export default function App() {
                 <Route path="settings" element={<AdmissionsSettings />} />
               </Route>
 
+              {/* Catch-all route for unknown URLs (404) to prevent blank screen */}
+              <Route path="*" element={<Navigate to="/login" replace />} />
+
             </Routes>
           </UnitProvider>
         </AcademicYearProvider>
