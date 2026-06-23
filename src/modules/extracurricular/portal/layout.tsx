@@ -64,7 +64,7 @@ export const ExtracurricularPortalLayout: React.FC = () => {
           <div className="flex gap-6 mt-1 border-t pt-2">
             <Link 
               to="/ekskul-portal" 
-              className={`pb-3 px-1 text-sm font-medium flex items-center gap-2 border-b-2 transition-colors ${!isProgramsPage ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground hover:border-gray-300'}`}
+              className={`pb-3 px-1 text-sm font-medium flex items-center gap-2 border-b-2 transition-colors ${!isProgramsPage && !location.pathname.includes('/profile') ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground hover:border-gray-300'}`}
             >
               <LayoutDashboard className="w-4 h-4" />
               Dasbor Utama
@@ -75,6 +75,13 @@ export const ExtracurricularPortalLayout: React.FC = () => {
             >
               <LayoutList className="w-4 h-4" />
               Daftar Program
+            </Link>
+            <Link 
+              to="/ekskul-portal/profile" 
+              className={`pb-3 px-1 text-sm font-medium flex items-center gap-2 border-b-2 transition-colors ${location.pathname.includes('/profile') ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground hover:border-gray-300'}`}
+            >
+              <User className="w-4 h-4" />
+              Profil Saya
             </Link>
           </div>
         </div>

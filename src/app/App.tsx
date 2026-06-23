@@ -47,7 +47,8 @@ import {
   ExtracurricularPortalDashboard, 
   ExtracurricularPortalLogin, 
   ExtracurricularPortalRegister,
-  ExtracurricularPortalPrograms
+  ExtracurricularPortalPrograms,
+  ExtracurricularPortalProfile
 } from "../modules/extracurricular/portal";
 import { SettingsPage } from "../modules/settings";
 import { StudentMassPromotion } from "../modules/students/pages/mass-promotion";
@@ -920,6 +921,7 @@ export default function App() {
               <Route path="/ekskul-portal" element={<ExtracurricularPortalLayout />}>
                 <Route index element={<ExtracurricularPortalDashboard />} />
                 <Route path="programs" element={<ExtracurricularPortalPrograms />} />
+                <Route path="profile" element={<ExtracurricularPortalProfile />} />
               </Route>
 
               {/* CBT Portal */}
