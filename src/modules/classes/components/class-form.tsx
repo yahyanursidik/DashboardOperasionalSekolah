@@ -61,9 +61,26 @@ export const ClassForm: React.FC<ClassFormProps> = ({ action }) => {
     filters: [{ field: "is_active", operator: "eq", value: true }]
   });
 
+  const onSubmit = async (data: ClassFormValues) => {
+    // Transform payload so it matches the Supabase 'classes' table
+    const payload = {
+      name: data.name,
+      code: data.code || null,
+      level: data.level,
+      grade_level: parseInt(data.level) || 0, // Required by DB
+      capacity: data.capacity,
+      unit_id: data.unit_id,
+      academic_year_id: data.academic_year_id,
+      is_active: data.is_active
+    };
+
+    // Ignore homeroom_teacher_id for the classes insert, since it belongs to teacher_assignments table
+    await onFinish(payload as any);
+  };
+
   return (
     <div className="max-w-4xl space-y-6">
-      <form onSubmit={handleSubmit(onFinish as any)} className="space-y-6">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         
         {/* SECTION 1: Identitas Kelas */}
         <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
