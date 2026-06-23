@@ -109,6 +109,25 @@ export const ApplicantsList: React.FC = () => {
       }, {
         onSuccess: () => {
           toast.success(`Berkas pendaftaran ${appName} berhasil diverifikasi!`);
+          
+          // Notifikasi Email Pendaftaran
+          import("../../../lib/email").then(({ sendNotificationEmail }) => {
+            sendNotificationEmail({
+              to: "info@tslabschool.sch.id",
+              subject: `[Notifikasi SPMB] Pendaftaran SMP: ${appName} Diverifikasi`,
+              html: `
+                <h3>Pendaftaran Siswa Baru (SMP) Telah Diverifikasi</h3>
+                <p>Sistem mencatat bahwa berkas pendaftaran atas nama <strong>${appName}</strong> telah diverifikasi dan dinyatakan valid oleh Admin.</p>
+                <ul>
+                  <li><strong>Nomor Registrasi:</strong> ${applicant.id}</li>
+                  <li><strong>Unit Tujuan:</strong> ${applicant.unit}</li>
+                  <li><strong>Asal Sekolah:</strong> ${applicant.school}</li>
+                </ul>
+                <p>Waktu Verifikasi: ${new Date().toLocaleString('id-ID')}</p>
+              `
+            });
+          });
+
           setModalState({ isOpen: false, type: null, appId: '', appName: '' });
         }
       });

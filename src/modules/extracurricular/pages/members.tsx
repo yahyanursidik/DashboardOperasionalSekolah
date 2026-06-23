@@ -36,6 +36,28 @@ export const MembersList: React.FC = () => {
     update({ resource: "extracurricular_members", id, values: { status: newStatus } }, {
       onSuccess: () => {
         toast.success(`Status peserta berhasil diubah menjadi ${newStatus}`);
+        
+        if (newStatus === 'ACTIVE') {
+          const item = data?.data?.find(d => d.id === id);
+          if (item) {
+            const isInternal = !!item.student_id;
+            const name = isInternal ? item.students?.full_name : item.external_students?.full_name;
+            const programName = item.extracurriculars?.name;
+            
+            // Notifikasi Email ke Admin/Sistem
+            import("../../../lib/email").then(({ sendNotificationEmail }) => {
+              sendNotificationEmail({
+                to: "info@tslabschool.sch.id",
+                subject: `[Notifikasi Ekskul] Pendaftaran ${name} Disetujui`,
+                html: `
+                  <h3>Pendaftaran Ekstrakurikuler Disetujui</h3>
+                  <p>Sistem mencatat bahwa pendaftaran siswa atas nama <strong>${name}</strong> telah disetujui untuk mengikuti program ekstrakurikuler <strong>${programName}</strong>.</p>
+                  <p>Tanggal Persetujuan: ${new Date().toLocaleDateString('id-ID')}</p>
+                `
+              });
+            });
+          }
+        }
       }
     });
   };

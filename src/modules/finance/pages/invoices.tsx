@@ -131,6 +131,24 @@ export const InvoicesList: React.FC = () => {
       onSuccess: () => {
         setPaymentInvoice(null);
         alert('Pembayaran cicilan berhasil dicatat! Status tagihan akan otomatis diperbarui oleh sistem.');
+        
+        // Notifikasi Email ke Admin/Sistem
+        import("../../../lib/email").then(({ sendNotificationEmail }) => {
+          sendNotificationEmail({
+            to: "info@tslabschool.sch.id",
+            subject: `[Notifikasi Pembayaran] Tagihan ${paymentInvoice.title} Telah Dibayar`,
+            html: `
+              <h3>Notifikasi Pembayaran Baru</h3>
+              <p>Sebuah pembayaran telah berhasil diverifikasi oleh sistem.</p>
+              <ul>
+                <li><strong>Tagihan:</strong> ${paymentInvoice.title}</li>
+                <li><strong>Metode:</strong> ${paymentForm.payment_method.toUpperCase()}</li>
+                <li><strong>Nominal:</strong> Rp ${paymentForm.amount_paid.toLocaleString('id-ID')}</li>
+                <li><strong>Tanggal:</strong> ${new Date().toLocaleDateString('id-ID')}</li>
+              </ul>
+            `
+          });
+        });
       }
     });
   };
