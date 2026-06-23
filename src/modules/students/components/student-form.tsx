@@ -88,9 +88,21 @@ export const StudentForm: React.FC<StudentFormProps> = ({ action }) => {
   const initialData = queryResult?.data?.data;
   const birthDateValue = initialData?.date_of_birth ? new Date(initialData.date_of_birth).toISOString().split('T')[0] : "";
 
+  const onSubmit = async (data: StudentFormValues) => {
+    const payload = { ...data };
+    
+    // Convert empty strings to null for UUIDs and Dates to prevent Supabase type errors
+    if (!payload.class_id) payload.class_id = null;
+    if (!payload.date_of_birth) payload.date_of_birth = null;
+    
+    // We try to save. If it fails due to missing columns (like health data),
+    // the user will see an error and needs to run the SQL migration.
+    await onFinish(payload as any);
+  };
+
   return (
     <div className="max-w-4xl space-y-6">
-      <form onSubmit={handleSubmit(onFinish as any)} className="space-y-6">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         
         {/* SECTION 1: Identitas Siswa */}
         <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
