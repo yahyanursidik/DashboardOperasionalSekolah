@@ -15,7 +15,7 @@ export const MembersList: React.FC = () => {
   const { data, isLoading, refetch } = useList({ 
     resource: "extracurricular_members",
     meta: {
-      select: "*, extracurriculars(name), students(full_name, nis, gender, birth_place, birth_date), external_students(full_name, school_origin, phone_number, email, birth_place, birth_date, parent_name, parent_phone_number, address, medical_notes)"
+      select: "*, extracurriculars(name), students(*), external_students(*)"
     },
     filters: selectedProgram ? [
       { field: "extracurricular_id", operator: "eq", value: selectedProgram }
@@ -327,7 +327,7 @@ export const MembersList: React.FC = () => {
                     <div className="col-span-2">
                       <p className="text-muted-foreground mb-1 text-xs font-semibold uppercase">Tempat, Tanggal Lahir</p>
                       <p className="font-medium text-slate-900">
-                        {selectedMember.students.birth_place || '-'}, {formatDate(selectedMember.students.birth_date)}
+                        {selectedMember.students.birth_place || '-'}, {formatDate(selectedMember.students.date_of_birth)}
                       </p>
                     </div>
                   </div>
