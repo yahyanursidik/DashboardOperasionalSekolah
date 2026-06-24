@@ -44,18 +44,19 @@ export const ExtracurricularPortalProfile: React.FC = () => {
           console.error("Error fetching profile:", error);
         }
       } else if (data) {
-        setProfile(data);
+        const profileData = data as any;
+        setProfile(profileData);
         setFormData({
-          full_name: data.full_name || "",
-          email: data.email || "",
-          phone_number: data.phone_number || "",
-          school_origin: data.school_origin || "",
-          birth_place: data.birth_place || "",
-          birth_date: data.birth_date || "",
-          parent_name: data.parent_name || "",
-          parent_phone_number: data.parent_phone_number || "",
-          address: data.address || "",
-          medical_notes: data.medical_notes || "",
+          full_name: profileData.full_name || "",
+          email: profileData.email || "",
+          phone_number: profileData.phone_number || "",
+          school_origin: profileData.school_origin || "",
+          birth_place: profileData.birth_place || "",
+          birth_date: profileData.birth_date || "",
+          parent_name: profileData.parent_name || "",
+          parent_phone_number: profileData.parent_phone_number || "",
+          address: profileData.address || "",
+          medical_notes: profileData.medical_notes || "",
         });
       }
     } catch (err) {

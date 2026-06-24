@@ -47,7 +47,7 @@ export const ParentForm: React.FC<ParentFormProps> = ({ action, onSuccess, hideA
     },
   });
 
-  const onSubmit = (values: ParentFormValues) => {
+  const onSubmit = (values: any) => {
     const sanitizedValues: any = { ...values };
     
     // Konversi string kosong ("") menjadi null agar tidak melanggar 
@@ -64,7 +64,7 @@ export const ParentForm: React.FC<ParentFormProps> = ({ action, onSuccess, hideA
 
   return (
     <div className="max-w-5xl space-y-6">
-      <form id="parent-form" onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+      <form id="parent-form" onSubmit={handleSubmit(onSubmit as any)} className="space-y-8">
         
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* ── Identitas Diri ── */}

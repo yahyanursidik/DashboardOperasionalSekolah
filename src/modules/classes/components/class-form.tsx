@@ -61,7 +61,7 @@ export const ClassForm: React.FC<ClassFormProps> = ({ action }) => {
     filters: [{ field: "is_active", operator: "eq", value: true }]
   });
 
-  const onSubmit = async (data: ClassFormValues) => {
+  const onSubmit = async (data: any) => {
     // Transform payload so it matches the Supabase 'classes' table
     const payload = {
       name: data.name,
@@ -80,7 +80,7 @@ export const ClassForm: React.FC<ClassFormProps> = ({ action }) => {
 
   return (
     <div className="max-w-4xl space-y-6">
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={handleSubmit(onSubmit as any)} className="space-y-6">
         
         {/* SECTION 1: Identitas Kelas */}
         <div className="bg-card rounded-xl border shadow-sm overflow-hidden">

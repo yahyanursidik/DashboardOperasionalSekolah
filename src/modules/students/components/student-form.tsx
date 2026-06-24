@@ -88,7 +88,7 @@ export const StudentForm: React.FC<StudentFormProps> = ({ action }) => {
   const initialData = queryResult?.data?.data;
   const birthDateValue = initialData?.date_of_birth ? new Date(initialData.date_of_birth).toISOString().split('T')[0] : "";
 
-  const onSubmit = async (data: StudentFormValues) => {
+  const onSubmit = async (data: any) => {
     const payload = { ...data };
     
     // Convert empty strings to null for UUIDs and Dates to prevent Supabase type errors
@@ -102,7 +102,7 @@ export const StudentForm: React.FC<StudentFormProps> = ({ action }) => {
 
   return (
     <div className="max-w-4xl space-y-6">
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={handleSubmit(onSubmit as any)} className="space-y-6">
         
         {/* SECTION 1: Identitas Siswa */}
         <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
