@@ -48,7 +48,6 @@ const ResourceAccessMap: Record<string, RoleName[]> = {
   'documents': ['super_admin', 'ketua_yayasan', 'kepala_tu', 'admin_tu', 'admin_dokumen'],
   'attendance': ['super_admin', 'ketua_yayasan', 'kepsek', 'wakasek', 'kepala_tu', 'admin_tu', 'operator_absensi', 'wali_kelas', 'guru'],
   'employee_attendance': ['super_admin', 'ketua_yayasan', 'kepsek', 'wakasek', 'kepala_tu', 'admin_tu'],
-  'employees': ['super_admin', 'ketua_yayasan', 'kepsek', 'kepala_tu', 'admin_sekolah', 'admin_unit'],
   'employee_schedules': ['super_admin', 'ketua_yayasan', 'kepsek', 'wakasek', 'kepala_tu', 'admin_tu', 'admin_sekolah', 'admin_unit'],
   'leave_requests': ['super_admin', 'ketua_yayasan', 'kepsek', 'wakasek', 'kepala_tu', 'admin_tu', 'admin_sekolah', 'admin_unit', 'guru'],
   'substitute_assignments': ['super_admin', 'ketua_yayasan', 'kepsek', 'wakasek', 'kepala_tu', 'admin_tu', 'admin_sekolah', 'admin_unit'],
