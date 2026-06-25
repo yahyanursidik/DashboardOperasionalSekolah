@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useTable, useDelete } from "@refinedev/core";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { Plus, Trash2, Search, Filter, Eye, Phone, Mail, ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -24,6 +24,8 @@ const STATUS_LABELS: Record<string, string> = {
 
 export const ApplicantsList: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const basePortal = location.pathname.startsWith("/hrd") ? "/hrd" : "/recruitment";
   const [q, setQ] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
@@ -67,13 +69,13 @@ export const ApplicantsList: React.FC = () => {
         action={
           <div className="flex gap-2">
             <Link
-              to="/recruitment"
+              to={basePortal}
               className="px-4 py-2 text-sm font-medium border rounded-md hover:bg-muted transition-colors"
             >
               Kembali
             </Link>
             <Link
-              to="/recruitment/applicants/create"
+              to={`${basePortal}/applicants/create`}
               className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-md hover:bg-emerald-700 transition-colors shadow-sm font-medium text-sm"
             >
               <Plus className="w-4 h-4" /> Input Pelamar
@@ -155,7 +157,7 @@ export const ApplicantsList: React.FC = () => {
                     <td className="px-6 py-4 text-right">
                       <div className="flex justify-end gap-2">
                         <button 
-                          onClick={() => navigate(`/recruitment/applicants/show/${app.id}`)}
+                          onClick={() => navigate(`${basePortal}/applicants/show/${app.id}`)}
                           className="px-3 py-1.5 bg-primary/10 text-primary hover:bg-primary/20 rounded-md font-medium text-xs flex items-center gap-1.5 transition-colors"
                         >
                           <Eye className="w-3.5 h-3.5" /> Proses & Nilai

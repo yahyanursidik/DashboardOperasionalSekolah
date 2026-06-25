@@ -1,4 +1,5 @@
 import React from "react";
+import { Link, useLocation } from "react-router-dom";
 import { useTable, useDelete, useCreate, useUpdate } from "@refinedev/core";
 import { Plus, Trash2, Edit, BookOpen } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
@@ -6,6 +7,9 @@ import { EmptyState } from "../../../components/common/EmptyState";
 import { Modal } from "../../../components/common/Modal";
 
 export const CbtBanksList: React.FC = () => {
+  const location = useLocation();
+  const basePath = location.pathname.startsWith("/hrd") ? "/hrd/cbt/banks" : "/recruitment/cbt/banks";
+
   const { tableQueryResult } = useTable({
     resource: "cbt_banks",
     sorters: { initial: [{ field: "created_at", order: "desc" }] },
@@ -83,9 +87,9 @@ export const CbtBanksList: React.FC = () => {
                 <p className="text-sm text-muted-foreground line-clamp-2">{bank.description || "Tidak ada deskripsi"}</p>
               </div>
               <div className="flex items-center justify-between pt-4 border-t relative z-10">
-                <a href={`/recruitment/cbt/banks/${bank.id}/questions`} className="text-sm text-primary font-medium hover:underline">
+                <Link to={`${basePath}/${bank.id}/questions`} className="text-sm text-primary font-medium hover:underline">
                   Kelola Soal &rarr;
-                </a>
+                </Link>
                 <div className="flex gap-2">
                   <button onClick={() => handleEdit(bank)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md transition-colors" title="Edit">
                     <Edit className="w-4 h-4" />

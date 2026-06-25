@@ -11,12 +11,18 @@ interface PageHeaderProps {
 export const PageHeader: React.FC<PageHeaderProps> = ({ title, description, action }) => {
   const location = useLocation();
   const paths = location.pathname.split("/").filter(Boolean);
+  
+  let homePath = "/";
+  if (location.pathname.startsWith("/hrd")) homePath = "/hrd";
+  else if (location.pathname.startsWith("/teacher")) homePath = "/teacher";
+  else if (location.pathname.startsWith("/portal")) homePath = "/portal";
+  else if (location.pathname.startsWith("/admin-spmb")) homePath = "/admin-spmb";
 
   return (
     <div className="flex flex-col mb-8 gap-4">
       {paths.length > 0 && (
         <nav className="flex items-center text-sm text-muted-foreground">
-          <Link to="/" className="hover:text-foreground transition-colors">Beranda</Link>
+          <Link to={homePath} className="hover:text-foreground transition-colors">Beranda</Link>
           {paths.map((path, index) => {
             const isLast = index === paths.length - 1;
             const routeTo = `/${paths.slice(0, index + 1).join("/")}`;

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useForm, useSelect } from "@refinedev/core";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Save, ArrowLeft, User, Building2, Phone, Mail, MapPin, GraduationCap, Award, Calendar, Briefcase } from "lucide-react";
 
 function FormSection({ title, icon: Icon, children }: { title: string; icon: React.ElementType; children: React.ReactNode }) {
@@ -33,6 +33,8 @@ const selectCls = "w-full px-3 py-2.5 border rounded-lg text-sm focus:ring-2 foc
 
 export const EmployeeCreate: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const basePath = location.pathname.startsWith("/hrd") ? "/hrd/employees" : "/employees";
   const [position, setPosition] = useState("guru");
 
   const { onFinish, mutationResult } = useForm({
@@ -40,7 +42,7 @@ export const EmployeeCreate: React.FC = () => {
     action: "create",
     redirect: false,
     onMutationSuccess: (data) => {
-      navigate(`/employees/show/${data?.data?.id ?? ""}`);
+      navigate(`${basePath}/show/${data?.data?.id ?? ""}`);
     },
   });
 
@@ -62,7 +64,7 @@ export const EmployeeCreate: React.FC = () => {
     <div className="max-w-3xl mx-auto space-y-5">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <button onClick={() => navigate("/employees")} className="p-2 hover:bg-muted rounded-xl transition-colors">
+        <button onClick={() => navigate(basePath)} className="p-2 hover:bg-muted rounded-xl transition-colors">
           <ArrowLeft className="w-5 h-5" />
         </button>
         <div>
@@ -206,7 +208,7 @@ export const EmployeeCreate: React.FC = () => {
         <div className="flex justify-end gap-3 pt-2">
           <button
             type="button"
-            onClick={() => navigate("/employees")}
+            onClick={() => navigate(basePath)}
             className="px-5 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted rounded-lg transition-colors border"
           >
             Batal

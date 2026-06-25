@@ -10,6 +10,7 @@ const getRedirectPath = () => {
     if (path.startsWith("/cbt")) return "/cbt/login";
     if (path.startsWith("/spmb")) return "/spmb/login";
     if (path.startsWith("/bendahara")) return "/bendahara/login";
+    if (path.startsWith("/hrd")) return "/hrd/login";
     if (path.startsWith("/admin-spmb")) return "/admin-spmb/login";
   }
   return "/login";

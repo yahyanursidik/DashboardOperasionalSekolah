@@ -3,4 +3,5 @@ export * from "./pages/vacancies";
 export * from "./pages/applicants";
 export * from "./pages/applicants-show";
 export * from "./pages/vacancies-create";
+export * from "./pages/vacancies-edit";
 export * from "./pages/applicants-create";

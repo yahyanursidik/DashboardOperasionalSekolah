@@ -1,10 +1,13 @@
 import React from "react";
 import { useTable, useDelete } from "@refinedev/core";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { Plus, Trash2, Edit, Users, Calendar } from "lucide-react";
 
 export const VacanciesList: React.FC = () => {
+  const location = useLocation();
+  const basePortal = location.pathname.startsWith("/hrd") ? "/hrd" : "/recruitment";
+  
   const { tableQueryResult } = useTable({
     resource: "recruitment_vacancies",
     sorters: { initial: [{ field: "created_at", order: "desc" }] }
@@ -28,13 +31,13 @@ export const VacanciesList: React.FC = () => {
         action={
           <div className="flex gap-2">
             <Link
-              to="/recruitment"
+              to={basePortal}
               className="px-4 py-2 text-sm font-medium border rounded-md hover:bg-muted transition-colors"
             >
               Kembali
             </Link>
             <Link
-              to="/recruitment/vacancies/create"
+              to={`${basePortal}/vacancies/create`}
               className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition-colors shadow-sm font-medium text-sm"
             >
               <Plus className="w-4 h-4" /> Buka Lowongan
@@ -88,12 +91,13 @@ export const VacanciesList: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex justify-end gap-2">
-                        <button 
+                        <Link 
+                          to={`${basePortal}/vacancies/edit/${vacancy.id}`}
                           title="Edit Lowongan"
-                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"
+                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded inline-block"
                         >
                           <Edit className="w-4 h-4" />
-                        </button>
+                        </Link>
                         <button 
                           onClick={() => { if(confirm('Hapus lowongan ini?')) deleteVacancy({ resource: "recruitment_vacancies", id: vacancy.id as string }) }}
                           className="p-1.5 text-red-600 hover:bg-red-50 rounded"

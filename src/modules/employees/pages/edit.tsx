@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useForm, useSelect } from "@refinedev/core";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { Save, ArrowLeft, User, Briefcase, GraduationCap, Award, Eye } from "lucide-react";
 
 function FormSection({ title, icon: Icon, children }: { title: string; icon: React.ElementType; children: React.ReactNode }) {
@@ -34,6 +34,8 @@ const selectCls = "w-full px-3 py-2.5 border rounded-lg text-sm focus:ring-2 foc
 export const EmployeeEdit: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
+  const location = useLocation();
+  const basePath = location.pathname.startsWith("/hrd") ? "/hrd/employees" : "/employees";
   const [position, setPosition] = useState("");
 
   const { onFinish, mutationResult, queryResult } = useForm({
@@ -42,7 +44,7 @@ export const EmployeeEdit: React.FC = () => {
     id,
     redirect: false,
     onMutationSuccess: () => {
-      navigate(`/employees/show/${id}`);
+      navigate(`${basePath}/show/${id}`);
     },
   });
 
@@ -81,7 +83,7 @@ export const EmployeeEdit: React.FC = () => {
     <div className="max-w-3xl mx-auto space-y-5">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <button onClick={() => navigate(`/employees/show/${id}`)} className="p-2 hover:bg-muted rounded-xl transition-colors">
+        <button onClick={() => navigate(`${basePath}/show/${id}`)} className="p-2 hover:bg-muted rounded-xl transition-colors">
           <ArrowLeft className="w-5 h-5" />
         </button>
         <div className="flex-1">
@@ -90,7 +92,7 @@ export const EmployeeEdit: React.FC = () => {
         </div>
         <button
           type="button"
-          onClick={() => navigate(`/employees/show/${id}`)}
+          onClick={() => navigate(`${basePath}/show/${id}`)}
           className="flex items-center gap-2 text-sm border px-3 py-2 rounded-lg hover:bg-muted transition-colors"
         >
           <Eye className="w-4 h-4" /> Lihat Profil

@@ -2,7 +2,7 @@ import React, { useState, useMemo } from "react";
 import { useTable } from "@refinedev/react-table";
 import { flexRender } from "@tanstack/react-table";
 import type { ColumnDef } from "@tanstack/react-table";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import { useSelect, useList, useDelete } from "@refinedev/core";
 import {
   Eye, Edit, Plus, Search, Users, Shield, BookOpen,
@@ -172,6 +172,8 @@ function EmployeeCard({ employee, onClick, onEdit, onDelete }: { employee: any; 
 // ─── Main Component ────────────────────────────────────────────────────────────
 export const EmployeesList: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const basePath = location.pathname.startsWith("/hrd") ? "/hrd/employees" : "/employees";
   const [q, setQ] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [filterUnit, setFilterUnit] = useState("");
@@ -461,21 +463,21 @@ export const EmployeesList: React.FC = () => {
           return (
             <div className="flex items-center gap-1">
               <button
-                onClick={() => navigate(`/employees/show/${id}`)}
+                onClick={() => navigate(`${basePath}/show/${id}`)}
                 className="p-1.5 text-muted-foreground hover:text-primary transition-colors rounded-md hover:bg-primary/10"
                 title="Lihat Detail & Penugasan"
               >
                 <Eye className="w-4 h-4" />
               </button>
               <button
-                onClick={() => navigate(`/employees/edit/${id}`)}
+                onClick={() => navigate(`${basePath}/edit/${id}`)}
                 className="p-1.5 text-muted-foreground hover:text-blue-600 transition-colors rounded-md hover:bg-blue-50"
                 title="Edit Pegawai"
               >
                 <Edit className="w-4 h-4" />
               </button>
               <button
-                onClick={() => navigate(`/employees/show/${id}#assignments`)}
+                onClick={() => navigate(`${basePath}/show/${id}#assignments`)}
                 className="p-1.5 text-muted-foreground hover:text-emerald-600 transition-colors rounded-md hover:bg-emerald-50"
                 title="Kelola Penugasan"
               >
@@ -551,7 +553,7 @@ export const EmployeesList: React.FC = () => {
               Upload Masal
             </button>
             <Link
-              to="/employees/create"
+              to={`${basePath}/create`}
               className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors shadow-sm font-medium text-sm"
             >
               <Plus className="w-4 h-4" />
@@ -678,7 +680,7 @@ export const EmployeesList: React.FC = () => {
           <p className="text-muted-foreground text-sm max-w-sm mb-4">
             Tidak ada pegawai yang sesuai dengan filter. Coba ubah kriteria pencarian.
           </p>
-          <Link to="/employees/create" className="flex items-center gap-2 text-sm font-medium text-primary hover:underline">
+          <Link to={`${basePath}/create`} className="flex items-center gap-2 text-sm font-medium text-primary hover:underline">
             <Plus className="w-4 h-4" /> Tambah Pegawai Baru
           </Link>
         </div>
@@ -689,8 +691,8 @@ export const EmployeesList: React.FC = () => {
             <EmployeeCard
               key={row.original.id}
               employee={row.original}
-              onClick={() => navigate(`/employees/show/${row.original.id}`)}
-              onEdit={() => navigate(`/employees/edit/${row.original.id}`)}
+              onClick={() => navigate(`${basePath}/show/${row.original.id}`)}
+              onEdit={() => navigate(`${basePath}/edit/${row.original.id}`)}
               onDelete={() => handleDelete(row.original.id, row.original.full_name)}
             />
           ))}

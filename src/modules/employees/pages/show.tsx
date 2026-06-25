@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import {
   useShow, useList, useCreate, useDelete, useSelect, useUpdate
 } from "@refinedev/core";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useAcademicYear } from "../../../app/providers/AcademicYearProvider";
 import {
   User, Edit, ArrowLeft, Briefcase, GraduationCap, Building2,
@@ -307,8 +307,10 @@ function AssignmentModal({
 type TabType = "assignments" | "attendance" | "leaves" | "documents";
 
 export const EmployeeShow: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const basePath = location.pathname.startsWith("/hrd") ? "/hrd/employees" : "/employees";
   const [activeTab, setActiveTab] = useState<TabType>("assignments");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { activeYearId } = useAcademicYear();
@@ -359,7 +361,7 @@ export const EmployeeShow: React.FC = () => {
       <div className="p-16 text-center">
         <AlertCircle className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
         <h3 className="text-lg font-semibold mb-1">Pegawai tidak ditemukan</h3>
-        <button onClick={() => navigate("/employees")} className="text-sm text-primary hover:underline">
+        <button onClick={() => navigate(basePath)} className="text-sm text-primary hover:underline">
           ← Kembali ke daftar
         </button>
       </div>
@@ -387,13 +389,13 @@ export const EmployeeShow: React.FC = () => {
         action={
           <div className="flex gap-2">
             <button
-              onClick={() => navigate("/employees")}
+              onClick={() => navigate(basePath)}
               className="flex items-center gap-2 border px-4 py-2 rounded-lg hover:bg-muted transition-colors text-sm font-medium"
             >
               <ArrowLeft className="w-4 h-4" /> Kembali
             </button>
             <Link
-              to={`/employees/edit/${record.id}`}
+              to={`${basePath}/edit/${record.id}`}
               className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors shadow-sm text-sm font-medium"
             >
               <Edit className="w-4 h-4" /> Edit Data

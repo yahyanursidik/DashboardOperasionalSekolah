@@ -1,12 +1,14 @@
 import React from "react";
 import { useOne, useList } from "@refinedev/core";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { ArrowLeft, CheckCircle2, XCircle, Clock, User, Target } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
 
 export const CbtAttemptShow: React.FC = () => {
   const { participantId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const basePath = location.pathname.startsWith("/hrd") ? "/hrd/cbt/results" : "/recruitment/cbt/results";
 
   const { data: participantData, isLoading: isLoadingParticipant } = useOne({
     resource: "cbt_participants",
@@ -34,7 +36,7 @@ export const CbtAttemptShow: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <button onClick={() => navigate("/recruitment/cbt/results")} className="p-2 hover:bg-muted rounded-full">
+        <button onClick={() => navigate(basePath)} className="p-2 hover:bg-muted rounded-full">
           <ArrowLeft className="w-5 h-5" />
         </button>
         <PageHeader 

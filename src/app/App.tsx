@@ -63,7 +63,7 @@ import { PaudThemeCreate } from "../modules/curriculum/paud-curriculums/create";
 import { PaudThemeEdit } from "../modules/curriculum/paud-curriculums/edit";
 import { CurriculumDocumentsList, CurriculumDocumentCreate } from "../modules/curriculum/documents";
 import { MailDashboard, IncomingMailList, OutgoingMailList, DispositionsList, IncomingMailCreate, OutgoingMailCreate } from "../modules/mail";
-import { RecruitmentDashboard, VacanciesList, ApplicantsList, ApplicantShow, VacancyCreate, ApplicantCreate } from "../modules/recruitment";
+import { RecruitmentDashboard, VacanciesList, ApplicantsList, ApplicantShow, VacancyCreate, VacancyEdit, ApplicantCreate } from "../modules/recruitment";
 import { CbtBanksList } from "../modules/recruitment/cbt/CbtBanksList";
 import { CbtQuestionsManager } from "../modules/recruitment/cbt/CbtQuestionsManager";
 import { CbtExamsList } from "../modules/recruitment/cbt/CbtExamsList";
@@ -113,6 +113,7 @@ import { TeacherPaud } from "../modules/teacher-portal/teacher-paud";
 
 import { BendaharaLayout, BendaharaLogin } from "../modules/bendahara-portal";
 import { AdminSpmbLayout, AdminSpmbLogin } from "../modules/admin-spmb-portal";
+import { HrdPortalLayout, HrdPortalLogin, HrdDashboard } from "../modules/hrd-portal";
 
 import { ReportPeriodsList, ReportPeriodCreate, ReportPeriodEdit, ReportPeriodShow } from "../modules/digital-reports/periods/pages";
 import { ReportTemplatesList, ReportTemplateCreate, ReportTemplateEdit, ReportTemplateShow } from "../modules/digital-reports/templates/pages";
@@ -833,6 +834,7 @@ export default function App() {
                   <Route index element={<RecruitmentDashboard />} />
                   <Route path="vacancies" element={<VacanciesList />} />
                   <Route path="vacancies/create" element={<VacancyCreate />} />
+                  <Route path="vacancies/edit/:id" element={<VacancyEdit />} />
                   <Route path="applicants" element={<ApplicantsList />} />
                   <Route path="applicants/create" element={<ApplicantCreate />} />
                   <Route path="applicants/show/:id" element={<ApplicantShow />} />
@@ -972,6 +974,27 @@ export default function App() {
                 <Route path="applicants/:id" element={<AdmissionsApplicantShow />} />
                 <Route path="reports" element={<AdmissionsReports />} />
                 <Route path="settings" element={<AdmissionsSettings />} />
+              </Route>
+
+              <Route path="/hrd/login" element={<HrdPortalLogin />} />
+              <Route path="/hrd" element={<HrdPortalLayout />}>
+                <Route index element={<HrdDashboard />} />
+                <Route path="vacancies" element={<VacanciesList />} />
+                <Route path="vacancies/create" element={<VacancyCreate />} />
+                <Route path="vacancies/edit/:id" element={<VacancyEdit />} />
+                <Route path="applicants" element={<ApplicantsList />} />
+                <Route path="applicants/create" element={<ApplicantCreate />} />
+                <Route path="applicants/show/:id" element={<ApplicantShow />} />
+                <Route path="cbt/banks" element={<CbtBanksList />} />
+                <Route path="cbt/banks/:bankId/questions" element={<CbtQuestionsManager />} />
+                <Route path="cbt/exams" element={<CbtExamsList />} />
+                <Route path="cbt/exams/:examId/settings" element={<CbtExamBanksManager />} />
+                <Route path="cbt/results" element={<CbtAttemptsList />} />
+                <Route path="cbt/results/:participantId" element={<CbtAttemptShow />} />
+                <Route path="employees" element={<EmployeesList />} />
+                <Route path="employees/create" element={<EmployeeCreate />} />
+                <Route path="employees/show/:id" element={<EmployeeShow />} />
+                <Route path="employees/edit/:id" element={<EmployeeEdit />} />
               </Route>
 
               {/* Catch-all route for unknown URLs (404) to prevent blank screen */}

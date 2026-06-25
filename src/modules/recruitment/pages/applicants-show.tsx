@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useShow, useUpdate, useCreate } from "@refinedev/core";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useLocation } from "react-router-dom";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { ArrowLeft, User, Phone, Mail, GraduationCap, CheckCircle2, XCircle, ChevronRight, Save, UserPlus } from "lucide-react";
 
@@ -16,6 +16,8 @@ const STATUSES = [
 export const ApplicantShow: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const basePortal = location.pathname.startsWith("/hrd") ? "/hrd" : "/recruitment";
   
   const { queryResult } = useShow({
     resource: "recruitment_applicants",
@@ -122,7 +124,7 @@ export const ApplicantShow: React.FC = () => {
         description="Lakukan evaluasi, input nilai, dan ubah tahapan pelamar."
         action={
           <Link
-            to="/recruitment/applicants"
+            to={`${basePortal}/applicants`}
             className="flex items-center gap-2 bg-white text-muted-foreground border px-4 py-2 rounded-md hover:bg-muted transition-colors shadow-sm font-medium text-sm"
           >
             <ArrowLeft className="w-4 h-4" /> Kembali

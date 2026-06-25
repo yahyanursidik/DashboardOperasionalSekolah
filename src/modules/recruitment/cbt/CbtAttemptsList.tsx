@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { Link, useLocation } from "react-router-dom";
 import { useTable, useDelete, useList, useCreate } from "@refinedev/core";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { Trash2, User, Clock, CheckCircle2, XCircle, Plus, Eye, Search, ChevronLeft, ChevronRight, FileText, Filter } from "lucide-react";
@@ -6,6 +7,9 @@ import { Modal } from "../../../components/common/Modal";
 import { toast } from "sonner";
 
 export const CbtAttemptsList: React.FC = () => {
+  const location = useLocation();
+  const basePath = location.pathname.startsWith("/hrd") ? "/hrd/cbt/results" : "/recruitment/cbt/results";
+  
   const [examFilter, setExamFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
 
@@ -252,9 +256,9 @@ export const CbtAttemptsList: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <a href={`/recruitment/cbt/results/${participant.id}`} className="p-2 text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700 rounded-lg transition-colors inline-block" title="Lihat Detail Jawaban">
+                        <Link to={`${basePath}/${participant.id}`} className="p-2 text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700 rounded-lg transition-colors inline-block" title="Lihat Detail Jawaban">
                           <Eye className="w-4 h-4" />
-                        </a>
+                        </Link>
                         <button 
                           disabled={isDeleting}
                           onClick={() => handleDelete(participant.id)} 

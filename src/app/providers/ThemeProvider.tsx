@@ -59,7 +59,8 @@ export function ThemeProvider({
       location.pathname.includes('/spmb') ||
       location.pathname.includes('/cbt') ||
       location.pathname.includes('/teacher') ||
-      location.pathname.includes('/bendahara');
+      location.pathname.includes('/bendahara') ||
+      location.pathname.includes('/hrd');
     
     if (isPortalRoute) {
       root.classList.add("light");

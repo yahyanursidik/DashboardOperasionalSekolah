@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Link, useLocation } from "react-router-dom";
 import { useTable, useDelete, useCreate, useUpdate, useList } from "@refinedev/core";
 import { Plus, Trash2, Edit, FileText, Settings } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
@@ -6,6 +7,9 @@ import { EmptyState } from "../../../components/common/EmptyState";
 import { Modal } from "../../../components/common/Modal";
 
 export const CbtExamsList: React.FC = () => {
+  const location = useLocation();
+  const basePath = location.pathname.startsWith("/hrd") ? "/hrd/cbt/exams" : "/recruitment/cbt/exams";
+
   const { tableQueryResult } = useTable({
     resource: "cbt_exams",
     sorters: { initial: [{ field: "created_at", order: "desc" }] },
@@ -115,9 +119,9 @@ export const CbtExamsList: React.FC = () => {
               </div>
 
               <div className="flex items-center justify-between pt-4 border-t relative z-10">
-                <a href={`/recruitment/cbt/exams/${exam.id}/settings`} className="text-sm text-primary font-medium hover:underline flex items-center gap-1">
+                <Link to={`${basePath}/${exam.id}/settings`} className="text-sm text-primary font-medium hover:underline flex items-center gap-1">
                   <Settings className="w-4 h-4" /> Seting Bank Soal
-                </a>
+                </Link>
                 <div className="flex gap-2">
                   <button onClick={() => handleEdit(exam)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md transition-colors" title="Edit">
                     <Edit className="w-4 h-4" />

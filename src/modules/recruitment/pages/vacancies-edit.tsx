@@ -1,22 +1,31 @@
-import React from "react";
-import { useForm, useList } from "@refinedev/core";
-import { useNavigate, useLocation } from "react-router-dom";
+import React, { useEffect } from "react";
+import { useForm, useList, useOne } from "@refinedev/core";
+import { useNavigate, useLocation, useParams } from "react-router-dom";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { ArrowLeft, Save } from "lucide-react";
 
-export const VacancyCreate: React.FC = () => {
+export const VacancyEdit: React.FC = () => {
+  const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
   const basePortal = location.pathname.startsWith("/hrd") ? "/hrd" : "/recruitment";
   
   const { onFinish, formLoading } = useForm({
     resource: "recruitment_vacancies",
-    action: "create",
+    action: "edit",
+    id: id,
     redirect: false,
     mutationMode: "pessimistic"
   });
 
+  const { data: vacancyData, isLoading } = useOne({
+    resource: "recruitment_vacancies",
+    id: id as string
+  });
+
   const { data: units } = useList({ resource: "units" });
+
+  const vacancy = vacancyData?.data;
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -37,11 +46,13 @@ export const VacancyCreate: React.FC = () => {
     navigate(`${basePortal}/vacancies`);
   };
 
+  if (isLoading) return <div className="p-12 text-center text-muted-foreground">Memuat data...</div>;
+
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
       <PageHeader
-        title="Buka Lowongan Pekerjaan"
-        description="Buat posisi lowongan baru yang tersedia."
+        title="Edit Lowongan Pekerjaan"
+        description="Perbarui informasi posisi lowongan yang tersedia."
         action={
           <button
             onClick={() => navigate(`${basePortal}/vacancies`)}
@@ -60,6 +71,7 @@ export const VacancyCreate: React.FC = () => {
               <input 
                 name="title" 
                 required 
+                defaultValue={vacancy?.title}
                 placeholder="Contoh: Guru Matematika SMP IT"
                 className="w-full border rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-primary/50 bg-background"
               />
@@ -70,6 +82,7 @@ export const VacancyCreate: React.FC = () => {
               <select 
                 name="position" 
                 required 
+                defaultValue={vacancy?.position}
                 className="w-full border rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-primary/50 bg-background"
               >
                 <option value="">Pilih Posisi...</option>
@@ -93,6 +106,7 @@ export const VacancyCreate: React.FC = () => {
               <label className="text-sm font-medium">Unit Kerja (Opsional)</label>
               <select 
                 name="unit_id" 
+                defaultValue={vacancy?.unit_id || ""}
                 className="w-full border rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-primary/50 bg-background"
               >
                 <option value="">Semua Unit (Pusat)</option>
@@ -103,23 +117,25 @@ export const VacancyCreate: React.FC = () => {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Kuota (Jumlah Dibutuhkan) *</label>
+              <label className="text-sm font-medium">Kuota Penerimaan *</label>
               <input 
                 type="number"
                 name="quota" 
                 required 
                 min="1"
-                defaultValue="1"
+                defaultValue={vacancy?.quota}
+                placeholder="1"
                 className="w-full border rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-primary/50 bg-background"
               />
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Tenggat Waktu / Deadline *</label>
+              <label className="text-sm font-medium">Batas Akhir Pendaftaran *</label>
               <input 
                 type="date"
                 name="deadline" 
                 required 
+                defaultValue={vacancy?.deadline ? new Date(vacancy.deadline).toISOString().split('T')[0] : ""}
                 className="w-full border rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-primary/50 bg-background"
               />
             </div>
@@ -129,7 +145,7 @@ export const VacancyCreate: React.FC = () => {
               <select 
                 name="status" 
                 required 
-                defaultValue="open"
+                defaultValue={vacancy?.status}
                 className="w-full border rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-primary/50 bg-background"
               >
                 <option value="open">DIBUKA (Menerima Pelamar)</option>
@@ -139,19 +155,23 @@ export const VacancyCreate: React.FC = () => {
             </div>
 
             <div className="md:col-span-2 space-y-2">
-              <label className="text-sm font-medium">Deskripsi Pekerjaan</label>
+              <label className="text-sm font-medium">Deskripsi Pekerjaan *</label>
               <textarea 
                 name="description" 
-                rows={3}
+                required 
+                defaultValue={vacancy?.description}
+                rows={4}
                 placeholder="Tuliskan gambaran singkat tugas dan tanggung jawab..."
                 className="w-full border rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-primary/50 bg-background resize-none"
               />
             </div>
 
             <div className="md:col-span-2 space-y-2">
-              <label className="text-sm font-medium">Kualifikasi / Persyaratan</label>
+              <label className="text-sm font-medium">Persyaratan *</label>
               <textarea 
                 name="requirements" 
+                required 
+                defaultValue={vacancy?.requirements}
                 rows={4}
                 placeholder="1. Minimal S1 Pendidikan...&#10;2. Lancar membaca Al-Quran..."
                 className="w-full border rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-primary/50 bg-background resize-none"

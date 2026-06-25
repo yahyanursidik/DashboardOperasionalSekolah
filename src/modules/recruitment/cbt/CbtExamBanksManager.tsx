@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useList, useCreate, useDelete, useOne } from "@refinedev/core";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { ArrowLeft, Plus, Trash2, Database } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { Modal } from "../../../components/common/Modal";
@@ -8,6 +8,8 @@ import { Modal } from "../../../components/common/Modal";
 export const CbtExamBanksManager: React.FC = () => {
   const { examId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const basePath = location.pathname.startsWith("/hrd") ? "/hrd/cbt/exams" : "/recruitment/cbt/exams";
 
   const { data: examData } = useOne({ resource: "cbt_exams", id: examId as string });
   const exam = examData?.data;
@@ -49,7 +51,7 @@ export const CbtExamBanksManager: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <button onClick={() => navigate("/recruitment/cbt/exams")} className="p-2 hover:bg-muted rounded-full">
+        <button onClick={() => navigate(basePath)} className="p-2 hover:bg-muted rounded-full">
           <ArrowLeft className="w-5 h-5" />
         </button>
         <PageHeader 

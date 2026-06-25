@@ -1,11 +1,13 @@
 import React from "react";
 import { useForm, useList } from "@refinedev/core";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { ArrowLeft, Save } from "lucide-react";
 
 export const ApplicantCreate: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const basePortal = location.pathname.startsWith("/hrd") ? "/hrd" : "/recruitment";
   
   const { onFinish, formLoading } = useForm({
     resource: "recruitment_applicants",
@@ -34,7 +36,7 @@ export const ApplicantCreate: React.FC = () => {
     };
 
     await onFinish(values);
-    navigate("/recruitment/applicants");
+    navigate(`${basePortal}/applicants`);
   };
 
   return (
@@ -44,7 +46,7 @@ export const ApplicantCreate: React.FC = () => {
         description="Masukkan data kandidat pelamar ke dalam sistem pelacakan ATS."
         action={
           <button
-            onClick={() => navigate("/recruitment/applicants")}
+            onClick={() => navigate(`${basePortal}/applicants`)}
             className="flex items-center gap-2 bg-white text-muted-foreground border px-4 py-2 rounded-md hover:bg-muted transition-colors shadow-sm font-medium text-sm"
           >
             <ArrowLeft className="w-4 h-4" /> Batal
