@@ -63,6 +63,21 @@ export const PortalLogin: React.FC = () => {
              console.log("Memanggil RPC link_my_account...");
              const rpcResult = await supabaseClient.rpc('link_my_account');
              console.log("Hasil RPC link_my_account:", rpcResult);
+           } else if (!signup.error && !signup.data?.session) {
+             // Jika signup berhasil tapi tidak ada session (karena Confirm Email aktif di Supabase),
+             // trigger DB sudah auto-confirm email, jadi kita bisa login lagi
+             const retryAfterSignup = await supabaseClient.auth.signInWithPassword({
+               email: parentEmail,
+               password: "parent123",
+             });
+             
+             authData = retryAfterSignup.data as any;
+             authError = retryAfterSignup.error as any;
+             
+             if (retryAfterSignup.data?.session) {
+               console.log("Memanggil RPC link_my_account setelah auto-confirm...");
+               await supabaseClient.rpc('link_my_account');
+             }
            }
         } else {
            console.log("Login dengan password123 berhasil");

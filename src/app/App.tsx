@@ -128,14 +128,14 @@ import { ReadReceiptsList } from "../modules/digital-reports/read-receipts/pages
 import { GeneratePDFList } from "../modules/digital-reports/pdf/pages";
 import { MonitoringDashboard } from "../modules/digital-reports/monitoring/pages";
 
-
-
-
-
-
-
-
-
+// Digital Library Imports
+import { DigitalLibraryCategoriesList } from "../modules/digital-library/categories-list";
+import { DigitalLibraryCategoriesCreate } from "../modules/digital-library/categories-create";
+import { DigitalLibraryCategoriesEdit } from "../modules/digital-library/categories-edit";
+import { DigitalLibraryBooksList } from "../modules/digital-library/books-list";
+import { DigitalLibraryBooksCreate } from "../modules/digital-library/books-create";
+import { DigitalLibraryBooksEdit } from "../modules/digital-library/books-edit";
+import { PortalLibrary } from "../modules/portal/portal-library";
 
 export default function App() {
   return (
@@ -453,6 +453,20 @@ export default function App() {
             create: "/curriculum/documents/create",
           },
           {
+            name: "digital_library_categories",
+            list: "/digital-library/categories",
+            create: "/digital-library/categories/create",
+            edit: "/digital-library/categories/edit/:id",
+            meta: { label: "Kategori Perpustakaan" },
+          },
+          {
+            name: "digital_library_books",
+            list: "/digital-library",
+            create: "/digital-library/create",
+            edit: "/digital-library/edit/:id",
+            meta: { label: "Perpustakaan Digital" },
+          },
+          {
             name: "units",
             meta: { canDelete: true },
           },
@@ -748,7 +762,17 @@ export default function App() {
                   <Route path="monitoring" element={<MonitoringDashboard />} />
                 </Route>
 
-
+                {/* Digital Library Routes */}
+                <Route path="digital-library">
+                  <Route index element={<DigitalLibraryBooksList />} />
+                  <Route path="create" element={<DigitalLibraryBooksCreate />} />
+                  <Route path="edit/:id" element={<DigitalLibraryBooksEdit />} />
+                  <Route path="categories">
+                    <Route index element={<DigitalLibraryCategoriesList />} />
+                    <Route path="create" element={<DigitalLibraryCategoriesCreate />} />
+                    <Route path="edit/:id" element={<DigitalLibraryCategoriesEdit />} />
+                  </Route>
+                </Route>
 
               <Route path="/calendar">
                 <Route index element={<AcademicCalendar />} />
@@ -911,6 +935,7 @@ export default function App() {
                 <Route path="quran" element={<PortalQuran />} />
                 <Route path="paud" element={<PortalPaud />} />
                 <Route path="journals" element={<PortalJournals />} />
+                <Route path="library" element={<PortalLibrary />} />
                 <Route path="announcements" element={<PortalAnnouncements />} />
                 <Route path="reports">
                   <Route index element={<ParentReportList />} />

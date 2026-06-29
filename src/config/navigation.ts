@@ -239,6 +239,12 @@ export const navigationConfig: NavigationGroup[] = [
         icon: Inbox,
         resource: "mail_records",
       },
+      {
+        title: "Perpustakaan Digital",
+        href: "/digital-library",
+        icon: BookOpen,
+        resource: "digital_library_books",
+      },
     ],
   },
   {

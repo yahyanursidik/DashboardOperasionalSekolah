@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useTable, useDelete } from "@refinedev/core";
+import { useTable, useDelete, useList } from "@refinedev/core";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { Plus, Trash2, Search, Filter, Eye, Phone, Mail, ChevronLeft, ChevronRight } from "lucide-react";
@@ -29,6 +29,13 @@ export const ApplicantsList: React.FC = () => {
   const [q, setQ] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
+  const [filterVacancy, setFilterVacancy] = useState("");
+
+  const { data: vacancies } = useList({ 
+    resource: "recruitment_vacancies",
+    pagination: { mode: "off" },
+    sorters: [{ field: "created_at", order: "desc" }]
+  });
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,6 +45,7 @@ export const ApplicantsList: React.FC = () => {
 
   const filters: any[] = [];
   if (filterStatus) filters.push({ field: "status", operator: "eq", value: filterStatus });
+  if (filterVacancy) filters.push({ field: "vacancy_id", operator: "eq", value: filterVacancy });
   if (searchQuery) {
     filters.push({
       operator: "or",
@@ -100,21 +108,41 @@ export const ApplicantsList: React.FC = () => {
           </button>
         </form>
         
-        <div className="w-full md:w-auto flex items-center gap-2">
-          <Filter className="w-4 h-4 text-muted-foreground" />
-          <select 
-            value={filterStatus}
-            onChange={(e) => {
-              setFilterStatus(e.target.value);
-              setCurrent(1);
-            }}
-            className="border rounded-md px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/50 min-w-[200px]"
-          >
-            <option value="">Semua Tahapan</option>
-            {Object.keys(STATUS_LABELS).map(key => (
-              <option key={key} value={key}>{STATUS_LABELS[key]}</option>
-            ))}
-          </select>
+        <div className="w-full md:w-auto flex flex-col md:flex-row items-start md:items-center gap-4">
+          <div className="flex items-center gap-2 w-full md:w-auto">
+            <Filter className="w-4 h-4 text-muted-foreground" />
+            <select 
+              value={filterVacancy}
+              onChange={(e) => {
+                setFilterVacancy(e.target.value);
+                setCurrent(1);
+              }}
+              className="border rounded-md px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/50 w-full md:w-48"
+            >
+              <option value="">Semua Lowongan</option>
+              {vacancies?.data?.map(v => (
+                <option key={v.id} value={v.id}>
+                  {v.title} {v.status === 'closed' ? '(Ditutup)' : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex items-center gap-2 w-full md:w-auto">
+            <select 
+              value={filterStatus}
+              onChange={(e) => {
+                setFilterStatus(e.target.value);
+                setCurrent(1);
+              }}
+              className="border rounded-md px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/50 w-full md:w-48"
+            >
+              <option value="">Semua Tahapan</option>
+              {Object.keys(STATUS_LABELS).map(key => (
+                <option key={key} value={key}>{STATUS_LABELS[key]}</option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 

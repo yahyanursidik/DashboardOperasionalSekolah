@@ -60,12 +60,13 @@ export const PortalLayout: React.FC = () => {
 
   if (!student) return <div className="min-h-screen flex items-center justify-center bg-gray-50">Memuat...</div>;
 
-  const { logoUrl } = useSystemSettings();
+  const { logoUrl, schoolName } = useSystemSettings();
 
   const navItems = [
     { name: "Beranda", path: "/portal", icon: Home },
     { name: "Akademik", path: "/portal/academic", icon: BookOpen },
     { name: "e-Rapor", path: "/portal/reports", icon: FileText },
+    { name: "Perpus", path: "/portal/library", icon: BookOpen },
     { name: "Ekskul", path: "/portal/extracurricular", icon: Target },
     { name: "PAUD", path: "/portal/paud", icon: Smile },
     { name: "Qur'an", path: "/portal/quran", icon: BookOpen },
@@ -74,64 +75,129 @@ export const PortalLayout: React.FC = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
-      {/* Header */}
-      <header className="bg-white border-b sticky top-0 z-50">
-        <div className="max-w-md mx-auto px-4 py-3 flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center overflow-hidden shrink-0">
-              {logoUrl ? (
-                <img src={logoUrl} alt="Logo" className="w-full h-full object-contain p-1" />
-              ) : (
-                <span className="text-emerald-700 font-bold text-lg">{student.full_name?.charAt(0)}</span>
-              )}
-            </div>
-            <div>
-              <h1 className="text-sm font-bold text-gray-900 leading-tight line-clamp-1">{student.full_name}</h1>
-              <p className="text-xs text-muted-foreground">{student.nisn || "NISN -"} • {student.classes?.name || "Kelas -"}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-1 shrink-0">
-            <button onClick={() => navigate('/portal/announcements')} className="p-2 text-gray-500 hover:text-emerald-600 rounded-full hover:bg-emerald-50 transition-colors relative">
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
-            </button>
-            <button onClick={handleLogout} className="p-2 text-gray-500 hover:text-red-600 rounded-full hover:bg-red-50 transition-colors">
-              <LogOut className="w-5 h-5" />
-            </button>
-          </div>
+    <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row font-sans">
+      
+      {/* Sidebar for Desktop (Hidden on Mobile) */}
+      <aside className="hidden md:flex flex-col w-64 bg-white border-r fixed h-full z-40">
+        <div className="p-4 flex items-center justify-center border-b h-16 shrink-0">
+           {logoUrl ? (
+             <img src={logoUrl} alt="Logo" className="max-h-10 w-auto object-contain" />
+           ) : (
+             <span className="text-emerald-700 font-bold text-lg">{schoolName || "TSLS"}</span>
+           )}
         </div>
-      </header>
+        <div className="flex-1 overflow-y-auto py-4 custom-scrollbar">
+          <nav className="space-y-1 px-3">
+            {navItems.map((item) => {
+              const isActive = location.pathname === item.path || (item.path !== '/portal' && location.pathname.startsWith(item.path));
+              return (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+                    isActive 
+                      ? 'bg-emerald-50 text-emerald-700 font-medium' 
+                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                  }`}
+                >
+                  <item.icon className={`w-5 h-5 ${isActive ? 'text-emerald-600' : 'text-gray-400'}`} />
+                  <span>{item.name}</span>
+                </Link>
+              );
+            })}
+          </nav>
+        </div>
+        <div className="p-4 border-t border-gray-100 shrink-0">
+           <button 
+             onClick={handleLogout} 
+             className="flex items-center gap-3 w-full px-3 py-2.5 text-red-600 rounded-lg hover:bg-red-50 transition-colors font-medium"
+           >
+             <LogOut className="w-5 h-5" />
+             <span>Keluar</span>
+           </button>
+        </div>
+      </aside>
 
-      {/* Main Content */}
-      <main className="flex-1 w-full max-w-md mx-auto relative pb-28 flex flex-col">
-        <div className="flex-1">
-          <Outlet context={{ student }} />
-        </div>
-        <footer className="mt-8 text-center text-[10px] text-muted-foreground w-full pb-4">
-            &copy; {new Date().getFullYear()} TS Lab School. Portal Orang Tua.<br/>
-            Disusun oleh <a href="https://yahyanursidik.my.id/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-medium">Yahya Nursidik</a>
-        </footer>
-      </main>
+      {/* Main Content Wrapper */}
+      <div className="flex-1 flex flex-col md:ml-64 relative min-w-0">
+        
+        {/* Header (Top Nav) */}
+        <header className="bg-white border-b sticky top-0 z-30 shadow-sm">
+          <div className="max-w-md mx-auto md:max-w-full px-4 py-3 flex justify-between items-center min-h-[64px]">
+            
+            {/* Left side header */}
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center overflow-hidden shrink-0 border border-emerald-200">
+                {student.photoUrl ? (
+                   <img src={student.photoUrl} alt="Student" className="w-full h-full object-cover" />
+                ) : (
+                   <span className="text-emerald-700 font-bold text-lg">{student.full_name?.charAt(0)}</span>
+                )}
+              </div>
+              <div>
+                <h1 className="text-sm md:text-base font-bold text-gray-900 leading-tight line-clamp-1">{student.full_name}</h1>
+                <p className="text-xs text-muted-foreground">{student.nisn || "NISN -"} • {student.classes?.name || "Kelas -"}</p>
+              </div>
+            </div>
+
+            {/* Right side header */}
+            <div className="flex items-center gap-1 md:gap-3 shrink-0">
+              <button onClick={() => navigate('/portal/announcements')} className="p-2 text-gray-500 hover:text-emerald-600 rounded-full hover:bg-emerald-50 transition-colors relative">
+                <Bell className="w-5 h-5" />
+                <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
+              </button>
+              {/* Logout button only on mobile since desktop has it in sidebar */}
+              <button onClick={handleLogout} className="md:hidden p-2 text-gray-500 hover:text-red-600 rounded-full hover:bg-red-50 transition-colors">
+                <LogOut className="w-5 h-5" />
+              </button>
+            </div>
+
+          </div>
+        </header>
+
+        {/* Main Content Area */}
+        <main className="flex-1 w-full max-w-md mx-auto md:max-w-5xl md:mx-0 p-0 md:p-6 pb-28 md:pb-8 flex flex-col">
+          <div className="flex-1">
+            <Outlet context={{ student }} />
+          </div>
+          
+          <footer className="mt-8 text-center text-[10px] md:text-sm text-muted-foreground w-full pb-4 md:pb-0">
+              &copy; {new Date().getFullYear()} TS Lab School. Portal Orang Tua.<br className="md:hidden"/>
+              <span className="hidden md:inline"> • </span>
+              Disusun oleh <a href="https://yahyanursidik.my.id/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-medium">Yahya Nursidik</a>
+          </footer>
+        </main>
+      </div>
 
       {/* Bottom Navigation (Mobile Friendly) */}
-      <nav className="fixed bottom-0 left-0 w-full bg-white border-t z-50 pb-safe">
-        <div className="max-w-md mx-auto flex justify-around">
+      <nav className="md:hidden fixed bottom-0 left-0 w-full bg-white border-t z-50 pb-safe shadow-[0_-4px_10px_-1px_rgba(0,0,0,0.05)] overflow-x-auto hide-scrollbar">
+        <div className="flex w-max min-w-full justify-around px-2">
           {navItems.map((item) => {
             const isActive = location.pathname === item.path || (item.path !== '/portal' && location.pathname.startsWith(item.path));
             return (
               <Link
                 key={item.path}
                 to={item.path}
-                className={`flex flex-col items-center justify-center py-2 px-1 flex-1 ${isActive ? 'text-emerald-600' : 'text-gray-500 hover:text-gray-900'}`}
+                className={`flex flex-col items-center justify-center py-2 px-3 min-w-[4.5rem] transition-colors ${isActive ? 'text-emerald-600' : 'text-gray-400 hover:text-gray-700'}`}
               >
-                <item.icon className={`w-5 h-5 mb-1 ${isActive ? 'stroke-[2.5px]' : ''}`} />
-                <span className="text-[10px] font-medium whitespace-nowrap">{item.name}</span>
+                <div className={`p-1.5 rounded-full mb-1 transition-all ${isActive ? 'bg-emerald-50 scale-110' : 'bg-transparent'}`}>
+                  <item.icon className={`w-5 h-5 ${isActive ? 'stroke-[2.5px]' : ''}`} />
+                </div>
+                <span className={`text-[10px] whitespace-nowrap ${isActive ? 'font-bold' : 'font-medium'}`}>{item.name}</span>
               </Link>
             );
           })}
         </div>
       </nav>
+      
+      <style>{`
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 4px; }
+        .custom-scrollbar:hover::-webkit-scrollbar-thumb { background: #d1d5db; }
+      `}</style>
     </div>
   );
 };
