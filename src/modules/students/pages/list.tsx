@@ -107,7 +107,7 @@ export const StudentsList: React.FC = () => {
   };
 
   const downloadTemplate = () => {
-    const csvContent = "Nama Lengkap,NIS,NISN,Jenis Kelamin (L/P),Tempat Lahir,Tanggal Lahir (YYYY-MM-DD),Alamat\nSiswa Contoh,2024001,0123456789,L,Jakarta,2010-05-15,Jl. Merdeka No 1";
+    const csvContent = "Nama Siswa,NIS,Jenjang,Jenis Kelamin,Tanggal Lahir,Alamat lengkap,Nama Ayah/Wali,Nama Ibu\nSiswa Contoh,2425001,SD,L,2010-05-15,Jl. Merdeka No 1,Ayah Contoh,Ibu Contoh";
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
@@ -146,7 +146,7 @@ export const StudentsList: React.FC = () => {
     setIsUploading(true);
     
     try {
-      const validRows = previewData.filter((row: any) => row['Nama Lengkap']);
+      const validRows = previewData.filter((row: any) => row['Nama Siswa']);
       
       if (validRows.length === 0) {
         toast.error("File CSV kosong atau format tidak sesuai.");
@@ -154,24 +154,160 @@ export const StudentsList: React.FC = () => {
         return;
       }
 
+      const { data: existingStudents, error: fetchError } = await supabaseClient
+        .from('students')
+        .select('id, full_name, date_of_birth')
+        .eq('unit_id', uploadUnitId);
+        
+      if (fetchError) throw fetchError;
+
+      let skippedCount = 0;
       const studentsToInsert = validRows.map((row: any) => ({
-        full_name: row['Nama Lengkap'],
-        nis: row['NIS'] || null,
-        nisn: row['NISN'] || null,
-        gender: row['Jenis Kelamin (L/P)'] === 'P' || row['Jenis Kelamin (L/P)']?.toLowerCase() === 'perempuan' ? 'P' : 'L',
-        birth_place: row['Tempat Lahir'] || null,
-        date_of_birth: row['Tanggal Lahir (YYYY-MM-DD)'] || null,
-        address: row['Alamat'] || null,
+        full_name: row['Nama Siswa'],
+        nis: row['NIS']?.toString().trim() || `TEMP-${Math.floor(100000 + Math.random() * 900000)}`,
+        nisn: null,
+        gender: row['Jenis Kelamin'] === 'P' || row['Jenis Kelamin']?.toLowerCase() === 'perempuan' ? 'P' : 'L',
+        birth_place: null,
+        date_of_birth: row['Tanggal Lahir'] || null,
+        address: row['Alamat lengkap'] || null,
         unit_id: uploadUnitId,
         class_id: uploadClassId || null,
         status: 'active'
-      }));
+      })).filter((newStudent: any) => {
+        const exists = existingStudents.some((existing: any) => 
+          existing.full_name?.toLowerCase() === newStudent.full_name?.toLowerCase() &&
+          (!newStudent.date_of_birth || existing.date_of_birth === newStudent.date_of_birth)
+        );
+        if (exists) skippedCount++;
+        return !exists;
+      });
 
-      const { error } = await supabaseClient.from('students').insert(studentsToInsert);
+      let allProcessedStudents: any[] = [];
+
+      if (studentsToInsert.length > 0) {
+        const { data: insertedStudents, error } = await supabaseClient
+          .from('students')
+          .insert(studentsToInsert)
+          .select('id, full_name, date_of_birth');
+        
+        if (error) throw error;
+        if (insertedStudents) {
+          allProcessedStudents = [...allProcessedStudents, ...insertedStudents];
+        }
+      }
+
+      // Tambahkan existing students yang ada di validRows ke allProcessedStudents
+      existingStudents?.forEach(existing => {
+        const isInCsv = validRows.some((r: any) => 
+          existing.full_name?.toLowerCase() === r['Nama Siswa']?.toLowerCase() &&
+          (!r['Tanggal Lahir'] || existing.date_of_birth === r['Tanggal Lahir'])
+        );
+        if (isInCsv) {
+           allProcessedStudents.push(existing);
+        }
+      });
+
+      // Process Parents
+      const parentNames = new Set<string>();
+      const studentParentLinksMap: { studentId: string, fatherName: string | null, motherName: string | null }[] = [];
       
-      if (error) throw error;
+      allProcessedStudents.forEach((student) => {
+        const row = validRows.find((r: any) => 
+           r['Nama Siswa']?.toLowerCase() === student.full_name?.toLowerCase()
+        );
+        if (row) {
+          const fatherName = row['Nama Ayah/Wali']?.trim() || null;
+          const motherName = row['Nama Ibu']?.trim() || null;
+          
+          if (fatherName) parentNames.add(fatherName);
+          if (motherName) parentNames.add(motherName);
+          
+          studentParentLinksMap.push({
+             studentId: student.id,
+             fatherName,
+             motherName
+          });
+        }
+      });
+
+      let parentsCount = 0;
+      if (parentNames.size > 0) {
+          const uniqueNames = Array.from(parentNames);
+          
+          // Fetch existing parents to avoid duplicate creation
+          const { data: existingParents, error: fetchParentsError } = await supabaseClient
+             .from('parents')
+             .select('id, full_name')
+             .in('full_name', uniqueNames);
+             
+          if (fetchParentsError) throw fetchParentsError;
+          
+          const parentIdMap = new Map<string, string>(); // Name -> ID
+          existingParents?.forEach(p => parentIdMap.set(p.full_name, p.id));
+          
+          // Determine which parents are completely new
+          const newParentsToInsert = uniqueNames
+             .filter(name => !parentIdMap.has(name))
+             .map(name => ({ full_name: name, is_active: true }));
+             
+          if (newParentsToInsert.length > 0) {
+             const { data: insertedParents, error: insertParentsError } = await supabaseClient
+               .from('parents')
+               .insert(newParentsToInsert)
+               .select('id, full_name');
+               
+             if (insertParentsError) {
+                console.error("Parent insert error:", insertParentsError);
+                throw new Error("Gagal mengunggah data orang tua: " + insertParentsError.message);
+             }
+             
+             insertedParents?.forEach(p => parentIdMap.set(p.full_name, p.id));
+          }
+          
+          parentsCount = newParentsToInsert.length;
+          
+          // Create Links
+          const linksToInsert: any[] = [];
+          studentParentLinksMap.forEach(map => {
+             if (map.fatherName && parentIdMap.has(map.fatherName)) {
+                linksToInsert.push({
+                   student_id: map.studentId,
+                   parent_id: parentIdMap.get(map.fatherName),
+                   relationship: 'father',
+                   is_primary: true
+                });
+             }
+             if (map.motherName && parentIdMap.has(map.motherName)) {
+                linksToInsert.push({
+                   student_id: map.studentId,
+                   parent_id: parentIdMap.get(map.motherName),
+                   relationship: 'mother',
+                   is_primary: false
+                });
+             }
+          });
+          
+          if (linksToInsert.length > 0) {
+             const studentIds = studentParentLinksMap.map(m => m.studentId);
+             const { data: existingLinks } = await supabaseClient
+                .from('student_parent_links')
+                .select('student_id, parent_id')
+                .in('student_id', studentIds);
+                
+             const existingLinksSet = new Set(existingLinks?.map(l => `${l.student_id}-${l.parent_id}`) || []);
+             const finalLinks = linksToInsert.filter(l => !existingLinksSet.has(`${l.student_id}-${l.parent_id}`));
+             
+             if (finalLinks.length > 0) {
+                 const { error: linksError } = await supabaseClient.from('student_parent_links').insert(finalLinks);
+                 if (linksError) {
+                    console.error("Links insert error:", linksError);
+                    throw new Error("Gagal menautkan data orang tua: " + linksError.message);
+                 }
+             }
+          }
+      }
       
-      toast.success(`Berhasil mengunggah ${studentsToInsert.length} siswa!`);
+      toast.success(`Berhasil mengunggah ${studentsToInsert.length} siswa, serta memastikan ${parentNames.size} data orang tua terhubung! ${skippedCount > 0 ? `(${skippedCount} siswa di-skip)` : ''}`);
       setIsUploadModalOpen(false);
       setUploadFile(null);
       setPreviewData([]);
@@ -350,18 +486,19 @@ export const StudentsList: React.FC = () => {
     [navigate]
   );
 
-  const { refineCore: { tableQueryResult }, ...table } = useTable({
+  const { refineCore: { tableQueryResult, setFilters }, ...table } = useTable({
     columns,
     refineCoreProps: {
       resource: "students",
-      filters: {
-        permanent: buildFilters(),
-      },
       meta: {
         select: "*, units(name), classes(name)",
       }
     },
   });
+
+  React.useEffect(() => {
+    setFilters(buildFilters(), "replace");
+  }, [activeUnitId, filterUnit, filterClass, filterGender, filterStatus, searchTerm]);
 
   const isLoading = tableQueryResult.isLoading;
 
@@ -560,7 +697,7 @@ export const StudentsList: React.FC = () => {
               <p className="font-semibold mb-1">Panduan Upload</p>
               <ul className="list-disc pl-4 space-y-1 text-blue-700/80">
                 <li>Unduh template CSV terlebih dahulu jika belum memilikinya.</li>
-                <li>Isi data siswa sesuai format pada template. Kolom <b>Nama Lengkap</b> wajib diisi.</li>
+                <li>Isi data siswa sesuai format pada template. Kolom <b>Nama Siswa</b> wajib diisi. (Kolom <b>NIS</b> opsional, akan diisi otomatis jika kosong)</li>
                 <li>Pilih Unit dan Kelas (opsional) pada form di bawah, sehingga Anda tidak perlu mengetik ID Unit/Kelas di file.</li>
               </ul>
             </div>
@@ -614,7 +751,7 @@ export const StudentsList: React.FC = () => {
 
           {previewData.length > 0 && (
             <div className="bg-gray-50 p-3 rounded-lg border text-sm text-center">
-              Ditemukan <span className="font-bold text-primary">{previewData.filter(r => r['Nama Lengkap']).length}</span> baris data siswa yang valid siap untuk diunggah.
+              Ditemukan <span className="font-bold text-primary">{previewData.filter(r => r['Nama Siswa']).length}</span> baris data siswa yang valid siap untuk diunggah.
             </div>
           )}
 
