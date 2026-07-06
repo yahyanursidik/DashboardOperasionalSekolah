@@ -2,6 +2,14 @@
 
 Admin TSLS OS is a school management administrative panel. It uses Vite, React, TypeScript, TailwindCSS, and Refine with Supabase as the backend.
 
+## Documentation
+
+For an in-depth understanding of the system, please refer to the documents located in the `docs/` folder:
+- [Product Requirements Document (PRD)](./docs/PRD.md)
+- [Modules Overview](./docs/MODULES.md)
+- [Database Schema Overview](./docs/DATABASE_SCHEMA.md)
+- [Tech Stack Details](./docs/TECH_STACK.md)
+
 ## Local Development Setup
 
 1. Install dependencies:

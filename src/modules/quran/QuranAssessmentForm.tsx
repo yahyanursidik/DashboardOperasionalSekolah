@@ -49,6 +49,13 @@ export const QuranAssessmentForm: React.FC = () => {
     sorters: [{ field: "full_name", order: "asc" }],
   });
 
+  const { options: employeeOptions } = useSelect({
+    resource: "employees",
+    optionLabel: "full_name",
+    optionValue: "id",
+    sorters: [{ field: "full_name", order: "asc" }],
+  });
+
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
@@ -68,11 +75,14 @@ export const QuranAssessmentForm: React.FC = () => {
     const data = {
       student_id: formData.get("student_id"),
       class_id: selectedClassId,
+      employee_id: formData.get("employee_id") || null,
+      examiner_2_id: formData.get("examiner_2_id") || null,
       date: formData.get("date"),
       assessment_type: formData.get("assessment_type"),
       title: formData.get("title"),
       score,
       predicate,
+      status: formData.get("status") || "Lulus",
       notes: formData.get("notes"),
       academic_year_id: activeYearId,
       semester_id: activeSemesterId,
@@ -172,6 +182,35 @@ export const QuranAssessmentForm: React.FC = () => {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
+              <label className="text-sm font-medium">Penguji 1 (Utama)</label>
+              <select
+                name="employee_id"
+                defaultValue={record?.employee_id || ""}
+                className="w-full flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+              >
+                <option value="">-- Pilih Penguji 1 --</option>
+                {employeeOptions?.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Penguji 2 (Pendamping)</label>
+              <select
+                name="examiner_2_id"
+                defaultValue={record?.examiner_2_id || ""}
+                className="w-full flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+              >
+                <option value="">-- Pilih Penguji 2 --</option>
+                {employeeOptions?.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
               <label className="text-sm font-medium">Nilai Angka (1-100)</label>
               <input
                 type="number"
@@ -194,6 +233,19 @@ export const QuranAssessmentForm: React.FC = () => {
                 className="w-full flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
               />
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Status Kelulusan</label>
+            <select
+              name="status"
+              defaultValue={record?.status || "Lulus"}
+              className="w-full flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+            >
+              <option value="Lulus">Lulus (Passed)</option>
+              <option value="Lulus Bersyarat">Lulus Bersyarat</option>
+              <option value="Mengulang">Mengulang (Failed)</option>
+            </select>
           </div>
 
           <div className="space-y-2">

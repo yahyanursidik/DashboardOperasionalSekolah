@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from "react";
 import { Outlet, useNavigate, useLocation, Link } from "react-router-dom";
 import { supabaseClient } from "../../lib/supabase/client";
-import { Home, Wallet, BookOpen, Clock, LogOut, Smile, ClipboardList, Bell, Target, FileText } from "lucide-react";
+import { Home, Wallet, BookOpen, Clock, LogOut, Smile, ClipboardList, Bell, Target, FileText, MoreHorizontal, X } from "lucide-react";
 import { useSystemSettings } from "../../app/providers/SettingsProvider";
 
 export const PortalLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [student, setStudent] = useState<any>(null);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     const fetchSession = async () => {
@@ -53,6 +54,11 @@ export const PortalLayout: React.FC = () => {
     fetchSession();
   }, [navigate]);
 
+  useEffect(() => {
+    // Close mobile menu when location changes
+    setIsMobileMenuOpen(false);
+  }, [location.pathname]);
+
   const handleLogout = async () => {
     await supabaseClient.auth.signOut();
     navigate("/portal/login");
@@ -72,6 +78,14 @@ export const PortalLayout: React.FC = () => {
     { name: "Qur'an", path: "/portal/quran", icon: BookOpen },
     { name: "Keuangan", path: "/portal/finance", icon: Wallet },
     { name: "Catatan", path: "/portal/journals", icon: ClipboardList },
+    { name: "Onboarding", path: "/portal/onboarding", icon: Target },
+  ];
+
+  // For mobile bottom nav, we show 3 main items and 1 "More" button
+  const mobileMainItems = [
+    navItems[0], // Beranda
+    navItems[1], // Akademik
+    navItems[7], // Keuangan
   ];
 
   return (
@@ -146,10 +160,6 @@ export const PortalLayout: React.FC = () => {
                 <Bell className="w-5 h-5" />
                 <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
               </button>
-              {/* Logout button only on mobile since desktop has it in sidebar */}
-              <button onClick={handleLogout} className="md:hidden p-2 text-gray-500 hover:text-red-600 rounded-full hover:bg-red-50 transition-colors">
-                <LogOut className="w-5 h-5" />
-              </button>
             </div>
 
           </div>
@@ -170,15 +180,15 @@ export const PortalLayout: React.FC = () => {
       </div>
 
       {/* Bottom Navigation (Mobile Friendly) */}
-      <nav className="md:hidden fixed bottom-0 left-0 w-full bg-white border-t z-50 pb-safe shadow-[0_-4px_10px_-1px_rgba(0,0,0,0.05)] overflow-x-auto hide-scrollbar">
-        <div className="flex w-max min-w-full justify-around px-2">
-          {navItems.map((item) => {
+      <nav className="md:hidden fixed bottom-0 left-0 w-full bg-white border-t z-40 pb-safe shadow-[0_-4px_10px_-1px_rgba(0,0,0,0.05)]">
+        <div className="grid grid-cols-4 px-2">
+          {mobileMainItems.map((item) => {
             const isActive = location.pathname === item.path || (item.path !== '/portal' && location.pathname.startsWith(item.path));
             return (
               <Link
                 key={item.path}
                 to={item.path}
-                className={`flex flex-col items-center justify-center py-2 px-3 min-w-[4.5rem] transition-colors ${isActive ? 'text-emerald-600' : 'text-gray-400 hover:text-gray-700'}`}
+                className={`flex flex-col items-center justify-center py-2 transition-colors ${isActive ? 'text-emerald-600' : 'text-gray-400 hover:text-gray-700'}`}
               >
                 <div className={`p-1.5 rounded-full mb-1 transition-all ${isActive ? 'bg-emerald-50 scale-110' : 'bg-transparent'}`}>
                   <item.icon className={`w-5 h-5 ${isActive ? 'stroke-[2.5px]' : ''}`} />
@@ -187,12 +197,84 @@ export const PortalLayout: React.FC = () => {
               </Link>
             );
           })}
+          
+          {/* More Button */}
+          <button 
+            onClick={() => setIsMobileMenuOpen(true)}
+            className={`flex flex-col items-center justify-center py-2 transition-colors ${isMobileMenuOpen ? 'text-emerald-600' : 'text-gray-400 hover:text-gray-700'}`}
+          >
+            <div className={`p-1.5 rounded-full mb-1 transition-all ${isMobileMenuOpen ? 'bg-emerald-50 scale-110' : 'bg-transparent'}`}>
+              <MoreHorizontal className={`w-5 h-5 ${isMobileMenuOpen ? 'stroke-[2.5px]' : ''}`} />
+            </div>
+            <span className={`text-[10px] whitespace-nowrap ${isMobileMenuOpen ? 'font-bold' : 'font-medium'}`}>Lainnya</span>
+          </button>
         </div>
       </nav>
       
+      {/* Mobile "More Menu" Drawer */}
+      {isMobileMenuOpen && (
+        <div className="md:hidden fixed inset-0 z-50 flex flex-col justify-end">
+          {/* Backdrop */}
+          <div 
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity" 
+            onClick={() => setIsMobileMenuOpen(false)}
+          ></div>
+          
+          {/* Drawer Content */}
+          <div className="bg-white rounded-t-3xl w-full max-h-[80vh] flex flex-col relative z-10 animate-in slide-in-from-bottom-full duration-300">
+            <div className="flex justify-center p-3">
+              <div className="w-12 h-1.5 bg-gray-300 rounded-full"></div>
+            </div>
+            <div className="px-6 pb-2 flex justify-between items-center border-b border-gray-100">
+              <h3 className="font-bold text-lg text-gray-900">Menu Lainnya</h3>
+              <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 text-gray-400 hover:text-gray-600 bg-gray-50 rounded-full">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto pb-safe">
+              <div className="grid grid-cols-4 gap-y-6 gap-x-2">
+                {navItems.map((item) => {
+                  const isActive = location.pathname === item.path || (item.path !== '/portal' && location.pathname.startsWith(item.path));
+                  return (
+                    <Link
+                      key={item.path}
+                      to={item.path}
+                      className="flex flex-col items-center gap-2 group"
+                    >
+                      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${
+                        isActive 
+                          ? 'bg-emerald-100 text-emerald-600 shadow-sm' 
+                          : 'bg-gray-50 text-gray-600 group-hover:bg-emerald-50 group-hover:text-emerald-600 border border-gray-100'
+                      }`}>
+                        <item.icon className="w-6 h-6" />
+                      </div>
+                      <span className={`text-[11px] text-center font-medium ${isActive ? 'text-emerald-700 font-bold' : 'text-gray-600'}`}>
+                        {item.name}
+                      </span>
+                    </Link>
+                  );
+                })}
+                
+                {/* Logout Button in Menu */}
+                <button 
+                  onClick={handleLogout}
+                  className="flex flex-col items-center gap-2 group"
+                >
+                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center transition-all bg-red-50 text-red-600 group-hover:bg-red-100 border border-red-100">
+                    <LogOut className="w-6 h-6" />
+                  </div>
+                  <span className="text-[11px] text-center font-medium text-red-600">
+                    Keluar
+                  </span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
       <style>{`
-        .hide-scrollbar::-webkit-scrollbar { display: none; }
-        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 4px; }

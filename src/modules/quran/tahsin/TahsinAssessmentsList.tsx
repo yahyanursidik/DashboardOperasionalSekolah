@@ -2,10 +2,10 @@ import React from "react";
 import { useList, useDelete } from "@refinedev/core";
 import { Link } from "react-router-dom";
 import { Plus, Award, Trash2, Edit } from "lucide-react";
-import { PageHeader } from "../../components/layout/PageHeader";
-import { useAcademicYear } from "../../app/providers/AcademicYearProvider";
+import { PageHeader } from "../../../components/layout/PageHeader";
+import { useAcademicYear } from "../../../app/providers/AcademicYearProvider";
 
-export const QuranAssessmentsList: React.FC = () => {
+export const TahsinAssessmentsList: React.FC = () => {
   const { activeYearId, activeSemesterId } = useAcademicYear();
   const { mutate: deleteMutate } = useDelete();
   
@@ -14,7 +14,7 @@ export const QuranAssessmentsList: React.FC = () => {
     filters: [
       { field: "academic_year_id", operator: "eq", value: activeYearId },
       { field: "semester_id", operator: "eq", value: activeSemesterId },
-      { field: "assessment_type", operator: "in", value: ["tahfidz_juz", "tasmi"] }
+      { field: "assessment_type", operator: "eq", value: "tahsin_jilid" }
     ],
     sorters: [
       { field: "date", order: "desc" }
@@ -29,17 +29,17 @@ export const QuranAssessmentsList: React.FC = () => {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Ujian / Munaqosyah"
-        description="Data ujian kenaikan jilid tahsin dan ujian juz (tasmi') siswa."
+        title="Ujian Kenaikan Jilid"
+        description="Data ujian kenaikan jilid tahsin santri."
       />
 
       <div className="flex justify-end">
         <Link
-          to="/quran-assessments/create"
+          to="/tahsin-assessments/create"
           className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors shadow-sm text-sm font-medium"
         >
           <Plus className="w-4 h-4" />
-          Input Nilai Ujian
+          Input Nilai Ujian Jilid
         </Link>
       </div>
 
@@ -67,7 +67,7 @@ export const QuranAssessmentsList: React.FC = () => {
               ) : records.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-6 py-8 text-center text-muted-foreground">
-                    Belum ada data ujian munaqosyah.
+                    Belum ada data ujian kenaikan jilid tahsin.
                   </td>
                 </tr>
               ) : (
@@ -102,14 +102,14 @@ export const QuranAssessmentsList: React.FC = () => {
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
                         <Link
-                          to={`/quran-assessments/edit/${record.id}`}
+                          to={`/tahsin-assessments/edit/${record.id}`}
                           className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                         >
                           <Edit className="w-4 h-4" />
                         </Link>
                         <button
                           onClick={() => {
-                            if (window.confirm("Hapus data ujian ini?")) {
+                            if (window.confirm("Hapus data ujian jilid ini?")) {
                               deleteMutate({
                                 resource: "quran_assessments",
                                 id: record.id as string,

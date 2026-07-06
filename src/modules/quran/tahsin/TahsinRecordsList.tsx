@@ -1,10 +1,10 @@
 import React, { useState } from "react";
 import { useList, useSelect, type CrudFilter } from "@refinedev/core";
 import { Link } from "react-router-dom";
-import { Plus, BookOpen, Search, Filter, Trash2, Edit } from "lucide-react";
-import { PageHeader } from "../../components/layout/PageHeader";
+import { Plus, Search } from "lucide-react";
+import { PageHeader } from "../../../components/layout/PageHeader";
 
-export const QuranRecordsList: React.FC = () => {
+export const TahsinRecordsList: React.FC = () => {
   const [selectedUnitId, setSelectedUnitId] = useState<string>("");
   const [selectedClassId, setSelectedClassId] = useState<string>("");
 
@@ -25,7 +25,7 @@ export const QuranRecordsList: React.FC = () => {
   });
 
   const filters: CrudFilter[] = [
-    { field: "record_type", operator: "eq", value: "tahfidz" }
+    { field: "record_type", operator: "eq", value: "tahsin" } // Strictly Tahsin
   ];
   if (selectedClassId) {
     filters.push({ field: "class_id", operator: "eq", value: selectedClassId });
@@ -47,8 +47,8 @@ export const QuranRecordsList: React.FC = () => {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Buku Mutaba'ah Ziyadah"
-        description="Pantau perkembangan capaian mutaba'ah hafalan (tahfidz) santri."
+        title="Jurnal Tilawah & Tahsin"
+        description="Pantau mutaba'ah harian tilawah dan tahsin santri."
       />
 
       <div className="flex justify-between items-center gap-4">
@@ -87,11 +87,11 @@ export const QuranRecordsList: React.FC = () => {
           </div>
         </div>
         <Link
-          to="/quran/create"
+          to="/tahsin-records/create"
           className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors shadow-sm text-sm font-medium"
         >
           <Plus className="w-4 h-4" />
-          Input Nilai Baru
+          Input Jurnal Tahsin
         </Link>
       </div>
 
@@ -103,8 +103,8 @@ export const QuranRecordsList: React.FC = () => {
                 <th className="px-6 py-3 font-semibold text-muted-foreground">Tanggal</th>
                 <th className="px-6 py-3 font-semibold text-muted-foreground">Siswa</th>
                 <th className="px-6 py-3 font-semibold text-muted-foreground">Kelas/Halaqoh</th>
-                <th className="px-6 py-3 font-semibold text-muted-foreground">Materi / Surah</th>
-                <th className="px-6 py-3 font-semibold text-muted-foreground">Ayat / Halaman</th>
+                <th className="px-6 py-3 font-semibold text-muted-foreground">Jilid / Surah</th>
+                <th className="px-6 py-3 font-semibold text-muted-foreground">Halaman / Ayat</th>
                 <th className="px-6 py-3 font-semibold text-muted-foreground">Kelancaran</th>
                 <th className="px-6 py-3 font-semibold text-muted-foreground">Tajwid/Makhroj</th>
                 <th className="px-6 py-3 font-semibold text-muted-foreground">Penguji</th>
@@ -113,14 +113,14 @@ export const QuranRecordsList: React.FC = () => {
             <tbody className="divide-y">
               {isLoading ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-muted-foreground">
+                  <td colSpan={8} className="px-6 py-8 text-center text-muted-foreground">
                     Memuat data...
                   </td>
                 </tr>
               ) : records.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-muted-foreground">
-                    Belum ada catatan mutaba'ah ziyadah tahfidz.
+                  <td colSpan={8} className="px-6 py-8 text-center text-muted-foreground">
+                    Belum ada jurnal tahsin.
                   </td>
                 </tr>
               ) : (

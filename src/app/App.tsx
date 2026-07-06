@@ -78,7 +78,13 @@ import { PkgList, PkgCreate, PkgShow, PkgHistory, PkgSettings } from "../modules
 import { 
   QuranRecordsList, QuranRecordForm, 
   QuranTargetsList, QuranTargetForm,
-  QuranAssessmentsList, QuranAssessmentForm
+  QuranAssessmentsList, QuranAssessmentForm,
+  HalaqohsList, HalaqohForm, HalaqohShow,
+  TahfidzTargetsList, TahfidzTargetForm,
+  TahfidzReportDashboard,
+  TahsinHalaqohsList, TahsinHalaqohForm, TahsinHalaqohShow,
+  TahsinTargetsList, TahsinTargetForm,
+  TahsinRecordsList, TahsinAssessmentsList, TahsinReportDashboard
 } from "../modules/quran";
 
 import {
@@ -136,6 +142,10 @@ import { DigitalLibraryBooksList } from "../modules/digital-library/books-list";
 import { DigitalLibraryBooksCreate } from "../modules/digital-library/books-create";
 import { DigitalLibraryBooksEdit } from "../modules/digital-library/books-edit";
 import { PortalLibrary } from "../modules/portal/portal-library";
+import { PortalOnboarding } from "../modules/portal/portal-onboarding";
+
+// Onboarding Imports
+import { OnboardingList, OnboardingCreate, OnboardingEdit, OnboardingShow } from "../modules/onboarding/pages";
 
 export default function App() {
   return (
@@ -206,6 +216,66 @@ export default function App() {
             meta: {
               canDelete: true,
             },
+          },
+          {
+            name: "tahfidz_halaqohs",
+            list: "/tahfidz-halaqohs",
+            create: "/tahfidz-halaqohs/create",
+            edit: "/tahfidz-halaqohs/edit/:id",
+            show: "/tahfidz-halaqohs/show/:id",
+            meta: {
+              canDelete: true,
+            },
+          },
+          {
+            name: "tahfidz_student_targets",
+            list: "/tahfidz-student-targets",
+            create: "/tahfidz-student-targets/create",
+            edit: "/tahfidz-student-targets/edit/:id",
+            meta: {
+              canDelete: true,
+            },
+          },
+          {
+            name: "tahfidz_reports",
+            list: "/tahfidz-reports",
+            meta: {
+              canDelete: false,
+            },
+          },
+          {
+            name: "tahsin_halaqohs",
+            list: "/tahsin-halaqohs",
+            create: "/tahsin-halaqohs/create",
+            edit: "/tahsin-halaqohs/edit/:id",
+            show: "/tahsin-halaqohs/show/:id",
+            meta: { canDelete: true },
+          },
+          {
+            name: "tahsin_student_targets",
+            list: "/tahsin-student-targets",
+            create: "/tahsin-student-targets/create",
+            edit: "/tahsin-student-targets/edit/:id",
+            meta: { canDelete: true },
+          },
+          {
+            name: "tahsin_records",
+            list: "/tahsin-records",
+            create: "/quran/create",
+            edit: "/quran/edit/:id",
+            meta: { canDelete: true },
+          },
+          {
+            name: "tahsin_assessments",
+            list: "/tahsin-assessments",
+            create: "/quran-assessments/create",
+            edit: "/quran-assessments/edit/:id",
+            meta: { canDelete: true },
+          },
+          {
+            name: "tahsin_reports",
+            list: "/tahsin-reports",
+            meta: { canDelete: false },
           },
           {
             name: "paud_activities",
@@ -314,6 +384,14 @@ export default function App() {
             name: "reports",
             list: "/reports",
             meta: { canDelete: false },
+          },
+          {
+            name: "onboarding_materials",
+            list: "/onboarding",
+            create: "/onboarding/create",
+            edit: "/onboarding/edit/:id",
+            show: "/onboarding/show/:id",
+            meta: { label: "Onboarding Materials", canDelete: true },
           },
           {
             name: "digital_reports",
@@ -774,6 +852,13 @@ export default function App() {
                   </Route>
                 </Route>
 
+                <Route path="onboarding">
+                  <Route index element={<OnboardingList />} />
+                  <Route path="create" element={<OnboardingCreate />} />
+                  <Route path="edit/:id" element={<OnboardingEdit />} />
+                  <Route path="show/:id" element={<OnboardingShow />} />
+                </Route>
+
               <Route path="/calendar">
                 <Route index element={<AcademicCalendar />} />
               </Route>
@@ -798,6 +883,42 @@ export default function App() {
                   <Route index element={<QuranAssessmentsList />} />
                   <Route path="create" element={<QuranAssessmentForm />} />
                   <Route path="edit/:id" element={<QuranAssessmentForm />} />
+                </Route>
+                <Route path="/tahfidz-halaqohs">
+                  <Route index element={<HalaqohsList />} />
+                  <Route path="create" element={<HalaqohForm />} />
+                  <Route path="edit/:id" element={<HalaqohForm />} />
+                  <Route path="show/:id" element={<HalaqohShow />} />
+                </Route>
+                <Route path="/tahfidz-student-targets">
+                  <Route index element={<TahfidzTargetsList />} />
+                  <Route path="create" element={<TahfidzTargetForm />} />
+                  <Route path="edit/:id" element={<TahfidzTargetForm />} />
+                </Route>
+                <Route path="/tahfidz-reports">
+                  <Route index element={<TahfidzReportDashboard />} />
+                </Route>
+                
+                {/* Tahsin Routes */}
+                <Route path="/tahsin-halaqohs">
+                  <Route index element={<TahsinHalaqohsList />} />
+                  <Route path="create" element={<TahsinHalaqohForm />} />
+                  <Route path="edit/:id" element={<TahsinHalaqohForm />} />
+                  <Route path="show/:id" element={<TahsinHalaqohShow />} />
+                </Route>
+                <Route path="/tahsin-student-targets">
+                  <Route index element={<TahsinTargetsList />} />
+                  <Route path="create" element={<TahsinTargetForm />} />
+                  <Route path="edit/:id" element={<TahsinTargetForm />} />
+                </Route>
+                <Route path="/tahsin-records">
+                  <Route index element={<TahsinRecordsList />} />
+                </Route>
+                <Route path="/tahsin-assessments">
+                  <Route index element={<TahsinAssessmentsList />} />
+                </Route>
+                <Route path="/tahsin-reports">
+                  <Route index element={<TahsinReportDashboard />} />
                 </Route>
 
                 <Route path="/paud-activities">
@@ -936,6 +1057,7 @@ export default function App() {
                 <Route path="paud" element={<PortalPaud />} />
                 <Route path="journals" element={<PortalJournals />} />
                 <Route path="library" element={<PortalLibrary />} />
+                <Route path="onboarding" element={<PortalOnboarding />} />
                 <Route path="announcements" element={<PortalAnnouncements />} />
                 <Route path="reports">
                   <Route index element={<ParentReportList />} />

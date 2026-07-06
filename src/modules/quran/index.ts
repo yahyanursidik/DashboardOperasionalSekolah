@@ -4,3 +4,18 @@ export * from "./QuranTargetsList";
 export * from "./QuranTargetForm";
 export * from "./QuranAssessmentsList";
 export * from "./QuranAssessmentForm";
+export * from "./halaqoh/HalaqohsList";
+export * from "./halaqoh/HalaqohForm";
+export * from "./halaqoh/HalaqohShow";
+export * from "./student-targets/TahfidzTargetsList";
+export * from "./student-targets/TahfidzTargetForm";
+export * from "./reports/TahfidzReportDashboard";
+
+export * from "./tahsin/TahsinHalaqohsList";
+export * from "./tahsin/TahsinHalaqohForm";
+export * from "./tahsin/TahsinHalaqohShow";
+export * from "./tahsin/TahsinTargetsList";
+export * from "./tahsin/TahsinTargetForm";
+export * from "./tahsin/TahsinRecordsList";
+export * from "./tahsin/TahsinAssessmentsList";
+export * from "./tahsin/TahsinReportDashboard";

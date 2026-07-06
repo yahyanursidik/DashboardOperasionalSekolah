@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { useForm } from "@refinedev/react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -7,6 +7,7 @@ import { useNavigate } from "react-router-dom";
 import { Save, ArrowLeft, Users, Building } from "lucide-react";
 import { useCurrentUnit } from "../../../app/providers/UnitProvider";
 import { useAcademicYear } from "../../../app/providers/AcademicYearProvider";
+import { supabaseClient } from "../../../lib/supabase/client";
 
 const classSchema = z.object({
   name: z.string().min(1, "Nama Kelas wajib diisi"),
@@ -33,9 +34,10 @@ export const ClassForm: React.FC<ClassFormProps> = ({ action }) => {
   const { activeYearId } = useAcademicYear();
 
   const {
-    refineCore: { onFinish, formLoading },
+    refineCore: { onFinish, formLoading, queryResult },
     register,
     handleSubmit,
+    setValue,
     formState: { errors },
   } = useForm<ClassFormValues>({
     resolver: zodResolver(classSchema) as any,
@@ -55,11 +57,31 @@ export const ClassForm: React.FC<ClassFormProps> = ({ action }) => {
   const { options: unitOptions } = useSelect({ resource: "units", optionLabel: "name", optionValue: "id" });
   const { options: yearOptions } = useSelect({ resource: "academic_years", optionLabel: "name", optionValue: "id" });
   const { options: teacherOptions } = useSelect({ 
-    resource: "teachers", 
+    resource: "employees", 
     optionLabel: "full_name", 
     optionValue: "id",
-    filters: [{ field: "is_active", operator: "eq", value: true }]
+    filters: [{ field: "status", operator: "eq", value: "active" }]
   });
+
+  const classId = queryResult?.data?.data?.id;
+
+  useEffect(() => {
+    if (action === "edit" && classId) {
+      const fetchHomeroom = async () => {
+        const { data } = await supabaseClient
+          .from("teacher_assignments")
+          .select("employee_id")
+          .eq("class_id", classId)
+          .eq("role_type", "homeroom")
+          .maybeSingle();
+        
+        if (data && data.employee_id) {
+          setValue("homeroom_teacher_id", data.employee_id);
+        }
+      };
+      fetchHomeroom();
+    }
+  }, [action, classId, setValue]);
 
   const onSubmit = async (data: any) => {
     // Transform payload so it matches the Supabase 'classes' table
@@ -74,8 +96,32 @@ export const ClassForm: React.FC<ClassFormProps> = ({ action }) => {
       is_active: data.is_active
     };
 
-    // Ignore homeroom_teacher_id for the classes insert, since it belongs to teacher_assignments table
-    await onFinish(payload as any);
+    try {
+      const response = await onFinish(payload as any);
+      const targetClassId = action === "create" ? response?.data?.id : classId;
+
+      if (targetClassId) {
+        // Hapus wali kelas lama jika ada
+        await supabaseClient
+          .from("teacher_assignments")
+          .delete()
+          .eq("class_id", targetClassId)
+          .eq("role_type", "homeroom");
+
+        // Simpan wali kelas baru jika dipilih
+        if (data.homeroom_teacher_id) {
+          await supabaseClient.from("teacher_assignments").insert({
+            employee_id: data.homeroom_teacher_id,
+            class_id: targetClassId,
+            unit_id: data.unit_id,
+            academic_year_id: data.academic_year_id,
+            role_type: "homeroom"
+          });
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   return (

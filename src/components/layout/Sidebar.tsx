@@ -1,6 +1,6 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { X } from "lucide-react";
+import { X, ChevronDown, ChevronRight } from "lucide-react";
 import { useCurrentRoles } from "../../hooks/useAuth";
 import { canAccessResource } from "../../lib/permissions";
 import { navigationConfig } from "../../config/navigation";
@@ -18,6 +18,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const { roles } = useCurrentRoles();
   const location = useLocation();
   const { activeUnitId } = useCurrentUnit();
+  
+  // State to track which groups are expanded
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
 
   const { data: unitData } = useOne({
     resource: "units",
@@ -28,7 +31,34 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const unitName = unitData?.data?.name?.toLowerCase() || "";
   const isPaudUnit = unitName.includes("paud") || unitName.includes("tk") || unitName.includes("kb");
 
-  const isActive = (path: string) => location.pathname === path;
+  const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(`${path}/`);
+
+  // Auto-expand group that contains active link on initial load
+  useEffect(() => {
+    const newExpandedState: Record<string, boolean> = { ...expandedGroups };
+    let hasChanges = false;
+    
+    navigationConfig.forEach((group) => {
+      // Check if any item in this group is active
+      const hasActiveItem = group.items.some(item => isActive(item.href));
+      if (hasActiveItem && !expandedGroups[group.name]) {
+        newExpandedState[group.name] = true;
+        hasChanges = true;
+      }
+    });
+
+    if (hasChanges) {
+      setExpandedGroups(newExpandedState);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]);
+
+  const toggleGroup = (groupName: string) => {
+    setExpandedGroups(prev => ({
+      ...prev,
+      [groupName]: !prev[groupName]
+    }));
+  };
 
   return (
     <>
@@ -41,19 +71,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       )}
       
       {/* Sidebar Container */}
-      <aside className={`fixed md:sticky top-0 left-0 z-50 w-64 bg-primary text-primary-foreground flex-col h-screen shadow-lg border-r border-primary/20 transition-transform duration-300 ease-in-out md:translate-x-0 flex ${isOpen ? "translate-x-0" : "-translate-x-full"}`}>
-        <div className="h-16 flex items-center justify-between px-6 bg-black/20 shrink-0">
-          <BrandLogo textClassName="font-bold text-xl tracking-tight" />
+      <aside className={`fixed md:sticky top-0 left-0 z-50 w-64 bg-card text-card-foreground flex-col h-screen border-r shadow-[2px_0_8px_-4px_rgba(0,0,0,0.05)] transition-transform duration-300 ease-in-out md:translate-x-0 flex overflow-hidden ${isOpen ? "translate-x-0" : "-translate-x-[110%]"}`}>
+        <div className="h-16 flex items-center justify-between px-6 bg-transparent shrink-0 border-b">
+          <BrandLogo textClassName="font-bold text-xl tracking-tight text-foreground" />
           {/* Mobile Close Button */}
           <button 
             onClick={onClose}
-            className="md:hidden p-1 rounded-md text-primary-foreground/70 hover:text-white hover:bg-white/10 transition-colors"
+            className="md:hidden p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
       <ScrollArea className="flex-1">
-        <nav className="px-4 py-6 space-y-6">
+        <nav className="px-3 py-6 space-y-4">
         {navigationConfig.map((group) => {
           // Hide PAUD module if active unit is not PAUD
           if (group.name === "Modul PAUD (KB/TK)" && !isPaudUnit && activeUnitId) {
@@ -67,31 +97,48 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
           if (visibleItems.length === 0) return null;
 
+          const isExpanded = expandedGroups[group.name];
+          const hasActiveChild = visibleItems.some(item => isActive(item.href));
+
           return (
-            <div key={group.name} className="space-y-1">
-              <h3 className="px-3 text-xs font-semibold text-primary-foreground/60 uppercase tracking-wider mb-2">
-                {group.name}
-              </h3>
-              {visibleItems.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <Link
-                    key={item.title}
-                    to={item.href}
-                    onClick={() => {
-                      if (onClose) onClose();
-                    }}
-                    className={`flex items-center gap-3 px-3 py-2 rounded-md transition-all text-sm font-medium ${
-                      isActive(item.href)
-                        ? "bg-white/20 text-white shadow-sm"
-                        : "text-primary-foreground/80 hover:bg-white/10 hover:text-white"
-                    }`}
-                  >
-                    <Icon className="w-4 h-4" />
-                    <span>{item.title}</span>
-                  </Link>
-                );
-              })}
+            <div key={group.name} className="space-y-1.5">
+              <button 
+                onClick={() => toggleGroup(group.name)}
+                className={`w-full flex items-center justify-between px-3 py-2 text-[11px] font-bold uppercase tracking-[0.15em] rounded-lg transition-colors hover:text-foreground group ${hasActiveChild && !isExpanded ? 'text-primary' : 'text-muted-foreground/70'}`}
+              >
+                <span>{group.name}</span>
+                {isExpanded ? (
+                  <ChevronDown className="w-3.5 h-3.5 opacity-50 group-hover:opacity-100 transition-opacity" />
+                ) : (
+                  <ChevronRight className="w-3.5 h-3.5 opacity-50 group-hover:opacity-100 transition-opacity" />
+                )}
+              </button>
+              
+              <div className={`space-y-1 overflow-hidden transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-[1000px] opacity-100 mb-4' : 'max-h-0 opacity-0'}`}>
+                {visibleItems.map((item) => {
+                  const Icon = item.icon;
+                  const itemIsActive = isActive(item.href);
+                  return (
+                    <Link
+                      key={item.title}
+                      to={item.href}
+                      onClick={() => {
+                        if (onClose) onClose();
+                      }}
+                      className={`group flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all text-sm mx-1 ${
+                        itemIsActive
+                          ? "bg-primary/10 text-primary font-bold shadow-sm"
+                          : "text-muted-foreground hover:bg-muted/50 hover:text-foreground font-medium"
+                      }`}
+                    >
+                      <Icon className={`w-4 h-4 transition-transform duration-200 ${itemIsActive ? 'text-primary scale-110' : 'group-hover:scale-110 group-hover:text-foreground'}`} />
+                      <span className={`transition-transform duration-200 ${itemIsActive ? 'translate-x-1' : 'group-hover:translate-x-1'}`}>
+                        {item.title}
+                      </span>
+                    </Link>
+                  );
+                })}
+              </div>
             </div>
           );
         })}

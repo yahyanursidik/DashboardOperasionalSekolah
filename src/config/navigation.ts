@@ -51,7 +51,7 @@ export interface NavigationGroup {
 
 export const navigationConfig: NavigationGroup[] = [
   {
-    name: "Overview",
+    name: "Dashboard & Beranda",
     items: [
       {
         title: "Beranda",
@@ -63,11 +63,59 @@ export const navigationConfig: NavigationGroup[] = [
         href: "/calendar",
         icon: CalendarCheck,
       },
+      {
+        title: "Pengumuman",
+        href: "/announcements",
+        icon: Megaphone,
+        resource: "announcements",
+      },
+      {
+        title: "Task Admin",
+        href: "/tasks",
+        icon: ClipboardList,
+        resource: "admin_tasks",
+      },
     ],
   },
   {
-    name: "Akademik",
+    name: "Kesiswaan & Akademik",
     items: [
+      {
+        title: "Administrasi Siswa",
+        href: "/students",
+        icon: Users,
+        resource: "students",
+      },
+      {
+        title: "Orang Tua / Wali",
+        href: "/parents",
+        icon: Users,
+        resource: "students",
+      },
+      {
+        title: "Data Kelas",
+        href: "/classes",
+        icon: Building,
+        resource: "classes",
+      },
+      {
+        title: "Kurikulum & Pembelajaran",
+        href: "/curriculum",
+        icon: BookOpen,
+        resource: "subjects",
+      },
+      {
+        title: "Dokumen Kurikulum",
+        href: "/curriculum/documents",
+        icon: FileText,
+        resource: "curriculum_documents",
+      },
+      {
+        title: "Absensi Siswa",
+        href: "/attendance",
+        icon: CalendarCheck,
+        resource: "attendance_records",
+      },
       {
         title: "Gradebook (Nilai)",
         href: "/academic/gradebook",
@@ -81,22 +129,45 @@ export const navigationConfig: NavigationGroup[] = [
         resource: "academic_report_cards",
       },
       {
-        title: "Mutaba'ah (Harian)",
-        href: "/quran",
+        title: "Jurnal & Rekam Jejak",
+        href: "/student-journals",
         icon: BookOpen,
-        resource: "quran_records",
+        resource: "student_journals",
       },
       {
-        title: "Target Qur'an",
-        href: "/quran-targets",
+        title: "Ekstrakurikuler",
+        href: "/extracurricular",
         icon: Target,
-        resource: "quran_targets",
+        resource: "extracurricular",
+      },
+    ],
+  },
+  {
+    name: "Penerimaan Siswa Baru",
+    items: [
+      {
+        title: "Penerimaan Murid Baru",
+        href: "/admissions",
+        icon: GraduationCap,
+        resource: "admissions",
       },
       {
-        title: "Munaqosyah/Ujian",
-        href: "/quran-assessments",
-        icon: Award,
-        resource: "quran_assessments",
+        title: "Pengaturan SPMB",
+        href: "/admissions/settings",
+        icon: Settings,
+        resource: "admissions",
+      },
+      {
+        title: "Laporan SPMB",
+        href: "/admissions/reports",
+        icon: TrendingUp,
+        resource: "admissions",
+      },
+      {
+        title: "Ujian Online (CBT)",
+        href: "/recruitment/cbt/exams",
+        icon: BookOpen,
+        resource: "cbt_exams",
       },
     ],
   },
@@ -107,7 +178,7 @@ export const navigationConfig: NavigationGroup[] = [
         title: "Monitoring Rapor",
         href: "/reports/monitoring",
         icon: BarChart3,
-        resource: "student_reports", // Admin, Principal
+        resource: "student_reports", 
       },
       {
         title: "Periode Rapor",
@@ -125,49 +196,125 @@ export const navigationConfig: NavigationGroup[] = [
         title: "Generate Rapor",
         href: "/reports/generate",
         icon: Target,
-        resource: "report_periods", // Using report_periods as placeholder access
+        resource: "report_periods",
       },
       {
         title: "Input Guru",
         href: "/reports/teacher-input",
         icon: ClipboardCheck,
-        resource: "academic_grades", // Teachers who can grade can input
+        resource: "academic_grades",
       },
       {
         title: "Review Wali Kelas",
         href: "/reports/homeroom-review",
         icon: Users,
-        resource: "report_reviews", // Homerooms only
+        resource: "report_reviews", 
       },
       {
         title: "Review Wakasek",
         href: "/reports/wakasek-review",
         icon: ShieldCheck,
-        resource: "report_publish_logs", // Principals / Wakasek
+        resource: "report_publish_logs",
       },
       {
         title: "Approval Kepsek",
         href: "/reports/principal-approval",
         icon: Award,
-        resource: "report_publish_logs", // Principals only
+        resource: "report_publish_logs",
       },
       {
         title: "Publish Rapor",
         href: "/reports/publish",
         icon: Send,
-        resource: "report_publish_logs", // Admin/Principals
+        resource: "report_publish_logs",
       },
       {
         title: "Pantau Tanda Terima",
         href: "/reports/read-receipts",
         icon: ClipboardCheck,
-        resource: "student_reports", // Admin, Principals, Homeroom
+        resource: "student_reports",
       },
       {
         title: "Generate PDF",
         href: "/reports/pdf",
         icon: FileDown,
-        resource: "report_pdf_exports", // Admin
+        resource: "report_pdf_exports", 
+      },
+    ],
+  },
+  {
+    name: "Program Tahfidz",
+    items: [
+      {
+        title: "Pembagian Halaqoh",
+        href: "/tahfidz-halaqohs",
+        icon: Users,
+        resource: "tahfidz_halaqohs",
+      },
+      {
+        title: "Target Hafalan",
+        href: "/tahfidz-student-targets",
+        icon: Target,
+        resource: "tahfidz_student_targets",
+      },
+      {
+        title: "Mutaba'ah (Harian)",
+        href: "/quran",
+        icon: BookOpen,
+        resource: "quran_records",
+      },
+      {
+        title: "Target Kelas (Klasikal)",
+        href: "/quran-targets",
+        icon: Target,
+        resource: "quran_targets",
+      },
+      {
+        title: "Munaqosyah/Ujian",
+        href: "/quran-assessments",
+        icon: Award,
+        resource: "quran_assessments",
+      },
+      {
+        title: "Laporan Tahfidz",
+        href: "/tahfidz-reports",
+        icon: BarChart,
+        resource: "tahfidz_reports",
+      },
+    ],
+  },
+  {
+    name: "Program Tahsin",
+    items: [
+      {
+        title: "Pembagian Halaqoh",
+        href: "/tahsin-halaqohs",
+        icon: Users,
+        resource: "tahsin_halaqohs",
+      },
+      {
+        title: "Target Tilawah/Jilid",
+        href: "/tahsin-student-targets",
+        icon: Target,
+        resource: "tahsin_student_targets",
+      },
+      {
+        title: "Jurnal Harian",
+        href: "/tahsin-records",
+        icon: BookOpen,
+        resource: "tahsin_records",
+      },
+      {
+        title: "Ujian Kenaikan Jilid",
+        href: "/tahsin-assessments",
+        icon: Award,
+        resource: "tahsin_assessments",
+      },
+      {
+        title: "Laporan Tahsin",
+        href: "/tahsin-reports",
+        icon: BarChart,
+        resource: "tahsin_reports",
       },
     ],
   },
@@ -189,20 +336,8 @@ export const navigationConfig: NavigationGroup[] = [
     ],
   },
   {
-    name: "Master Data",
+    name: "SDM & Kepegawaian (HRD)",
     items: [
-      {
-        title: "Kurikulum & Pembelajaran",
-        href: "/curriculum",
-        icon: BookOpen,
-        resource: "subjects", // Basic requirement to access curriculum module
-      },
-      {
-        title: "Jurnal & Rekam Jejak",
-        href: "/student-journals",
-        icon: BookOpen,
-        resource: "student_journals",
-      },
       {
         title: "Data Pegawai",
         href: "/employees",
@@ -214,83 +349,6 @@ export const navigationConfig: NavigationGroup[] = [
         href: "/schedules",
         icon: CalendarCheck,
         resource: "employee_schedules",
-      },
-      {
-        title: "Data Induk",
-        href: "/master-data",
-        icon: Database,
-        resource: "settings",
-      },
-      {
-        title: "Dokumen Kurikulum",
-        href: "/curriculum/documents",
-        icon: FileText,
-        resource: "curriculum_documents",
-      },
-      {
-        title: "Dokumen & Surat",
-        href: "/documents",
-        icon: FileText,
-        resource: "documents",
-      },
-      {
-        title: "Tata Usaha (Surat)",
-        href: "/mail",
-        icon: Inbox,
-        resource: "mail_records",
-      },
-      {
-        title: "Perpustakaan Digital",
-        href: "/digital-library",
-        icon: BookOpen,
-        resource: "digital_library_books",
-      },
-    ],
-  },
-  {
-    name: "Operasional",
-    items: [
-      {
-        title: "Administrasi Siswa",
-        href: "/students",
-        icon: Users,
-        resource: "students",
-      },
-      {
-        title: "Penerimaan Murid Baru (SPMB)",
-        href: "/admissions",
-        icon: GraduationCap,
-        resource: "admissions",
-      },
-      {
-        title: "Pengaturan SPMB",
-        href: "/admissions/settings",
-        icon: Settings,
-        resource: "admissions",
-      },
-      {
-        title: "Laporan SPMB",
-        href: "/admissions/reports",
-        icon: TrendingUp,
-        resource: "admissions",
-      },
-      {
-        title: "Orang Tua / Wali",
-        href: "/parents",
-        icon: Users,
-        resource: "students",
-      },
-      {
-        title: "Data Kelas",
-        href: "/classes",
-        icon: Users, // We could use Library or LayoutGrid if imported, but Users is fine for now, or maybe Building. I will just reuse Users.
-        resource: "classes",
-      },
-      {
-        title: "Absensi Siswa",
-        href: "/attendance",
-        icon: CalendarCheck,
-        resource: "attendance_records",
       },
       {
         title: "Absensi Pegawai",
@@ -311,34 +369,16 @@ export const navigationConfig: NavigationGroup[] = [
         resource: "substitute_assignments",
       },
       {
-        title: "Task Admin",
-        href: "/tasks",
-        icon: ClipboardList,
-        resource: "admin_tasks",
-      },
-      {
         title: "Rekrutmen Pegawai",
         href: "/recruitment",
         icon: Briefcase,
         resource: "recruitment_vacancies",
       },
       {
-        title: "Ujian Online (CBT)",
-        href: "/recruitment/cbt/exams",
-        icon: BookOpen,
-        resource: "cbt_exams",
-      },
-      {
         title: "PKG / Kinerja Guru",
         href: "/pkg",
         icon: ClipboardCheck,
         resource: "pkg_assessments",
-      },
-      {
-        title: "Ekstrakurikuler",
-        href: "/extracurricular",
-        icon: Target,
-        resource: "extracurricular",
       },
       {
         title: "Pengaturan Instrumen PKG",
@@ -349,30 +389,7 @@ export const navigationConfig: NavigationGroup[] = [
     ],
   },
   {
-    name: "Sarpras & Inventaris",
-    items: [
-      {
-        title: "Manajemen Aset",
-        href: "/sarpras/assets",
-        icon: Package,
-        resource: "assets",
-      },
-      {
-        title: "Data Ruangan",
-        href: "/sarpras/rooms",
-        icon: Building,
-        resource: "rooms",
-      },
-      {
-        title: "Jadwal Ruangan",
-        href: "/sarpras/room-schedules",
-        icon: CalendarCheck,
-        resource: "room_schedules",
-      },
-    ]
-  },
-  {
-    name: "Keuangan",
+    name: "Keuangan & Bendahara",
     items: [
       {
         title: "Dashboard Keuangan",
@@ -419,13 +436,65 @@ export const navigationConfig: NavigationGroup[] = [
     ],
   },
   {
-    name: "Sistem",
+    name: "Sarana & Prasarana",
     items: [
       {
-        title: "Pengumuman",
-        href: "/announcements",
-        icon: Megaphone,
-        resource: "announcements",
+        title: "Manajemen Aset",
+        href: "/sarpras/assets",
+        icon: Package,
+        resource: "assets",
+      },
+      {
+        title: "Data Ruangan",
+        href: "/sarpras/rooms",
+        icon: Building,
+        resource: "rooms",
+      },
+      {
+        title: "Jadwal Ruangan",
+        href: "/sarpras/room-schedules",
+        icon: CalendarCheck,
+        resource: "room_schedules",
+      },
+    ]
+  },
+  {
+    name: "Tata Usaha & Dokumen",
+    items: [
+      {
+        title: "Tata Usaha (Surat)",
+        href: "/mail",
+        icon: Inbox,
+        resource: "mail_records",
+      },
+      {
+        title: "Dokumen & Surat",
+        href: "/documents",
+        icon: FileText,
+        resource: "documents",
+      },
+      {
+        title: "Perpustakaan Digital",
+        href: "/digital-library",
+        icon: BookOpen,
+        resource: "digital_library_books",
+      },
+      {
+        title: "Materi Onboarding",
+        href: "/onboarding",
+        icon: Target,
+        resource: "onboarding_materials",
+      },
+    ],
+  },
+  {
+    name: "Sistem & Laporan",
+    items: [
+      {
+        title: "Data Induk",
+        href: "/master-data",
+        icon: Database,
+        resource: "settings",
       },
       {
         title: "Komunikasi",
@@ -442,11 +511,11 @@ export const navigationConfig: NavigationGroup[] = [
       {
         title: "Audit Trail",
         href: "/audit-logs",
-        icon: Settings, // We can reuse Settings or add Shield. Let's use Settings for now.
+        icon: ShieldCheck, 
         resource: "audit_logs",
       },
       {
-        title: "Pengaturan",
+        title: "Pengaturan Umum",
         href: "/settings",
         icon: Settings,
         resource: "settings",
