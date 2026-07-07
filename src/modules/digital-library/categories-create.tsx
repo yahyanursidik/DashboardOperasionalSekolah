@@ -31,7 +31,6 @@ export const DigitalLibraryCategoriesCreate: React.FC = () => {
         <PageHeader
           title="Tambah Kategori"
           description="Tambahkan kategori baru untuk perpustakaan digital"
-          icon={BookOpen}
         />
       </div>
 

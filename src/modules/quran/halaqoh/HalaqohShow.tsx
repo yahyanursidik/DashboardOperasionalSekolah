@@ -189,7 +189,7 @@ export const HalaqohShow: React.FC = () => {
                         <td className="px-6 py-4 font-mono text-xs">{member.students?.nis || "-"}</td>
                         <td className="px-6 py-4 text-right">
                           <button
-                            onClick={() => handleRemoveMember(member.id)}
+                            onClick={() => handleRemoveMember(member.id as string)}
                             className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors inline-flex items-center gap-1"
                             title="Keluarkan dari halaqoh"
                           >

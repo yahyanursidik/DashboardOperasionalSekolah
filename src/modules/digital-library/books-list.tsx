@@ -234,16 +234,18 @@ export const DigitalLibraryBooksList: React.FC = () => {
     previousPage,
     refineCore: { setCurrent, pageCount, current },
   } = useTable({
-    resource: "digital_library_books",
     columns,
-    filters: {
-      initial: filters as any,
-      permanent: [],
-    },
-    meta: {
-      select: "*, digital_library_categories(name)"
-    },
-    pagination: { pageSize: 10 },
+    refineCoreProps: {
+      resource: "digital_library_books",
+      filters: {
+        initial: filters as any,
+        permanent: [],
+      },
+      meta: {
+        select: "*, digital_library_categories(name)"
+      },
+      pagination: { pageSize: 10 },
+    }
   });
 
   return (
@@ -260,11 +262,6 @@ export const DigitalLibraryBooksList: React.FC = () => {
         <PageHeader
           title="Koleksi Buku"
           description="Kelola koleksi perpustakaan digital."
-          icon={Book}
-          breadcrumbs={[
-            { label: "Dashboard", path: "/" },
-            { label: "Perpustakaan Digital", path: "/digital-library" }
-          ]}
         />
         <Link
           to="/digital-library/categories"

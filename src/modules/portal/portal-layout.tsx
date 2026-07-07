@@ -66,7 +66,7 @@ export const PortalLayout: React.FC = () => {
 
   if (!student) return <div className="min-h-screen flex items-center justify-center bg-gray-50">Memuat...</div>;
 
-  const { logoUrl, schoolName } = useSystemSettings();
+  const { logoUrl, appName } = useSystemSettings();
 
   const navItems = [
     { name: "Beranda", path: "/portal", icon: Home },
@@ -97,7 +97,7 @@ export const PortalLayout: React.FC = () => {
            {logoUrl ? (
              <img src={logoUrl} alt="Logo" className="max-h-10 w-auto object-contain" />
            ) : (
-             <span className="text-emerald-700 font-bold text-lg">{schoolName || "TSLS"}</span>
+             <span className="text-emerald-700 font-bold text-lg">{appName || "TSLS"}</span>
            )}
         </div>
         <div className="flex-1 overflow-y-auto py-4 custom-scrollbar">

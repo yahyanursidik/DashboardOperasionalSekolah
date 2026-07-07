@@ -197,7 +197,7 @@ export const StudentsList: React.FC = () => {
       }
 
       // Tambahkan existing students yang ada di validRows ke allProcessedStudents
-      existingStudents?.forEach(existing => {
+      (existingStudents as any[])?.forEach(existing => {
         const isInCsv = validRows.some((r: any) => 
           existing.full_name?.toLowerCase() === r['Nama Siswa']?.toLowerCase() &&
           (!r['Tanggal Lahir'] || existing.date_of_birth === r['Tanggal Lahir'])
@@ -243,7 +243,7 @@ export const StudentsList: React.FC = () => {
           if (fetchParentsError) throw fetchParentsError;
           
           const parentIdMap = new Map<string, string>(); // Name -> ID
-          existingParents?.forEach(p => parentIdMap.set(p.full_name, p.id));
+          (existingParents as any[])?.forEach(p => parentIdMap.set(p.full_name, p.id));
           
           // Determine which parents are completely new
           const newParentsToInsert = uniqueNames
@@ -261,7 +261,7 @@ export const StudentsList: React.FC = () => {
                 throw new Error("Gagal mengunggah data orang tua: " + insertParentsError.message);
              }
              
-             insertedParents?.forEach(p => parentIdMap.set(p.full_name, p.id));
+             (insertedParents as any[])?.forEach(p => parentIdMap.set(p.full_name, p.id));
           }
           
           parentsCount = newParentsToInsert.length;
@@ -294,7 +294,7 @@ export const StudentsList: React.FC = () => {
                 .select('student_id, parent_id')
                 .in('student_id', studentIds);
                 
-             const existingLinksSet = new Set(existingLinks?.map(l => `${l.student_id}-${l.parent_id}`) || []);
+             const existingLinksSet = new Set((existingLinks as any[])?.map(l => `${l.student_id}-${l.parent_id}`) || []);
              const finalLinks = linksToInsert.filter(l => !existingLinksSet.has(`${l.student_id}-${l.parent_id}`));
              
              if (finalLinks.length > 0) {

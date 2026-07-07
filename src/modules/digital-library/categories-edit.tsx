@@ -43,8 +43,7 @@ export const DigitalLibraryCategoriesEdit: React.FC = () => {
         </button>
         <PageHeader
           title="Edit Kategori"
-          description="Perbarui informasi kategori perpustakaan digital"
-          icon={BookOpen}
+          description="Perbarui nama dan deskripsi kategori"
         />
       </div>
 

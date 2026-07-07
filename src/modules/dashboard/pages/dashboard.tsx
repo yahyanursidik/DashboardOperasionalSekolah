@@ -376,12 +376,18 @@ const FollowupAlert = () => {
 
 // --- WIDGET 8: SPMB Snapshot ---
 const SpmbSnapshot = () => {
-  // Using some mock data for the dashboard widget
+  const { data: tableData } = useList({
+    resource: "admissions_applicants",
+    pagination: { mode: "off" }
+  });
+
+  const rawData = tableData?.data || [];
+  
   const stats = {
-    total: 125,
-    verified: 80,
-    passed: 45,
-    waiting: 20
+    total: rawData.length,
+    verified: rawData.filter((a: any) => a.status === 'Verifikasi Valid' || a.status === 'Berkas Lengkap').length,
+    passed: rawData.filter((a: any) => a.status === 'Lulus Tes').length,
+    waiting: rawData.filter((a: any) => a.status === 'Menunggu Verifikasi').length
   };
 
   return (
@@ -418,11 +424,28 @@ const SpmbSnapshot = () => {
 
 // --- WIDGET 9: Finance Snapshot ---
 const FinanceSnapshot = () => {
-  const incoming = 125000000;
-  const target = 150000000;
-  const percentage = Math.round((incoming/target)*100);
-  const pending = 24;
-  const verifying = 5;
+  const { activeUnitId } = useCurrentUnit();
+
+  const { data: invoicesData } = useList({
+    resource: "student_invoices",
+    filters: activeUnitId ? [{ field: "unit_id", operator: "eq", value: activeUnitId }] : [],
+    pagination: { mode: "off" }
+  });
+
+  const { data: verificationsData } = useList({
+    resource: "payment_transactions",
+    filters: [{ field: "status", operator: "eq", value: "pending_verification" }],
+    pagination: { mode: "off" }
+  });
+
+  const invoices = invoicesData?.data || [];
+  
+  const incoming = invoices.reduce((acc: number, curr: any) => acc + Number(curr.paid_amount || 0), 0);
+  const target = invoices.reduce((acc: number, curr: any) => acc + Number(curr.amount || 0) - Number(curr.discount || 0), 0);
+  const percentage = target > 0 ? Math.round((incoming/target)*100) : 0;
+  
+  const pending = invoices.filter((inv: any) => inv.status === 'unpaid' || inv.status === 'partial').length; 
+  const verifying = verificationsData?.data.length || 0;
 
   return (
     <div className="bg-card rounded-2xl p-6 shadow-sm border flex flex-col h-full">
@@ -432,8 +455,8 @@ const FinanceSnapshot = () => {
       </div>
       
       <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl p-5 text-white mb-4">
-        <p className="text-emerald-100 text-xs font-bold uppercase tracking-wider mb-1">Pemasukan Bulan Ini</p>
-        <h4 className="text-2xl font-black">Rp 125 Juta</h4>
+        <p className="text-emerald-100 text-xs font-bold uppercase tracking-wider mb-1">Total Pemasukan</p>
+        <h4 className="text-2xl font-black">Rp {incoming.toLocaleString('id-ID')}</h4>
         
         <div className="mt-4">
           <div className="flex justify-between text-xs mb-1.5 text-emerald-50">

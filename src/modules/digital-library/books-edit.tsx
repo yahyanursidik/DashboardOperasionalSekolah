@@ -28,11 +28,12 @@ export const DigitalLibraryBooksEdit: React.FC = () => {
     },
   });
 
-  const { options: categoryOptions, isLoading: categoryLoading } = useSelect({
+  const { options: categoryOptions, queryResult: categoryQueryResult } = useSelect({
     resource: "digital_library_categories",
     optionLabel: "name",
     optionValue: "id",
   });
+  const categoryLoading = categoryQueryResult?.isLoading;
 
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -141,7 +142,6 @@ export const DigitalLibraryBooksEdit: React.FC = () => {
         <PageHeader
           title="Edit Buku"
           description="Perbarui informasi buku di perpustakaan digital"
-          icon={Book}
         />
       </div>
 

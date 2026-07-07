@@ -3,7 +3,7 @@ import { useForm } from "@refinedev/react-hook-form";
 import { useNavigate, Link } from "react-router-dom";
 import { supabaseClient } from "../../../lib/supabase/client";
 import { PageHeader } from "../../../components/layout/PageHeader";
-import { Save, ArrowLeft, UploadCloud, ChevronRight, CheckCircle2 } from "lucide-react";
+import { Save, ArrowLeft, UploadCloud, ChevronRight, CheckCircle2, Eye } from "lucide-react";
 import { toast } from "sonner";
 
 export const OnboardingCreate: React.FC = () => {

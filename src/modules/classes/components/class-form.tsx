@@ -63,7 +63,7 @@ export const ClassForm: React.FC<ClassFormProps> = ({ action }) => {
     filters: [{ field: "status", operator: "eq", value: "active" }]
   });
 
-  const classId = queryResult?.data?.data?.id;
+  const classId = (queryResult?.data?.data as any)?.id;
 
   useEffect(() => {
     if (action === "edit" && classId) {
@@ -75,8 +75,8 @@ export const ClassForm: React.FC<ClassFormProps> = ({ action }) => {
           .eq("role_type", "homeroom")
           .maybeSingle();
         
-        if (data && data.employee_id) {
-          setValue("homeroom_teacher_id", data.employee_id);
+        if (data && (data as any).employee_id) {
+          setValue("homeroom_teacher_id", (data as any).employee_id);
         }
       };
       fetchHomeroom();
@@ -98,7 +98,7 @@ export const ClassForm: React.FC<ClassFormProps> = ({ action }) => {
 
     try {
       const response = await onFinish(payload as any);
-      const targetClassId = action === "create" ? response?.data?.id : classId;
+      const targetClassId = action === "create" ? (response?.data as any)?.id : classId;
 
       if (targetClassId) {
         // Hapus wali kelas lama jika ada
