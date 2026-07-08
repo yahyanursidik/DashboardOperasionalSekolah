@@ -42,6 +42,7 @@ export const SubjectsList: React.FC = () => {
           if (cat === "Nasional") color = "bg-blue-100 text-blue-700 border border-blue-200";
           if (cat === "Khas Sekolah") color = "bg-emerald-100 text-emerald-700 border border-emerald-200";
           return <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${color}`}>{cat}</span>;
+        },
       },
       {
         id: "grade_levels",

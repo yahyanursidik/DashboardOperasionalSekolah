@@ -35,6 +35,7 @@ export const SubjectCurriculumCreate: React.FC = () => {
       onMutationSuccess: () => {
         navigate(`/curriculum/subjects/show/${subjectId}`);
       }
+    }
   });
 
   const selectedGrade = useWatch({ control, name: "grade_level" });
