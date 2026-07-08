@@ -53,6 +53,7 @@ export const StudentForm: React.FC<StudentFormProps> = ({ action }) => {
     register,
     handleSubmit,
     watch,
+    reset,
     formState: { errors },
   } = useForm<StudentFormValues>({
     resolver: zodResolver(studentSchema) as any,
@@ -87,6 +88,15 @@ export const StudentForm: React.FC<StudentFormProps> = ({ action }) => {
   // Extract initial date properly for HTML date input
   const initialData = queryResult?.data?.data;
   const birthDateValue = initialData?.date_of_birth ? new Date(initialData.date_of_birth).toISOString().split('T')[0] : "";
+
+  React.useEffect(() => {
+    if (action === "edit" && initialData) {
+      reset({
+        ...initialData,
+        date_of_birth: birthDateValue,
+      } as any);
+    }
+  }, [initialData, action, reset, birthDateValue]);
 
   const onSubmit = async (data: any) => {
     const payload = { ...data };
@@ -187,6 +197,7 @@ export const StudentForm: React.FC<StudentFormProps> = ({ action }) => {
               <label className="text-sm font-medium">Unit Sekolah <span className="text-destructive">*</span></label>
               <select
                 {...register("unit_id")}
+                value={watch("unit_id") || ""}
                 className="w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all bg-background"
                 disabled={unitQuery.isLoading}
               >
@@ -202,6 +213,7 @@ export const StudentForm: React.FC<StudentFormProps> = ({ action }) => {
               <label className="text-sm font-medium">Kelas</label>
               <select
                 {...register("class_id")}
+                value={watch("class_id") || ""}
                 className="w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all bg-background"
                 disabled={classQuery.isLoading || !selectedUnit}
               >
