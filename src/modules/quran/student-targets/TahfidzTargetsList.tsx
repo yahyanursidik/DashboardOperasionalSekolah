@@ -29,7 +29,7 @@ export const TahfidzTargetsList: React.FC = () => {
     <div className="space-y-6">
       <PageHeader
         title="Target Hafalan Personal"
-        description="Atur target hafalan spesifik per santri sesuai kemampuan masing-masing."
+        description="Atur target hafalan spesifik per siswa sesuai kemampuan masing-masing."
       />
 
       <div className="flex justify-end">
@@ -47,7 +47,7 @@ export const TahfidzTargetsList: React.FC = () => {
           <table className="w-full text-sm text-left">
             <thead className="bg-muted/50 border-b">
               <tr>
-                <th className="px-6 py-3 font-semibold text-muted-foreground">Santri</th>
+                <th className="px-6 py-3 font-semibold text-muted-foreground">Siswa</th>
                 <th className="px-6 py-3 font-semibold text-muted-foreground">Kelas</th>
                 <th className="px-6 py-3 font-semibold text-muted-foreground">Target</th>
                 <th className="px-6 py-3 font-semibold text-muted-foreground">Jumlah</th>

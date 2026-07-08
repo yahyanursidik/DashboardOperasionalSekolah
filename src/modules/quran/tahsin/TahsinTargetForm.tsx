@@ -82,7 +82,7 @@ export const TahsinTargetForm: React.FC = () => {
         </button>
         <PageHeader
           title={isEdit ? "Edit Target Tahsin" : "Tambah Target Tahsin"}
-          description="Atur target tilawah/jilid secara spesifik untuk santri"
+          description="Atur target tilawah/jilid secara spesifik untuk siswa"
         />
       </div>
 
@@ -93,7 +93,7 @@ export const TahsinTargetForm: React.FC = () => {
            <Target className="w-6 h-6 text-emerald-600" />
            <div>
              <h2 className="font-semibold text-emerald-800 text-lg">Target Tahsin & Tilawah</h2>
-             <p className="text-sm text-emerald-700/80">Input target bacaan per santri.</p>
+             <p className="text-sm text-emerald-700/80">Input target bacaan per siswa.</p>
            </div>
         </div>
 
@@ -115,7 +115,7 @@ export const TahsinTargetForm: React.FC = () => {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Santri</label>
+            <label className="text-sm font-medium">Siswa</label>
             <select
               name="student_id"
               required
@@ -124,7 +124,7 @@ export const TahsinTargetForm: React.FC = () => {
               className="w-full flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background disabled:cursor-not-allowed disabled:opacity-50"
             >
               <option value="">
-                {selectedHalaqoh ? "-- Pilih Santri dari Halaqoh --" : "-- Pilih Halaqoh Terlebih Dahulu --"}
+                {selectedHalaqoh ? "-- Pilih Siswa dari Halaqoh --" : "-- Pilih Halaqoh Terlebih Dahulu --"}
               </option>
               {members.map(member => {
                 const student = member.students;

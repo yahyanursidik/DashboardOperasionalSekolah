@@ -45,7 +45,7 @@ export const TahsinRecordsList: React.FC = () => {
     <div className="space-y-6">
       <PageHeader
         title="Jurnal Tilawah & Tahsin"
-        description="Pantau mutaba'ah harian tilawah dan tahsin santri."
+        description="Pantau mutaba'ah harian tilawah dan tahsin siswa."
       />
 
       <div className="flex justify-between items-center gap-4">

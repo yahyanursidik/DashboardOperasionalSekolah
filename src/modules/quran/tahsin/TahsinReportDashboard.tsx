@@ -138,14 +138,14 @@ export const TahsinReportDashboard: React.FC = () => {
           </select>
         </div>
         <div className="space-y-1.5 flex-1 min-w-[200px]">
-          <label className="text-xs font-medium text-muted-foreground">Pilih Santri</label>
+          <label className="text-xs font-medium text-muted-foreground">Pilih Siswa</label>
           <select
             value={selectedStudentId}
             onChange={(e) => setSelectedStudentId(e.target.value)}
             disabled={!selectedHalaqohId}
             className="w-full flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background disabled:opacity-50"
           >
-            <option value="">-- Pilih Santri --</option>
+            <option value="">-- Pilih Siswa --</option>
             {members.map(member => {
               const student = member.students;
               if (!student) return null;
@@ -162,8 +162,8 @@ export const TahsinReportDashboard: React.FC = () => {
       {!selectedStudentId ? (
         <div className="bg-muted/30 border border-dashed rounded-xl p-12 text-center">
           <Target className="w-12 h-12 text-muted-foreground/50 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-foreground">Pilih Santri</h3>
-          <p className="text-muted-foreground mt-1">Silakan pilih halaqoh dan santri untuk melihat laporan tahsin.</p>
+          <h3 className="text-lg font-medium text-foreground">Pilih Siswa</h3>
+          <p className="text-muted-foreground mt-1">Silakan pilih halaqoh dan siswa untuk melihat laporan tahsin.</p>
         </div>
       ) : (
         <div className="space-y-6">

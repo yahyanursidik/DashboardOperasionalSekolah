@@ -117,7 +117,7 @@ export const QuranRecordForm: React.FC = () => {
     <div className="max-w-4xl space-y-6">
       <PageHeader
         title="Input Jurnal Setoran (Mutaba'ah)"
-        description="Catat setoran hafalan atau bacaan tahsin santri."
+        description="Catat setoran hafalan atau bacaan tahsin siswa."
       />
 
       <form onSubmit={handleSubmit(onFinish as any)} className="bg-card rounded-xl border shadow-sm overflow-hidden">
@@ -145,9 +145,9 @@ export const QuranRecordForm: React.FC = () => {
 
         <div className="p-6 space-y-8">
           
-          {/* Pemilihan Sumber Santri */}
+          {/* Pemilihan Sumber Siswa */}
           <div className="space-y-4">
-            <h3 className="font-semibold border-b pb-2">1. Pilih Santri</h3>
+            <h3 className="font-semibold border-b pb-2">1. Pilih Siswa</h3>
             <div className="flex gap-4 mb-4">
               <label className="flex items-center gap-2">
                 <input type="radio" name="input_mode" checked={inputMode === "halaqoh"} onChange={() => handleModeChange("halaqoh")} />
@@ -178,13 +178,13 @@ export const QuranRecordForm: React.FC = () => {
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Santri <span className="text-destructive">*</span></label>
+                  <label className="text-sm font-medium">Siswa <span className="text-destructive">*</span></label>
                   <select
                     {...register("student_id")}
                     disabled={loadingMembers}
                     className="w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-primary/50 outline-none bg-background disabled:opacity-50"
                   >
-                    <option value="">{selectedHalaqohId ? "-- Pilih Santri --" : "-- Pilih Halaqoh Dulu --"}</option>
+                    <option value="">{selectedHalaqohId ? "-- Pilih Siswa --" : "-- Pilih Halaqoh Dulu --"}</option>
                     {halaqohMembers?.data?.map((m: any) => (
                       <option key={m.student_id} value={m.student_id}>{m.students?.name}</option>
                     ))}
@@ -228,13 +228,13 @@ export const QuranRecordForm: React.FC = () => {
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Santri <span className="text-destructive">*</span></label>
+                  <label className="text-sm font-medium">Siswa <span className="text-destructive">*</span></label>
                   <select
                     {...register("student_id")}
                     disabled={studentQuery.isLoading}
                     className="w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-primary/50 outline-none bg-background disabled:opacity-50"
                   >
-                    <option value="">{selectedClassId ? "-- Pilih Santri --" : "-- Pilih Kelas Dulu --"}</option>
+                    <option value="">{selectedClassId ? "-- Pilih Siswa --" : "-- Pilih Kelas Dulu --"}</option>
                     {studentOptions?.map(opt => (
                       <option key={opt.value} value={opt.value}>{opt.label}</option>
                     ))}

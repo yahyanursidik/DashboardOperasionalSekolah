@@ -172,7 +172,7 @@ export const StudentJournalEdit: React.FC = () => {
                     className="w-full border rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none bg-background hover:bg-muted/30"
                   >
                     <option value="internal">Internal (Hanya Guru & Yayasan)</option>
-                    <option value="parents">Publik (Muncul di Aplikasi Wali Santri/Orang Tua)</option>
+                    <option value="parents">Publik (Muncul di Aplikasi Wali Siswa/Orang Tua)</option>
                   </select>
                   <div className={`mt-2 p-3 rounded-lg flex items-start gap-3 border ${visibility === 'internal' ? 'bg-slate-50 border-slate-200' : 'bg-blue-50 border-blue-200'}`}>
                     <ShieldAlert className={`w-5 h-5 shrink-0 mt-0.5 ${visibility === 'internal' ? 'text-slate-500' : 'text-blue-500'}`} />

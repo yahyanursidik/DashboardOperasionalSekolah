@@ -111,7 +111,7 @@ export const TahfidzTargetForm: React.FC = () => {
         </button>
         <PageHeader
           title={isEdit ? "Edit Target Personal" : "Tambah Target Personal"}
-          description="Atur target hafalan spesifik untuk santri"
+          description="Atur target hafalan spesifik untuk siswa"
         />
       </div>
 
@@ -135,7 +135,7 @@ export const TahfidzTargetForm: React.FC = () => {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Santri</label>
+              <label className="text-sm font-medium">Siswa</label>
               <select
                 name="student_id"
                 required
@@ -144,7 +144,7 @@ export const TahfidzTargetForm: React.FC = () => {
                 className="w-full flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <option value="">
-                  {selectedHalaqoh ? "-- Pilih Santri dari Halaqoh --" : "-- Pilih Halaqoh Terlebih Dahulu --"}
+                  {selectedHalaqoh ? "-- Pilih Siswa dari Halaqoh --" : "-- Pilih Halaqoh Terlebih Dahulu --"}
                 </option>
                 {members.map(member => {
                   const student = member.students;

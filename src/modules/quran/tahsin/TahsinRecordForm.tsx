@@ -99,7 +99,7 @@ export const TahsinRecordForm: React.FC = () => {
         </button>
         <PageHeader
           title={isEdit ? "Edit Jurnal Tahsin" : "Input Jurnal Tahsin"}
-          description="Catat setoran tilawah atau bacaan tahsin santri per halaqoh."
+          description="Catat setoran tilawah atau bacaan tahsin siswa per halaqoh."
         />
       </div>
 
@@ -110,17 +110,17 @@ export const TahsinRecordForm: React.FC = () => {
            <BookOpen className="w-6 h-6 text-emerald-600" />
            <div>
              <h2 className="font-semibold text-emerald-800 text-lg">Program Tahsin (Bacaan)</h2>
-             <p className="text-sm text-emerald-700/80">Input mutaba'ah harian tilawah santri.</p>
+             <p className="text-sm text-emerald-700/80">Input mutaba'ah harian tilawah siswa.</p>
            </div>
         </div>
 
         <div className="p-6 space-y-8">
           
-          {/* Pemilihan Sumber Santri */}
+          {/* Pemilihan Sumber Siswa */}
           <div className="space-y-4">
             <h3 className="font-semibold border-b pb-2 flex items-center gap-2">
               <span className="bg-primary text-primary-foreground w-6 h-6 rounded-full flex items-center justify-center text-sm">1</span> 
-              Pilih Santri
+              Pilih Siswa
             </h3>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -140,14 +140,14 @@ export const TahsinRecordForm: React.FC = () => {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium">Nama Santri <span className="text-destructive">*</span></label>
+                <label className="text-sm font-medium">Nama Siswa <span className="text-destructive">*</span></label>
                 <select
                   {...register("student_id")}
                   disabled={isEdit || !currentHalaqohId || isLoadingStudents}
                   className={`w-full flex h-10 rounded-md border px-3 py-2 text-sm ring-offset-background disabled:opacity-50 ${errors.student_id ? 'border-destructive' : 'border-input bg-background'}`}
                 >
                   <option value="">
-                    {currentHalaqohId ? "-- Pilih Santri --" : "-- Pilih Halaqoh Dulu --"}
+                    {currentHalaqohId ? "-- Pilih Siswa --" : "-- Pilih Halaqoh Dulu --"}
                   </option>
                   {members.map((m: any) => {
                     const s = m.students;
@@ -242,7 +242,7 @@ export const TahsinRecordForm: React.FC = () => {
                 <label className="text-sm font-medium">Catatan / Evaluasi (Opsional)</label>
                 <textarea 
                   {...register("notes")} 
-                  placeholder="Tambahkan catatan khusus untuk santri..." 
+                  placeholder="Tambahkan catatan khusus untuk siswa..." 
                   className="w-full flex min-h-[80px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background resize-y"
                 />
               </div>

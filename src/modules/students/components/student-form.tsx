@@ -226,7 +226,7 @@ export const StudentForm: React.FC<StudentFormProps> = ({ action }) => {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Nomor Induk Santri (NIS) <span className="text-destructive">*</span></label>
+              <label className="text-sm font-medium">Nomor Induk Siswa (NIS) <span className="text-destructive">*</span></label>
               <input
                 {...register("nis")}
                 placeholder="NIS Internal"

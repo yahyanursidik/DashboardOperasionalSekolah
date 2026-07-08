@@ -61,7 +61,7 @@ export const TahsinTargetsList: React.FC = () => {
     <div className="space-y-6">
       <PageHeader
         title="Target Tilawah & Tahsin"
-        description="Atur target tilawah atau penyelesaian jilid secara spesifik per santri."
+        description="Atur target tilawah atau penyelesaian jilid secara spesifik per siswa."
       />
 
       <div className="flex justify-between items-center gap-4">
@@ -80,7 +80,7 @@ export const TahsinTargetsList: React.FC = () => {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <input
               type="text"
-              placeholder="Cari nama santri..."
+              placeholder="Cari nama siswa..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-9 pr-4 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none h-10"
@@ -101,7 +101,7 @@ export const TahsinTargetsList: React.FC = () => {
           <table className="w-full text-sm text-left">
             <thead className="bg-muted/50 border-b">
               <tr>
-                <th className="px-6 py-3 font-semibold text-muted-foreground">Santri</th>
+                <th className="px-6 py-3 font-semibold text-muted-foreground">Siswa</th>
                 <th className="px-6 py-3 font-semibold text-muted-foreground">Kelas</th>
                 <th className="px-6 py-3 font-semibold text-muted-foreground">Target</th>
                 <th className="px-6 py-3 font-semibold text-muted-foreground">Jumlah</th>

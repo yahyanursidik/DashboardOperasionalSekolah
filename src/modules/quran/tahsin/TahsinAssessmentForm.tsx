@@ -107,7 +107,7 @@ export const TahsinAssessmentForm: React.FC = () => {
         </button>
         <PageHeader
           title={isEdit ? "Edit Nilai Ujian Tahsin" : "Input Nilai Ujian Kenaikan Jilid"}
-          description="Catat nilai ujian munaqosyah kenaikan jilid tilawah santri."
+          description="Catat nilai ujian munaqosyah kenaikan jilid tilawah siswa."
         />
       </div>
 
@@ -127,7 +127,7 @@ export const TahsinAssessmentForm: React.FC = () => {
           <div className="space-y-4">
             <h3 className="font-semibold border-b pb-2 flex items-center gap-2">
               <span className="bg-primary text-primary-foreground w-6 h-6 rounded-full flex items-center justify-center text-sm">1</span> 
-              Pilih Santri
+              Pilih Siswa
             </h3>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">

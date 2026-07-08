@@ -111,7 +111,7 @@ export const TahsinHalaqohShow: React.FC = () => {
   };
 
   const handleRemoveMember = (memberId: string) => {
-    if (window.confirm("Keluarkan santri dari halaqoh tahsin ini?")) {
+    if (window.confirm("Keluarkan siswa dari halaqoh tahsin ini?")) {
       deleteMutate({
         resource: "tahfidz_halaqoh_members",
         id: memberId,
@@ -156,7 +156,7 @@ export const TahsinHalaqohShow: React.FC = () => {
               </div>
               <div>
                 <p className="text-muted-foreground">Total Anggota</p>
-                <p className="font-medium">{members.length} Santri</p>
+                <p className="font-medium">{members.length} Siswa</p>
               </div>
               <div>
                 <p className="text-muted-foreground">Deskripsi</p>
@@ -170,7 +170,7 @@ export const TahsinHalaqohShow: React.FC = () => {
         <div className="col-span-1 md:col-span-2 space-y-6">
           <div className="bg-card border rounded-xl shadow-sm overflow-hidden flex flex-col h-full">
             <div className="p-4 border-b flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-muted/20">
-              <h3 className="font-semibold text-lg">Daftar Anggota Santri</h3>
+              <h3 className="font-semibold text-lg">Daftar Anggota Siswa</h3>
               <div className="flex items-center gap-3 w-full sm:w-auto">
                 <div className="relative flex-1 sm:w-48">
                   <input
@@ -199,7 +199,7 @@ export const TahsinHalaqohShow: React.FC = () => {
             {isAdding && (
               <div className="p-4 bg-emerald-50/50 border-b border-emerald-100 space-y-4">
                 <div className="flex items-center gap-2 text-sm text-emerald-800 font-medium">
-                  <Filter className="w-4 h-4" /> Filter Pencarian Santri
+                  <Filter className="w-4 h-4" /> Filter Pencarian Siswa
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <select
@@ -235,7 +235,7 @@ export const TahsinHalaqohShow: React.FC = () => {
                   <div className="relative">
                     <input
                       type="text"
-                      placeholder="Cari nama santri..."
+                      placeholder="Cari nama siswa..."
                       value={studentSearch}
                       onChange={(e) => {
                         setStudentSearch(e.target.value);
@@ -254,7 +254,7 @@ export const TahsinHalaqohShow: React.FC = () => {
                     onChange={(e) => setSelectedStudent(e.target.value)}
                     className="flex-1 flex h-10 rounded-md border border-emerald-200 bg-white px-3 py-2 text-sm shadow-sm focus:ring-emerald-500/20"
                   >
-                    <option value="">-- Pilih Santri dari Hasil Filter -- ({availableStudents.length} tersedia)</option>
+                    <option value="">-- Pilih Siswa dari Hasil Filter -- ({availableStudents.length} tersedia)</option>
                     {availableStudents.map((student: any) => (
                       <option key={student.id} value={student.id}>
                         {student.full_name} ({student.classes?.name || "Tanpa Kelas"})
@@ -277,7 +277,7 @@ export const TahsinHalaqohShow: React.FC = () => {
               <table className="w-full text-sm text-left">
                 <thead className="bg-muted/50 border-b sticky top-0">
                   <tr>
-                    <th className="px-6 py-3 font-semibold text-muted-foreground">Nama Santri</th>
+                    <th className="px-6 py-3 font-semibold text-muted-foreground">Nama Siswa</th>
                     <th className="px-6 py-3 font-semibold text-muted-foreground">Kelas</th>
                     <th className="px-6 py-3 font-semibold text-muted-foreground">NIS</th>
                     <th className="px-6 py-3 font-semibold text-muted-foreground text-right">Aksi</th>

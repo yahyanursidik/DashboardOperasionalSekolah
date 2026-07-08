@@ -48,7 +48,7 @@ export const QuranRecordsList: React.FC = () => {
     <div className="space-y-6">
       <PageHeader
         title="Buku Mutaba'ah Ziyadah"
-        description="Pantau perkembangan capaian mutaba'ah hafalan (tahfidz) santri."
+        description="Pantau perkembangan capaian mutaba'ah hafalan (tahfidz) siswa."
       />
 
       <div className="flex justify-between items-center gap-4">

@@ -70,7 +70,7 @@ export const TahsinAssessmentsList: React.FC = () => {
     <div className="space-y-6">
       <PageHeader
         title="Ujian Kenaikan Jilid"
-        description="Data ujian kenaikan jilid tahsin santri."
+        description="Data ujian kenaikan jilid tahsin siswa."
       />
 
       <div className="flex justify-between items-center gap-4">

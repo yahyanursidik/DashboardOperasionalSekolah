@@ -107,12 +107,12 @@ export const HalaqohShow: React.FC = () => {
       }
     }, {
       onSuccess: () => {
-        toast.success("Santri berhasil ditambahkan ke halaqoh");
+        toast.success("Siswa berhasil ditambahkan ke halaqoh");
         setSelectedStudent("");
         refetchMembers();
       },
       onError: () => {
-        toast.error("Gagal menambahkan santri");
+        toast.error("Gagal menambahkan siswa");
       }
     });
   };
@@ -123,12 +123,12 @@ export const HalaqohShow: React.FC = () => {
       id: deleteModal.id,
     }, {
       onSuccess: () => {
-        toast.success("Santri berhasil dikeluarkan dari halaqoh");
+        toast.success("Siswa berhasil dikeluarkan dari halaqoh");
         setDeleteModal({ isOpen: false, id: "", name: "" });
         refetchMembers();
       },
       onError: () => {
-        toast.error("Gagal mengeluarkan santri");
+        toast.error("Gagal mengeluarkan siswa");
         setDeleteModal({ isOpen: false, id: "", name: "" });
       }
     });
@@ -196,7 +196,7 @@ export const HalaqohShow: React.FC = () => {
                 <p className="text-muted-foreground mb-1">Total Anggota</p>
                 <div className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full font-medium">
                   <Users className="w-3.5 h-3.5" />
-                  {members.length} Santri
+                  {members.length} Siswa
                 </div>
               </div>
               <div>
@@ -211,7 +211,7 @@ export const HalaqohShow: React.FC = () => {
         <div className="lg:col-span-2 space-y-6">
           <div className="bg-card border rounded-xl shadow-sm overflow-hidden flex flex-col h-[calc(100vh-200px)] min-h-[500px]">
             <div className="p-4 border-b flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-muted/20">
-              <h3 className="font-semibold text-lg">Daftar Anggota Santri</h3>
+              <h3 className="font-semibold text-lg">Daftar Anggota Siswa</h3>
               <div className="flex items-center gap-3 w-full sm:w-auto">
                 <div className="relative flex-1 sm:w-48">
                   <input
@@ -240,7 +240,7 @@ export const HalaqohShow: React.FC = () => {
             {isAdding && (
               <div className="p-4 bg-emerald-50/50 border-b border-emerald-100 space-y-4">
                 <div className="flex items-center gap-2 text-sm text-emerald-800 font-medium">
-                  <Filter className="w-4 h-4" /> Filter Pencarian Santri
+                  <Filter className="w-4 h-4" /> Filter Pencarian Siswa
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <select
@@ -276,7 +276,7 @@ export const HalaqohShow: React.FC = () => {
                   <div className="relative">
                     <input
                       type="text"
-                      placeholder="Cari nama santri..."
+                      placeholder="Cari nama siswa..."
                       value={studentSearch}
                       onChange={(e) => {
                         setStudentSearch(e.target.value);
@@ -295,7 +295,7 @@ export const HalaqohShow: React.FC = () => {
                     onChange={(e) => setSelectedStudent(e.target.value)}
                     className="flex-1 flex h-10 rounded-md border border-emerald-200 bg-white px-3 py-2 text-sm shadow-sm focus:ring-emerald-500/20"
                   >
-                    <option value="">-- Pilih Santri dari Hasil Filter -- ({availableStudents.length} tersedia)</option>
+                    <option value="">-- Pilih Siswa dari Hasil Filter -- ({availableStudents.length} tersedia)</option>
                     {availableStudents.map((student: any) => (
                       <option key={student.id} value={student.id}>
                         {student.full_name} ({student.classes?.name || "Tanpa Kelas"})
@@ -318,7 +318,7 @@ export const HalaqohShow: React.FC = () => {
               <table className="w-full text-sm text-left">
                 <thead className="bg-muted/50 border-b sticky top-0 z-10">
                   <tr>
-                    <th className="px-6 py-3 font-semibold text-muted-foreground">Nama Santri</th>
+                    <th className="px-6 py-3 font-semibold text-muted-foreground">Nama Siswa</th>
                     <th className="px-6 py-3 font-semibold text-muted-foreground">Unit</th>
                     <th className="px-6 py-3 font-semibold text-muted-foreground">Kelas</th>
                     <th className="px-6 py-3 font-semibold text-muted-foreground text-right">Aksi</th>
@@ -344,8 +344,8 @@ export const HalaqohShow: React.FC = () => {
                           <h3 className="text-lg font-medium text-foreground mb-1">Tidak ada anggota</h3>
                           <p className="max-w-sm text-sm">
                             {memberSearch 
-                              ? "Tidak ada santri yang cocok dengan pencarian Anda." 
-                              : "Belum ada anggota di halaqoh ini. Klik Tambah Anggota untuk memasukkan santri."}
+                              ? "Tidak ada siswa yang cocok dengan pencarian Anda." 
+                              : "Belum ada anggota di halaqoh ini. Klik Tambah Anggota untuk memasukkan siswa."}
                           </p>
                         </div>
                       </td>
@@ -369,7 +369,7 @@ export const HalaqohShow: React.FC = () => {
                         </td>
                         <td className="px-6 py-4 text-right">
                           <button
-                            onClick={() => setDeleteModal({ isOpen: true, id: member.id as string, name: member.students?.full_name || "Santri" })}
+                            onClick={() => setDeleteModal({ isOpen: true, id: member.id as string, name: member.students?.full_name || "Siswa" })}
                             className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors inline-flex items-center gap-1 opacity-0 group-hover:opacity-100 focus:opacity-100"
                             title="Keluarkan dari halaqoh"
                           >
