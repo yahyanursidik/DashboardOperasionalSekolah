@@ -57,7 +57,7 @@ export const ScheduleCreate: React.FC = () => {
     optionValue: "id",
     filters: [
       { field: "is_active", operator: "eq", value: true },
-      ...(selectedUnitId ? [{ field: "unit_id", operator: "eq", value: selectedUnitId }] : [])
+      ...(selectedUnitId ? [{ field: "unit_id", operator: "eq" as const, value: selectedUnitId }] : [])
     ]
   });
 

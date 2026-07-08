@@ -1,5 +1,6 @@
 import React from "react";
-import { useForm, Controller } from "@refinedev/react-hook-form";
+import { useForm } from "@refinedev/react-hook-form";
+import { Controller } from "react-hook-form";
 import { useList } from "@refinedev/core";
 import { useNavigate, Link } from "react-router-dom";
 import { ArrowLeft, Save } from "lucide-react";

@@ -136,7 +136,7 @@ export const TahsinRecordForm: React.FC = () => {
                     <option key={h.id} value={h.id}>{h.name}</option>
                   ))}
                 </select>
-                {errors.halaqoh_id && <p className="text-sm text-destructive">{errors.halaqoh_id.message}</p>}
+                {errors.halaqoh_id && <p className="text-sm text-destructive">{errors.halaqoh_id.message as string}</p>}
               </div>
 
               <div className="space-y-2">
@@ -159,7 +159,7 @@ export const TahsinRecordForm: React.FC = () => {
                     )
                   })}
                 </select>
-                {errors.student_id && <p className="text-sm text-destructive">{errors.student_id.message}</p>}
+                {errors.student_id && <p className="text-sm text-destructive">{errors.student_id.message as string}</p>}
               </div>
             </div>
           </div>
@@ -179,7 +179,7 @@ export const TahsinRecordForm: React.FC = () => {
                   {...register("date")} 
                   className={`w-full flex h-10 rounded-md border px-3 py-2 text-sm ring-offset-background ${errors.date ? 'border-destructive' : 'border-input bg-background'}`}
                 />
-                {errors.date && <p className="text-sm text-destructive">{errors.date.message}</p>}
+                {errors.date && <p className="text-sm text-destructive">{errors.date.message as string}</p>}
               </div>
 
               <div className="space-y-2">
@@ -193,7 +193,7 @@ export const TahsinRecordForm: React.FC = () => {
                   <option value="Kurang Lancar">Kurang Lancar</option>
                   <option value="Mengulang">Mengulang</option>
                 </select>
-                {errors.fluency_score && <p className="text-sm text-destructive">{errors.fluency_score.message}</p>}
+                {errors.fluency_score && <p className="text-sm text-destructive">{errors.fluency_score.message as string}</p>}
               </div>
               
               <div className="space-y-2">
@@ -204,7 +204,7 @@ export const TahsinRecordForm: React.FC = () => {
                   placeholder="Contoh: Jilid 2 / An-Naba" 
                   className={`w-full flex h-10 rounded-md border px-3 py-2 text-sm ring-offset-background ${errors.surah_or_jilid ? 'border-destructive' : 'border-input bg-background'}`}
                 />
-                {errors.surah_or_jilid && <p className="text-sm text-destructive">{errors.surah_or_jilid.message}</p>}
+                {errors.surah_or_jilid && <p className="text-sm text-destructive">{errors.surah_or_jilid.message as string}</p>}
               </div>
 
               <div className="space-y-2">
@@ -215,7 +215,7 @@ export const TahsinRecordForm: React.FC = () => {
                   placeholder="Contoh: Hal 14 / Ayat 1-5" 
                   className={`w-full flex h-10 rounded-md border px-3 py-2 text-sm ring-offset-background ${errors.ayat_or_page ? 'border-destructive' : 'border-input bg-background'}`}
                 />
-                {errors.ayat_or_page && <p className="text-sm text-destructive">{errors.ayat_or_page.message}</p>}
+                {errors.ayat_or_page && <p className="text-sm text-destructive">{errors.ayat_or_page.message as string}</p>}
               </div>
 
               <div className="space-y-2">

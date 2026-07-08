@@ -357,7 +357,7 @@ export const SubjectTeacherDirectory: React.FC = () => {
     pagination: { pageSize: 2000 },
     filters: [
       { field: "schedule_type", operator: "eq" as const, value: "mengajar" },
-      { field: "subject_id", operator: "notnull" as const, value: null }
+      { field: "subject_id", operator: "nnull" as const, value: null }
     ],
     meta: {
       select: "*, employees(id, full_name, position, status, nik), classes(id, name), subjects(id, name)",
@@ -393,7 +393,7 @@ export const SubjectTeacherDirectory: React.FC = () => {
   // Stats
   const stats = useMemo(() => {
     const withTeachers = filteredSubjects.filter((s) => {
-      return (assignmentsBySubjectId[s.id]?.length ?? 0) > 0;
+      return (assignmentsBySubjectId[String(s.id)]?.length ?? 0) > 0;
     });
     const totalTeachers = new Set(
       allAssignments.filter((a) => a.subject_id).map((a) => a.employees?.id)
@@ -409,7 +409,7 @@ export const SubjectTeacherDirectory: React.FC = () => {
 
   const selectedSubject = allSubjects.find((s) => s.id === selectedSubjectId);
   const selectedAssignments = selectedSubject
-    ? (assignmentsBySubjectId[selectedSubject.id] ?? [])
+    ? (assignmentsBySubjectId[String(selectedSubject.id)] ?? [])
     : [];
 
   const isLoading = subjectsLoading || assignmentsLoading;
@@ -550,7 +550,7 @@ export const SubjectTeacherDirectory: React.FC = () => {
             /* GRID VIEW */
             <div className={`grid gap-4 ${selectedSubjectId ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3"}`}>
               {filteredSubjects.map((subject) => {
-                const assignments = assignmentsBySubjectId[subject.id] ?? [];
+                const assignments = assignmentsBySubjectId[String(subject.id)] ?? [];
                 const isSelected = selectedSubjectId === subject.id;
                 return (
                   <div key={subject.id} className={isSelected ? "ring-2 ring-primary rounded-xl" : ""}>
@@ -579,8 +579,8 @@ export const SubjectTeacherDirectory: React.FC = () => {
                 </thead>
                 <tbody className="divide-y divide-border">
                   {filteredSubjects.map((subject) => {
-                    const assignments = assignmentsBySubjectId[subject.id] ?? [];
-                    const uniqueTeachers = [...new Map(assignments.map((a) => [a.employees?.id, a])).values()];
+                    const assignments = assignmentsBySubjectId[String(subject.id)] ?? [];
+                    const uniqueTeachers = [...new Map(assignments.map((a: any) => [a.employees?.id, a])).values()];
                     const catKey = subject.category ?? "Lainnya";
                     const cat = CATEGORY_CFG[catKey] ?? CATEGORY_CFG["Lainnya"];
                     const isSelected = selectedSubjectId === subject.id;
@@ -612,7 +612,7 @@ export const SubjectTeacherDirectory: React.FC = () => {
                             </span>
                           ) : (
                             <div className="flex -space-x-2">
-                              {uniqueTeachers.slice(0, 4).map((a, i) => (
+                              {uniqueTeachers.slice(0, 4).map((a: any, i) => (
                                 <div
                                   key={i}
                                   title={a.employees?.full_name}

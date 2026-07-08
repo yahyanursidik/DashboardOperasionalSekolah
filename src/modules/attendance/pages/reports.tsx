@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useList } from "@refinedev/core";
 import { PageHeader } from "../../../components/layout/PageHeader";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, CalendarCheck } from "lucide-react";
 
 export const AttendanceReports: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);

@@ -28,7 +28,7 @@ export const PaudThemeCreate: React.FC = () => {
     refineCoreProps: {
       resource: "paud_curriculums",
       redirect: "list",
-      successNotification: (data: any, values: any, resource: string) => {
+      successNotification: (data: any, values: any, resource?: string) => {
         toast.success("Kurikulum PAUD berhasil ditambahkan");
         return false as any; // disable default refine toast
       },

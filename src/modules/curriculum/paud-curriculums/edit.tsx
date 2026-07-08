@@ -28,7 +28,7 @@ export const PaudThemeEdit: React.FC = () => {
       resource: "paud_curriculums",
       id,
       redirect: "list",
-      successNotification: (data: any, values: any, resource: string) => {
+      successNotification: (data: any, values: any, resource?: string) => {
         toast.success("Perubahan kurikulum PAUD berhasil disimpan");
         return false as any;
       },

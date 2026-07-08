@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { useForm, useWatch } from "@refinedev/react-hook-form";
+import { useForm } from "@refinedev/react-hook-form";
+import { useWatch } from "react-hook-form";
 import { useList, useOne } from "@refinedev/core";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";

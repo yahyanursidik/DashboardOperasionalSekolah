@@ -61,10 +61,7 @@ export const HalaqohForm: React.FC = () => {
     };
 
     try {
-      const response = await onFinish(data);
-      if (response?.error) {
-        throw new Error(response.error.message || "Gagal menyimpan");
-      }
+      await onFinish(data);
       toast.success(isEdit ? "Halaqoh berhasil diperbarui!" : "Halaqoh berhasil ditambahkan!");
       navigate("/tahfidz-halaqohs");
     } catch (error: any) {

@@ -215,7 +215,7 @@ export const StudentJournalsList: React.FC = () => {
                       title="Edit Jurnal"
                     ><Edit className="w-4 h-4"/></button>
                     <button 
-                      onClick={() => setDeleteConfirmId(journal.id)}
+                      onClick={() => setDeleteConfirmId(String(journal.id))}
                       className="p-2 text-red-600 hover:text-red-700 transition-colors bg-red-50 hover:bg-red-100 rounded-lg"
                       title="Hapus Jurnal"
                     ><Trash2 className="w-4 h-4"/></button>
