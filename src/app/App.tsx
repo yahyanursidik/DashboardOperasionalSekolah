@@ -84,7 +84,7 @@ import {
   TahfidzReportDashboard,
   TahsinHalaqohsList, TahsinHalaqohForm, TahsinHalaqohShow,
   TahsinTargetsList, TahsinTargetForm,
-  TahsinRecordsList, TahsinAssessmentsList, TahsinReportDashboard
+  TahsinRecordsList, TahsinAssessmentsList, TahsinReportDashboard, TahsinRecordForm, TahsinAssessmentForm
 } from "../modules/quran";
 
 import {
@@ -114,6 +114,7 @@ import { TeacherDashboard } from "../modules/teacher-portal/teacher-dashboard";
 import { TeacherClasses } from "../modules/teacher-portal/teacher-classes";
 import { TeacherJournals } from "../modules/teacher-portal/teacher-journals";
 import { TeacherLeaves } from "../modules/teacher-portal/teacher-leaves";
+import { TeacherSchedules } from "../modules/teacher-portal/teacher-schedules";
 import { TeacherQuran } from "../modules/teacher-portal/teacher-quran";
 import { TeacherPaud } from "../modules/teacher-portal/teacher-paud";
 
@@ -913,9 +914,13 @@ export default function App() {
                 </Route>
                 <Route path="/tahsin-records">
                   <Route index element={<TahsinRecordsList />} />
+                  <Route path="create" element={<TahsinRecordForm />} />
+                  <Route path="edit/:id" element={<TahsinRecordForm />} />
                 </Route>
                 <Route path="/tahsin-assessments">
                   <Route index element={<TahsinAssessmentsList />} />
+                  <Route path="create" element={<TahsinAssessmentForm />} />
+                  <Route path="edit/:id" element={<TahsinAssessmentForm />} />
                 </Route>
                 <Route path="/tahsin-reports">
                   <Route index element={<TahsinReportDashboard />} />
@@ -1102,6 +1107,7 @@ export default function App() {
                 <Route path="paud" element={<TeacherPaud />} />
                 <Route path="journals" element={<TeacherJournals />} />
                 <Route path="leaves" element={<TeacherLeaves />} />
+                <Route path="schedules" element={<TeacherSchedules />} />
               </Route>
 
               <Route path="/bendahara/login" element={<BendaharaLogin />} />

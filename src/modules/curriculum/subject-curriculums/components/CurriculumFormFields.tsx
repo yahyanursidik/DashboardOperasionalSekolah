@@ -11,6 +11,11 @@ interface CurriculumFormFieldsProps {
 }
 
 export const CurriculumFormFields: React.FC<CurriculumFormFieldsProps> = ({ register, control, errors, activeTab }) => {
+  const { fields: tpFields, append: appendTp, remove: removeTp } = useFieldArray({
+    control,
+    name: "tp_data",
+  });
+
   const { fields: protaFields, append: appendProta, remove: removeProta } = useFieldArray({
     control,
     name: "prota_data",
@@ -30,6 +35,50 @@ export const CurriculumFormFields: React.FC<CurriculumFormFieldsProps> = ({ regi
 
   return (
     <>
+      {/* TP & ITP SECTION */}
+      <div className={activeTab === "tp" ? "space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300" : "hidden"}>
+        <div className="flex justify-between items-center border-b pb-2">
+          <h3 className="text-lg font-semibold">Tujuan Pembelajaran & Indikator</h3>
+          <button
+            type="button"
+            onClick={() => appendTp({ tujuan: "", indikator: "" })}
+            className="flex items-center gap-1 text-sm bg-primary/10 text-primary px-3 py-1.5 rounded-md hover:bg-primary/20 font-medium"
+          >
+            <Plus className="w-4 h-4" /> Tambah TP
+          </button>
+        </div>
+        
+        <div className="space-y-4">
+          {tpFields.map((field, index) => (
+            <div key={field.id} className="bg-muted/30 p-4 rounded-lg border relative group">
+              <button
+                type="button"
+                onClick={() => removeTp(index)}
+                className="absolute top-4 right-4 p-1.5 text-destructive hover:bg-destructive/10 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+              
+              <div className="space-y-3 pr-8">
+                <div>
+                  <label className="text-xs font-semibold mb-1 block">Tujuan Pembelajaran {index + 1}</label>
+                  <textarea {...register(`tp_data.${index}.tujuan`)} rows={2} className="w-full border rounded p-2 text-sm" placeholder="Peserta didik dapat..." />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold mb-1 block">Indikator Ketercapaian (ITP)</label>
+                  <textarea {...register(`tp_data.${index}.indikator`)} rows={3} className="w-full border rounded p-2 text-sm" placeholder="1. Mampu mengidentifikasi...\n2. Mampu menjelaskan..." />
+                </div>
+              </div>
+            </div>
+          ))}
+          {tpFields.length === 0 && (
+            <div className="p-8 text-center text-muted-foreground border border-dashed rounded-lg">
+              Belum ada Tujuan Pembelajaran yang ditambahkan.
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* PROTA SECTION */}
       <div className={activeTab === "prota" ? "space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300" : "hidden"}>
         <div className="flex justify-between items-center border-b pb-2">
@@ -199,7 +248,7 @@ export const CurriculumFormFields: React.FC<CurriculumFormFieldsProps> = ({ regi
                 media: ""
               });
             }}
-            className="flex items-center gap-1 text-sm bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 font-medium shadow-sm transition-colors"
+            className="flex items-center gap-1 text-sm bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 font-medium shadow-sm transition-colors"
           >
             <CalendarDays className="w-4 h-4" /> Tambah Modul Ajar (Pertemuan)
           </button>
@@ -218,18 +267,20 @@ export const CurriculumFormFields: React.FC<CurriculumFormFieldsProps> = ({ regi
                 
                 {/* Header Modul */}
                 <div className="flex flex-wrap items-center gap-4 pb-3 border-b">
-                  <div className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-100 text-blue-800 font-bold text-lg border-2 border-blue-200">
+                  <div className="flex items-center justify-center w-10 h-10 rounded-full bg-primary/10 text-primary font-bold text-lg border-2 border-primary/20">
                     {index + 1}
                   </div>
                   <div className="flex-1 min-w-[200px]">
-                    <h4 className="font-bold text-slate-800 mb-1">Modul Ajar Pertemuan {index + 1}</h4>
+                    <h4 className="font-bold text-foreground mb-1">Modul Ajar Pertemuan {index + 1}</h4>
                     <select
                       {...register(`${prefix}.jenis`)}
-                      className="border rounded-md px-2 py-1 text-xs font-semibold focus:ring-2 focus:ring-blue-500 bg-slate-50 text-blue-700 w-max"
+                      className="border rounded-md px-2 py-1 text-xs font-semibold focus:ring-2 focus:ring-primary/50 bg-primary/5 text-primary w-max"
                     >
                       <option value="KBM">Kegiatan Belajar Mengajar (KBM)</option>
                       <option value="ASTS">Asesmen Sumatif Tengah Semester (ASTS)</option>
-                      <option value="ASAT">Asesmen Sumatif Akhir Semester (ASAT)</option>
+                      <option value="ASAS">Asesmen Sumatif Akhir Semester (ASAS)</option>
+                      <option value="ASAT">Asesmen Akhir Tahun (ASAT)</option>
+                      <option value="SASA">Sumatif Akhir Satuan Pendidikan (SASA)</option>
                     </select>
                   </div>
                 </div>

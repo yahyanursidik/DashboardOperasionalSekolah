@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useForm, useSelect } from "@refinedev/core";
+import { useForm, useSelect, useList } from "@refinedev/core";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Save } from "lucide-react";
 import { PageHeader } from "../../components/layout/PageHeader";
@@ -11,7 +11,7 @@ export const QuranAssessmentForm: React.FC = () => {
   const navigate = useNavigate();
   const { activeYearId, activeSemesterId } = useAcademicYear();
 
-  const [selectedClassId, setSelectedClassId] = useState<string>("");
+  const [selectedHalaqoh, setSelectedHalaqoh] = useState<string>("");
 
   const { onFinish, queryResult, formLoading } = useForm({
     resource: "quran_assessments",
@@ -21,33 +21,23 @@ export const QuranAssessmentForm: React.FC = () => {
 
   const record = queryResult?.data?.data;
 
-  // Set initial class id if editing
-  React.useEffect(() => {
-    if (record?.class_id && !selectedClassId) {
-      setSelectedClassId(record.class_id);
-    }
-  }, [record, selectedClassId]);
+  // We don't have halaqoh_id in quran_assessments, so we don't try to auto-select it for edit mode.
+  // The fields are disabled in edit mode anyway.
 
-  const { options: classOptions } = useSelect({
-    resource: "classes",
-    optionLabel: "name",
-    optionValue: "id",
-    sorters: [{ field: "name", order: "asc" }],
+  const { data: halaqohsData } = useList({
+    resource: "tahfidz_halaqohs",
+    pagination: { mode: "off" }
   });
+  const halaqohs = halaqohsData?.data || [];
 
-  const { options: studentOptions, queryResult: studentQuery } = useSelect({
-    resource: "students",
-    optionLabel: "full_name",
-    optionValue: "id",
-    filters: selectedClassId ? [
-      { field: "class_id", operator: "eq", value: selectedClassId },
-      { field: "status", operator: "eq", value: "active" }
-    ] : [],
-    queryOptions: {
-      enabled: !!selectedClassId,
-    },
-    sorters: [{ field: "full_name", order: "asc" }],
+  const { data: membersData, isLoading: isLoadingStudents } = useList({
+    resource: "tahfidz_halaqoh_members",
+    filters: [{ field: "halaqoh_id", operator: "eq", value: selectedHalaqoh }],
+    queryOptions: { enabled: !!selectedHalaqoh },
+    meta: { select: "*, students(id, full_name, class_id, classes(name, units(name)))" },
+    pagination: { mode: "off" }
   });
+  const members = membersData?.data || [];
 
   const { options: employeeOptions } = useSelect({
     resource: "employees",
@@ -72,9 +62,20 @@ export const QuranAssessmentForm: React.FC = () => {
       else predicate = "Rasib (Mengulang)";
     }
 
+    const studentId = formData.get("student_id") as string;
+    
+    // Find the selected student's class_id
+    let classId = record?.class_id;
+    if (!isEdit && studentId) {
+      const selectedMember = members.find(m => m.student_id === studentId);
+      if (selectedMember?.students?.class_id) {
+        classId = selectedMember.students.class_id;
+      }
+    }
+
     const data = {
-      student_id: formData.get("student_id"),
-      class_id: selectedClassId,
+      student_id: studentId,
+      class_id: classId,
       employee_id: formData.get("employee_id") || null,
       examiner_2_id: formData.get("examiner_2_id") || null,
       date: formData.get("date"),
@@ -111,17 +112,17 @@ export const QuranAssessmentForm: React.FC = () => {
           
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Kelas</label>
+              <label className="text-sm font-medium">Halaqoh / Kelompok Tahfidz</label>
               <select
-                value={selectedClassId}
-                onChange={(e) => setSelectedClassId(e.target.value)}
-                required
+                value={selectedHalaqoh}
+                onChange={(e) => setSelectedHalaqoh(e.target.value)}
+                required={!isEdit}
                 disabled={isEdit}
                 className="w-full flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background disabled:cursor-not-allowed disabled:opacity-50"
               >
-                <option value="">-- Pilih Kelas --</option>
-                {classOptions?.map(opt => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                <option value="">{isEdit ? "Tidak bisa diubah saat edit" : "-- Pilih Halaqoh --"}</option>
+                {halaqohs.map(opt => (
+                  <option key={opt.id} value={opt.id}>{opt.name}</option>
                 ))}
               </select>
             </div>
@@ -131,13 +132,23 @@ export const QuranAssessmentForm: React.FC = () => {
                 name="student_id"
                 required
                 defaultValue={record?.student_id || ""}
-                disabled={!selectedClassId || isEdit || studentQuery.isLoading}
+                disabled={!selectedHalaqoh || isEdit || isLoadingStudents}
                 className="w-full flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background disabled:cursor-not-allowed disabled:opacity-50"
               >
-                <option value="">-- Pilih Siswa --</option>
-                {studentOptions?.map(opt => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
+                <option value="">{isEdit ? "-- Siswa Terpilih --" : "-- Pilih Siswa dari Halaqoh --"}</option>
+                {isEdit && record?.students ? (
+                  <option value={record.student_id}>{record.students.full_name || "Siswa"}</option>
+                ) : (
+                  members.map(member => {
+                    const student = member.students;
+                    if (!student) return null;
+                    return (
+                      <option key={student.id} value={student.id}>
+                        {student.full_name} ({student.classes?.units?.name || "Tanpa Unit"} - {student.classes?.name || "Tanpa Kelas"})
+                      </option>
+                    );
+                  })
+                )}
               </select>
             </div>
           </div>

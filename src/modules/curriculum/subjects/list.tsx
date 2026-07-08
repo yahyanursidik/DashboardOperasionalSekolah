@@ -4,6 +4,7 @@ import { useList, useDelete } from "@refinedev/core";
 import { flexRender } from "@tanstack/react-table";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useNavigate, Link } from "react-router-dom";
+import { toast } from "sonner";
 import { Edit, Plus, Trash2, ArrowLeft, Users, Eye } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { useCurrentUnit } from "../../../app/providers/UnitProvider";
@@ -41,7 +42,34 @@ export const SubjectsList: React.FC = () => {
           if (cat === "Nasional") color = "bg-blue-100 text-blue-700 border border-blue-200";
           if (cat === "Khas Sekolah") color = "bg-emerald-100 text-emerald-700 border border-emerald-200";
           return <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${color}`}>{cat}</span>;
-        },
+      },
+      {
+        id: "grade_levels",
+        accessorKey: "grade_levels",
+        header: "Kelas",
+        cell: function render({ getValue }) {
+          const grades = getValue<number[]>();
+          if (!grades || grades.length === 0) return <span className="text-muted-foreground">-</span>;
+          return <span className="text-xs px-2 py-1 bg-muted text-muted-foreground rounded-md">{grades.sort().join(", ")}</span>;
+        }
+      },
+      {
+        id: "semesters",
+        accessorKey: "semesters",
+        header: "Semester",
+        cell: function render({ getValue }) {
+          const sems = getValue<string[]>();
+          if (!sems || sems.length === 0) return <span className="text-muted-foreground">-</span>;
+          return (
+            <div className="flex gap-1 flex-wrap">
+              {sems.map(s => (
+                <span key={s} className="text-[10px] px-1.5 py-0.5 bg-primary/10 text-primary rounded border border-primary/20">
+                  {s}
+                </span>
+              ))}
+            </div>
+          );
+        }
       },
       {
         id: "unit",
@@ -88,7 +116,17 @@ export const SubjectsList: React.FC = () => {
               <button
                 onClick={() => {
                   if (confirm("Apakah Anda yakin ingin menghapus mata pelajaran ini?")) {
-                    deleteSubject({ resource: "subjects", id });
+                    deleteSubject(
+                      { resource: "subjects", id },
+                      {
+                        onSuccess: () => {
+                          toast.success("Mata pelajaran berhasil dihapus");
+                        },
+                        onError: (error) => {
+                          toast.error("Gagal menghapus mata pelajaran: " + error.message);
+                        }
+                      }
+                    );
                   }
                 }}
                 className="p-1.5 text-muted-foreground hover:text-rose-600 transition-colors rounded-md hover:bg-rose-50"

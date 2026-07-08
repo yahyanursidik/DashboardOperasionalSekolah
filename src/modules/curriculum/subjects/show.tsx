@@ -1,6 +1,7 @@
 import React from "react";
 import { useShow, useList, useDelete } from "@refinedev/core";
 import { useNavigate, useParams, Link } from "react-router-dom";
+import { toast } from "sonner";
 import { ArrowLeft, Plus, Edit, Trash2, FileText, BookOpen } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
 
@@ -93,7 +94,17 @@ export const SubjectShow: React.FC = () => {
                     <button
                       onClick={() => {
                         if (confirm("Hapus kurikulum kelas ini?")) {
-                          deleteCurriculum({ resource: "subject_curriculums", id: curr.id });
+                          deleteCurriculum(
+                            { resource: "subject_curriculums", id: curr.id },
+                            {
+                              onSuccess: () => {
+                                toast.success("Kurikulum berhasil dihapus");
+                              },
+                              onError: (error) => {
+                                toast.error("Gagal menghapus kurikulum: " + error.message);
+                              }
+                            }
+                          );
                         }
                       }}
                       className="p-1.5 text-muted-foreground hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors"

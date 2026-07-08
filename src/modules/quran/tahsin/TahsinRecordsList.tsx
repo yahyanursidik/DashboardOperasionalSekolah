@@ -5,30 +5,27 @@ import { Plus, Search } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
 
 export const TahsinRecordsList: React.FC = () => {
-  const [selectedUnitId, setSelectedUnitId] = useState<string>("");
-  const [selectedClassId, setSelectedClassId] = useState<string>("");
+  const [selectedHalaqohId, setSelectedHalaqohId] = useState<string>("");
+  const [search, setSearch] = useState("");
 
-  const { options: unitOptions } = useSelect({
-    resource: "units",
+  const { options: halaqohOptions } = useSelect({
+    resource: "tahfidz_halaqohs",
     optionLabel: "name",
     optionValue: "id",
-    sorters: [{ field: "name", order: "asc" }],
-  });
-
-  const { options: classOptions } = useSelect({
-    resource: "classes",
-    optionLabel: "name",
-    optionValue: "id",
-    filters: selectedUnitId ? [{ field: "unit_id", operator: "eq", value: selectedUnitId }] : [],
-    queryOptions: { enabled: !!selectedUnitId },
+    filters: [
+      { field: "program_type", operator: "eq", value: "tahsin" }
+    ],
     sorters: [{ field: "name", order: "asc" }],
   });
 
   const filters: CrudFilter[] = [
     { field: "record_type", operator: "eq", value: "tahsin" } // Strictly Tahsin
   ];
-  if (selectedClassId) {
-    filters.push({ field: "class_id", operator: "eq", value: selectedClassId });
+  if (selectedHalaqohId) {
+    filters.push({ field: "halaqoh_id", operator: "eq", value: selectedHalaqohId });
+  }
+  if (search) {
+    filters.push({ field: "students.full_name", operator: "contains", value: search });
   }
 
   const { data, isLoading } = useList({
@@ -54,26 +51,12 @@ export const TahsinRecordsList: React.FC = () => {
       <div className="flex justify-between items-center gap-4">
         <div className="flex flex-1 gap-2">
           <select
-            value={selectedUnitId}
-            onChange={(e) => {
-              setSelectedUnitId(e.target.value);
-              setSelectedClassId("");
-            }}
+            value={selectedHalaqohId}
+            onChange={(e) => setSelectedHalaqohId(e.target.value)}
             className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
           >
-            <option value="">Semua Unit</option>
-            {unitOptions?.map(opt => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
-          <select
-            value={selectedClassId}
-            onChange={(e) => setSelectedClassId(e.target.value)}
-            disabled={!selectedUnitId}
-            className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background disabled:opacity-50"
-          >
-            <option value="">Semua Kelas</option>
-            {classOptions?.map(opt => (
+            <option value="">Semua Halaqoh Tahsin</option>
+            {halaqohOptions?.map(opt => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
             ))}
           </select>
@@ -82,6 +65,8 @@ export const TahsinRecordsList: React.FC = () => {
             <input
               type="text"
               placeholder="Cari nama siswa..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-9 pr-4 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none"
             />
           </div>
@@ -126,35 +111,64 @@ export const TahsinRecordsList: React.FC = () => {
               ) : (
                 records.map((record) => (
                   <tr key={record.id} className="hover:bg-muted/30 transition-colors">
-                    <td className="px-6 py-4">{new Date(record.date).toLocaleDateString('id-ID')}</td>
+                    <td className="px-6 py-4">
+                      {new Date(record.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </td>
                     <td className="px-6 py-4 font-medium">{record.students?.full_name}</td>
                     <td className="px-6 py-4 text-gray-500">
                       {record.tahfidz_halaqohs ? (
-                        <span className="bg-emerald-50 text-emerald-700 px-2 py-1 rounded-md text-xs font-medium border border-emerald-200">{record.tahfidz_halaqohs.name}</span>
+                        <span className="bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-md text-xs font-semibold border border-emerald-200">
+                          {record.tahfidz_halaqohs.name}
+                        </span>
                       ) : (
-                        record.classes?.name || '-'
+                        <span className="bg-gray-100 text-gray-600 px-2.5 py-1 rounded-md text-xs font-medium border">
+                          {record.classes?.name || '-'}
+                        </span>
                       )}
                     </td>
-                    <td className="px-6 py-4 font-bold text-primary">{record.surah_or_jilid}</td>
-                    <td className="px-6 py-4">{record.ayat_or_page}</td>
+                    <td className="px-6 py-4 font-bold text-emerald-600">{record.surah_or_jilid}</td>
+                    <td className="px-6 py-4 font-medium">{record.ayat_or_page}</td>
                     <td className="px-6 py-4">
-                      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                        record.fluency_score === 'Sangat Lancar' ? 'bg-emerald-100 text-emerald-700' :
-                        record.fluency_score === 'Lancar' ? 'bg-blue-100 text-blue-700' :
-                        record.fluency_score === 'Kurang Lancar' ? 'bg-amber-100 text-amber-700' :
-                        'bg-red-100 text-red-700'
+                      <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${
+                        record.fluency_score === 'Sangat Lancar' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                        record.fluency_score === 'Lancar' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                        record.fluency_score === 'Kurang Lancar' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                        'bg-red-50 text-red-700 border-red-200'
                       }`}>
                         {record.fluency_score}
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="flex flex-col gap-1 text-xs">
-                        {record.tajwid_score && <span><span className="text-muted-foreground">Tajwid:</span> {record.tajwid_score}</span>}
-                        {record.makhroj_score && <span><span className="text-muted-foreground">Makhroj:</span> {record.makhroj_score}</span>}
-                        {!record.tajwid_score && !record.makhroj_score && <span className="text-muted-foreground">-</span>}
+                      <div className="flex flex-col gap-1.5 text-xs">
+                        {record.tajwid_score && (
+                          <div className="flex items-center gap-1.5">
+                            <span className="bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded font-medium">T</span>
+                            <span className="font-semibold">{record.tajwid_score}</span>
+                          </div>
+                        )}
+                        {record.makhroj_score && (
+                          <div className="flex items-center gap-1.5">
+                            <span className="bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded font-medium">M</span>
+                            <span className="font-semibold">{record.makhroj_score}</span>
+                          </div>
+                        )}
+                        {!record.tajwid_score && !record.makhroj_score && <span className="text-muted-foreground italic">-</span>}
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-muted-foreground">{record.employees?.full_name || '-'}</td>
+                    <td className="px-6 py-4 text-muted-foreground text-sm">
+                      <div className="flex items-center gap-2">
+                        {record.employees ? (
+                          <>
+                            <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-[10px]">
+                              {record.employees.full_name.charAt(0)}
+                            </div>
+                            <span>{record.employees.full_name}</span>
+                          </>
+                        ) : (
+                          "-"
+                        )}
+                      </div>
+                    </td>
                   </tr>
                 ))
               )}

@@ -351,29 +351,28 @@ export const SubjectTeacherDirectory: React.FC = () => {
   // Load all units for filter
   const { data: unitsData } = useList({ resource: "units", pagination: { pageSize: 50 } });
 
-  // Load teacher_assignments with employee & class data
+  // Load employee_schedules with employee & class data
   const { data: assignmentsData, isLoading: assignmentsLoading } = useList({
-    resource: "teacher_assignments",
+    resource: "employee_schedules",
     pagination: { pageSize: 2000 },
     filters: [
-      { field: "is_active", operator: "eq" as const, value: true },
-      ...(activeYearId ? [{ field: "academic_year_id", operator: "eq" as const, value: activeYearId }] : []),
+      { field: "schedule_type", operator: "eq" as const, value: "mengajar" },
+      { field: "subject_id", operator: "notnull" as const, value: null }
     ],
     meta: {
-      select: "*, employees(id, full_name, position, status, nik), units(id, name), classes(id, name)",
+      select: "*, employees(id, full_name, position, status, nik), classes(id, name), subjects(id, name)",
     },
   });
 
   const allSubjects = subjectsData?.data ?? [];
   const allAssignments = assignmentsData?.data ?? [];
 
-  // Build assignment lookup: subject name → assignments array
-  // teacher_assignments uses `subject` as free text — match by subject name
-  const assignmentsBySubjectName = useMemo(() => {
+  // Build assignment lookup: subject id → assignments array
+  const assignmentsBySubjectId = useMemo(() => {
     const map: Record<string, any[]> = {};
     allAssignments.forEach((a) => {
-      if (!a.subject) return;
-      const key = a.subject.trim().toLowerCase();
+      if (!a.subject_id) return;
+      const key = String(a.subject_id);
       if (!map[key]) map[key] = [];
       map[key].push(a);
     });
@@ -394,11 +393,10 @@ export const SubjectTeacherDirectory: React.FC = () => {
   // Stats
   const stats = useMemo(() => {
     const withTeachers = filteredSubjects.filter((s) => {
-      const key = s.name.trim().toLowerCase();
-      return (assignmentsBySubjectName[key]?.length ?? 0) > 0;
+      return (assignmentsBySubjectId[s.id]?.length ?? 0) > 0;
     });
     const totalTeachers = new Set(
-      allAssignments.filter((a) => a.subject).map((a) => a.employees?.id)
+      allAssignments.filter((a) => a.subject_id).map((a) => a.employees?.id)
     ).size;
 
     return {
@@ -407,11 +405,11 @@ export const SubjectTeacherDirectory: React.FC = () => {
       withoutTeachers: filteredSubjects.length - withTeachers.length,
       totalTeachers,
     };
-  }, [filteredSubjects, assignmentsBySubjectName, allAssignments]);
+  }, [filteredSubjects, assignmentsBySubjectId, allAssignments]);
 
   const selectedSubject = allSubjects.find((s) => s.id === selectedSubjectId);
   const selectedAssignments = selectedSubject
-    ? (assignmentsBySubjectName[selectedSubject.name.trim().toLowerCase()] ?? [])
+    ? (assignmentsBySubjectId[selectedSubject.id] ?? [])
     : [];
 
   const isLoading = subjectsLoading || assignmentsLoading;
@@ -552,8 +550,7 @@ export const SubjectTeacherDirectory: React.FC = () => {
             /* GRID VIEW */
             <div className={`grid gap-4 ${selectedSubjectId ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3"}`}>
               {filteredSubjects.map((subject) => {
-                const key = subject.name.trim().toLowerCase();
-                const assignments = assignmentsBySubjectName[key] ?? [];
+                const assignments = assignmentsBySubjectId[subject.id] ?? [];
                 const isSelected = selectedSubjectId === subject.id;
                 return (
                   <div key={subject.id} className={isSelected ? "ring-2 ring-primary rounded-xl" : ""}>
@@ -582,8 +579,7 @@ export const SubjectTeacherDirectory: React.FC = () => {
                 </thead>
                 <tbody className="divide-y divide-border">
                   {filteredSubjects.map((subject) => {
-                    const key = subject.name.trim().toLowerCase();
-                    const assignments = assignmentsBySubjectName[key] ?? [];
+                    const assignments = assignmentsBySubjectId[subject.id] ?? [];
                     const uniqueTeachers = [...new Map(assignments.map((a) => [a.employees?.id, a])).values()];
                     const catKey = subject.category ?? "Lainnya";
                     const cat = CATEGORY_CFG[catKey] ?? CATEGORY_CFG["Lainnya"];

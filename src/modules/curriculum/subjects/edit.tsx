@@ -1,5 +1,5 @@
 import React from "react";
-import { useForm } from "@refinedev/react-hook-form";
+import { useForm, Controller } from "@refinedev/react-hook-form";
 import { useList } from "@refinedev/core";
 import { useNavigate, Link } from "react-router-dom";
 import { ArrowLeft, Save } from "lucide-react";
@@ -12,6 +12,7 @@ export const SubjectEdit: React.FC = () => {
   const {
     register,
     handleSubmit,
+    control,
     formState: { errors },
     refineCore: { onFinish, formLoading, queryResult },
   } = useForm({
@@ -37,7 +38,13 @@ export const SubjectEdit: React.FC = () => {
         <PageHeader title="Ubah Mata Pelajaran" description={`Mengubah data mata pelajaran ${subjectData?.name || ''}.`} />
       </div>
 
-      <form onSubmit={handleSubmit(onFinish)} className="bg-card rounded-xl border shadow-sm p-6 space-y-6">
+      <form onSubmit={handleSubmit((data) => {
+        const payload = {
+          ...data,
+          grade_levels: data.grade_levels ? data.grade_levels.map(Number) : []
+        };
+        onFinish(payload);
+      })} className="bg-card rounded-xl border shadow-sm p-6 space-y-6">
         <div className="space-y-4">
           <div>
             <label className="text-sm font-medium mb-1.5 block">Unit Sekolah <span className="text-rose-500">*</span></label>
@@ -93,6 +100,43 @@ export const SubjectEdit: React.FC = () => {
               className="w-4 h-4 text-primary focus:ring-primary/50 rounded"
             />
             <label htmlFor="is_active" className="text-sm font-medium">Status Aktif</label>
+          </div>
+          <div className="pt-2">
+            <label className="text-sm font-medium mb-3 block">Alokasi Kelas <span className="text-destructive">*</span></label>
+            <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
+              {[1, 2, 3, 4, 5, 6].map((grade) => (
+                <div key={grade} className="flex items-center gap-2">
+                  <input
+                    {...register("grade_levels")}
+                    type="checkbox"
+                    value={grade}
+                    id={`grade_${grade}`}
+                    className="w-4 h-4 text-primary focus:ring-primary/50 rounded"
+                  />
+                  <label htmlFor={`grade_${grade}`} className="text-sm font-medium">Kelas {grade}</label>
+                </div>
+              ))}
+            </div>
+            {errors.grade_levels && <span className="text-xs text-destructive mt-1 block">Minimal pilih 1 kelas</span>}
+          </div>
+
+          <div className="pt-2">
+            <label className="text-sm font-medium mb-3 block">Alokasi Semester <span className="text-destructive">*</span></label>
+            <div className="flex gap-6">
+              {["Ganjil", "Genap"].map((sem) => (
+                <div key={sem} className="flex items-center gap-2">
+                  <input
+                    {...register("semesters")}
+                    type="checkbox"
+                    value={sem}
+                    id={`sem_${sem}`}
+                    className="w-4 h-4 text-primary focus:ring-primary/50 rounded"
+                  />
+                  <label htmlFor={`sem_${sem}`} className="text-sm font-medium">Semester {sem}</label>
+                </div>
+              ))}
+            </div>
+            {errors.semesters && <span className="text-xs text-destructive mt-1 block">Minimal pilih 1 semester</span>}
           </div>
         </div>
 

@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { PageHeader } from "../../../components/layout/PageHeader";
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, AlertCircle, Clock, Info } from "lucide-react";
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, AlertCircle, Clock, Info, X, Save } from "lucide-react";
 import { supabaseClient } from "../../../lib/supabase/client";
+import { useCreate } from "@refinedev/core";
+import { toast } from "sonner";
 
 interface HijriDetails {
   day: number;
@@ -54,6 +56,18 @@ export const AcademicCalendar: React.FC = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [events, setEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  
+  // New event form state
+  const [newEvent, setNewEvent] = useState({
+    title: "",
+    start_date: new Date().toISOString().split('T')[0],
+    end_date: new Date().toISOString().split('T')[0],
+    color: "#10b981", // Emerald
+    type: "custom"
+  });
+
+  const { mutate: createEvent, isLoading: isCreating } = useCreate();
 
   // Determine current viewing month & year (Gregorian base)
   const currentYear = currentDate.getFullYear();
@@ -88,6 +102,25 @@ export const AcademicCalendar: React.FC = () => {
     };
     fetchEvents();
   }, [currentYear, currentMonth]);
+
+  const handleCreateEvent = (e: React.FormEvent) => {
+    e.preventDefault();
+    createEvent({
+      resource: "calendar_events",
+      values: newEvent,
+    }, {
+      onSuccess: () => {
+        toast.success("Event berhasil ditambahkan!");
+        setIsAddModalOpen(false);
+        // Optimistically add to events list
+        setEvents(prev => [...prev, newEvent]);
+        setNewEvent({ ...newEvent, title: "" });
+      },
+      onError: (err) => {
+        toast.error("Gagal menambahkan event", { description: err.message });
+      }
+    });
+  };
 
   const generateGrid = () => {
     const firstDay = new Date(currentYear, currentMonth, 1);
@@ -228,7 +261,10 @@ export const AcademicCalendar: React.FC = () => {
             </div>
             
             <div>
-              <button className="flex items-center gap-2 bg-emerald-600 text-white px-3 py-1.5 rounded-md text-sm font-medium hover:bg-emerald-700 transition-colors shadow-sm">
+              <button 
+                onClick={() => setIsAddModalOpen(true)}
+                className="flex items-center gap-2 bg-emerald-600 text-white px-3 py-1.5 rounded-md text-sm font-medium hover:bg-emerald-700 transition-colors shadow-sm"
+              >
                 <Plus className="w-4 h-4"/> Tambah Event
               </button>
             </div>
@@ -339,6 +375,100 @@ export const AcademicCalendar: React.FC = () => {
         </div>
 
       </div>
+
+      {/* Add Event Modal */}
+      {isAddModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-card w-full max-w-md rounded-2xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center p-5 border-b bg-muted/30">
+              <h3 className="font-bold text-lg flex items-center gap-2 text-foreground">
+                <CalendarIcon className="w-5 h-5 text-emerald-600" />
+                Tambah Event / Agenda
+              </h3>
+              <button onClick={() => setIsAddModalOpen(false)} className="text-muted-foreground hover:bg-muted p-1.5 rounded-md transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <form onSubmit={handleCreateEvent} className="p-5 space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-sm font-bold text-muted-foreground">Judul Agenda <span className="text-red-500">*</span></label>
+                <input 
+                  type="text" 
+                  required
+                  value={newEvent.title}
+                  onChange={e => setNewEvent({...newEvent, title: e.target.value})}
+                  className="w-full border border-input rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 bg-background transition-all"
+                  placeholder="Contoh: Penilaian Tengah Semester"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-sm font-bold text-muted-foreground">Tanggal Mulai <span className="text-red-500">*</span></label>
+                  <input 
+                    type="date" 
+                    required
+                    value={newEvent.start_date}
+                    onChange={e => setNewEvent({...newEvent, start_date: e.target.value})}
+                    className="w-full border border-input rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 bg-background transition-all"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-bold text-muted-foreground">Tanggal Selesai <span className="text-red-500">*</span></label>
+                  <input 
+                    type="date" 
+                    required
+                    value={newEvent.end_date}
+                    onChange={e => setNewEvent({...newEvent, end_date: e.target.value})}
+                    className="w-full border border-input rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 bg-background transition-all"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-sm font-bold text-muted-foreground">Warna Label</label>
+                <div className="flex gap-3 mt-1">
+                  {[
+                    { c: '#10b981', n: 'Emerald' },
+                    { c: '#3b82f6', n: 'Blue' },
+                    { c: '#f59e0b', n: 'Amber' },
+                    { c: '#ef4444', n: 'Rose' },
+                    { c: '#8b5cf6', n: 'Purple' },
+                  ].map(color => (
+                    <button
+                      key={color.c}
+                      type="button"
+                      onClick={() => setNewEvent({...newEvent, color: color.c})}
+                      className={`w-8 h-8 rounded-full border-2 transition-all ${newEvent.color === color.c ? 'border-foreground scale-110 shadow-md' : 'border-transparent hover:scale-105'}`}
+                      style={{ backgroundColor: color.c }}
+                      title={color.n}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div className="pt-4 flex gap-3">
+                <button 
+                  type="button" 
+                  onClick={() => setIsAddModalOpen(false)}
+                  className="flex-1 px-4 py-2.5 border rounded-xl text-sm font-bold hover:bg-muted transition-colors"
+                >
+                  Batal
+                </button>
+                <button 
+                  type="submit" 
+                  disabled={isCreating}
+                  className="flex-1 px-4 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-700 transition-colors shadow-sm disabled:opacity-70 flex items-center justify-center gap-2"
+                >
+                  <Save className="w-4 h-4"/>
+                  {isCreating ? "Menyimpan..." : "Simpan Agenda"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

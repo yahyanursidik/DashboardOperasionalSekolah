@@ -142,29 +142,34 @@ export const AttendanceInput: React.FC = () => {
   const students = studentsData?.data || [];
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto pb-24">
-      <div className="flex items-center gap-4 border-b pb-4">
-        <button onClick={() => navigate("/attendance")} className="p-2 border rounded-md hover:bg-muted"><ArrowLeft className="w-5 h-5"/></button>
+    <div className="space-y-6 max-w-4xl mx-auto pb-32">
+      <div className="flex items-center gap-4 bg-card p-6 rounded-2xl border shadow-sm">
+        <button onClick={() => navigate("/attendance")} className="p-3 border rounded-xl hover:bg-muted transition-colors"><ArrowLeft className="w-5 h-5"/></button>
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">Absensi Kelas: {cls?.name}</h1>
-          <p className="text-sm text-muted-foreground flex items-center gap-2">
-            <CalendarCheck className="w-4 h-4"/> {new Date(dateStr!).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-            <span className="mx-2">•</span>
-            {cls?.units?.name}
+          <h1 className="text-2xl font-bold flex items-center gap-2 text-foreground">Absensi Kelas: <span className="text-primary">{cls?.name}</span></h1>
+          <p className="text-sm text-muted-foreground flex items-center gap-2 mt-1">
+            <span className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 px-2.5 py-1 rounded-md font-medium"><CalendarCheck className="w-4 h-4"/> {new Date(dateStr!).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span>
+            <span className="mx-1">•</span>
+            <span className="font-medium">{cls?.units?.name}</span>
           </p>
         </div>
       </div>
 
-      <div className="flex justify-between items-center bg-card p-4 rounded-xl shadow-sm border">
-        <div className="flex items-center gap-2 text-sm">
-          <Users className="w-5 h-5 text-blue-500" />
-          <span className="font-semibold">{students.length} Siswa</span>
+      <div className="flex justify-between items-center bg-card p-5 rounded-2xl shadow-sm border border-emerald-100">
+        <div className="flex items-center gap-3 text-sm">
+          <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center">
+            <Users className="w-5 h-5" />
+          </div>
+          <div>
+            <span className="font-bold text-foreground text-lg">{students.length} Siswa</span>
+            <p className="text-xs text-muted-foreground">Total siswa di rombel ini</p>
+          </div>
         </div>
         <button 
           onClick={handleMarkAllHadir}
-          className="text-xs bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-md font-medium hover:bg-emerald-100 flex items-center gap-1"
+          className="text-sm bg-emerald-50 border border-emerald-200 text-emerald-700 px-4 py-2.5 rounded-xl font-bold hover:bg-emerald-100 flex items-center gap-2 transition-colors active:scale-95"
         >
-          <CheckCircle2 className="w-4 h-4"/> Set Semua Hadir
+          <CheckCircle2 className="w-5 h-5"/> Set Semua Hadir (H)
         </button>
       </div>
 
@@ -178,26 +183,26 @@ export const AttendanceInput: React.FC = () => {
               if (!record) return null;
 
               return (
-                <div key={student.id} className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-muted/10 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm font-medium text-muted-foreground w-6">{idx + 1}.</span>
+                <div key={student.id} className="p-4 sm:p-5 flex flex-col xl:flex-row xl:items-center justify-between gap-5 hover:bg-slate-50/50 transition-colors group">
+                  <div className="flex items-center gap-4">
+                    <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center text-xs font-bold shrink-0">{idx + 1}</div>
                     <div>
-                      <p className="font-semibold text-sm sm:text-base">{student.full_name}</p>
-                      <p className="text-xs text-muted-foreground">{student.nis || "NIS belum diset"} • {student.gender === 'L' ? 'Ikhwan' : 'Akhawat'}</p>
+                      <p className="font-bold text-base text-foreground group-hover:text-primary transition-colors">{student.full_name}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">NIS: {student.nis || "-"} • {student.gender === 'L' ? 'Ikhwan' : 'Akhawat'}</p>
                     </div>
                   </div>
 
-                  <div className="flex gap-2 sm:gap-3 pl-9 sm:pl-0">
+                  <div className="flex gap-2 sm:gap-3 pl-12 xl:pl-0 flex-wrap">
                     {statusOptions.map(opt => {
                       const isActive = record.status === opt.value;
                       return (
                         <button
                           key={opt.value}
                           onClick={() => handleStatusChange(student.id, opt.value)}
-                          className={`w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center rounded-xl border-2 font-bold text-sm sm:text-lg transition-all ${
-                            isActive ? opt.activeColor : `bg-background text-muted-foreground border-border hover:border-muted-foreground/50`
+                          className={`w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center rounded-2xl border-2 font-black text-lg sm:text-xl transition-all shadow-sm ${
+                            isActive ? `${opt.activeColor} shadow-md scale-105 ring-2 ring-offset-1 ring-${opt.activeColor.split('-')[1]}-500` : `bg-white text-slate-400 border-slate-200 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-600 hover:scale-105`
                           }`}
-                          title={opt.value.toUpperCase()}
+                          title={opt.label + " - " + opt.value.toUpperCase()}
                         >
                           {opt.label}
                         </button>
@@ -213,15 +218,18 @@ export const AttendanceInput: React.FC = () => {
 
       {/* Floating Action Bar */}
       <div className="fixed bottom-0 sm:bottom-6 left-0 right-0 sm:left-auto sm:right-6 md:left-64 p-4 sm:p-0 z-40 flex justify-end">
-        <div className="w-full sm:w-auto bg-card border shadow-xl rounded-2xl p-3 flex items-center justify-between sm:justify-end gap-4">
-          <p className="text-xs text-muted-foreground hidden sm:block px-4">Pastikan data sudah benar sebelum menyimpan.</p>
+        <div className="w-full sm:w-auto bg-white/80 backdrop-blur-md border border-slate-200 shadow-2xl rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between sm:justify-end gap-4 animate-in slide-in-from-bottom-5">
+          <div className="text-center sm:text-left sm:pr-8 border-b sm:border-b-0 sm:border-r border-slate-200 pb-3 sm:pb-0">
+             <p className="text-sm font-bold text-slate-800">Simpan Data Absensi</p>
+             <p className="text-xs text-slate-500">Pastikan data seluruh siswa sudah sesuai.</p>
+          </div>
           <button
             onClick={handleSave}
             disabled={isSaving || students.length === 0}
-            className="w-full sm:w-auto flex items-center justify-center gap-2 bg-primary text-primary-foreground px-8 py-3 rounded-xl hover:bg-primary/90 transition-colors shadow-sm font-semibold disabled:opacity-70"
+            className="w-full sm:w-auto flex items-center justify-center gap-2 bg-primary text-primary-foreground px-10 py-3.5 rounded-xl hover:bg-primary/90 transition-all shadow-md hover:shadow-lg font-bold text-sm disabled:opacity-70 active:scale-95"
           >
             <Save className="w-5 h-5" />
-            {isSaving ? "Menyimpan..." : "Simpan Absensi"}
+            {isSaving ? "Menyimpan ke Database..." : "Konfirmasi & Simpan"}
           </button>
         </div>
       </div>

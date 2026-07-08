@@ -28,7 +28,7 @@ export const TeacherDashboard: React.FC = () => {
         const dayOfWeek = new Date().getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
         const { data: schedules } = await supabaseClient
           .from("employee_schedules")
-          .select("*, classes(name)")
+          .select("*, classes(name), subjects(name)")
           .eq("employee_id", employee.id)
           .eq("day_of_week", dayOfWeek)
           .order("start_time");
@@ -118,6 +118,9 @@ export const TeacherDashboard: React.FC = () => {
       <div>
         <div className="flex justify-between items-end mb-3 px-1">
           <h3 className="font-bold text-gray-900 text-sm">Jadwal Mengajar Hari Ini</h3>
+          <Link to="/teacher/schedules" className="text-xs font-bold text-primary hover:underline flex items-center gap-0.5">
+            Lihat Semua <ChevronRight className="w-3 h-3" />
+          </Link>
         </div>
         
         {todaySchedules.length === 0 ? (
@@ -137,7 +140,7 @@ export const TeacherDashboard: React.FC = () => {
                     </div>
                     <div className="w-px h-10 bg-gray-200"></div>
                     <div>
-                      <h4 className="font-bold text-gray-900">{schedule.subject_name || "Mata Pelajaran"}</h4>
+                      <h4 className="font-bold text-gray-900">{schedule.subjects?.name || "Mata Pelajaran"}</h4>
                       <p className="text-xs text-primary font-medium mt-0.5">{schedule.classes?.name}</p>
                     </div>
                   </div>

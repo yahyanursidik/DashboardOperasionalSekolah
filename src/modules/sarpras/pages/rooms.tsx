@@ -2,8 +2,9 @@ import React, { useState, useEffect } from "react";
 import { useTable, useCreate, useUpdate, useDelete } from "@refinedev/core";
 import { 
   Plus, Edit as EditIcon, Trash2, Building, X, 
-  Search, Eye, ChevronLeft, ChevronRight, AlertCircle, MapPin, Users
+  Search, Eye, ChevronLeft, ChevronRight, AlertCircle, MapPin, Users, Activity
 } from "lucide-react";
+import { toast } from "sonner";
 
 export const RoomsList: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -80,11 +81,21 @@ export const RoomsList: React.FC = () => {
     e.preventDefault();
     if (isCreateOpen) {
       createRoom({ resource: "rooms", values: formData }, {
-        onSuccess: () => { setIsCreateOpen(false); tableQueryResult.refetch(); }
+        onSuccess: () => { 
+          setIsCreateOpen(false); 
+          tableQueryResult.refetch(); 
+          toast.success("Ruangan berhasil ditambahkan");
+        },
+        onError: () => toast.error("Gagal menambahkan ruangan")
       });
     } else if (isEditOpen && currentRoom) {
       updateRoom({ resource: "rooms", id: currentRoom.id, values: formData }, {
-        onSuccess: () => { setIsEditOpen(false); tableQueryResult.refetch(); }
+        onSuccess: () => { 
+          setIsEditOpen(false); 
+          tableQueryResult.refetch(); 
+          toast.success("Ruangan berhasil diperbarui");
+        },
+        onError: () => toast.error("Gagal memperbarui ruangan")
       });
     }
   };
@@ -92,7 +103,12 @@ export const RoomsList: React.FC = () => {
   const handleDelete = () => {
     if (currentRoom) {
       deleteRoom({ resource: "rooms", id: currentRoom.id }, {
-        onSuccess: () => { setIsDeleteOpen(false); tableQueryResult.refetch(); }
+        onSuccess: () => { 
+          setIsDeleteOpen(false); 
+          tableQueryResult.refetch(); 
+          toast.success("Ruangan berhasil dihapus");
+        },
+        onError: () => toast.error("Gagal menghapus ruangan")
       });
     }
   };
@@ -329,6 +345,82 @@ export const RoomsList: React.FC = () => {
               </button>
               <button onClick={handleDelete} disabled={isDeleting} className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold text-sm transition-colors flex-1">
                 Ya, Hapus
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* View Modal */}
+      {isViewOpen && currentRoom && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+            <div className="px-6 py-4 border-b flex justify-between items-center bg-gray-50/50">
+              <h2 className="text-xl font-bold text-gray-900">Detail Ruangan</h2>
+              <button onClick={() => setIsViewOpen(false)} className="p-2 hover:bg-gray-100 text-gray-500 rounded-full transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 space-y-6">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center">
+                  <Building className="w-8 h-8" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900">{currentRoom.name}</h3>
+                  <p className="text-sm text-gray-500 font-mono mt-0.5">{currentRoom.code || '-'}</p>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-gray-50 p-4 rounded-xl border">
+                  <div className="flex items-center gap-2 text-gray-500 mb-1">
+                    <Building className="w-4 h-4" />
+                    <span className="text-xs font-semibold uppercase tracking-wider">Tipe</span>
+                  </div>
+                  <p className="font-medium text-gray-900">{currentRoom.type}</p>
+                </div>
+                <div className="bg-gray-50 p-4 rounded-xl border">
+                  <div className="flex items-center gap-2 text-gray-500 mb-1">
+                    <Users className="w-4 h-4" />
+                    <span className="text-xs font-semibold uppercase tracking-wider">Kapasitas</span>
+                  </div>
+                  <p className="font-medium text-gray-900">{currentRoom.capacity} Orang</p>
+                </div>
+                <div className="bg-gray-50 p-4 rounded-xl border col-span-2">
+                  <div className="flex items-center gap-2 text-gray-500 mb-1">
+                    <MapPin className="w-4 h-4" />
+                    <span className="text-xs font-semibold uppercase tracking-wider">Lokasi</span>
+                  </div>
+                  <p className="font-medium text-gray-900">{currentRoom.location || 'Tidak ada deskripsi lokasi'}</p>
+                </div>
+                <div className="bg-gray-50 p-4 rounded-xl border col-span-2 flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-gray-500">
+                    <Activity className="w-4 h-4" />
+                    <span className="text-xs font-semibold uppercase tracking-wider">Status Operasional</span>
+                  </div>
+                  <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${
+                    currentRoom.status === 'Aktif' ? 'bg-emerald-100 text-emerald-700' :
+                    currentRoom.status === 'Sedang Direnovasi' ? 'bg-amber-100 text-amber-700' :
+                    'bg-red-100 text-red-700'
+                  }`}>
+                    {currentRoom.status}
+                  </span>
+                </div>
+              </div>
+
+              {currentRoom.notes && (
+                <div>
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">Catatan Tambahan</h4>
+                  <div className="p-4 bg-yellow-50/50 border border-yellow-100 rounded-xl text-sm text-gray-700">
+                    {currentRoom.notes}
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="p-4 border-t bg-gray-50/50 flex justify-end">
+               <button onClick={() => setIsViewOpen(false)} className="px-5 py-2.5 bg-white border shadow-sm hover:bg-gray-50 text-gray-800 rounded-lg font-semibold text-sm transition-colors">
+                Tutup
               </button>
             </div>
           </div>

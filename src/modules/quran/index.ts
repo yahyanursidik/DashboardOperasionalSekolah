@@ -17,5 +17,7 @@ export * from "./tahsin/TahsinHalaqohShow";
 export * from "./tahsin/TahsinTargetsList";
 export * from "./tahsin/TahsinTargetForm";
 export * from "./tahsin/TahsinRecordsList";
+export * from "./tahsin/TahsinRecordForm";
 export * from "./tahsin/TahsinAssessmentsList";
+export * from "./tahsin/TahsinAssessmentForm";
 export * from "./tahsin/TahsinReportDashboard";

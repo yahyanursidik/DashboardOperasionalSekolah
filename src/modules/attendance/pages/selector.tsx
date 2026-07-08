@@ -46,50 +46,50 @@ export const AttendanceSelector: React.FC = () => {
 
         <div className="p-8">
           <form onSubmit={handleProceed} className="space-y-5">
-            <div className="space-y-2">
-              <label className="text-sm font-medium flex items-center gap-2"><Building className="w-4 h-4 text-muted-foreground"/> Unit Pendidikan</label>
+            <div className="space-y-1.5">
+              <label className="text-sm font-semibold flex items-center gap-2 text-muted-foreground"><Building className="w-4 h-4"/> Unit Pendidikan <span className="text-red-500">*</span></label>
               <select
                 required
                 value={selectedUnit}
                 onChange={(e) => { setSelectedUnit(e.target.value); setSelectedClass(""); }}
-                className="w-full border rounded-md px-3 py-2.5 text-sm focus:ring-2 focus:ring-primary/50 outline-none bg-background"
+                className="w-full border border-input rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none bg-background hover:bg-muted/30 font-medium"
               >
-                <option value="">-- Pilih Unit --</option>
+                <option value="">-- Pilih Unit Pendidikan --</option>
                 {unitOptions?.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium flex items-center gap-2"><Users className="w-4 h-4 text-muted-foreground"/> Kelas / Rombel</label>
+            <div className="space-y-1.5">
+              <label className="text-sm font-semibold flex items-center gap-2 text-muted-foreground"><Users className="w-4 h-4"/> Kelas / Rombongan Belajar <span className="text-red-500">*</span></label>
               <select
                 required
                 value={selectedClass}
                 onChange={(e) => setSelectedClass(e.target.value)}
                 disabled={!selectedUnit}
-                className="w-full border rounded-md px-3 py-2.5 text-sm focus:ring-2 focus:ring-primary/50 outline-none bg-background disabled:opacity-50"
+                className="w-full border border-input rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none bg-background hover:bg-muted/30 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
               >
-                <option value="">-- Pilih Kelas --</option>
+                <option value="">-- Pilih Kelas Target --</option>
                 {classOptions?.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium flex items-center gap-2"><CalendarCheck className="w-4 h-4 text-muted-foreground"/> Tanggal Absensi</label>
+            <div className="space-y-1.5">
+              <label className="text-sm font-semibold flex items-center gap-2 text-muted-foreground"><CalendarCheck className="w-4 h-4"/> Tanggal Absensi <span className="text-red-500">*</span></label>
               <input
                 type="date"
                 required
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
-                className="w-full border rounded-md px-3 py-2.5 text-sm focus:ring-2 focus:ring-primary/50 outline-none bg-background"
+                className="w-full border border-input rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none bg-background hover:bg-muted/30 font-medium"
               />
             </div>
 
             <button
               type="submit"
               disabled={!selectedClass || !selectedDate}
-              className="w-full mt-4 flex items-center justify-center gap-2 bg-emerald-600 text-white px-4 py-3 rounded-xl hover:bg-emerald-700 transition-colors font-semibold shadow-sm disabled:opacity-50"
+              className="w-full mt-6 flex items-center justify-center gap-2 bg-emerald-600 text-white px-4 py-3.5 rounded-xl hover:bg-emerald-700 transition-all font-bold shadow-md hover:shadow-lg disabled:opacity-50 disabled:hover:shadow-md active:scale-[0.98]"
             >
-              Lanjutkan ke Lembar Absen <ArrowRight className="w-5 h-5" />
+              Buka Lembar Absensi <ArrowRight className="w-5 h-5" />
             </button>
           </form>
         </div>

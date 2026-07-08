@@ -10,11 +10,11 @@ export const TahsinHalaqohsList: React.FC = () => {
   const { mutate: deleteMutate } = useDelete();
   
   const { data, isLoading } = useList({
-    resource: "tahsin_halaqohs",
+    resource: "tahfidz_halaqohs",
     filters: [
-      { field: "academic_year_id", operator: "eq", value: activeYearId },
-      { field: "semester_id", operator: "eq", value: activeSemesterId },
-      { field: "program_type", operator: "eq", value: "tahsin" }
+      ...(activeYearId ? [{ field: "academic_year_id", operator: "eq" as const, value: activeYearId }] : []),
+      ...(activeSemesterId ? [{ field: "semester_id", operator: "eq" as const, value: activeSemesterId }] : []),
+      { field: "program_type", operator: "eq" as const, value: "tahsin" }
     ],
     sorters: [
       { field: "name", order: "asc" }
@@ -92,7 +92,7 @@ export const TahsinHalaqohsList: React.FC = () => {
                           onClick={() => {
                             if (window.confirm("Hapus halaqoh ini?")) {
                               deleteMutate({
-                                resource: "tahsin_halaqohs",
+                                resource: "tahfidz_halaqohs",
                                 id: record.id as string,
                               });
                             }

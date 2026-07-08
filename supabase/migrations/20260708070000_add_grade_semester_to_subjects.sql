@@ -1,0 +1,1 @@
+ALTER TABLE public.subjects ADD COLUMN IF NOT EXISTS grade_levels int[] DEFAULT '{}'; ALTER TABLE public.subjects ADD COLUMN IF NOT EXISTS semesters text[] DEFAULT '{}';

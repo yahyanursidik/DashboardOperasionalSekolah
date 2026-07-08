@@ -2,9 +2,10 @@ import React, { useState } from "react";
 import { useList, useDelete } from "@refinedev/core";
 import { Link, useNavigate } from "react-router-dom";
 import { PageHeader } from "../../../components/layout/PageHeader";
-import { BookOpen, Plus, Filter, Calendar, MapPin, Eye, Edit, Trash2, ShieldAlert, Award, Star, Activity, AlertTriangle } from "lucide-react";
+import { BookOpen, Plus, Filter, Calendar, MapPin, Eye, Edit, Trash2, ShieldAlert, Award, Star, Activity, AlertTriangle, AlertCircle, X } from "lucide-react";
 import { useCurrentUnit } from "../../../app/providers/UnitProvider";
 import { useAcademicYear } from "../../../app/providers/AcademicYearProvider";
+import { toast } from "sonner";
 
 export const StudentJournalsList: React.FC = () => {
   const navigate = useNavigate();
@@ -16,6 +17,7 @@ export const StudentJournalsList: React.FC = () => {
   const [filterVisibility, setFilterVisibility] = useState("");
   const [filterSemesterId, setFilterSemesterId] = useState("");
   const [filterClass, setFilterClass] = useState("");
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const { data: classesData } = useList({
     resource: "classes",
@@ -73,6 +75,18 @@ export const StudentJournalsList: React.FC = () => {
     }
   };
 
+  const handleDelete = () => {
+    if (deleteConfirmId) {
+      deleteJournal({ resource: "student_journals", id: deleteConfirmId }, {
+        onSuccess: () => {
+          toast.success("Rekam jejak berhasil dihapus");
+          setDeleteConfirmId(null);
+        },
+        onError: () => toast.error("Gagal menghapus rekam jejak")
+      });
+    }
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -88,12 +102,14 @@ export const StudentJournalsList: React.FC = () => {
         }
       />
 
-      <div className="flex gap-4 items-center bg-card p-3 rounded-xl border shadow-sm flex-wrap">
-        <Filter className="w-4 h-4 text-muted-foreground ml-2" />
+      <div className="flex gap-4 items-center bg-card p-4 rounded-xl border shadow-sm flex-wrap">
+        <div className="flex items-center gap-2 text-muted-foreground mr-2 font-medium">
+          <Filter className="w-4 h-4" /> Filter:
+        </div>
         <select 
           value={filterCategory}
           onChange={(e) => setFilterCategory(e.target.value)}
-          className="border rounded-md px-3 py-1.5 text-sm bg-background outline-none focus:ring-2 focus:ring-primary/50"
+          className="border border-input rounded-lg px-3 py-2 text-sm bg-background outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all hover:bg-muted/30"
         >
           <option value="">Semua Kategori</option>
           <option value="akademik">Akademik</option>
@@ -109,7 +125,7 @@ export const StudentJournalsList: React.FC = () => {
         <select 
           value={filterClass}
           onChange={(e) => setFilterClass(e.target.value)}
-          className="border rounded-md px-3 py-1.5 text-sm bg-background outline-none focus:ring-2 focus:ring-primary/50"
+          className="border border-input rounded-lg px-3 py-2 text-sm bg-background outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all hover:bg-muted/30"
         >
           <option value="">Semua Kelas</option>
           {classesData?.data?.map((c: any) => (
@@ -120,7 +136,7 @@ export const StudentJournalsList: React.FC = () => {
         <select 
           value={filterVisibility}
           onChange={(e) => setFilterVisibility(e.target.value)}
-          className="border rounded-md px-3 py-1.5 text-sm bg-background outline-none focus:ring-2 focus:ring-primary/50"
+          className="border border-input rounded-lg px-3 py-2 text-sm bg-background outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all hover:bg-muted/30"
         >
           <option value="">Semua Visibilitas</option>
           <option value="internal">Hanya Internal (Sekolah)</option>
@@ -130,7 +146,7 @@ export const StudentJournalsList: React.FC = () => {
         <select 
           value={filterSemesterId}
           onChange={(e) => setFilterSemesterId(e.target.value)}
-          className="border rounded-md px-3 py-1.5 text-sm bg-background outline-none focus:ring-2 focus:ring-primary/50"
+          className="border border-input rounded-lg px-3 py-2 text-sm bg-background outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all hover:bg-muted/30"
         >
           <option value="">Semua Semester (Tahun Aktif)</option>
           {semestersData?.data?.map((sem: any) => (
@@ -195,12 +211,12 @@ export const StudentJournalsList: React.FC = () => {
                   <div className="flex sm:flex-col items-center sm:items-end gap-2 sm:pl-4 sm:border-l shrink-0 pt-2 sm:pt-0">
                      <button 
                       onClick={() => navigate(`/student-journals/edit/${journal.id}`)}
-                      className="p-1.5 text-muted-foreground hover:text-primary transition-colors bg-muted rounded-md"
+                      className="p-2 text-blue-600 hover:text-blue-700 transition-colors bg-blue-50 hover:bg-blue-100 rounded-lg"
                       title="Edit Jurnal"
                     ><Edit className="w-4 h-4"/></button>
                     <button 
-                      onClick={() => { if(confirm('Hapus rekam jejak ini?')) deleteJournal({ resource: "student_journals", id: journal.id as string }) }}
-                      className="p-1.5 text-muted-foreground hover:text-destructive transition-colors bg-muted rounded-md"
+                      onClick={() => setDeleteConfirmId(journal.id)}
+                      className="p-2 text-red-600 hover:text-red-700 transition-colors bg-red-50 hover:bg-red-100 rounded-lg"
                       title="Hapus Jurnal"
                     ><Trash2 className="w-4 h-4"/></button>
                   </div>
@@ -216,6 +232,32 @@ export const StudentJournalsList: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirmId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 text-center p-8 relative">
+            <button onClick={() => setDeleteConfirmId(null)} className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-full transition-colors">
+              <X className="w-4 h-4" />
+            </button>
+            <div className="w-16 h-16 bg-red-100 text-red-500 rounded-full flex items-center justify-center mx-auto mb-5">
+              <AlertCircle className="w-8 h-8" />
+            </div>
+            <h3 className="text-xl font-bold text-gray-900 mb-2">Hapus Jurnal?</h3>
+            <p className="text-gray-500 text-sm mb-8 leading-relaxed">
+              Anda yakin ingin menghapus catatan rekam jejak ini? Data yang telah dihapus tidak dapat dikembalikan.
+            </p>
+            <div className="flex gap-3 justify-center">
+              <button onClick={() => setDeleteConfirmId(null)} className="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-semibold text-sm transition-colors flex-1">
+                Batal
+              </button>
+              <button onClick={handleDelete} className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold text-sm transition-colors flex-1">
+                Ya, Hapus
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

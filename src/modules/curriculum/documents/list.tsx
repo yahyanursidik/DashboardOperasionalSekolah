@@ -4,6 +4,7 @@ import { useList, useDelete } from "@refinedev/core";
 import { flexRender } from "@tanstack/react-table";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useNavigate, Link } from "react-router-dom";
+import { toast } from "sonner";
 import { FileText, Plus, Trash2, ArrowLeft, ExternalLink, Download } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { useCurrentUnit } from "../../../app/providers/UnitProvider";
@@ -100,7 +101,17 @@ export const CurriculumDocumentsList: React.FC = () => {
               <button
                 onClick={() => {
                   if (confirm("Hapus dokumen ini secara permanen?")) {
-                    deleteDocument({ resource: "curriculum_documents", id });
+                    deleteDocument(
+                      { resource: "curriculum_documents", id },
+                      {
+                        onSuccess: () => {
+                          toast.success("Dokumen berhasil dihapus");
+                        },
+                        onError: (error) => {
+                          toast.error("Gagal menghapus dokumen: " + error.message);
+                        }
+                      }
+                    );
                   }
                 }}
                 className="p-1.5 text-muted-foreground hover:text-rose-600 transition-colors rounded-md hover:bg-rose-50"

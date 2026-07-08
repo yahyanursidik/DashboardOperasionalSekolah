@@ -4,6 +4,7 @@ import { useList, useDelete } from "@refinedev/core";
 import { flexRender } from "@tanstack/react-table";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useNavigate, Link } from "react-router-dom";
+import { toast } from "sonner";
 import { Edit, Plus, Trash2, ArrowLeft, Palette } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { useCurrentUnit } from "../../../app/providers/UnitProvider";
@@ -25,7 +26,7 @@ export const PaudThemeList: React.FC = () => {
           if (val === 0) label = "TK A";
           if (val === 1) label = "TK B";
           if (val === -1) label = "KB (Kelompok Bermain)";
-          return <span className="font-semibold text-rose-700">{label}</span>;
+          return <span className="font-semibold text-primary">{label}</span>;
         },
       },
       {
@@ -54,7 +55,17 @@ export const PaudThemeList: React.FC = () => {
               <button
                 onClick={() => {
                   if (confirm("Apakah Anda yakin ingin menghapus kurikulum ini?")) {
-                    deleteTheme({ resource: "paud_curriculums", id });
+                    deleteTheme(
+                      { resource: "paud_curriculums", id },
+                      {
+                        onSuccess: () => {
+                          toast.success("Kurikulum PAUD berhasil dihapus");
+                        },
+                        onError: (error) => {
+                          toast.error("Gagal menghapus kurikulum PAUD: " + error.message);
+                        }
+                      }
+                    );
                   }
                 }}
                 className="p-1.5 text-muted-foreground hover:text-rose-600 transition-colors rounded-md hover:bg-rose-50"
@@ -96,7 +107,7 @@ export const PaudThemeList: React.FC = () => {
           action={
             <Link
               to="/curriculum/paud/create"
-              className="flex items-center gap-2 bg-rose-600 text-white px-4 py-2 rounded-md hover:bg-rose-700 transition-colors shadow-sm font-medium text-sm"
+              className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition-colors shadow-sm font-medium text-sm"
             >
               <Plus className="w-4 h-4" /> Tambah Kurikulum Baru
             </Link>
@@ -104,10 +115,10 @@ export const PaudThemeList: React.FC = () => {
         />
       </div>
 
-      <div className="bg-card rounded-xl border shadow-sm overflow-hidden border-rose-100">
+      <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
-            <thead className="text-xs text-rose-800 uppercase bg-rose-50 border-b border-rose-100">
+            <thead className="text-xs text-muted-foreground uppercase bg-muted/50 border-b">
               {getHeaderGroups().map((headerGroup) => (
                 <tr key={headerGroup.id}>
                   {headerGroup.headers.map((header) => (

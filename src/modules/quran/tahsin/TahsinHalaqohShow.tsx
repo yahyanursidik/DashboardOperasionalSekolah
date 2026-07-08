@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useShow, useList, useCreate, useDelete } from "@refinedev/core";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, Users, UserPlus, Trash2, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Users, UserPlus, Trash2, CheckCircle2, Search, Filter } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
 
 export const TahsinHalaqohShow: React.FC = () => {
@@ -9,8 +9,14 @@ export const TahsinHalaqohShow: React.FC = () => {
   const [isAdding, setIsAdding] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState("");
 
+  // Search and Filters
+  const [memberSearch, setMemberSearch] = useState("");
+  const [filterUnit, setFilterUnit] = useState("");
+  const [filterClass, setFilterClass] = useState("");
+  const [studentSearch, setStudentSearch] = useState("");
+
   const { queryResult } = useShow({
-    resource: "tahsin_halaqohs",
+    resource: "tahfidz_halaqohs",
     id,
     meta: { select: "*, employees(full_name)" }
   });
@@ -26,15 +32,61 @@ export const TahsinHalaqohShow: React.FC = () => {
   const members = membersData?.data || [];
   const memberStudentIds = members.map(m => m.student_id);
 
+  // Filter members by search
+  const filteredMembers = useMemo(() => {
+    if (!memberSearch) return members;
+    return members.filter(m => 
+      m.students?.full_name?.toLowerCase().includes(memberSearch.toLowerCase()) ||
+      m.students?.nis?.includes(memberSearch)
+    );
+  }, [members, memberSearch]);
+
   // Fetch all active students for dropdown
   const { data: allStudents } = useList({
     resource: "students",
     filters: [{ field: "status", operator: "eq", value: "active" }],
-    meta: { select: "id, full_name, classes(name)" },
+    meta: { select: "id, full_name, class_id, classes(name, unit_id, units(id, name))" },
     pagination: { mode: "off" }
   });
 
-  const availableStudents = allStudents?.data?.filter(s => !memberStudentIds.includes(s.id)) || [];
+  // Extract unique units and classes for filter dropdowns
+  const availableUnits = useMemo(() => {
+    const unitsMap = new Map();
+    allStudents?.data?.forEach(s => {
+      const u = s.classes?.units;
+      if (u && !unitsMap.has(u.id)) {
+        unitsMap.set(u.id, { id: u.id, name: u.name });
+      }
+    });
+    return Array.from(unitsMap.values());
+  }, [allStudents?.data]);
+
+  const availableClasses = useMemo(() => {
+    const classesMap = new Map();
+    allStudents?.data?.forEach(s => {
+      const c = s.classes;
+      if (c && (!filterUnit || c.unit_id === filterUnit) && !classesMap.has(s.class_id)) {
+        classesMap.set(s.class_id, { id: s.class_id, name: c.name });
+      }
+    });
+    return Array.from(classesMap.values());
+  }, [allStudents?.data, filterUnit]);
+
+  const availableStudents = useMemo(() => {
+    let list = allStudents?.data?.filter(s => !memberStudentIds.includes(s.id)) || [];
+    
+    if (filterUnit) {
+      list = list.filter(s => s.classes?.unit_id === filterUnit);
+    }
+    if (filterClass) {
+      list = list.filter(s => s.class_id === filterClass);
+    }
+    if (studentSearch) {
+      list = list.filter(s => s.full_name?.toLowerCase().includes(studentSearch.toLowerCase()));
+    }
+    
+    return list;
+  }, [allStudents?.data, memberStudentIds, filterUnit, filterClass, studentSearch]);
 
   const { mutate: createMutate, isLoading: isCreating } = useCreate();
   const { mutate: deleteMutate } = useDelete();
@@ -117,28 +169,93 @@ export const TahsinHalaqohShow: React.FC = () => {
         {/* Members List */}
         <div className="col-span-1 md:col-span-2 space-y-6">
           <div className="bg-card border rounded-xl shadow-sm overflow-hidden flex flex-col h-full">
-            <div className="p-4 border-b flex items-center justify-between bg-muted/20">
+            <div className="p-4 border-b flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-muted/20">
               <h3 className="font-semibold text-lg">Daftar Anggota Santri</h3>
-              <button
-                onClick={() => setIsAdding(!isAdding)}
-                className="flex items-center gap-2 bg-emerald-600 text-white px-3 py-1.5 rounded-lg hover:bg-emerald-700 transition-colors shadow-sm text-sm font-medium"
-              >
-                {isAdding ? <XIcon className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
-                {isAdding ? "Batal" : "Tambah Anggota"}
-              </button>
+              <div className="flex items-center gap-3 w-full sm:w-auto">
+                <div className="relative flex-1 sm:w-48">
+                  <input
+                    type="text"
+                    placeholder="Cari anggota..."
+                    value={memberSearch}
+                    onChange={(e) => setMemberSearch(e.target.value)}
+                    className="w-full pl-9 pr-3 py-1.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  />
+                  <Search className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
+                </div>
+                <button
+                  onClick={() => setIsAdding(!isAdding)}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors shadow-sm text-sm font-medium whitespace-nowrap ${
+                    isAdding 
+                      ? 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200' 
+                      : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                  }`}
+                >
+                  {isAdding ? <XIcon className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
+                  {isAdding ? "Batal" : "Tambah Anggota"}
+                </button>
+              </div>
             </div>
 
             {isAdding && (
-              <div className="p-4 bg-emerald-50 border-b border-emerald-100">
-                <form onSubmit={handleAddMember} className="flex gap-2">
+              <div className="p-4 bg-emerald-50/50 border-b border-emerald-100 space-y-4">
+                <div className="flex items-center gap-2 text-sm text-emerald-800 font-medium">
+                  <Filter className="w-4 h-4" /> Filter Pencarian Santri
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <select
+                    value={filterUnit}
+                    onChange={(e) => {
+                      setFilterUnit(e.target.value);
+                      setFilterClass("");
+                      setSelectedStudent("");
+                    }}
+                    className="w-full flex h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:ring-emerald-500/20"
+                  >
+                    <option value="">Semua Unit</option>
+                    {availableUnits.map((u: any) => (
+                      <option key={u.id} value={u.id}>{u.name}</option>
+                    ))}
+                  </select>
+                  
+                  <select
+                    value={filterClass}
+                    onChange={(e) => {
+                      setFilterClass(e.target.value);
+                      setSelectedStudent("");
+                    }}
+                    disabled={!filterUnit}
+                    className="w-full flex h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:ring-emerald-500/20 disabled:opacity-50"
+                  >
+                    <option value="">Semua Kelas</option>
+                    {availableClasses.map((c: any) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="Cari nama santri..."
+                      value={studentSearch}
+                      onChange={(e) => {
+                        setStudentSearch(e.target.value);
+                        setSelectedStudent("");
+                      }}
+                      className="w-full pl-8 pr-3 py-1 h-9 border rounded-md text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                    />
+                    <Search className="w-3.5 h-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2" />
+                  </div>
+                </div>
+
+                <form onSubmit={handleAddMember} className="flex flex-col sm:flex-row gap-3 pt-2">
                   <select
                     required
                     value={selectedStudent}
                     onChange={(e) => setSelectedStudent(e.target.value)}
-                    className="flex-1 flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                    className="flex-1 flex h-10 rounded-md border border-emerald-200 bg-white px-3 py-2 text-sm shadow-sm focus:ring-emerald-500/20"
                   >
-                    <option value="">-- Pilih Santri --</option>
-                    {availableStudents.map(student => (
+                    <option value="">-- Pilih Santri dari Hasil Filter -- ({availableStudents.length} tersedia)</option>
+                    {availableStudents.map((student: any) => (
                       <option key={student.id} value={student.id}>
                         {student.full_name} ({student.classes?.name || "Tanpa Kelas"})
                       </option>
@@ -147,7 +264,7 @@ export const TahsinHalaqohShow: React.FC = () => {
                   <button
                     type="submit"
                     disabled={isCreating || !selectedStudent}
-                    className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors shadow-sm font-medium disabled:opacity-50"
+                    className="flex-none flex items-center justify-center gap-2 bg-emerald-600 text-white px-6 py-2 rounded-lg hover:bg-emerald-700 transition-colors shadow-sm font-medium disabled:opacity-50"
                   >
                     <CheckCircle2 className="w-4 h-4" />
                     Simpan
@@ -173,16 +290,15 @@ export const TahsinHalaqohShow: React.FC = () => {
                         Memuat data anggota...
                       </td>
                     </tr>
-                  ) : members.length === 0 ? (
+                  ) : filteredMembers.length === 0 ? (
                     <tr>
                       <td colSpan={4} className="px-6 py-12 text-center">
                         <Users className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
-                        <p className="text-muted-foreground font-medium">Belum ada anggota di halaqoh tahsin ini</p>
-                        <p className="text-sm text-muted-foreground/80 mt-1">Klik tombol Tambah Anggota untuk memasukkan santri.</p>
+                        <p className="text-muted-foreground font-medium">Belum ada anggota yang cocok dengan pencarian.</p>
                       </td>
                     </tr>
                   ) : (
-                    members.map((member) => (
+                    filteredMembers.map((member) => (
                       <tr key={member.id} className="hover:bg-muted/30 transition-colors">
                         <td className="px-6 py-4 font-bold text-gray-900">{member.students?.full_name}</td>
                         <td className="px-6 py-4">{member.students?.classes?.name || "-"}</td>

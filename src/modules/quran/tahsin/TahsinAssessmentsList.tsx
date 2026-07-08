@@ -1,7 +1,7 @@
 import React from "react";
-import { useList, useDelete } from "@refinedev/core";
+import { useList, useDelete, useSelect } from "@refinedev/core";
 import { Link } from "react-router-dom";
-import { Plus, Award, Trash2, Edit } from "lucide-react";
+import { Plus, Award, Trash2, Edit, Search } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { useAcademicYear } from "../../../app/providers/AcademicYearProvider";
 
@@ -9,13 +9,41 @@ export const TahsinAssessmentsList: React.FC = () => {
   const { activeYearId, activeSemesterId } = useAcademicYear();
   const { mutate: deleteMutate } = useDelete();
   
+  const [selectedHalaqoh, setSelectedHalaqoh] = React.useState<string>("");
+  const [search, setSearch] = React.useState("");
+
+  const { options: halaqohOptions } = useSelect({
+    resource: "tahfidz_halaqohs",
+    optionLabel: "name",
+    optionValue: "id",
+    filters: [
+      { field: "program_type", operator: "eq", value: "tahsin" }
+    ],
+    sorters: [{ field: "name", order: "asc" }],
+  });
+
+  const filters: any[] = [
+    { field: "academic_year_id", operator: "eq", value: activeYearId },
+    { field: "semester_id", operator: "eq", value: activeSemesterId },
+    { field: "assessment_type", operator: "eq", value: "tahsin_jilid" }
+  ];
+
+  if (selectedHalaqoh) {
+    // Note: quran_assessments does not have halaqoh_id column directly.
+    // However, we want to filter by students in that halaqoh.
+    // The easiest way on the frontend without a complex join is to fetch members first, 
+    // but Refine's supabase provider might not support this easily without a custom query.
+    // Actually, quran_assessments doesn't link to halaqoh_id directly in the table. 
+    // To keep it simple, we will just filter on the client side below.
+  }
+
+  if (search) {
+    filters.push({ field: "students.full_name", operator: "contains", value: search });
+  }
+
   const { data, isLoading } = useList({
     resource: "quran_assessments",
-    filters: [
-      { field: "academic_year_id", operator: "eq", value: activeYearId },
-      { field: "semester_id", operator: "eq", value: activeSemesterId },
-      { field: "assessment_type", operator: "eq", value: "tahsin_jilid" }
-    ],
+    filters,
     sorters: [
       { field: "date", order: "desc" }
     ],
@@ -24,7 +52,19 @@ export const TahsinAssessmentsList: React.FC = () => {
     }
   });
 
-  const records = data?.data || [];
+  const { data: halaqohMembers } = useList({
+    resource: "tahfidz_halaqoh_members",
+    filters: [{ field: "halaqoh_id", operator: "eq", value: selectedHalaqoh }],
+    queryOptions: { enabled: !!selectedHalaqoh },
+    pagination: { mode: "off" }
+  });
+
+  let records = data?.data || [];
+
+  if (selectedHalaqoh && halaqohMembers?.data) {
+    const validStudentIds = halaqohMembers.data.map((m: any) => m.student_id);
+    records = records.filter(r => validStudentIds.includes(r.student_id));
+  }
 
   return (
     <div className="space-y-6">
@@ -33,10 +73,32 @@ export const TahsinAssessmentsList: React.FC = () => {
         description="Data ujian kenaikan jilid tahsin santri."
       />
 
-      <div className="flex justify-end">
+      <div className="flex justify-between items-center gap-4">
+        <div className="flex flex-1 gap-2 max-w-2xl">
+          <select
+            value={selectedHalaqoh}
+            onChange={(e) => setSelectedHalaqoh(e.target.value)}
+            className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background flex-1"
+          >
+            <option value="">Semua Halaqoh Tahsin</option>
+            {halaqohOptions?.map(opt => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder="Cari nama siswa..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none h-10"
+            />
+          </div>
+        </div>
         <Link
           to="/tahsin-assessments/create"
-          className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors shadow-sm text-sm font-medium"
+          className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors shadow-sm text-sm font-medium whitespace-nowrap"
         >
           <Plus className="w-4 h-4" />
           Input Nilai Ujian Jilid
@@ -91,10 +153,10 @@ export const TahsinAssessmentsList: React.FC = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`px-2 py-1 rounded-md text-xs font-bold uppercase tracking-wider ${
-                        record.status === 'Lulus' ? 'bg-emerald-100 text-emerald-700' :
-                        record.status === 'Lulus Bersyarat' ? 'bg-amber-100 text-amber-700' :
-                        'bg-red-100 text-red-700'
+                      <span className={`px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider border ${
+                        record.status === 'Lulus' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                        record.status === 'Lulus Bersyarat' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                        'bg-red-50 text-red-700 border-red-200'
                       }`}>
                         {record.status || 'Lulus'}
                       </span>

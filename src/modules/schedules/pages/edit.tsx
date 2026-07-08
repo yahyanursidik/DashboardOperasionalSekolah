@@ -34,7 +34,7 @@ export const ScheduleEdit: React.FC = () => {
   const [endTime, setEndTime] = useState("15:00");
   const [scheduleType, setScheduleType] = useState("mengajar");
   const [classId, setClassId] = useState("");
-  const [subject, setSubject] = useState("");
+  const [subjectId, setSubjectId] = useState("");
   const [selectedUnitId, setSelectedUnitId] = useState(activeUnitId || "");
   const [isInit, setIsInit] = useState(false);
 
@@ -53,7 +53,7 @@ export const ScheduleEdit: React.FC = () => {
       setEndTime(sch.end_time.slice(0, 5));
       setScheduleType(sch.schedule_type);
       setClassId(sch.class_id || "");
-      setSubject(sch.subject || "");
+      setSubjectId(sch.subject_id || "");
       setSelectedUnitId(sch.unit_id || activeUnitId || "");
       setIsInit(true);
     }
@@ -73,6 +73,16 @@ export const ScheduleEdit: React.FC = () => {
     filters: selectedUnitId ? [{ field: "unit_id", operator: "eq", value: selectedUnitId }] : []
   });
 
+  const { options: subjectOptions } = useSelect({
+    resource: "subjects",
+    optionLabel: "name",
+    optionValue: "id",
+    filters: [
+      { field: "is_active", operator: "eq", value: true },
+      ...(selectedUnitId ? [{ field: "unit_id", operator: "eq", value: selectedUnitId }] : [])
+    ]
+  });
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!employeeId) return toast.error("Pilih pegawai terlebih dahulu");
@@ -87,7 +97,8 @@ export const ScheduleEdit: React.FC = () => {
         end_time: endTime,
         schedule_type: scheduleType,
         class_id: scheduleType === 'mengajar' ? (classId || null) : null,
-        subject: scheduleType === 'mengajar' ? subject : null,
+        subject_id: scheduleType === 'mengajar' ? (subjectId || null) : null,
+        subject: null, // deprecated field
         academic_year_id: activeYearId,
         unit_id: selectedUnitId || activeUnitId
       },
@@ -195,14 +206,16 @@ export const ScheduleEdit: React.FC = () => {
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Mata Pelajaran (Opsional)</label>
-                  <input
-                    type="text"
-                    placeholder="Contoh: Matematika"
-                    value={subject}
-                    onChange={(e) => setSubject(e.target.value)}
+                  <label className="text-sm font-medium">Mata Pelajaran <span className="text-destructive">*</span></label>
+                  <select
+                    required={scheduleType === 'mengajar'}
+                    value={subjectId}
+                    onChange={(e) => setSubjectId(e.target.value)}
                     className="w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-primary/50 outline-none bg-background"
-                  />
+                  >
+                    <option value="">-- Pilih Mata Pelajaran --</option>
+                    {subjectOptions?.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
                 </div>
               </>
             )}

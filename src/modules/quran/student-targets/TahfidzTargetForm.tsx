@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useForm, useSelect } from "@refinedev/core";
+import { useForm, useSelect, useList } from "@refinedev/core";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Save, BookOpen } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
@@ -33,13 +33,51 @@ export const TahfidzTargetForm: React.FC = () => {
     }
   }, [record]);
 
-  const { options: studentOptions } = useSelect({
-    resource: "students",
-    optionLabel: "name",
-    optionValue: "id",
-    filters: [{ field: "status", operator: "eq", value: "Aktif" }],
-    sorters: [{ field: "name", order: "asc" }],
+  const [selectedHalaqoh, setSelectedHalaqoh] = useState<string>("");
+
+  // Fetch available halaqohs
+  const { data: halaqohsData, isLoading: isLoadingHalaqohs } = useList({
+    resource: "tahfidz_halaqohs",
+    pagination: { mode: "off" }
   });
+  const halaqohs = halaqohsData?.data || [];
+
+  // Fetch members of the selected halaqoh
+  const { data: membersData, isLoading: isLoadingStudents } = useList({
+    resource: "tahfidz_halaqoh_members",
+    filters: [{ field: "halaqoh_id", operator: "eq", value: selectedHalaqoh }],
+    queryOptions: { enabled: !!selectedHalaqoh },
+    meta: { select: "*, students(id, full_name, classes(name, units(name)))" },
+    pagination: { mode: "off" }
+  });
+
+  const members = membersData?.data || [];
+
+  const [selectedSurahs, setSelectedSurahs] = useState<string[]>([]);
+  const [surahSearch, setSurahSearch] = useState("");
+
+  const toggleSurah = (surah: string) => {
+    let newSelected;
+    if (selectedSurahs.includes(surah)) {
+      newSelected = selectedSurahs.filter(s => s !== surah);
+    } else {
+      newSelected = [...selectedSurahs, surah];
+    }
+    
+    setSelectedSurahs(newSelected);
+    
+    if (newSelected.length > 0) {
+      if (newSelected.length === 1) {
+        setDescription(`Hafalan Surah ${newSelected[0]}`);
+      } else {
+        setDescription(`Hafalan Surah ${newSelected[0]} - ${newSelected[newSelected.length - 1]}`);
+      }
+    } else {
+      setDescription("");
+    }
+  };
+
+  const filteredSurahs = QURAN_SURAHS.filter(s => s.toLowerCase().includes(surahSearch.toLowerCase()));
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -59,16 +97,7 @@ export const TahfidzTargetForm: React.FC = () => {
     onFinish(data);
   };
 
-  const handleSurahSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const selected = Array.from(e.target.selectedOptions, option => option.value);
-    if (selected.length > 0) {
-      if (selected.length === 1) {
-        setDescription(`Hafalan Surah ${selected[0]}`);
-      } else {
-        setDescription(`Hafalan Surah ${selected[0]} - ${selected[selected.length - 1]}`);
-      }
-    }
-  };
+  // handleSurahSelect is removed because we use custom toggle
 
   return (
     <div className="space-y-6 max-w-2xl mx-auto">
@@ -89,6 +118,21 @@ export const TahfidzTargetForm: React.FC = () => {
       <form onSubmit={handleSubmit} className="bg-card border rounded-xl shadow-sm overflow-hidden">
         <div className="p-6 space-y-4">
           
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Halaqoh / Kelompok Tahfidz</label>
+            <select
+              value={selectedHalaqoh}
+              onChange={(e) => setSelectedHalaqoh(e.target.value)}
+              disabled={isEdit}
+              className="w-full flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background disabled:opacity-50"
+            >
+              <option value="">-- Pilih Halaqoh --</option>
+              {halaqohs.map(h => (
+                <option key={h.id} value={h.id}>{h.name}</option>
+              ))}
+            </select>
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Santri</label>
@@ -96,13 +140,21 @@ export const TahfidzTargetForm: React.FC = () => {
                 name="student_id"
                 required
                 defaultValue={record?.student_id || ""}
-                disabled={isEdit}
+                disabled={isEdit || !selectedHalaqoh}
                 className="w-full flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background disabled:cursor-not-allowed disabled:opacity-50"
               >
-                <option value="">-- Pilih Santri --</option>
-                {studentOptions?.map(opt => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
+                <option value="">
+                  {selectedHalaqoh ? "-- Pilih Santri dari Halaqoh --" : "-- Pilih Halaqoh Terlebih Dahulu --"}
+                </option>
+                {members.map(member => {
+                  const student = member.students;
+                  if (!student) return null;
+                  return (
+                    <option key={student.id} value={student.id}>
+                      {student.full_name} ({student.classes?.units?.name || "Tanpa Unit"} - {student.classes?.name || "Tanpa Kelas"})
+                    </option>
+                  );
+                })}
               </select>
             </div>
             <div className="space-y-2">
@@ -121,21 +173,58 @@ export const TahfidzTargetForm: React.FC = () => {
           </div>
 
           {targetType === "tahfidz" && (
-            <div className="space-y-2 bg-emerald-50 dark:bg-emerald-950/20 p-4 rounded-lg border border-emerald-100 dark:border-emerald-900/30">
-              <label className="text-sm font-medium flex items-center gap-2 text-emerald-800 dark:text-emerald-300">
-                <BookOpen className="w-4 h-4" />
-                Pilih Surah (Opsional)
-              </label>
-              <p className="text-xs text-emerald-600 dark:text-emerald-400 mb-2">Pilih satu atau lebih surat untuk otomatis mengisi deskripsi target (tahan Ctrl/Cmd untuk memilih lebih dari satu).</p>
-              <select 
-                multiple
-                onChange={handleSurahSelect}
-                className="w-full h-32 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-              >
-                {QURAN_SURAHS.map((surah, i) => (
-                  <option key={i} value={surah}>{i + 1}. {surah}</option>
-                ))}
-              </select>
+            <div className="space-y-3 bg-emerald-50/50 p-4 rounded-xl border border-emerald-100">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <label className="text-sm font-semibold flex items-center gap-2 text-emerald-800">
+                  <BookOpen className="w-4 h-4" />
+                  Pilih Surah Target (Opsional)
+                </label>
+                <div className="relative w-full sm:w-64">
+                  <input
+                    type="text"
+                    placeholder="Cari surah..."
+                    value={surahSearch}
+                    onChange={(e) => setSurahSearch(e.target.value)}
+                    className="w-full h-8 px-3 rounded-md border-emerald-200 text-xs focus:ring-emerald-500/20"
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-emerald-600 mb-2">
+                Klik surah di bawah ini untuk memilih. Deskripsi akan otomatis terisi berdasarkan surah yang Anda pilih.
+              </p>
+              
+              <div className="h-40 overflow-y-auto bg-white border border-emerald-100 rounded-lg p-3">
+                <div className="flex flex-wrap gap-2">
+                  {filteredSurahs.map((surah) => {
+                    const index = QURAN_SURAHS.indexOf(surah) + 1;
+                    const isSelected = selectedSurahs.includes(surah);
+                    return (
+                      <button
+                        key={surah}
+                        type="button"
+                        onClick={() => toggleSurah(surah)}
+                        className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
+                          isSelected 
+                            ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' 
+                            : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                        }`}
+                      >
+                        {index}. {surah}
+                      </button>
+                    );
+                  })}
+                  {filteredSurahs.length === 0 && (
+                    <p className="text-xs text-muted-foreground italic p-2">Surah tidak ditemukan</p>
+                  )}
+                </div>
+              </div>
+              
+              {selectedSurahs.length > 0 && (
+                <div className="flex items-center gap-2 text-xs text-emerald-700">
+                  <span className="font-medium">Terpilih ({selectedSurahs.length}):</span> 
+                  <span className="truncate">{selectedSurahs.join(", ")}</span>
+                </div>
+              )}
             </div>
           )}
 

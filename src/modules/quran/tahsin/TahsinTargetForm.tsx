@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { useForm, useSelect } from "@refinedev/core";
+import { useForm, useSelect, useList } from "@refinedev/core";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Save, BookOpen } from "lucide-react";
+import { ArrowLeft, Save, Target } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { useAcademicYear } from "../../../app/providers/AcademicYearProvider";
 
@@ -27,13 +27,30 @@ export const TahsinTargetForm: React.FC = () => {
     }
   }, [record]);
 
-  const { options: studentOptions } = useSelect({
-    resource: "students",
-    optionLabel: "full_name",
-    optionValue: "id",
-    filters: [{ field: "status", operator: "eq", value: "active" }],
-    sorters: [{ field: "full_name", order: "asc" }],
+  const [selectedHalaqoh, setSelectedHalaqoh] = useState<string>("");
+
+  // Fetch available halaqohs for Tahsin
+  const { data: halaqohsData } = useList({
+    resource: "tahfidz_halaqohs",
+    filters: [
+      { field: "program_type", operator: "eq", value: "tahsin" },
+      ...(activeYearId ? [{ field: "academic_year_id", operator: "eq" as const, value: activeYearId }] : []),
+      ...(activeSemesterId ? [{ field: "semester_id", operator: "eq" as const, value: activeSemesterId }] : [])
+    ],
+    pagination: { mode: "off" }
   });
+  const halaqohs = halaqohsData?.data || [];
+
+  // Fetch members of the selected halaqoh
+  const { data: membersData, isLoading: isLoadingStudents } = useList({
+    resource: "tahfidz_halaqoh_members",
+    filters: [{ field: "halaqoh_id", operator: "eq", value: selectedHalaqoh }],
+    queryOptions: { enabled: !!selectedHalaqoh },
+    meta: { select: "*, students(id, full_name, classes(name, units(name)))" },
+    pagination: { mode: "off" }
+  });
+
+  const members = membersData?.data || [];
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -70,21 +87,54 @@ export const TahsinTargetForm: React.FC = () => {
       </div>
 
       <form onSubmit={handleSubmit} className="bg-card border rounded-xl shadow-sm overflow-hidden">
+        
+        {/* Identitas Program */}
+        <div className="p-6 border-b bg-emerald-500/10 flex items-center gap-3">
+           <Target className="w-6 h-6 text-emerald-600" />
+           <div>
+             <h2 className="font-semibold text-emerald-800 text-lg">Target Tahsin & Tilawah</h2>
+             <p className="text-sm text-emerald-700/80">Input target bacaan per santri.</p>
+           </div>
+        </div>
+
         <div className="p-6 space-y-4">
           
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Halaqoh Tahsin</label>
+            <select
+              value={selectedHalaqoh}
+              onChange={(e) => setSelectedHalaqoh(e.target.value)}
+              disabled={isEdit}
+              className="w-full flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background disabled:opacity-50"
+            >
+              <option value="">-- Pilih Halaqoh Tahsin --</option>
+              {halaqohs.map(h => (
+                <option key={h.id} value={h.id}>{h.name}</option>
+              ))}
+            </select>
+          </div>
+
           <div className="space-y-2">
             <label className="text-sm font-medium">Santri</label>
             <select
               name="student_id"
               required
               defaultValue={record?.student_id || ""}
-              disabled={isEdit}
+              disabled={isEdit || !selectedHalaqoh || isLoadingStudents}
               className="w-full flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <option value="">-- Pilih Santri --</option>
-              {studentOptions?.map(opt => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
+              <option value="">
+                {selectedHalaqoh ? "-- Pilih Santri dari Halaqoh --" : "-- Pilih Halaqoh Terlebih Dahulu --"}
+              </option>
+              {members.map(member => {
+                const student = member.students;
+                if (!student) return null;
+                return (
+                  <option key={student.id} value={student.id}>
+                    {student.full_name} ({student.classes?.units?.name || "Tanpa Unit"} - {student.classes?.name || "Tanpa Kelas"})
+                  </option>
+                );
+              })}
             </select>
           </div>
 
@@ -148,7 +198,7 @@ export const TahsinTargetForm: React.FC = () => {
           <button
             type="submit"
             disabled={formLoading}
-            className="flex items-center gap-2 bg-primary text-primary-foreground px-6 py-2 rounded-lg hover:bg-primary/90 transition-colors shadow-sm font-medium disabled:opacity-50"
+            className="flex items-center gap-2 bg-emerald-600 text-white px-6 py-2 rounded-lg hover:bg-emerald-700 transition-colors shadow-sm font-medium disabled:opacity-50"
           >
             <Save className="w-4 h-4" />
             {formLoading ? "Menyimpan..." : "Simpan Target"}

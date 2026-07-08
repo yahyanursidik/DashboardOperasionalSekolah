@@ -18,29 +18,23 @@ import { Award, BookOpen, Target, TrendingUp } from "lucide-react";
 
 export const TahfidzReportDashboard: React.FC = () => {
   const { activeYearId, activeSemesterId } = useAcademicYear();
-  const [selectedClassId, setSelectedClassId] = useState<string>("");
+  const [selectedHalaqoh, setSelectedHalaqoh] = useState<string>("");
   const [selectedStudentId, setSelectedStudentId] = useState<string>("");
 
-  const { options: classOptions } = useSelect({
-    resource: "classes",
-    optionLabel: "name",
-    optionValue: "id",
-    sorters: [{ field: "name", order: "asc" }],
+  const { data: halaqohsData } = useList({
+    resource: "tahfidz_halaqohs",
+    pagination: { mode: "off" }
   });
+  const halaqohs = halaqohsData?.data || [];
 
-  const { options: studentOptions } = useSelect({
-    resource: "students",
-    optionLabel: "full_name",
-    optionValue: "id",
-    filters: selectedClassId ? [
-      { field: "class_id", operator: "eq", value: selectedClassId },
-      { field: "status", operator: "eq", value: "active" }
-    ] : [],
-    queryOptions: {
-      enabled: !!selectedClassId,
-    },
-    sorters: [{ field: "full_name", order: "asc" }],
+  const { data: membersData } = useList({
+    resource: "tahfidz_halaqoh_members",
+    filters: [{ field: "halaqoh_id", operator: "eq", value: selectedHalaqoh }],
+    queryOptions: { enabled: !!selectedHalaqoh },
+    meta: { select: "*, students(id, full_name, class_id, classes(name, units(name)))" },
+    pagination: { mode: "off" }
   });
+  const members = membersData?.data || [];
 
   // Fetch Student Targets
   const { data: targetsData } = useList({
@@ -128,18 +122,18 @@ export const TahfidzReportDashboard: React.FC = () => {
       {/* Filter Section */}
       <div className="bg-card p-4 border rounded-xl shadow-sm flex flex-wrap gap-4 items-end">
         <div className="space-y-1.5 flex-1 min-w-[200px]">
-          <label className="text-xs font-medium text-muted-foreground">Pilih Kelas</label>
+          <label className="text-xs font-medium text-muted-foreground">Pilih Halaqoh</label>
           <select
-            value={selectedClassId}
+            value={selectedHalaqoh}
             onChange={(e) => {
-              setSelectedClassId(e.target.value);
+              setSelectedHalaqoh(e.target.value);
               setSelectedStudentId("");
             }}
             className="w-full flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
           >
-            <option value="">Semua Kelas</option>
-            {classOptions?.map(opt => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            <option value="">Semua Halaqoh</option>
+            {halaqohs.map(opt => (
+              <option key={opt.id} value={opt.id}>{opt.name}</option>
             ))}
           </select>
         </div>
@@ -148,13 +142,19 @@ export const TahfidzReportDashboard: React.FC = () => {
           <select
             value={selectedStudentId}
             onChange={(e) => setSelectedStudentId(e.target.value)}
-            disabled={!selectedClassId}
+            disabled={!selectedHalaqoh}
             className="w-full flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background disabled:opacity-50"
           >
             <option value="">-- Pilih Santri --</option>
-            {studentOptions?.map(opt => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
+            {members.map(member => {
+              const student = member.students;
+              if (!student) return null;
+              return (
+                <option key={student.id} value={student.id}>
+                  {student.full_name} ({student.classes?.units?.name || "Tanpa Unit"} - {student.classes?.name || "Tanpa Kelas"})
+                </option>
+              );
+            })}
           </select>
         </div>
       </div>
@@ -163,7 +163,7 @@ export const TahfidzReportDashboard: React.FC = () => {
         <div className="bg-muted/30 border border-dashed rounded-xl p-12 text-center">
           <Target className="w-12 h-12 text-muted-foreground/50 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-foreground">Pilih Santri</h3>
-          <p className="text-muted-foreground mt-1">Silakan pilih kelas dan santri untuk melihat laporan tahfidz.</p>
+          <p className="text-muted-foreground mt-1">Silakan pilih halaqoh dan santri untuk melihat laporan tahfidz.</p>
         </div>
       ) : (
         <div className="space-y-6">

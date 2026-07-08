@@ -117,56 +117,82 @@ export const StudentJournalEdit: React.FC = () => {
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* ROW 1: SISWA & TANGGAL */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-card p-6 rounded-xl border shadow-sm">
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium flex items-center gap-2"><User className="w-4 h-4 text-primary" /> Siswa Target *</label>
-              <select
-                required
-                value={studentId}
-                onChange={(e) => setStudentId(e.target.value)}
-                className="w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-primary/50 outline-none bg-background"
-              >
-                <option value="">-- Pilih Siswa --</option>
-                {studentOptions?.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-              </select>
-              {journalData?.data?.students && (
-                <p className="text-xs text-muted-foreground">Siswa saat ini: {journalData.data.students.full_name}</p>
-              )}
+          <div className="space-y-5">
+            <div>
+              <h3 className="font-semibold text-lg text-foreground border-b pb-2 mb-4">Informasi Subjek</h3>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium flex items-center gap-2"><User className="w-4 h-4 text-primary" /> Siswa Target <span className="text-red-500">*</span></label>
+                  <select
+                    required
+                    value={studentId}
+                    onChange={(e) => setStudentId(e.target.value)}
+                    className="w-full border rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none bg-background hover:bg-muted/30"
+                  >
+                    <option value="">-- Pilih Siswa --</option>
+                    {studentOptions?.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                  </select>
+                  {journalData?.data?.students && (
+                    <div className="mt-2 p-3 bg-emerald-50 border border-emerald-100 rounded-lg flex items-center gap-3 animate-in fade-in zoom-in-95">
+                      <div className="w-10 h-10 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center shrink-0">
+                        <User className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-emerald-900 line-clamp-1">{journalData.data.students.full_name}</p>
+                        <p className="text-xs text-emerald-600">Siswa Terpilih (Saat Ini)</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium flex items-center gap-2"><Calendar className="w-4 h-4 text-primary" /> Tanggal Kejadian/Catatan *</label>
-              <input
-                type="date"
-                required
-                value={dateRecorded}
-                onChange={(e) => setDateRecorded(e.target.value)}
-                className="w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-primary/50 outline-none bg-background"
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <label className="text-sm font-medium flex items-center gap-2"><Eye className="w-4 h-4 text-primary" /> Visibilitas *</label>
-              <select
-                required
-                value={visibility}
-                onChange={(e) => setVisibility(e.target.value)}
-                className="w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-primary/50 outline-none bg-background"
-              >
-                <option value="internal">Internal (Hanya Guru & Sekolah)</option>
-                <option value="parents">Publik (Bisa Dilihat Orang Tua)</option>
-              </select>
+          <div className="space-y-5">
+            <div>
+              <h3 className="font-semibold text-lg text-foreground border-b pb-2 mb-4">Pengaturan Jurnal</h3>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium flex items-center gap-2"><Calendar className="w-4 h-4 text-primary" /> Tanggal Kejadian/Catatan <span className="text-red-500">*</span></label>
+                  <input
+                    type="date"
+                    required
+                    value={dateRecorded}
+                    onChange={(e) => setDateRecorded(e.target.value)}
+                    className="w-full border rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none bg-background hover:bg-muted/30"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-medium flex items-center gap-2"><Eye className="w-4 h-4 text-primary" /> Visibilitas Laporan <span className="text-red-500">*</span></label>
+                  <select
+                    required
+                    value={visibility}
+                    onChange={(e) => setVisibility(e.target.value)}
+                    className="w-full border rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none bg-background hover:bg-muted/30"
+                  >
+                    <option value="internal">Internal (Hanya Guru & Yayasan)</option>
+                    <option value="parents">Publik (Muncul di Aplikasi Wali Santri/Orang Tua)</option>
+                  </select>
+                  <div className={`mt-2 p-3 rounded-lg flex items-start gap-3 border ${visibility === 'internal' ? 'bg-slate-50 border-slate-200' : 'bg-blue-50 border-blue-200'}`}>
+                    <ShieldAlert className={`w-5 h-5 shrink-0 mt-0.5 ${visibility === 'internal' ? 'text-slate-500' : 'text-blue-500'}`} />
+                    <p className={`text-xs leading-relaxed ${visibility === 'internal' ? 'text-slate-600' : 'text-blue-700'}`}>
+                      {visibility === 'internal' 
+                        ? 'Catatan ini bersifat rahasia. Sangat cocok untuk rekam jejak internal sekolah seperti evaluasi psikologis atau kasus sensitif.' 
+                        : 'Orang tua akan melihat catatan ini. Pastikan bahasa penulisan santun dan konstruktif (membangun).'}
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
         {/* ROW 2: KONTEN JURNAL */}
-        <div className="bg-card p-6 rounded-xl border shadow-sm space-y-6">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Kategori Jurnal *</label>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="bg-card p-6 rounded-xl border shadow-sm space-y-8">
+          <div className="space-y-3">
+            <label className="text-sm font-semibold flex items-center gap-2 border-b pb-2">Kategori Jurnal <span className="text-red-500">*</span></label>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
               {CATEGORIES.map(cat => {
                 const Icon = cat.icon;
                 const isSelected = category === cat.value;
@@ -175,11 +201,11 @@ export const StudentJournalEdit: React.FC = () => {
                     key={cat.value}
                     type="button"
                     onClick={() => setCategory(cat.value)}
-                    className={`flex flex-col items-center justify-center gap-2 p-3 rounded-lg border text-center transition-all ${
-                      isSelected ? 'bg-primary/10 border-primary text-primary shadow-sm' : 'hover:bg-muted text-muted-foreground hover:text-foreground'
+                    className={`flex flex-col items-center justify-center gap-2 p-4 rounded-xl border-2 text-center transition-all ${
+                      isSelected ? 'bg-primary/5 border-primary text-primary shadow-sm scale-100' : 'border-transparent bg-muted/30 hover:bg-muted text-muted-foreground hover:text-foreground scale-95 hover:scale-100'
                     }`}
                   >
-                    <Icon className="w-6 h-6" />
+                    <Icon className="w-7 h-7" />
                     <span className="text-xs font-semibold leading-tight">{cat.label}</span>
                   </button>
                 )
@@ -187,55 +213,67 @@ export const StudentJournalEdit: React.FC = () => {
             </div>
           </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Judul Catatan *</label>
-            <input
-              type="text"
-              required
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-primary/50 outline-none bg-background"
-            />
-          </div>
+          <div className="space-y-3">
+            <label className="text-sm font-semibold flex items-center gap-2 border-b pb-2">Detail Catatan</label>
+            <div className="space-y-5 pt-2">
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-muted-foreground">Judul Catatan <span className="text-red-500">*</span></label>
+                <input
+                  type="text"
+                  required
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="Contoh: Menjuarai Lomba Menggambar, Kesulitan Membaca Suku Kata, dll."
+                  className="w-full border rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none bg-background font-medium"
+                />
+              </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium flex items-center gap-2"><FileText className="w-4 h-4"/> Deskripsi Lengkap *</label>
-            <textarea
-              required
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-primary/50 outline-none bg-background min-h-[120px]"
-            />
-          </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium flex items-center gap-2 text-muted-foreground"><FileText className="w-4 h-4"/> Deskripsi Lengkap <span className="text-red-500">*</span></label>
+                <textarea
+                  required
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Ceritakan detail kejadian, observasi, atau perkembangan siswa..."
+                  className="w-full border rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none bg-background min-h-[120px] resize-y"
+                />
+              </div>
 
-          {category !== 'stppa' && category !== 'anekdot' && (
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Tindakan/Follow-up (Opsional)</label>
-              <textarea
-                value={actionTaken}
-                onChange={(e) => setActionTaken(e.target.value)}
-                className="w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-primary/50 outline-none bg-background min-h-[80px]"
-              />
+              {category !== 'stppa' && category !== 'anekdot' && (
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-muted-foreground">Tindakan/Follow-up (Opsional)</label>
+                  <textarea
+                    value={actionTaken}
+                    onChange={(e) => setActionTaken(e.target.value)}
+                    placeholder="Contoh: Sudah dikomunikasikan dengan orang tua melalui WA, atau Siswa telah diberikan nasihat."
+                    className="w-full border rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none bg-background min-h-[80px] resize-y"
+                  />
+                </div>
+              )}
             </div>
-          )}
+          </div>
 
           {/* STPPA SECTION */}
           {category === 'stppa' && (
-            <div className="mt-8 border rounded-xl overflow-hidden bg-muted/20">
-              <div className="bg-indigo-50 border-b p-4">
-                <h4 className="font-semibold text-indigo-800 flex items-center gap-2">
-                  <Star className="w-5 h-5 fill-indigo-600 text-indigo-600" /> Instrumen Evaluasi STPPA PAUD
+            <div className="mt-8 border-2 border-indigo-100 rounded-2xl overflow-hidden bg-indigo-50/30 animate-in fade-in slide-in-from-bottom-4">
+              <div className="bg-indigo-600 p-5 text-white">
+                <h4 className="font-bold text-lg flex items-center gap-2">
+                  <Star className="w-6 h-6 fill-white text-white" /> Instrumen Evaluasi STPPA PAUD
                 </h4>
+                <p className="text-indigo-100 text-sm mt-1">Silakan pilih indikator tingkat pencapaian perkembangan anak (opsional per bidang).</p>
               </div>
-              <div className="p-4 space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   {STPPA_DOMAINS.map(domain => (
-                    <div key={domain.key} className="bg-card p-3 rounded border shadow-sm space-y-2">
-                      <label className="text-sm font-semibold text-foreground block">{domain.label}</label>
+                    <div key={domain.key} className="bg-white p-4 rounded-xl border border-indigo-100 shadow-sm space-y-2 hover:shadow-md transition-shadow">
+                      <label className="text-sm font-bold text-indigo-900 flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
+                        {domain.label}
+                      </label>
                       <select
                         value={stppaMetrics[domain.key] || ""}
                         onChange={(e) => handleStppaChange(domain.key, e.target.value)}
-                        className="w-full border rounded-md px-2 py-1.5 text-sm outline-none bg-background focus:border-indigo-400"
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm outline-none bg-background focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium text-gray-700"
                       >
                         <option value="">-- Belum Dinilai --</option>
                         {STPPA_SCORES.map(score => (
@@ -250,21 +288,21 @@ export const StudentJournalEdit: React.FC = () => {
           )}
         </div>
 
-        <div className="flex justify-end gap-3 pt-4">
+        <div className="flex justify-end gap-3 pt-6 border-t mt-8">
           <button
             type="button"
             onClick={() => navigate("/student-journals")}
-            className="flex items-center gap-2 px-6 py-2.5 border rounded-md hover:bg-muted transition-colors text-sm font-medium"
+            className="flex items-center gap-2 px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700 transition-colors text-sm font-semibold"
           >
-            <ArrowLeft className="w-4 h-4" /> Batal
+            <ArrowLeft className="w-4 h-4" /> Batal & Kembali
           </button>
           <button
             type="submit"
             disabled={isSaving}
-            className="flex items-center gap-2 bg-primary text-primary-foreground px-8 py-2.5 rounded-md hover:bg-primary/90 transition-colors shadow-sm font-medium text-sm disabled:opacity-70"
+            className="flex items-center gap-2 bg-primary text-primary-foreground px-8 py-3 rounded-lg hover:bg-primary/90 transition-all shadow-md hover:shadow-lg font-bold text-sm disabled:opacity-70 active:scale-95"
           >
-            <Save className="w-4 h-4" />
-            {isSaving ? "Menyimpan..." : "Simpan Perubahan"}
+            <Save className="w-5 h-5" />
+            {isSaving ? "Menyimpan Data..." : "Simpan Perubahan Jurnal"}
           </button>
         </div>
       </form>

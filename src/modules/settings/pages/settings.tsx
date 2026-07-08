@@ -22,38 +22,42 @@ export const SettingsPage: React.FC = () => {
         <div className="md:w-64 border-b md:border-b-0 md:border-r bg-muted/10 shrink-0 p-4 space-y-1">
           <button
             onClick={() => setActiveTab("profile")}
-            className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
+            className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-all relative overflow-hidden ${
               activeTab === "profile" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
             }`}
           >
-            <User className="w-4 h-4" />
+            {activeTab === "profile" && <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-r" />}
+            <User className={`w-4 h-4 ${activeTab === "profile" ? "text-primary" : ""}`} />
             Profil Akun
           </button>
           <button
             onClick={() => setActiveTab("users")}
-            className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
+            className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-all relative overflow-hidden ${
               activeTab === "users" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
             }`}
           >
-            <Users className="w-4 h-4" />
+            {activeTab === "users" && <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-r" />}
+            <Users className={`w-4 h-4 ${activeTab === "users" ? "text-primary" : ""}`} />
             Pengguna Sistem
           </button>
           <button
             onClick={() => setActiveTab("appearance")}
-            className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
+            className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-all relative overflow-hidden ${
               activeTab === "appearance" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
             }`}
           >
-            <Sun className="w-4 h-4" />
+            {activeTab === "appearance" && <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-r" />}
+            <Sun className={`w-4 h-4 ${activeTab === "appearance" ? "text-primary" : ""}`} />
             Preferensi Tampilan
           </button>
           <button
             onClick={() => setActiveTab("security")}
-            className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
+            className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-all relative overflow-hidden ${
               activeTab === "security" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
             }`}
           >
-            <Shield className="w-4 h-4" />
+            {activeTab === "security" && <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-r" />}
+            <Shield className={`w-4 h-4 ${activeTab === "security" ? "text-primary" : ""}`} />
             Keamanan & Privasi
           </button>
         </div>
@@ -79,13 +83,16 @@ const ProfileSettings: React.FC = () => {
   const [formData, setFormData] = useState({
     full_name: "",
     phone: "",
+    avatar_url: "",
   });
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   useEffect(() => {
     if (user?.profile) {
       setFormData({
         full_name: user.profile.full_name || "",
         phone: user.profile.phone || "",
+        avatar_url: user.profile.avatar_url || "",
       });
     }
   }, [user]);
@@ -96,7 +103,46 @@ const ProfileSettings: React.FC = () => {
       resource: "profiles",
       id: user.profile.id,
       values: formData,
+    }, {
+      onSuccess: () => {
+        toast.success("Profil berhasil diperbarui");
+      }
     });
+  };
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    try {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      if (file.size > 2 * 1024 * 1024) {
+        toast.error("Ukuran file maksimal 2MB");
+        return;
+      }
+
+      setUploadingAvatar(true);
+
+      const fileExt = file.name.split('.').pop();
+      const fileName = `avatars/${user?.profile?.id}_${Date.now()}.${fileExt}`;
+
+      const { error: uploadError } = await supabaseClient.storage
+        .from("assets")
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabaseClient.storage
+        .from("assets")
+        .getPublicUrl(fileName);
+
+      setFormData(prev => ({ ...prev, avatar_url: data.publicUrl }));
+      toast.success("Foto profil berhasil diunggah. Jangan lupa klik Simpan.");
+    } catch (err: any) {
+      toast.error(err.message || "Gagal mengunggah foto profil");
+    } finally {
+      setUploadingAvatar(false);
+      if (e.target) e.target.value = '';
+    }
   };
 
   if (isLoading) return <div className="text-muted-foreground">Memuat profil...</div>;
@@ -108,7 +154,33 @@ const ProfileSettings: React.FC = () => {
         <p className="text-sm text-muted-foreground">Informasi profil ini akan terlihat oleh anggota lain di dalam unit yang sama.</p>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-6">
+        {/* Avatar Upload */}
+        <div className="flex items-center gap-6 p-4 bg-muted/20 border rounded-xl">
+          <div className="w-20 h-20 rounded-full border-2 border-dashed flex items-center justify-center bg-background overflow-hidden shrink-0 relative group">
+            {formData.avatar_url ? (
+              <img src={formData.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+            ) : (
+              <User className="w-8 h-8 text-muted-foreground opacity-30" />
+            )}
+            <div className="absolute inset-0 bg-black/50 hidden group-hover:flex items-center justify-center transition-all cursor-pointer">
+              <ImageIcon className="w-5 h-5 text-white" />
+            </div>
+            <input 
+              type="file" 
+              accept="image/*"
+              onChange={handleAvatarUpload}
+              disabled={uploadingAvatar}
+              className="absolute inset-0 opacity-0 cursor-pointer disabled:cursor-not-allowed"
+            />
+          </div>
+          <div className="space-y-1 flex-1">
+            <h4 className="font-medium">Foto Profil</h4>
+            <p className="text-xs text-muted-foreground">Upload foto terbaik Anda. Maksimal 2MB.</p>
+            {uploadingAvatar && <p className="text-[10px] text-primary animate-pulse font-medium mt-1">Mengunggah...</p>}
+          </div>
+        </div>
+
         <div className="space-y-2">
           <label className="text-sm font-medium">Email Akun (Tidak bisa diubah)</label>
           <input 

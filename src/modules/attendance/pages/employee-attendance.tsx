@@ -175,22 +175,22 @@ export const EmployeeAttendanceList: React.FC = () => {
         }
       />
 
-      <div className="bg-card rounded-xl border shadow-sm p-4 flex flex-wrap gap-4 items-end">
+      <div className="bg-card rounded-2xl border shadow-sm p-6 flex flex-wrap gap-5 items-end">
         <div>
-          <label className="block text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wider">Tanggal Absensi</label>
+          <label className="block text-xs font-bold text-muted-foreground mb-2 uppercase tracking-wider">Tanggal Absensi</label>
           <input
             type="date"
             value={selectedDate}
             onChange={(e) => setSelectedDate(e.target.value)}
-            className="border rounded-md px-3 py-2 text-sm bg-background font-medium outline-none focus:ring-2 focus:ring-primary/50"
+            className="border border-input rounded-xl px-4 py-2.5 text-sm bg-background font-bold outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all hover:bg-muted/30"
           />
         </div>
         <div>
-          <label className="block text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wider">Filter Jabatan</label>
+          <label className="block text-xs font-bold text-muted-foreground mb-2 uppercase tracking-wider">Filter Jabatan</label>
           <select 
             value={filterPosition} 
             onChange={(e) => setFilterPosition(e.target.value)}
-            className="border rounded-md px-3 py-2 text-sm bg-background min-w-[150px] outline-none"
+            className="border border-input rounded-xl px-4 py-2.5 text-sm bg-background min-w-[180px] font-medium outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all hover:bg-muted/30"
           >
             <option value="">Semua Jabatan</option>
             <option value="kepala_sekolah">Kepala Sekolah</option>
@@ -209,11 +209,11 @@ export const EmployeeAttendanceList: React.FC = () => {
           </select>
         </div>
         <div>
-          <label className="block text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wider">Filter Unit</label>
+          <label className="block text-xs font-bold text-muted-foreground mb-2 uppercase tracking-wider">Filter Unit</label>
           <select 
             value={filterUnit} 
             onChange={(e) => setFilterUnit(e.target.value)}
-            className="border rounded-md px-3 py-2 text-sm bg-background min-w-[150px] outline-none"
+            className="border border-input rounded-xl px-4 py-2.5 text-sm bg-background min-w-[180px] font-medium outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all hover:bg-muted/30"
           >
             <option value="">Semua Unit</option>
             {unitOptions?.map((o) => (

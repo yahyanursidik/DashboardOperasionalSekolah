@@ -15,29 +15,28 @@ import { Award, BookOpen, Target, TrendingUp } from "lucide-react";
 
 export const TahsinReportDashboard: React.FC = () => {
   const { activeYearId, activeSemesterId } = useAcademicYear();
-  const [selectedClassId, setSelectedClassId] = useState<string>("");
+  const [selectedHalaqohId, setSelectedHalaqohId] = useState<string>("");
   const [selectedStudentId, setSelectedStudentId] = useState<string>("");
 
-  const { options: classOptions } = useSelect({
-    resource: "classes",
+  const { options: halaqohOptions } = useSelect({
+    resource: "tahfidz_halaqohs",
     optionLabel: "name",
     optionValue: "id",
+    filters: [
+      { field: "program_type", operator: "eq", value: "tahsin" }
+    ],
     sorters: [{ field: "name", order: "asc" }],
   });
 
-  const { options: studentOptions } = useSelect({
-    resource: "students",
-    optionLabel: "full_name",
-    optionValue: "id",
-    filters: selectedClassId ? [
-      { field: "class_id", operator: "eq", value: selectedClassId },
-      { field: "status", operator: "eq", value: "active" }
-    ] : [],
-    queryOptions: {
-      enabled: !!selectedClassId,
-    },
-    sorters: [{ field: "full_name", order: "asc" }],
+  const { data: halaqohMembers } = useList({
+    resource: "tahfidz_halaqoh_members",
+    filters: [{ field: "halaqoh_id", operator: "eq", value: selectedHalaqohId }],
+    queryOptions: { enabled: !!selectedHalaqohId },
+    meta: { select: "student_id, students(id, full_name, classes(name, units(name)))" },
+    pagination: { mode: "off" }
   });
+
+  const members = halaqohMembers?.data || [];
 
   // Fetch Student Targets
   const { data: targetsData } = useList({
@@ -123,17 +122,17 @@ export const TahsinReportDashboard: React.FC = () => {
       {/* Filter Section */}
       <div className="bg-card p-4 border rounded-xl shadow-sm flex flex-wrap gap-4 items-end">
         <div className="space-y-1.5 flex-1 min-w-[200px]">
-          <label className="text-xs font-medium text-muted-foreground">Pilih Kelas</label>
+          <label className="text-xs font-medium text-muted-foreground">Pilih Halaqoh Tahsin</label>
           <select
-            value={selectedClassId}
+            value={selectedHalaqohId}
             onChange={(e) => {
-              setSelectedClassId(e.target.value);
+              setSelectedHalaqohId(e.target.value);
               setSelectedStudentId("");
             }}
             className="w-full flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
           >
-            <option value="">Semua Kelas</option>
-            {classOptions?.map(opt => (
+            <option value="">Semua Halaqoh</option>
+            {halaqohOptions?.map(opt => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
             ))}
           </select>
@@ -143,13 +142,19 @@ export const TahsinReportDashboard: React.FC = () => {
           <select
             value={selectedStudentId}
             onChange={(e) => setSelectedStudentId(e.target.value)}
-            disabled={!selectedClassId}
+            disabled={!selectedHalaqohId}
             className="w-full flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background disabled:opacity-50"
           >
             <option value="">-- Pilih Santri --</option>
-            {studentOptions?.map(opt => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
+            {members.map(member => {
+              const student = member.students;
+              if (!student) return null;
+              return (
+                <option key={student.id} value={student.id}>
+                  {student.full_name} ({student.classes?.name || "Tanpa Kelas"})
+                </option>
+              );
+            })}
           </select>
         </div>
       </div>
@@ -158,7 +163,7 @@ export const TahsinReportDashboard: React.FC = () => {
         <div className="bg-muted/30 border border-dashed rounded-xl p-12 text-center">
           <Target className="w-12 h-12 text-muted-foreground/50 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-foreground">Pilih Santri</h3>
-          <p className="text-muted-foreground mt-1">Silakan pilih kelas dan santri untuk melihat laporan tahsin.</p>
+          <p className="text-muted-foreground mt-1">Silakan pilih halaqoh dan santri untuk melihat laporan tahsin.</p>
         </div>
       ) : (
         <div className="space-y-6">
@@ -292,9 +297,16 @@ export const TahsinReportDashboard: React.FC = () => {
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex flex-col gap-1">
-                            <span className="text-xs font-semibold">{record.fluency_score}</span>
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold w-max border ${
+                              record.fluency_score === 'Sangat Lancar' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                              record.fluency_score === 'Lancar' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                              record.fluency_score === 'Kurang Lancar' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                              'bg-red-50 text-red-700 border-red-200'
+                            }`}>
+                              {record.fluency_score}
+                            </span>
                             {(record.tajwid_score || record.makhroj_score) && (
-                              <div className="text-[10px] text-muted-foreground flex gap-2">
+                              <div className="text-[10px] text-muted-foreground flex gap-2 font-medium">
                                 {record.tajwid_score && <span>T: {record.tajwid_score}</span>}
                                 {record.makhroj_score && <span>M: {record.makhroj_score}</span>}
                               </div>
@@ -341,10 +353,10 @@ export const TahsinReportDashboard: React.FC = () => {
                           <div className="text-[10px] font-bold text-purple-600 uppercase tracking-wider">{assessment.predicate}</div>
                         </td>
                         <td className="px-4 py-3">
-                          <span className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${
-                            assessment.status === 'Lulus' ? 'bg-emerald-100 text-emerald-700' :
-                            assessment.status === 'Lulus Bersyarat' ? 'bg-amber-100 text-amber-700' :
-                            'bg-red-100 text-red-700'
+                          <span className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border ${
+                            assessment.status === 'Lulus' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                            assessment.status === 'Lulus Bersyarat' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                            'bg-red-50 text-red-700 border-red-200'
                           }`}>
                             {assessment.status || 'Lulus'}
                           </span>

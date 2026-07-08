@@ -1,7 +1,8 @@
 import React, { useState } from "react";
-import { useForm } from "@refinedev/react-hook-form";
+import { useForm, useWatch } from "@refinedev/react-hook-form";
 import { useList, useOne } from "@refinedev/core";
 import { useNavigate, useParams } from "react-router-dom";
+import { toast } from "sonner";
 import { ArrowLeft, Save, FileText, CalendarDays, BookOpen, LayoutList } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { CurriculumFormFields } from "./components/CurriculumFormFields";
@@ -28,6 +29,7 @@ export const SubjectCurriculumEdit: React.FC = () => {
       id,
       redirect: false,
       onMutationSuccess: (data: any) => {
+        toast.success("Perubahan kurikulum kelas berhasil disimpan");
         // Assume data.data returns the updated record
         const subjectId = queryResult?.data?.data?.subject_id;
         if (subjectId) {
@@ -35,9 +37,21 @@ export const SubjectCurriculumEdit: React.FC = () => {
         } else {
           navigate(-1);
         }
+      },
+      onMutationError: (error: any) => {
+        toast.error("Gagal menyimpan perubahan: " + error?.message);
       }
     },
   });
+
+  const selectedGrade = useWatch({ control, name: "grade_level" });
+
+  const getFase = (grade: number | undefined | null) => {
+    if (grade === 1 || grade === 2) return "Fase A (Kelas 1-2)";
+    if (grade === 3 || grade === 4) return "Fase B (Kelas 3-4)";
+    if (grade === 5 || grade === 6) return "Fase C (Kelas 5-6)";
+    return "";
+  };
 
   const currData = queryResult?.data?.data;
   const subjectId = currData?.subject_id;
@@ -75,6 +89,13 @@ export const SubjectCurriculumEdit: React.FC = () => {
           </button>
           <button
             type="button"
+            onClick={() => setActiveTab("tp")}
+            className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium text-sm transition-colors ${activeTab === "tp" ? "bg-primary text-primary-foreground shadow-sm" : "bg-muted/50 text-muted-foreground hover:bg-muted"}`}
+          >
+            <FileText className="w-4 h-4" /> Tujuan & Indikator
+          </button>
+          <button
+            type="button"
             onClick={() => setActiveTab("prota")}
             className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium text-sm transition-colors ${activeTab === "prota" ? "bg-primary text-primary-foreground shadow-sm" : "bg-muted/50 text-muted-foreground hover:bg-muted"}`}
           >
@@ -90,7 +111,7 @@ export const SubjectCurriculumEdit: React.FC = () => {
           <button
             type="button"
             onClick={() => setActiveTab("modul")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium text-sm transition-colors ${activeTab === "modul" ? "bg-blue-600 text-white shadow-sm" : "bg-muted/50 text-muted-foreground hover:bg-muted"}`}
+            className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium text-sm transition-colors ${activeTab === "modul" ? "bg-primary text-primary-foreground shadow-sm" : "bg-muted/50 text-muted-foreground hover:bg-muted"}`}
           >
             <BookOpen className="w-4 h-4" /> Modul Ajar (RPPH)
           </button>
@@ -102,19 +123,19 @@ export const SubjectCurriculumEdit: React.FC = () => {
             <h3 className="text-lg font-semibold border-b pb-2">Informasi Dasar</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="text-sm font-medium mb-1.5 block">Jenjang Kelas <span className="text-rose-500">*</span></label>
+                <label className="text-sm font-medium mb-1.5 block">Jenjang Kelas <span className="text-destructive">*</span></label>
                 <select
                   {...register("grade_level", { required: "Jenjang Kelas wajib diisi", valueAsNumber: true })}
                   className="w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-primary/50"
                 >
                   <option value="">-- Pilih Kelas --</option>
-                  {[1, 2, 3, 4, 5, 6].map(g => <option key={g} value={g}>Kelas {g}</option>)}
+                  {[1, 2, 3, 4, 5, 6].filter(g => !subjectData?.data?.grade_levels || subjectData.data.grade_levels.includes(g)).map(g => <option key={g} value={g}>Kelas {g}</option>)}
                 </select>
-                {errors.grade_level && <span className="text-xs text-rose-500 mt-1">{errors.grade_level.message as string}</span>}
+                {errors.grade_level && <span className="text-xs text-destructive mt-1">{errors.grade_level.message as string}</span>}
               </div>
 
               <div>
-                <label className="text-sm font-medium mb-1.5 block">Tahun Ajaran <span className="text-rose-500">*</span></label>
+                <label className="text-sm font-medium mb-1.5 block">Tahun Ajaran <span className="text-destructive">*</span></label>
                 <select
                   {...register("academic_year_id", { required: "Tahun Ajaran wajib diisi" })}
                   className="w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-primary/50"
@@ -124,7 +145,7 @@ export const SubjectCurriculumEdit: React.FC = () => {
                     <option key={ay.id} value={ay.id}>{ay.name}</option>
                   ))}
                 </select>
-                {errors.academic_year_id && <span className="text-xs text-rose-500 mt-1">{errors.academic_year_id.message as string}</span>}
+                {errors.academic_year_id && <span className="text-xs text-destructive mt-1">{errors.academic_year_id.message as string}</span>}
               </div>
             </div>
           </div>
@@ -133,7 +154,10 @@ export const SubjectCurriculumEdit: React.FC = () => {
             <h3 className="text-lg font-semibold border-b pb-2">Dokumen Perencanaan Pembelajaran</h3>
             
             <div>
-              <label className="text-sm font-medium mb-1.5 block">Capaian Pembelajaran (CP)</label>
+              <label className="text-sm font-medium mb-1.5 block">
+                Capaian Pembelajaran (CP)
+                {selectedGrade ? <span className="text-primary ml-1 font-bold">{getFase(selectedGrade)}</span> : ""}
+              </label>
               <textarea
                 {...register("cp_text")}
                 rows={4}
