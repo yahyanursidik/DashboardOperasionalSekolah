@@ -61,9 +61,9 @@ export const StudentForm: React.FC<StudentFormProps> = ({ action }) => {
       resource: "students",
       redirect: "list",
     },
-    defaultValues: {
+    defaultValues: action === "create" ? {
       unit_id: activeUnitId || "",
-    }
+    } : undefined
   });
 
   const selectedUnit = watch("unit_id");
