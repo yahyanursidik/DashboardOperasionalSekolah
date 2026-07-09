@@ -153,8 +153,12 @@ export const EmployeeEdit: React.FC = () => {
               >
                 <option value="">— Pilih Jabatan —</option>
                 <option value="kepala_sekolah">Kepala Sekolah</option>
-                <option value="wakasek">Wakil Kepala Sekolah</option>
+                <option value="wakasek_umum">Wakil Kepala Sekolah (Umum)</option>
+                <option value="wakasek_kurikulum">Wakil Kepala Sekolah Bidang Kurikulum</option>
+                <option value="wakasek_kesiswaan">Wakil Kepala Sekolah Bidang Kesiswaan</option>
+                <option value="kepala_unit">Kepala Unit (Lintas Jenjang / &gt;1 Unit)</option>
                 <option value="guru">Guru / Pengajar</option>
+                <option value="guru_quran">Guru Al Qur'an</option>
                 <option value="school_center">School Center</option>
                 <option value="bendahara">Bendahara / Keuangan</option>
                 <option value="penanggung_jawab">Penanggung Jawab</option>
@@ -162,6 +166,7 @@ export const EmployeeEdit: React.FC = () => {
                 <option value="pustakawan">Pustakawan</option>
                 <option value="laboran">Laboran</option>
                 <option value="tu">Tata Usaha</option>
+                <option value="sarpras">Sarana Prasarana</option>
                 <option value="satpam">Satpam</option>
                 <option value="cleaning_service">Cleaning Service</option>
                 <option value="lainnya">Lainnya</option>
@@ -220,7 +225,7 @@ export const EmployeeEdit: React.FC = () => {
         </FormSection>
 
         {/* ── Tupoksi ── */}
-        {["guru", "kepala_sekolah", "wakasek"].includes(position) && (
+        {["guru", "guru_quran", "kepala_sekolah", "wakasek_umum", "wakasek_kurikulum", "wakasek_kesiswaan", "kepala_unit"].includes(position) && (
           <FormSection title="Tupoksi / Peran Mengajar" icon={Award}>
             <div>
               <label className="block text-sm font-medium mb-2">
@@ -229,6 +234,11 @@ export const EmployeeEdit: React.FC = () => {
               </label>
               <select name="teacher_roles" multiple className={`${inputCls} h-36`}>
                 {[
+                  ["Kepala Sekolah", "Kepala Sekolah"],
+                  ["Wakil Kepala Sekolah (Umum)", "Wakil Kepala Sekolah (Umum)"],
+                  ["Wakil Kepala Sekolah Bidang Kurikulum", "Wakil Kepala Sekolah Bidang Kurikulum"],
+                  ["Wakil Kepala Sekolah Bidang Kesiswaan", "Wakil Kepala Sekolah Bidang Kesiswaan"],
+                  ["Kepala Unit (Lintas Jenjang / >1 Unit)", "Kepala Unit (Lintas Jenjang / >1 Unit)"],
                   ["Wali Kelas", "Wali Kelas"],
                   ["Guru Tahsin & Tahfidz", "Guru Tahsin & Tahfidz"],
                   ["Guru Mata Pelajaran", "Guru Mata Pelajaran"],

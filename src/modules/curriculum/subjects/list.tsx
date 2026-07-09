@@ -5,9 +5,10 @@ import { flexRender } from "@tanstack/react-table";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useNavigate, Link } from "react-router-dom";
 import { toast } from "sonner";
-import { Edit, Plus, Trash2, ArrowLeft, Users, Eye } from "lucide-react";
+import { Edit, Plus, Trash2, ArrowLeft, Users, Eye, BookOpen, Layers3, CalendarDays, FileText } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { useCurrentUnit } from "../../../app/providers/UnitProvider";
+import { SD_PHASES } from "../subject-curriculums/sdCurriculumStructure";
 
 export const SubjectsList: React.FC = () => {
   const navigate = useNavigate();
@@ -47,11 +48,21 @@ export const SubjectsList: React.FC = () => {
       {
         id: "grade_levels",
         accessorKey: "grade_levels",
-        header: "Kelas",
+        header: "Fase / Kelas",
         cell: function render({ getValue }) {
           const grades = getValue<number[]>();
           if (!grades || grades.length === 0) return <span className="text-muted-foreground">-</span>;
-          return <span className="text-xs px-2 py-1 bg-muted text-muted-foreground rounded-md">{grades.sort().join(", ")}</span>;
+          const sortedGrades = grades.map(Number).sort((a, b) => a - b);
+          const activePhases = SD_PHASES.filter((phase) => phase.grades.some((grade) => sortedGrades.includes(grade)));
+          return (
+            <div className="flex flex-wrap gap-1.5">
+              {activePhases.map((phase) => (
+                <span key={phase.id} className="rounded-md border bg-primary/5 px-2 py-1 text-xs font-semibold text-primary">
+                  {phase.label}: {phase.grades.filter((grade) => sortedGrades.includes(grade)).join(", ")}
+                </span>
+              ))}
+            </div>
+          );
         }
       },
       {
@@ -103,7 +114,7 @@ export const SubjectsList: React.FC = () => {
               <button
                 onClick={() => navigate(`/curriculum/subjects/show/${id}`)}
                 className="p-1.5 text-muted-foreground hover:text-emerald-600 transition-colors rounded-md hover:bg-emerald-50"
-                title="Lihat Detail (Kurikulum)"
+                title="Buka Kurikulum"
               >
                 <Eye className="w-4 h-4" />
               </button>
@@ -165,8 +176,8 @@ export const SubjectsList: React.FC = () => {
           <ArrowLeft className="w-5 h-5" />
         </Link>
         <PageHeader
-          title="Manajemen Mata Pelajaran"
-          description="Kelola daftar mata pelajaran Nasional dan Khas Sekolah."
+          title="Mata Pelajaran & Kurikulum SD"
+          description="Kelola mapel, CP/ATP per fase, dan perangkat ajar per kelas sesuai alur Kurikulum Merdeka."
           action={
             <div className="flex gap-2">
               <Link
@@ -186,6 +197,52 @@ export const SubjectsList: React.FC = () => {
           }
         />
       </div>
+
+      <section className="rounded-xl border bg-card p-5 shadow-sm">
+        <div className="grid gap-5 lg:grid-cols-[1fr_1.2fr]">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-md bg-primary/10 px-3 py-1 text-sm font-semibold text-primary">
+              <BookOpen className="h-4 w-4" />
+              Alur Kurikulum SD
+            </div>
+            <h2 className="mt-3 text-2xl font-bold">Mulai dari fase, turun ke kelas</h2>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              Setiap mapel memiliki CP dan ATP untuk Fase A, B, atau C. Prota, Promes, RPPM, dan RPPH/Modul Ajar dibuat mandiri sesuai kelas dan tahun ajaran.
+            </p>
+          </div>
+          <div className="grid gap-3 md:grid-cols-3">
+            {SD_PHASES.map((phase) => (
+              <div key={phase.id} className="rounded-lg border bg-muted/20 p-4">
+                <p className="text-lg font-bold">{phase.label}</p>
+                <p className="text-sm font-semibold text-primary">{phase.rangeLabel}</p>
+                <p className="mt-2 text-xs leading-5 text-muted-foreground">CP dan ATP satu fase, perangkat ajar per kelas.</p>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="mt-5 grid gap-3 md:grid-cols-4">
+          <div className="rounded-lg border bg-background p-3">
+            <BookOpen className="mb-2 h-4 w-4 text-primary" />
+            <p className="text-sm font-semibold">CP & ATP Fase</p>
+            <p className="text-xs text-muted-foreground">Arah capaian satu fase.</p>
+          </div>
+          <div className="rounded-lg border bg-background p-3">
+            <Layers3 className="mb-2 h-4 w-4 text-primary" />
+            <p className="text-sm font-semibold">Prota & Promes</p>
+            <p className="text-xs text-muted-foreground">Pemetaan kelas dan semester.</p>
+          </div>
+          <div className="rounded-lg border bg-background p-3">
+            <CalendarDays className="mb-2 h-4 w-4 text-primary" />
+            <p className="text-sm font-semibold">RPPM</p>
+            <p className="text-xs text-muted-foreground">Rencana mingguan.</p>
+          </div>
+          <div className="rounded-lg border bg-background p-3">
+            <FileText className="mb-2 h-4 w-4 text-primary" />
+            <p className="text-sm font-semibold">RPPH / Modul</p>
+            <p className="text-xs text-muted-foreground">Rencana per pertemuan.</p>
+          </div>
+        </div>
+      </section>
 
       <div className="flex gap-4 items-center bg-card p-3 rounded-xl border shadow-sm flex-wrap">
         <select 

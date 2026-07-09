@@ -1,34 +1,38 @@
-import React, { useState, useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { useList } from "@refinedev/core";
-import { useNavigate, Link } from "react-router-dom";
-import { useCurrentUnit } from "../../../app/providers/UnitProvider";
-import { useAcademicYear } from "../../../app/providers/AcademicYearProvider";
-import { PageHeader } from "../../../components/layout/PageHeader";
+import { Link, useNavigate } from "react-router-dom";
 import {
-  BookOpen, Users, Search, Filter, ChevronRight, ArrowLeft,
-  GraduationCap, Building2, User, Eye, AlertCircle,
-  Layers, CheckCircle2, XCircle, ListFilter, Grid3x3,
-  BookMarked, UserCheck, Star
+  AlertCircle,
+  ArrowLeft,
+  BookOpen,
+  CalendarDays,
+  CheckCircle2,
+  ChevronRight,
+  Eye,
+  Filter,
+  GraduationCap,
+  Grid3x3,
+  Layers3,
+  ListFilter,
+  Plus,
+  Search,
+  Users,
+  XCircle,
 } from "lucide-react";
+import { PageHeader } from "../../../components/layout/PageHeader";
+import { useAcademicYear } from "../../../app/providers/AcademicYearProvider";
+import { useCurrentUnit } from "../../../app/providers/UnitProvider";
+import { SD_PHASES, getRppmRows, getRpphRows } from "../subject-curriculums/sdCurriculumStructure";
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-const CATEGORY_CFG: Record<string, { color: string; bg: string; dot: string }> = {
-  Nasional:      { color: "text-blue-700",    bg: "bg-blue-50 border-blue-200",    dot: "bg-blue-500" },
-  "Khas Sekolah": { color: "text-emerald-700", bg: "bg-emerald-50 border-emerald-200", dot: "bg-emerald-500" },
-  Lainnya:       { color: "text-slate-600",   bg: "bg-slate-50 border-slate-200",  dot: "bg-slate-400" },
+type ViewMode = "grid" | "list";
+type DirectoryFilter = "all" | "needs_teacher" | "needs_curriculum" | "ready";
+
+const CATEGORY_CFG: Record<string, { color: string; bg: string }> = {
+  Nasional: { color: "text-blue-700", bg: "bg-blue-50 border-blue-200" },
+  "Khas Sekolah": { color: "text-emerald-700", bg: "bg-emerald-50 border-emerald-200" },
+  Lainnya: { color: "text-slate-600", bg: "bg-slate-50 border-slate-200" },
 };
 
-const ROLE_LABEL: Record<string, string> = {
-  wali_kelas:   "Wali Kelas",
-  guru_mapel:   "Guru Mata Pelajaran",
-  guru_quran:   "Guru Al-Qur'an",
-  guru_diniyah: "Guru Diniyah",
-  staff:        "Staff",
-};
-
-function getInitials(name: string) {
-  return name.split(" ").slice(0, 2).map((n) => n[0]).join("").toUpperCase();
-}
 const AVATAR_COLORS = [
   "from-blue-500 to-indigo-600",
   "from-emerald-500 to-teal-600",
@@ -38,295 +42,336 @@ const AVATAR_COLORS = [
   "from-amber-500 to-yellow-600",
   "from-cyan-500 to-sky-600",
 ];
-function getAvatarColor(name: string) {
-  let h = 0; for (const c of name) h += c.charCodeAt(0);
-  return AVATAR_COLORS[h % AVATAR_COLORS.length];
+
+function getInitials(name = "-") {
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
 }
 
-// ─── Teacher Chip ─────────────────────────────────────────────────────────────
-function TeacherChip({ assignment, onNavigate }: { assignment: any; onNavigate: () => void }) {
-  const name = assignment.employees?.full_name ?? "—";
-  const color = getAvatarColor(name);
-  const roleLabel = ROLE_LABEL[assignment.role_type] ?? assignment.role_type;
-  const classLabel = assignment.classes?.name;
+function getAvatarColor(name = "-") {
+  let hash = 0;
+  for (const char of name) hash += char.charCodeAt(0);
+  return AVATAR_COLORS[hash % AVATAR_COLORS.length];
+}
+
+function uniqueBy<T>(items: T[], getKey: (item: T) => string | undefined | null): T[] {
+  const map = new Map<string, T>();
+  items.forEach((item) => {
+    const key = getKey(item);
+    if (key && !map.has(key)) map.set(key, item);
+  });
+  return [...map.values()];
+}
+
+function parseGradeFromClassName(name?: string) {
+  if (!name) return undefined;
+  const match = name.match(/\b([1-6])\b/);
+  return match ? Number(match[1]) : undefined;
+}
+
+function getAssignmentGrade(assignment: any) {
+  return Number(assignment.classes?.grade_level) || parseGradeFromClassName(assignment.classes?.name);
+}
+
+function getTargetGrades(subject: any): number[] {
+  const grades: number[] = Array.isArray(subject.grade_levels) ? subject.grade_levels.map(Number).filter(Boolean) : [];
+  return grades.length > 0 ? grades.sort((a: number, b: number) => a - b) : [1, 2, 3, 4, 5, 6];
+}
+
+function isCurriculumReady(record: any) {
+  const hasCpAtp = Boolean(record?.cp_text && record?.atp_text);
+  const hasProta = Array.isArray(record?.prota_data) && record.prota_data.length > 0;
+  const hasProsem = Array.isArray(record?.prosem_data?.rows) && record.prosem_data.rows.length > 0;
+  const hasRppm = getRppmRows(record).length > 0;
+  const hasRpph = getRpphRows(record).length > 0;
+  return hasCpAtp && hasProta && hasProsem && hasRppm && hasRpph;
+}
+
+function getSubjectMetrics(subject: any, assignments: any[], curriculums: any[]) {
+  const targetGrades = getTargetGrades(subject);
+  const assignedGrades = new Set(assignments.map(getAssignmentGrade).filter(Boolean));
+  const curriculumGrades = new Set(curriculums.map((record) => Number(record.grade_level)).filter(Boolean));
+  const readyGrades = new Set(curriculums.filter(isCurriculumReady).map((record) => Number(record.grade_level)));
+  const missingTeacherGrades = targetGrades.filter((grade) => !assignedGrades.has(grade));
+  const missingCurriculumGrades = targetGrades.filter((grade) => !curriculumGrades.has(grade));
+  const uniqueTeachers = uniqueBy(assignments, (assignment) => assignment.employees?.id);
+
+  return {
+    targetGrades,
+    uniqueTeachers,
+    assignedGrades,
+    curriculumGrades,
+    readyGrades,
+    missingTeacherGrades,
+    missingCurriculumGrades,
+    hasTeacherCoverage: missingTeacherGrades.length === 0 && targetGrades.length > 0,
+    hasCurriculumCoverage: missingCurriculumGrades.length === 0 && targetGrades.length > 0,
+    isReady: missingTeacherGrades.length === 0 && missingCurriculumGrades.length === 0 && readyGrades.size > 0,
+  };
+}
+
+const StatusPill: React.FC<{ done: boolean; label: string }> = ({ done, label }) => (
+  <span
+    className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-semibold ${
+      done ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-200 bg-amber-50 text-amber-700"
+    }`}
+  >
+    {done ? <CheckCircle2 className="h-3.5 w-3.5" /> : <AlertCircle className="h-3.5 w-3.5" />}
+    {label}
+  </span>
+);
+
+const TeacherAvatarStack: React.FC<{ assignments: any[] }> = ({ assignments }) => {
+  const teachers = uniqueBy(assignments, (assignment) => assignment.employees?.id);
+  if (teachers.length === 0) {
+    return <span className="text-xs font-semibold text-amber-700">Belum ada guru</span>;
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <div className="flex -space-x-2">
+        {teachers.slice(0, 4).map((assignment: any) => {
+          const name = assignment.employees?.full_name || "-";
+          return (
+            <div
+              key={assignment.employees?.id}
+              title={name}
+              className={`flex h-8 w-8 items-center justify-center rounded-full border-2 border-background bg-gradient-to-br ${getAvatarColor(name)} text-[10px] font-bold text-white`}
+            >
+              {getInitials(name)}
+            </div>
+          );
+        })}
+        {teachers.length > 4 ? (
+          <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-background bg-muted text-[10px] font-bold text-muted-foreground">
+            +{teachers.length - 4}
+          </div>
+        ) : null}
+      </div>
+      <span className="text-xs text-muted-foreground">{teachers.length} guru</span>
+    </div>
+  );
+};
+
+function SubjectCard({
+  subject,
+  assignments,
+  curriculums,
+  isSelected,
+  onSelect,
+}: {
+  subject: any;
+  assignments: any[];
+  curriculums: any[];
+  isSelected: boolean;
+  onSelect: () => void;
+}) {
+  const catKey = subject.category ?? "Lainnya";
+  const cat = CATEGORY_CFG[catKey] ?? CATEGORY_CFG.Lainnya;
+  const metrics = getSubjectMetrics(subject, assignments, curriculums);
 
   return (
     <button
-      onClick={onNavigate}
-      className="group flex items-center gap-3 w-full text-left p-3 rounded-xl border hover:border-primary/40 hover:bg-primary/5 hover:shadow-sm transition-all"
+      type="button"
+      onClick={onSelect}
+      className={`group flex h-full flex-col rounded-xl border bg-card p-5 text-left shadow-sm transition-all hover:border-primary/40 hover:shadow-md ${
+        isSelected ? "border-primary ring-2 ring-primary/20" : ""
+      }`}
     >
-      <div className={`w-9 h-9 rounded-full bg-gradient-to-br ${color} flex items-center justify-center text-white font-bold text-xs shrink-0 shadow-sm`}>
-        {getInitials(name)}
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border ${cat.bg}`}>
+            <BookOpen className={`h-5 w-5 ${cat.color}`} />
+          </div>
+          <div className="min-w-0">
+            <p className="font-bold leading-tight text-foreground">{subject.name}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{subject.code || "Tanpa kode"}</p>
+          </div>
+        </div>
+        <span className={`shrink-0 rounded-md border px-2 py-1 text-[10px] font-bold ${cat.bg} ${cat.color}`}>{catKey}</span>
       </div>
-      <div className="flex-1 min-w-0">
-        <p className="font-semibold text-sm text-foreground truncate group-hover:text-primary transition-colors">
-          {name}
-        </p>
-        <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
-          <span className="text-[10px] text-muted-foreground">{roleLabel}</span>
-          {classLabel && (
-            <span className="text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded font-medium">
-              {classLabel}
-            </span>
-          )}
-          {assignment.units?.name && (
-            <span className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded">
-              {assignment.units.name}
-            </span>
-          )}
+
+      <div className="mt-4 flex flex-wrap gap-1.5">
+        {SD_PHASES.filter((phase) => phase.grades.some((grade) => metrics.targetGrades.includes(grade))).map((phase) => (
+          <span key={phase.id} className="rounded-md bg-primary/10 px-2 py-1 text-xs font-semibold text-primary">
+            {phase.label}
+          </span>
+        ))}
+      </div>
+
+      <div className="mt-4 space-y-3">
+        <TeacherAvatarStack assignments={assignments} />
+        <div className="flex flex-wrap gap-2">
+          <StatusPill done={metrics.missingTeacherGrades.length === 0} label={metrics.missingTeacherGrades.length === 0 ? "Guru lengkap" : `Guru kurang: K${metrics.missingTeacherGrades.join(", K")}`} />
+          <StatusPill done={metrics.missingCurriculumGrades.length === 0} label={metrics.missingCurriculumGrades.length === 0 ? "Kurikulum lengkap" : `Kurikulum kurang: K${metrics.missingCurriculumGrades.join(", K")}`} />
         </div>
       </div>
-      <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors shrink-0 opacity-0 group-hover:opacity-100" />
+
+      <div className="mt-auto flex items-center justify-between border-t pt-4 text-xs text-muted-foreground">
+        <span>{metrics.curriculumGrades.size}/{metrics.targetGrades.length} kelas punya kurikulum</span>
+        <span className="inline-flex items-center gap-1 font-semibold text-primary opacity-0 transition-opacity group-hover:opacity-100">
+          Detail <ChevronRight className="h-3.5 w-3.5" />
+        </span>
+      </div>
     </button>
   );
 }
 
-// ─── Subject Card (Grid View) ──────────────────────────────────────────────────
-function SubjectCard({
-  subject, assignments, onSelectSubject,
-}: {
-  subject: any;
-  assignments: any[];
-  onSelectSubject: (id: string) => void;
-}) {
-  const catKey = subject.category ?? "Lainnya";
-  const cat = CATEGORY_CFG[catKey] ?? CATEGORY_CFG["Lainnya"];
-  const uniqueTeachers = [...new Map(assignments.map((a) => [a.employees?.id, a])).values()];
-
-  return (
-    <div
-      onClick={() => onSelectSubject(subject.id)}
-      className="bg-card border rounded-xl p-5 hover:shadow-md hover:border-primary/30 transition-all cursor-pointer group flex flex-col gap-3"
-    >
-      {/* Header */}
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${cat.bg}`}>
-            <BookOpen className={`w-5 h-5 ${cat.color}`} />
-          </div>
-          <div className="min-w-0">
-            <p className="font-bold text-sm text-foreground leading-tight">{subject.name}</p>
-            {subject.code && <p className="text-[10px] text-muted-foreground mt-0.5 font-mono">{subject.code}</p>}
-          </div>
-        </div>
-        <span className={`shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full border ${cat.bg} ${cat.color}`}>
-          {catKey}
-        </span>
-      </div>
-
-      {/* Teachers summary */}
-      <div className="flex-1">
-        {uniqueTeachers.length === 0 ? (
-          <div className="flex items-center gap-2 text-xs text-muted-foreground italic">
-            <AlertCircle className="w-3.5 h-3.5 shrink-0 text-amber-500" />
-            Belum ada guru ditugaskan
-          </div>
-        ) : (
-          <div className="space-y-1.5">
-            {uniqueTeachers.slice(0, 3).map((a) => (
-              <div key={a.id} className="flex items-center gap-2">
-                <div className={`w-5 h-5 rounded-full bg-gradient-to-br ${getAvatarColor(a.employees?.full_name ?? "?")} flex items-center justify-center text-white font-bold text-[8px] shrink-0`}>
-                  {getInitials(a.employees?.full_name ?? "?")}
-                </div>
-                <span className="text-xs text-foreground truncate font-medium">{a.employees?.full_name}</span>
-                {a.classes?.name && (
-                  <span className="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded ml-auto shrink-0">{a.classes.name}</span>
-                )}
-              </div>
-            ))}
-            {uniqueTeachers.length > 3 && (
-              <p className="text-xs text-muted-foreground pl-7">+{uniqueTeachers.length - 3} guru lainnya</p>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Footer */}
-      <div className="flex items-center justify-between pt-2 border-t">
-        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <Users className="w-3.5 h-3.5" />
-          <span>{uniqueTeachers.length} guru</span>
-          {assignments.length > uniqueTeachers.length && (
-            <span className="text-[10px]">({assignments.length} kelas)</span>
-          )}
-        </div>
-        <span className="text-xs text-primary font-medium flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          Lihat Detail <ChevronRight className="w-3 h-3" />
-        </span>
-      </div>
-    </div>
-  );
-}
-
-// ─── Subject Detail Panel (Right side) ───────────────────────────────────────
 function SubjectDetailPanel({
-  subject, assignments, onClose, onNavigateTeacher,
+  subject,
+  assignments,
+  curriculums,
+  onClose,
+  onNavigateTeacher,
 }: {
   subject: any;
   assignments: any[];
+  curriculums: any[];
   onClose: () => void;
   onNavigateTeacher: (id: string) => void;
 }) {
-  const catKey = subject.category ?? "Lainnya";
-  const cat = CATEGORY_CFG[catKey] ?? CATEGORY_CFG["Lainnya"];
-
-  // Group assignments by class
-  const byClass = useMemo(() => {
-    const map: Record<string, { className: string; unitName: string; teachers: any[] }> = {};
-    assignments.forEach((a) => {
-      const key = a.classes?.id ?? "no_class";
-      if (!map[key]) map[key] = {
-        className: a.classes?.name ?? "Tanpa Kelas Spesifik",
-        unitName: a.units?.name ?? "—",
-        teachers: [],
-      };
-      map[key].teachers.push(a);
-    });
-    return Object.values(map);
-  }, [assignments]);
-
-  const uniqueTeachers = [...new Map(assignments.map((a) => [a.employees?.id, a])).values()];
+  const metrics = getSubjectMetrics(subject, assignments, curriculums);
+  const teachers = metrics.uniqueTeachers;
+  const assignmentByGrade = new Map<number, any[]>();
+  assignments.forEach((assignment) => {
+    const grade = getAssignmentGrade(assignment);
+    if (!grade) return;
+    if (!assignmentByGrade.has(grade)) assignmentByGrade.set(grade, []);
+    assignmentByGrade.get(grade)?.push(assignment);
+  });
 
   return (
-    <div className="bg-card border rounded-xl shadow-sm overflow-hidden flex flex-col h-full">
-      {/* Panel header */}
-      <div className={`p-5 border-b bg-gradient-to-r from-primary/5 to-transparent`}>
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className={`w-12 h-12 rounded-xl flex items-center justify-center border ${cat.bg} shrink-0`}>
-              <BookOpen className={`w-6 h-6 ${cat.color}`} />
-            </div>
-            <div className="min-w-0">
-              <h3 className="font-bold text-lg leading-tight">{subject.name}</h3>
-              <div className="flex items-center gap-2 mt-1">
-                {subject.code && <span className="text-xs font-mono bg-muted px-2 py-0.5 rounded">{subject.code}</span>}
-                <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full border ${cat.bg} ${cat.color}`}>
-                  {catKey}
-                </span>
-                {subject.is_active === false && (
-                  <span className="text-xs bg-rose-50 text-rose-600 border border-rose-200 px-2 py-0.5 rounded-full">Nonaktif</span>
-                )}
-              </div>
-            </div>
+    <aside className="sticky top-4 rounded-xl border bg-card shadow-sm">
+      <div className="border-b p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Detail Pengampu</p>
+            <h2 className="mt-1 text-xl font-bold">{subject.name}</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Cek guru pengampu, kelas yang tertutup, dan kesiapan perangkat ajar.</p>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground shrink-0"
-          >
-            <XCircle className="w-5 h-5" />
+          <button type="button" onClick={onClose} className="rounded-md p-2 text-muted-foreground hover:bg-muted">
+            <XCircle className="h-5 w-5" />
           </button>
         </div>
 
-        {/* Mini stats */}
-        <div className="grid grid-cols-2 gap-3 mt-4">
-          <div className="bg-background rounded-lg p-3 border text-center">
-            <p className="text-xl font-bold text-foreground">{uniqueTeachers.length}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Total Guru</p>
+        <div className="mt-4 grid grid-cols-3 gap-2">
+          <div className="rounded-lg border bg-muted/20 p-3 text-center">
+            <p className="text-xl font-bold">{teachers.length}</p>
+            <p className="text-xs text-muted-foreground">Guru</p>
           </div>
-          <div className="bg-background rounded-lg p-3 border text-center">
-            <p className="text-xl font-bold text-foreground">{byClass.length}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Kelas Diajar</p>
+          <div className="rounded-lg border bg-muted/20 p-3 text-center">
+            <p className="text-xl font-bold">{metrics.assignedGrades.size}</p>
+            <p className="text-xs text-muted-foreground">Kelas</p>
+          </div>
+          <div className="rounded-lg border bg-muted/20 p-3 text-center">
+            <p className="text-xl font-bold">{metrics.readyGrades.size}</p>
+            <p className="text-xs text-muted-foreground">Siap</p>
           </div>
         </div>
       </div>
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto p-5 space-y-5">
-        {assignments.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <div className="w-14 h-14 bg-amber-50 rounded-2xl flex items-center justify-center mb-3">
-              <AlertCircle className="w-7 h-7 text-amber-500" />
-            </div>
-            <p className="font-semibold text-sm mb-1">Belum Ada Penugasan</p>
-            <p className="text-xs text-muted-foreground max-w-xs">
-              Mata pelajaran ini belum memiliki guru yang ditugaskan di tahun ajaran aktif.
-            </p>
-            <Link
-              to="/teachers"
-              className="mt-4 text-xs text-primary hover:underline font-medium flex items-center gap-1"
-            >
-              <GraduationCap className="w-3.5 h-3.5" /> Ke halaman guru
-            </Link>
-          </div>
-        ) : (
-          <>
-            {/* Semua Guru Section */}
-            <div>
-              <h4 className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-3 flex items-center gap-2">
-                <GraduationCap className="w-3.5 h-3.5" /> Semua Guru yang Mengajar
-              </h4>
-              <div className="space-y-2">
-                {uniqueTeachers.map((a) => (
-                  <TeacherChip
-                    key={a.id}
-                    assignment={a}
-                    onNavigate={() => onNavigateTeacher(a.employees?.id)}
-                  />
-                ))}
+      <div className="max-h-[calc(100vh-260px)] overflow-y-auto p-5">
+        <div className="space-y-5">
+          <section>
+            <h3 className="mb-3 flex items-center gap-2 text-sm font-bold">
+              <Users className="h-4 w-4 text-primary" />
+              Guru Pengampu
+            </h3>
+            {teachers.length === 0 ? (
+              <div className="rounded-lg border border-dashed bg-amber-50/40 p-4 text-sm text-amber-800">
+                Belum ada guru yang terhubung melalui jadwal mengajar.
               </div>
-            </div>
-
-            {/* Per Kelas Section */}
-            {byClass.length > 0 && (
-              <div>
-                <h4 className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-3 flex items-center gap-2">
-                  <Layers className="w-3.5 h-3.5" /> Penugasan per Kelas
-                </h4>
-                <div className="space-y-3">
-                  {byClass.map((cls, i) => (
-                    <div key={i} className="border rounded-xl p-4 bg-muted/10">
-                      <div className="flex items-center justify-between mb-2.5">
-                        <div>
-                          <p className="font-semibold text-sm">{cls.className}</p>
-                          <p className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
-                            <Building2 className="w-3 h-3" /> {cls.unitName}
-                          </p>
-                        </div>
-                        <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-semibold">
-                          {cls.teachers.length} guru
-                        </span>
+            ) : (
+              <div className="space-y-2">
+                {teachers.map((assignment: any) => {
+                  const name = assignment.employees?.full_name || "-";
+                  return (
+                    <button
+                      key={assignment.employees?.id}
+                      type="button"
+                      onClick={() => onNavigateTeacher(assignment.employees?.id)}
+                      className="flex w-full items-center gap-3 rounded-lg border p-3 text-left hover:border-primary/40 hover:bg-primary/5"
+                    >
+                      <div className={`flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br ${getAvatarColor(name)} text-xs font-bold text-white`}>
+                        {getInitials(name)}
                       </div>
-                      <div className="space-y-1.5">
-                        {cls.teachers.map((t: any) => (
-                          <button
-                            key={t.id}
-                            onClick={() => onNavigateTeacher(t.employees?.id)}
-                            className="flex items-center gap-2 w-full text-left hover:text-primary transition-colors group"
-                          >
-                            <div className={`w-6 h-6 rounded-full bg-gradient-to-br ${getAvatarColor(t.employees?.full_name ?? "?")} flex items-center justify-center text-white font-bold text-[9px] shrink-0`}>
-                              {getInitials(t.employees?.full_name ?? "?")}
-                            </div>
-                            <span className="text-sm font-medium group-hover:text-primary transition-colors truncate">
-                              {t.employees?.full_name ?? "—"}
-                            </span>
-                            <ChevronRight className="w-3.5 h-3.5 ml-auto text-muted-foreground opacity-0 group-hover:opacity-100 shrink-0" />
-                          </button>
-                        ))}
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold">{name}</p>
+                        <p className="text-xs text-muted-foreground">{assignment.employees?.position || "Guru"}</p>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    </button>
+                  );
+                })}
               </div>
             )}
-          </>
-        )}
+          </section>
+
+          <section>
+            <h3 className="mb-3 flex items-center gap-2 text-sm font-bold">
+              <Layers3 className="h-4 w-4 text-primary" />
+              Coverage Kelas & Perangkat
+            </h3>
+            <div className="space-y-2">
+              {metrics.targetGrades.map((grade) => {
+                const gradeAssignments = assignmentByGrade.get(grade) || [];
+                const curriculum = curriculums.find((record) => Number(record.grade_level) === grade);
+                const ready = isCurriculumReady(curriculum);
+                return (
+                  <div key={grade} className="rounded-lg border bg-background p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="font-semibold">Kelas {grade}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {gradeAssignments.length > 0 ? `${uniqueBy(gradeAssignments, (item) => item.employees?.id).length} guru terjadwal` : "Belum ada guru terjadwal"}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap justify-end gap-1.5">
+                        <StatusPill done={gradeAssignments.length > 0} label="Guru" />
+                        <StatusPill done={Boolean(curriculum)} label="Kurikulum" />
+                        <StatusPill done={ready} label="Siap" />
+                      </div>
+                    </div>
+                    {curriculum ? (
+                      <div className="mt-3 grid grid-cols-4 gap-2 text-center text-xs">
+                        <div className="rounded-md bg-muted/40 p-2">{curriculum.prota_data?.length || 0}<br />Prota</div>
+                        <div className="rounded-md bg-muted/40 p-2">{curriculum.prosem_data?.rows?.length || 0}<br />Promes</div>
+                        <div className="rounded-md bg-muted/40 p-2">{getRppmRows(curriculum).length}<br />RPPM</div>
+                        <div className="rounded-md bg-muted/40 p-2">{getRpphRows(curriculum).length}<br />RPPH</div>
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        </div>
       </div>
 
-      {/* Footer action */}
-      <div className="p-4 border-t bg-muted/20">
+      <div className="grid gap-2 border-t bg-muted/20 p-4 sm:grid-cols-2">
         <Link
-          to={`/curriculum/subjects/edit/${subject.id}`}
-          className="flex items-center justify-center gap-2 w-full text-sm font-medium border rounded-lg py-2 hover:bg-muted transition-colors"
+          to={`/curriculum/subjects/show/${subject.id}`}
+          className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
         >
-          <BookMarked className="w-4 h-4" /> Edit Mata Pelajaran
+          <BookOpen className="h-4 w-4" />
+          Buka Kurikulum
+        </Link>
+        <Link
+          to="/schedules"
+          className="inline-flex items-center justify-center gap-2 rounded-md border bg-background px-3 py-2 text-sm font-semibold hover:bg-muted"
+        >
+          <CalendarDays className="h-4 w-4" />
+          Atur Jadwal
         </Link>
       </div>
-    </div>
+    </aside>
   );
 }
-
-// ─── Main Page ─────────────────────────────────────────────────────────────────
-type ViewMode = "grid" | "list";
 
 export const SubjectTeacherDirectory: React.FC = () => {
   const navigate = useNavigate();
@@ -336,11 +381,11 @@ export const SubjectTeacherDirectory: React.FC = () => {
   const [search, setSearch] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
   const [filterUnit, setFilterUnit] = useState("");
-  const [filterStatus, setFilterStatus] = useState("active"); // "active"|""|"inactive"
+  const [filterStatus, setFilterStatus] = useState("active");
+  const [workflowFilter, setWorkflowFilter] = useState<DirectoryFilter>("all");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null);
 
-  // Load all subjects
   const { data: subjectsData, isLoading: subjectsLoading } = useList({
     resource: "subjects",
     pagination: { pageSize: 200 },
@@ -348,298 +393,303 @@ export const SubjectTeacherDirectory: React.FC = () => {
     meta: { select: "*, units(id, name)" },
   });
 
-  // Load all units for filter
   const { data: unitsData } = useList({ resource: "units", pagination: { pageSize: 50 } });
 
-  // Load employee_schedules with employee & class data
+  const scheduleFilters: any[] = [
+    { field: "schedule_type", operator: "eq", value: "mengajar" },
+    { field: "subject_id", operator: "nnull", value: null },
+  ];
+  if (activeYearId) scheduleFilters.push({ field: "academic_year_id", operator: "eq", value: activeYearId });
+
   const { data: assignmentsData, isLoading: assignmentsLoading } = useList({
     resource: "employee_schedules",
     pagination: { pageSize: 2000 },
-    filters: [
-      { field: "schedule_type", operator: "eq" as const, value: "mengajar" },
-      { field: "subject_id", operator: "nnull" as const, value: null }
-    ],
+    filters: scheduleFilters,
     meta: {
-      select: "*, employees(id, full_name, position, status, nik), classes(id, name), subjects(id, name)",
+      select: "*, employees(id, full_name, position, status, nik), classes(id, name, grade_level), subjects(id, name)",
     },
+  });
+
+  const curriculumFilters: any[] = [];
+  if (activeYearId) curriculumFilters.push({ field: "academic_year_id", operator: "eq", value: activeYearId });
+
+  const { data: curriculumsData, isLoading: curriculumsLoading } = useList({
+    resource: "subject_curriculums",
+    pagination: { pageSize: 2000 },
+    filters: curriculumFilters,
+    meta: { select: "*" },
   });
 
   const allSubjects = subjectsData?.data ?? [];
   const allAssignments = assignmentsData?.data ?? [];
+  const allCurriculums = curriculumsData?.data ?? [];
 
-  // Build assignment lookup: subject id → assignments array
   const assignmentsBySubjectId = useMemo(() => {
     const map: Record<string, any[]> = {};
-    allAssignments.forEach((a) => {
-      if (!a.subject_id) return;
-      const key = String(a.subject_id);
+    allAssignments.forEach((assignment) => {
+      if (!assignment.subject_id) return;
+      const key = String(assignment.subject_id);
       if (!map[key]) map[key] = [];
-      map[key].push(a);
+      map[key].push(assignment);
     });
     return map;
   }, [allAssignments]);
 
-  // Filter subjects
-  const filteredSubjects = useMemo(() => {
-    return allSubjects.filter((s) => {
-      const matchSearch = !search || s.name.toLowerCase().includes(search.toLowerCase()) || (s.code ?? "").toLowerCase().includes(search.toLowerCase());
-      const matchCategory = !filterCategory || s.category === filterCategory;
-      const matchUnit = !filterUnit ? (!activeUnitId || s.unit_id === activeUnitId) : s.unit_id === filterUnit;
-      const matchStatus = filterStatus === "active" ? s.is_active !== false : filterStatus === "inactive" ? s.is_active === false : true;
-      return matchSearch && matchCategory && matchUnit && matchStatus;
+  const curriculumsBySubjectId = useMemo(() => {
+    const map: Record<string, any[]> = {};
+    allCurriculums.forEach((record) => {
+      if (!record.subject_id) return;
+      const key = String(record.subject_id);
+      if (!map[key]) map[key] = [];
+      map[key].push(record);
     });
-  }, [allSubjects, search, filterCategory, filterUnit, filterStatus, activeUnitId]);
+    return map;
+  }, [allCurriculums]);
 
-  // Stats
-  const stats = useMemo(() => {
-    const withTeachers = filteredSubjects.filter((s) => {
-      return (assignmentsBySubjectId[String(s.id)]?.length ?? 0) > 0;
+  const filteredSubjects = useMemo(() => {
+    return allSubjects.filter((subject) => {
+      const assignments = assignmentsBySubjectId[String(subject.id)] || [];
+      const curriculums = curriculumsBySubjectId[String(subject.id)] || [];
+      const metrics = getSubjectMetrics(subject, assignments, curriculums);
+      const term = search.trim().toLowerCase();
+      const matchesSearch = !term || subject.name?.toLowerCase().includes(term) || subject.code?.toLowerCase().includes(term);
+      const matchesCategory = !filterCategory || subject.category === filterCategory;
+      const matchesUnit = !filterUnit ? (!activeUnitId || subject.unit_id === activeUnitId) : subject.unit_id === filterUnit;
+      const matchesStatus = filterStatus === "active" ? subject.is_active !== false : filterStatus === "inactive" ? subject.is_active === false : true;
+      const matchesWorkflow =
+        workflowFilter === "all" ||
+        (workflowFilter === "needs_teacher" && metrics.missingTeacherGrades.length > 0) ||
+        (workflowFilter === "needs_curriculum" && metrics.missingCurriculumGrades.length > 0) ||
+        (workflowFilter === "ready" && metrics.isReady);
+      return matchesSearch && matchesCategory && matchesUnit && matchesStatus && matchesWorkflow;
     });
-    const totalTeachers = new Set(
-      allAssignments.filter((a) => a.subject_id).map((a) => a.employees?.id)
-    ).size;
+  }, [activeUnitId, allSubjects, assignmentsBySubjectId, curriculumsBySubjectId, filterCategory, filterStatus, filterUnit, search, workflowFilter]);
+
+  const stats = useMemo(() => {
+    const withTeachers = filteredSubjects.filter((subject) => {
+      const assignments = assignmentsBySubjectId[String(subject.id)] || [];
+      return getSubjectMetrics(subject, assignments, curriculumsBySubjectId[String(subject.id)] || []).missingTeacherGrades.length === 0;
+    });
+    const withCurriculum = filteredSubjects.filter((subject) => {
+      const curriculums = curriculumsBySubjectId[String(subject.id)] || [];
+      return getSubjectMetrics(subject, assignmentsBySubjectId[String(subject.id)] || [], curriculums).missingCurriculumGrades.length === 0;
+    });
+    const ready = filteredSubjects.filter((subject) => {
+      return getSubjectMetrics(subject, assignmentsBySubjectId[String(subject.id)] || [], curriculumsBySubjectId[String(subject.id)] || []).isReady;
+    });
 
     return {
       total: filteredSubjects.length,
       withTeachers: withTeachers.length,
-      withoutTeachers: filteredSubjects.length - withTeachers.length,
-      totalTeachers,
+      needsTeacher: filteredSubjects.length - withTeachers.length,
+      withCurriculum: withCurriculum.length,
+      ready: ready.length,
+      totalTeachers: new Set(allAssignments.map((assignment) => assignment.employees?.id).filter(Boolean)).size,
     };
-  }, [filteredSubjects, assignmentsBySubjectId, allAssignments]);
+  }, [allAssignments, assignmentsBySubjectId, curriculumsBySubjectId, filteredSubjects]);
 
-  const selectedSubject = allSubjects.find((s) => s.id === selectedSubjectId);
-  const selectedAssignments = selectedSubject
-    ? (assignmentsBySubjectId[String(selectedSubject.id)] ?? [])
-    : [];
-
-  const isLoading = subjectsLoading || assignmentsLoading;
+  const selectedSubject = allSubjects.find((subject) => String(subject.id) === selectedSubjectId);
+  const selectedAssignments = selectedSubject ? assignmentsBySubjectId[String(selectedSubject.id)] || [] : [];
+  const selectedCurriculums = selectedSubject ? curriculumsBySubjectId[String(selectedSubject.id)] || [] : [];
+  const isLoading = subjectsLoading || assignmentsLoading || curriculumsLoading;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Link to="/curriculum" className="p-2 hover:bg-muted rounded-xl transition-colors">
-          <ArrowLeft className="w-5 h-5" />
+        <Link to="/curriculum/subjects" className="rounded-full p-2 transition-colors hover:bg-muted">
+          <ArrowLeft className="h-5 w-5" />
         </Link>
         <PageHeader
-          title="Direktori Mata Pelajaran & Guru"
-          description="Lihat siapa yang mengajar setiap mata pelajaran. Bantu perencanaan penugasan dan penjadwalan."
+          title="Direktori Pengampu & Kesiapan Kurikulum"
+          description="Kontrol siapa guru pengampu setiap mapel, kelas mana yang belum tertutup, dan perangkat ajar mana yang belum siap."
         />
       </div>
 
-      {/* ── Stats ── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <section className="rounded-xl border bg-card p-5 shadow-sm">
+        <div className="grid gap-5 lg:grid-cols-[1fr_1.1fr]">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-md bg-primary/10 px-3 py-1 text-sm font-semibold text-primary">
+              <GraduationCap className="h-4 w-4" />
+              Masih perlu, sebagai kontrol operasional
+            </div>
+            <h2 className="mt-3 text-2xl font-bold">Mapel, guru, kelas, dan kurikulum dalam satu tempat</h2>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              Halaman ini mendukung alur baru: CP/ATP per fase tetap dikelola di kurikulum mapel, sementara direktori ini memastikan setiap kelas punya guru pengampu dan perangkat ajar yang bisa dijalankan.
+            </p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="rounded-lg border bg-muted/20 p-4">
+              <BookOpen className="mb-2 h-5 w-5 text-primary" />
+              <p className="font-semibold">1. Pilih Mapel</p>
+              <p className="mt-1 text-xs text-muted-foreground">Lihat fase dan kelas sasaran.</p>
+            </div>
+            <div className="rounded-lg border bg-muted/20 p-4">
+              <Users className="mb-2 h-5 w-5 text-primary" />
+              <p className="font-semibold">2. Cek Guru</p>
+              <p className="mt-1 text-xs text-muted-foreground">Pastikan tiap kelas ada pengampu.</p>
+            </div>
+            <div className="rounded-lg border bg-muted/20 p-4">
+              <CheckCircle2 className="mb-2 h-5 w-5 text-primary" />
+              <p className="font-semibold">3. Cek Siap</p>
+              <p className="mt-1 text-xs text-muted-foreground">Pantau Prota sampai RPPH.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         {[
-          { icon: BookOpen,  label: "Total Mata Pelajaran", value: stats.total,          color: "bg-blue-100 text-blue-700" },
-          { icon: CheckCircle2, label: "Sudah Ada Guru",    value: stats.withTeachers,   color: "bg-emerald-100 text-emerald-700" },
-          { icon: AlertCircle,  label: "Belum Ada Guru",   value: stats.withoutTeachers, color: "bg-amber-100 text-amber-700" },
-          { icon: GraduationCap, label: "Total Guru Aktif", value: stats.totalTeachers, color: "bg-purple-100 text-purple-700" },
+          { icon: BookOpen, label: "Mapel Terfilter", value: stats.total, color: "bg-blue-100 text-blue-700" },
+          { icon: Users, label: "Guru Lengkap", value: stats.withTeachers, color: "bg-emerald-100 text-emerald-700" },
+          { icon: AlertCircle, label: "Butuh Guru", value: stats.needsTeacher, color: "bg-amber-100 text-amber-700" },
+          { icon: Layers3, label: "Kurikulum Lengkap", value: stats.withCurriculum, color: "bg-cyan-100 text-cyan-700" },
+          { icon: CheckCircle2, label: "Siap Jalan", value: stats.ready, color: "bg-teal-100 text-teal-700" },
         ].map(({ icon: Icon, label, value, color }) => (
-          <div key={label} className="bg-card border rounded-xl p-4 flex items-center gap-4 shadow-sm hover:shadow-md transition-shadow">
-            <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${color}`}>
-              <Icon className="w-5 h-5" />
+          <div key={label} className="flex items-center gap-4 rounded-xl border bg-card p-4 shadow-sm">
+            <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg ${color}`}>
+              <Icon className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-xl font-bold text-foreground">{value}</p>
+              <p className="text-2xl font-bold">{value}</p>
               <p className="text-xs text-muted-foreground">{label}</p>
             </div>
           </div>
         ))}
       </div>
 
-      {/* ── Filter Bar ── */}
-      <div className="bg-card rounded-xl border shadow-sm p-4 space-y-3">
-        <div className="flex gap-3 items-center">
+      <section className="rounded-xl border bg-card p-4 shadow-sm">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
           <div className="relative flex-1">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(event) => setSearch(event.target.value)}
               placeholder="Cari nama atau kode mata pelajaran..."
-              className="w-full pl-9 pr-4 py-2.5 border rounded-lg text-sm focus:ring-2 focus:ring-primary/50 outline-none bg-background"
+              className="w-full rounded-lg border bg-background py-2.5 pl-9 pr-4 text-sm outline-none focus:ring-2 focus:ring-primary/40"
             />
           </div>
-          {/* View toggle */}
-          <div className="flex border rounded-lg overflow-hidden shrink-0">
-            <button
-              onClick={() => setViewMode("grid")}
-              className={`p-2.5 transition-colors ${viewMode === "grid" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted"}`}
-              title="Tampilan Grid"
-            >
-              <Grid3x3 className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setViewMode("list")}
-              className={`p-2.5 transition-colors ${viewMode === "list" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted"}`}
-              title="Tampilan List"
-            >
-              <ListFilter className="w-4 h-4" />
-            </button>
+          <div className="flex flex-wrap gap-2">
+            <select value={workflowFilter} onChange={(event) => setWorkflowFilter(event.target.value as DirectoryFilter)} className="rounded-lg border bg-background px-3 py-2 text-sm">
+              <option value="all">Semua Workflow</option>
+              <option value="needs_teacher">Butuh Guru</option>
+              <option value="needs_curriculum">Butuh Kurikulum</option>
+              <option value="ready">Siap Jalan</option>
+            </select>
+            <select value={filterCategory} onChange={(event) => setFilterCategory(event.target.value)} className="rounded-lg border bg-background px-3 py-2 text-sm">
+              <option value="">Semua Kategori</option>
+              <option value="Nasional">Nasional</option>
+              <option value="Khas Sekolah">Khas Sekolah</option>
+              <option value="Lainnya">Lainnya</option>
+            </select>
+            <select value={filterUnit} onChange={(event) => setFilterUnit(event.target.value)} className="rounded-lg border bg-background px-3 py-2 text-sm">
+              <option value="">Unit Aktif / Semua</option>
+              {(unitsData?.data ?? []).map((unit: any) => (
+                <option key={unit.id} value={unit.id}>{unit.name}</option>
+              ))}
+            </select>
+            <select value={filterStatus} onChange={(event) => setFilterStatus(event.target.value)} className="rounded-lg border bg-background px-3 py-2 text-sm">
+              <option value="">Semua Status</option>
+              <option value="active">Aktif</option>
+              <option value="inactive">Nonaktif</option>
+            </select>
+            <div className="flex overflow-hidden rounded-lg border">
+              <button type="button" onClick={() => setViewMode("grid")} className={`p-2.5 ${viewMode === "grid" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted"}`} title="Tampilan kartu">
+                <Grid3x3 className="h-4 w-4" />
+              </button>
+              <button type="button" onClick={() => setViewMode("list")} className={`p-2.5 ${viewMode === "list" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted"}`} title="Tampilan tabel">
+                <ListFilter className="h-4 w-4" />
+              </button>
+            </div>
           </div>
         </div>
-
-        <div className="flex flex-wrap items-center gap-3 pt-2 border-t">
-          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-            <Filter className="w-3.5 h-3.5" /> Filter:
-          </div>
-          <select
-            value={filterCategory}
-            onChange={(e) => setFilterCategory(e.target.value)}
-            className="border rounded-lg px-3 py-1.5 text-sm bg-background outline-none focus:ring-2 focus:ring-primary/30"
-          >
-            <option value="">Semua Kategori</option>
-            <option value="Nasional">Nasional (Kurikulum Merdeka)</option>
-            <option value="Khas Sekolah">Khas Sekolah</option>
-            <option value="Lainnya">Lainnya</option>
-          </select>
-          <select
-            value={filterUnit}
-            onChange={(e) => setFilterUnit(e.target.value)}
-            className="border rounded-lg px-3 py-1.5 text-sm bg-background outline-none focus:ring-2 focus:ring-primary/30"
-          >
-            <option value="">Semua Unit</option>
-            {(unitsData?.data ?? []).map((u: any) => (
-              <option key={u.id} value={u.id}>{u.name}</option>
-            ))}
-          </select>
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="border rounded-lg px-3 py-1.5 text-sm bg-background outline-none focus:ring-2 focus:ring-primary/30"
-          >
-            <option value="">Semua Status</option>
-            <option value="active">Aktif</option>
-            <option value="inactive">Nonaktif</option>
-          </select>
-          {(filterCategory || filterUnit || search) && (
+        <div className="mt-3 flex flex-wrap items-center gap-2 border-t pt-3 text-xs text-muted-foreground">
+          <Filter className="h-3.5 w-3.5" />
+          <span>{isLoading ? "Memuat data..." : `${filteredSubjects.length} mata pelajaran tampil`}</span>
+          <span>Guru unik: {stats.totalTeachers}</span>
+          {(search || filterCategory || filterUnit || filterStatus !== "active" || workflowFilter !== "all") ? (
             <button
-              onClick={() => { setFilterCategory(""); setFilterUnit(""); setSearch(""); setFilterStatus("active"); }}
-              className="text-xs text-red-600 hover:underline font-medium"
+              type="button"
+              onClick={() => {
+                setSearch("");
+                setFilterCategory("");
+                setFilterUnit("");
+                setFilterStatus("active");
+                setWorkflowFilter("all");
+              }}
+              className="ml-auto font-semibold text-rose-600 hover:underline"
             >
-              Reset
+              Reset filter
             </button>
-          )}
-          <span className="ml-auto text-xs text-muted-foreground">
-            {isLoading ? "Memuat..." : `${filteredSubjects.length} mata pelajaran`}
-          </span>
+          ) : null}
         </div>
-      </div>
+      </section>
 
-      {/* ── Main Content (2-panel layout if subject selected) ── */}
-      <div className={`${selectedSubjectId ? "grid grid-cols-1 lg:grid-cols-5 gap-6" : ""}`}>
-        {/* Left panel: subject list/grid */}
-        <div className={selectedSubjectId ? "lg:col-span-3" : ""}>
+      <div className={selectedSubjectId ? "grid gap-6 xl:grid-cols-[1fr_420px]" : ""}>
+        <main>
           {isLoading ? (
-            <div className={`grid gap-4 ${viewMode === "grid" ? "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3" : "grid-cols-1"}`}>
-              {[1, 2, 3, 4, 5, 6].map((i) => (
-                <div key={i} className="h-44 bg-muted animate-pulse rounded-xl" />
+            <div className={`grid gap-4 ${viewMode === "grid" ? "md:grid-cols-2 xl:grid-cols-3" : "grid-cols-1"}`}>
+              {[1, 2, 3, 4, 5, 6].map((item) => (
+                <div key={item} className="h-48 animate-pulse rounded-xl bg-muted" />
               ))}
             </div>
           ) : filteredSubjects.length === 0 ? (
-            <div className="bg-card border rounded-xl p-16 text-center">
-              <BookOpen className="w-12 h-12 text-muted-foreground mx-auto mb-3 opacity-40" />
-              <p className="font-semibold text-foreground mb-1">Tidak Ada Mata Pelajaran</p>
-              <p className="text-sm text-muted-foreground">Coba ubah filter atau tambah mata pelajaran baru.</p>
-              <Link
-                to="/curriculum/subjects/create"
-                className="mt-4 inline-flex items-center gap-1.5 text-sm text-primary hover:underline font-medium"
-              >
-                + Tambah Mata Pelajaran
+            <div className="rounded-xl border bg-card p-14 text-center">
+              <BookOpen className="mx-auto mb-3 h-12 w-12 text-muted-foreground/40" />
+              <p className="font-semibold">Tidak ada mata pelajaran sesuai filter</p>
+              <p className="mt-1 text-sm text-muted-foreground">Ubah filter atau tambah mata pelajaran baru.</p>
+              <Link to="/curriculum/subjects/create" className="mt-4 inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">
+                <Plus className="h-4 w-4" />
+                Tambah Mapel
               </Link>
             </div>
           ) : viewMode === "grid" ? (
-            /* GRID VIEW */
-            <div className={`grid gap-4 ${selectedSubjectId ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3"}`}>
-              {filteredSubjects.map((subject) => {
-                const assignments = assignmentsBySubjectId[String(subject.id)] ?? [];
-                const isSelected = selectedSubjectId === subject.id;
-                return (
-                  <div key={subject.id} className={isSelected ? "ring-2 ring-primary rounded-xl" : ""}>
-                    <SubjectCard
-                      subject={subject}
-                      assignments={assignments}
-                      onSelectSubject={(id) => setSelectedSubjectId(selectedSubjectId === id ? null : id)}
-                    />
-                  </div>
-                );
-              })}
+            <div className={`grid gap-4 ${selectedSubjectId ? "md:grid-cols-2" : "md:grid-cols-2 xl:grid-cols-3"}`}>
+              {filteredSubjects.map((subject) => (
+                <SubjectCard
+                  key={subject.id}
+                  subject={subject}
+                  assignments={assignmentsBySubjectId[String(subject.id)] || []}
+                  curriculums={curriculumsBySubjectId[String(subject.id)] || []}
+                  isSelected={String(subject.id) === selectedSubjectId}
+                  onSelect={() => setSelectedSubjectId(String(subject.id) === selectedSubjectId ? null : String(subject.id))}
+                />
+              ))}
             </div>
           ) : (
-            /* LIST VIEW */
-            <div className="bg-card border rounded-xl overflow-hidden shadow-sm">
-              <table className="w-full text-sm">
-                <thead className="bg-muted/50 border-b text-xs uppercase text-muted-foreground font-semibold">
+            <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
+              <table className="w-full text-left text-sm">
+                <thead className="border-b bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
                   <tr>
-                    <th className="px-5 py-3.5 text-left">Mata Pelajaran</th>
-                    <th className="px-5 py-3.5 text-left">Kategori</th>
-                    <th className="px-5 py-3.5 text-left">Unit</th>
-                    <th className="px-5 py-3.5 text-left">Guru yang Mengajar</th>
-                    <th className="px-5 py-3.5 text-center">Kelas</th>
-                    <th className="px-5 py-3.5 text-left">Aksi</th>
+                    <th className="px-5 py-3">Mata Pelajaran</th>
+                    <th className="px-5 py-3">Guru</th>
+                    <th className="px-5 py-3">Kelas</th>
+                    <th className="px-5 py-3">Kurikulum</th>
+                    <th className="px-5 py-3">Status</th>
+                    <th className="px-5 py-3">Aksi</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-border">
+                <tbody className="divide-y">
                   {filteredSubjects.map((subject) => {
-                    const assignments = assignmentsBySubjectId[String(subject.id)] ?? [];
-                    const uniqueTeachers = [...new Map(assignments.map((a: any) => [a.employees?.id, a])).values()];
-                    const catKey = subject.category ?? "Lainnya";
-                    const cat = CATEGORY_CFG[catKey] ?? CATEGORY_CFG["Lainnya"];
-                    const isSelected = selectedSubjectId === subject.id;
-
+                    const assignments = assignmentsBySubjectId[String(subject.id)] || [];
+                    const curriculums = curriculumsBySubjectId[String(subject.id)] || [];
+                    const metrics = getSubjectMetrics(subject, assignments, curriculums);
+                    const selected = String(subject.id) === selectedSubjectId;
                     return (
-                      <tr
-                        key={subject.id}
-                        onClick={() => setSelectedSubjectId(isSelected ? null : String(subject.id))}
-                        className={`hover:bg-muted/30 transition-colors cursor-pointer ${isSelected ? "bg-primary/5 border-l-4 border-l-primary" : ""}`}
-                      >
-                        <td className="px-5 py-3.5">
-                          <div>
-                            <p className="font-semibold text-foreground">{subject.name}</p>
-                            {subject.code && <p className="text-xs text-muted-foreground font-mono">{subject.code}</p>}
-                          </div>
+                      <tr key={subject.id} className={selected ? "bg-primary/5" : "hover:bg-muted/30"}>
+                        <td className="px-5 py-4">
+                          <p className="font-semibold">{subject.name}</p>
+                          <p className="text-xs text-muted-foreground">{subject.code || "Tanpa kode"}</p>
                         </td>
-                        <td className="px-5 py-3.5">
-                          <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${cat.bg} ${cat.color}`}>
-                            {catKey}
-                          </span>
+                        <td className="px-5 py-4"><TeacherAvatarStack assignments={assignments} /></td>
+                        <td className="px-5 py-4 text-sm">{metrics.assignedGrades.size}/{metrics.targetGrades.length}</td>
+                        <td className="px-5 py-4 text-sm">{metrics.curriculumGrades.size}/{metrics.targetGrades.length}</td>
+                        <td className="px-5 py-4">
+                          <StatusPill done={metrics.isReady} label={metrics.isReady ? "Siap" : "Perlu tindak lanjut"} />
                         </td>
-                        <td className="px-5 py-3.5 text-sm text-muted-foreground">
-                          {subject.units?.name ?? "—"}
-                        </td>
-                        <td className="px-5 py-3.5">
-                          {uniqueTeachers.length === 0 ? (
-                            <span className="text-xs text-amber-600 flex items-center gap-1">
-                              <AlertCircle className="w-3.5 h-3.5" /> Belum ada
-                            </span>
-                          ) : (
-                            <div className="flex -space-x-2">
-                              {uniqueTeachers.slice(0, 4).map((a: any, i) => (
-                                <div
-                                  key={i}
-                                  title={a.employees?.full_name}
-                                  className={`w-7 h-7 rounded-full bg-gradient-to-br ${getAvatarColor(a.employees?.full_name ?? "?")} border-2 border-background flex items-center justify-center text-white font-bold text-[9px]`}
-                                >
-                                  {getInitials(a.employees?.full_name ?? "?")}
-                                </div>
-                              ))}
-                              {uniqueTeachers.length > 4 && (
-                                <div className="w-7 h-7 rounded-full bg-muted border-2 border-background flex items-center justify-center text-[9px] font-bold text-muted-foreground">
-                                  +{uniqueTeachers.length - 4}
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </td>
-                        <td className="px-5 py-3.5 text-center">
-                          <span className={`text-xs font-semibold ${assignments.length > 0 ? "text-foreground" : "text-muted-foreground"}`}>
-                            {assignments.length}
-                          </span>
-                        </td>
-                        <td className="px-5 py-3.5">
-                          <button
-                            onClick={(e) => { e.stopPropagation(); setSelectedSubjectId(isSelected ? null : String(subject.id)); }}
-                            className="flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-                          >
-                            <Eye className="w-3.5 h-3.5" /> Detail
+                        <td className="px-5 py-4">
+                          <button type="button" onClick={() => setSelectedSubjectId(selected ? null : String(subject.id))} className="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline">
+                            <Eye className="h-4 w-4" />
+                            Detail
                           </button>
                         </td>
                       </tr>
@@ -649,18 +699,16 @@ export const SubjectTeacherDirectory: React.FC = () => {
               </table>
             </div>
           )}
-        </div>
+        </main>
 
-        {/* Right panel: detail */}
-        {selectedSubjectId && selectedSubject && (
-          <div className="lg:col-span-2 h-fit sticky top-4">
-            <SubjectDetailPanel
-              subject={selectedSubject}
-              assignments={selectedAssignments}
-              onClose={() => setSelectedSubjectId(null)}
-              onNavigateTeacher={(id) => navigate(`/employees/show/${id}`)}
-            />
-          </div>
+        {selectedSubject && (
+          <SubjectDetailPanel
+            subject={selectedSubject}
+            assignments={selectedAssignments}
+            curriculums={selectedCurriculums}
+            onClose={() => setSelectedSubjectId(null)}
+            onNavigateTeacher={(teacherId) => navigate(`/employees/show/${teacherId}`)}
+          />
         )}
       </div>
     </div>

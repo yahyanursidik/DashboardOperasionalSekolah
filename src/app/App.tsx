@@ -61,6 +61,7 @@ import { SubjectCurriculumCreate, SubjectCurriculumEdit } from "../modules/curri
 import { PaudThemeList } from "../modules/curriculum/paud-curriculums/list";
 import { PaudThemeCreate } from "../modules/curriculum/paud-curriculums/create";
 import { PaudThemeEdit } from "../modules/curriculum/paud-curriculums/edit";
+import { PaudThemeShow } from "../modules/curriculum/paud-curriculums/show";
 import { CurriculumDocumentsList, CurriculumDocumentCreate } from "../modules/curriculum/documents";
 import { MailDashboard, IncomingMailList, OutgoingMailList, DispositionsList, IncomingMailCreate, OutgoingMailCreate } from "../modules/mail";
 import { RecruitmentDashboard, VacanciesList, ApplicantsList, ApplicantShow, VacancyCreate, VacancyEdit, ApplicantCreate } from "../modules/recruitment";
@@ -524,6 +525,7 @@ export default function App() {
             list: "/curriculum/paud",
             create: "/curriculum/paud/create",
             edit: "/curriculum/paud/edit/:id",
+            show: "/curriculum/paud/show/:id",
             meta: { canDelete: true },
           },
           {
@@ -938,28 +940,29 @@ export default function App() {
                 </Route>
 
                 <Route path="/curriculum">
-                   <Route index element={<CurriculumDashboard />} />
-                   <Route path="subjects">
-                     <Route index element={<SubjectsList />} />
-                     <Route path="create" element={<SubjectCreate />} />
-                     <Route path="edit/:id" element={<SubjectEdit />} />
-                     <Route path="show/:id" element={<SubjectShow />} />
-                     <Route path="directory" element={<SubjectTeacherDirectory />} />
-                   </Route>
-                   <Route path="subject-curriculums">
-                     <Route path="create" element={<SubjectCurriculumCreate />} />
-                     <Route path="edit/:id" element={<SubjectCurriculumEdit />} />
-                   </Route>
-                   <Route path="paud">
-                     <Route index element={<PaudThemeList />} />
-                     <Route path="create" element={<PaudThemeCreate />} />
-                     <Route path="edit/:id" element={<PaudThemeEdit />} />
-                   </Route>
-                   <Route path="documents">
-                     <Route index element={<CurriculumDocumentsList />} />
-                     <Route path="create" element={<CurriculumDocumentCreate />} />
-                   </Route>
-                 </Route>
+                  <Route index element={<CurriculumDashboard />} />
+                  <Route path="subjects">
+                    <Route index element={<SubjectsList />} />
+                    <Route path="create" element={<SubjectCreate />} />
+                    <Route path="edit/:id" element={<SubjectEdit />} />
+                    <Route path="show/:id" element={<SubjectShow />} />
+                    <Route path="directory" element={<SubjectTeacherDirectory />} />
+                  </Route>
+                  <Route path="subject-curriculums">
+                    <Route path="create" element={<SubjectCurriculumCreate />} />
+                    <Route path="edit/:id" element={<SubjectCurriculumEdit />} />
+                  </Route>
+                  <Route path="paud">
+                    <Route index element={<PaudThemeList />} />
+                    <Route path="create" element={<PaudThemeCreate />} />
+                    <Route path="edit/:id" element={<PaudThemeEdit />} />
+                    <Route path="show/:id" element={<PaudThemeShow />} />
+                  </Route>
+                  <Route path="documents">
+                    <Route index element={<CurriculumDocumentsList />} />
+                    <Route path="create" element={<CurriculumDocumentCreate />} />
+                  </Route>
+                </Route>
 
                 <Route path="/finance">
                   <Route index element={<FinanceDashboard />} />

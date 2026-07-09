@@ -19,8 +19,12 @@ import { Modal } from "../../../components/common/Modal";
 // ─── Position label & color helpers ───────────────────────────────────────────
 const POSITION_MAP: Record<string, { label: string; color: string }> = {
   kepala_sekolah: { label: "Kepala Sekolah", color: "bg-purple-100 text-purple-800 border-purple-200" },
-  wakasek:        { label: "Wakil Kepala",   color: "bg-indigo-100 text-indigo-800 border-indigo-200" },
+  wakasek_umum: { label: "Wakil Kepala Sekolah", color: "bg-indigo-100 text-indigo-800 border-indigo-200" },
+  wakasek_kurikulum: { label: "Wakasek Kurikulum", color: "bg-indigo-100 text-indigo-800 border-indigo-200" },
+  wakasek_kesiswaan: { label: "Wakasek Kesiswaan", color: "bg-indigo-100 text-indigo-800 border-indigo-200" },
+  kepala_unit:    { label: "Kepala Unit", color: "bg-pink-100 text-pink-800 border-pink-200" },
   guru:           { label: "Guru",           color: "bg-blue-100 text-blue-800 border-blue-200" },
+  guru_quran:     { label: "Guru Al Qur'an", color: "bg-emerald-100 text-emerald-800 border-emerald-200" },
   school_center:  { label: "School Center",  color: "bg-pink-100 text-pink-800 border-pink-200" },
   bendahara:      { label: "Bendahara / Keuangan", color: "bg-emerald-100 text-emerald-800 border-emerald-200" },
   penanggung_jawab:{ label: "Penanggung Jawab", color: "bg-cyan-100 text-cyan-800 border-cyan-200" },
@@ -28,6 +32,7 @@ const POSITION_MAP: Record<string, { label: string; color: string }> = {
   pustakawan:     { label: "Pustakawan",     color: "bg-orange-100 text-orange-800 border-orange-200" },
   laboran:        { label: "Laboran",        color: "bg-yellow-100 text-yellow-800 border-yellow-200" },
   tu:             { label: "Tata Usaha",     color: "bg-amber-100 text-amber-800 border-amber-200" },
+  sarpras:        { label: "Sarana Prasarana", color: "bg-orange-100 text-orange-800 border-orange-200" },
   satpam:         { label: "Satpam",         color: "bg-slate-100 text-slate-800 border-slate-200" },
   cleaning_service:{ label: "Kebersihan",   color: "bg-teal-100 text-teal-800 border-teal-200" },
   lainnya:        { label: "Lainnya",        color: "bg-gray-100 text-gray-800 border-gray-200" },
@@ -269,7 +274,7 @@ export const EmployeesList: React.FC = () => {
   };
 
   const downloadTemplate = () => {
-    const csvContent = "Nama Lengkap,NIK,NUPTK,Jenis Kelamin (L/P),Tempat Lahir,Tanggal Lahir (YYYY-MM-DD),Agama,Alamat,No HP\nPegawai Contoh,1234567890123456,,L,Jakarta,1985-05-15,Islam,Jl. Merdeka No 1,08123456789";
+    const csvContent = "nik,full_name,gender,birth_date,email,phone,address,position,status,join_date\n123456789,Budi Santoso,laki_laki,1990-01-01,budi@email.com,08123456789,Jl. Merdeka No 1,guru,active,2023-01-01\n987654321,Siti Aminah,perempuan,1992-02-02,siti@email.com,08129876543,Jl. Sudirman No 2,tu,active,2023-02-01";
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
@@ -304,7 +309,7 @@ export const EmployeesList: React.FC = () => {
     setIsUploading(true);
     
     try {
-      const validRows = previewData.filter((row: any) => row['Nama Lengkap']);
+      const validRows = previewData.filter((row: any) => row['full_name'] || row['Nama Lengkap']);
       
       if (validRows.length === 0) {
         toast.error("File CSV kosong atau format tidak sesuai.");
@@ -312,20 +317,24 @@ export const EmployeesList: React.FC = () => {
         return;
       }
 
-      const employeesToInsert = validRows.map((row: any) => ({
-        full_name: row['Nama Lengkap'],
-        nik: row['NIK'] || null,
-        nuptk: row['NUPTK'] || null,
-        gender: row['Jenis Kelamin (L/P)'] === 'P' || row['Jenis Kelamin (L/P)']?.toLowerCase() === 'perempuan' ? 'P' : 'L',
-        birth_place: row['Tempat Lahir'] || null,
-        date_of_birth: row['Tanggal Lahir (YYYY-MM-DD)'] || null,
-        religion: row['Agama'] || 'Islam',
-        address: row['Alamat'] || null,
-        phone: row['No HP'] || null,
-        unit_id: uploadUnitId || null,
-        position: uploadPosition || 'lainnya',
-        status: 'active'
-      }));
+      const employeesToInsert = validRows.map((row: any) => {
+        const genderVal = row['gender'] || row['Jenis Kelamin (L/P)'];
+        const isFemale = genderVal === 'P' || genderVal?.toLowerCase() === 'perempuan';
+        
+        return {
+          full_name: row['full_name'] || row['Nama Lengkap'],
+          nik: row['nik'] || row['NIK'] || null,
+          gender: isFemale ? 'perempuan' : 'laki_laki',
+          birth_date: row['birth_date'] || row['Tanggal Lahir (YYYY-MM-DD)'] || null,
+          email: row['email'] || null,
+          address: row['address'] || row['Alamat'] || null,
+          phone: row['phone'] || row['No HP'] || null,
+          unit_id: uploadUnitId || null,
+          position: row['position'] || uploadPosition || 'lainnya',
+          status: row['status'] || 'active',
+          join_date: row['join_date'] || null
+        };
+      });
 
       const { error } = await supabaseClient.from('employees').insert(employeesToInsert);
       
@@ -618,8 +627,12 @@ export const EmployeesList: React.FC = () => {
           >
             <option value="">Semua Jabatan</option>
             <option value="kepala_sekolah">Kepala Sekolah</option>
-            <option value="wakasek">Wakil Kepala Sekolah</option>
+            <option value="wakasek_umum">Wakil Kepala Sekolah (Umum)</option>
+            <option value="wakasek_kurikulum">Wakil Kepala Sekolah Bidang Kurikulum</option>
+            <option value="wakasek_kesiswaan">Wakil Kepala Sekolah Bidang Kesiswaan</option>
+            <option value="kepala_unit">Kepala Unit (Lintas Jenjang / &gt;1 Unit)</option>
             <option value="guru">Guru / Pengajar</option>
+            <option value="guru_quran">Guru Al Qur'an</option>
             <option value="school_center">School Center</option>
             <option value="bendahara">Bendahara / Keuangan</option>
             <option value="penanggung_jawab">Penanggung Jawab</option>
@@ -627,6 +640,7 @@ export const EmployeesList: React.FC = () => {
             <option value="pustakawan">Pustakawan</option>
             <option value="laboran">Laboran</option>
             <option value="tu">Tata Usaha</option>
+            <option value="sarpras">Sarana Prasarana</option>
             <option value="satpam">Satpam</option>
             <option value="cleaning_service">Cleaning Service</option>
             <option value="lainnya">Lainnya</option>
@@ -787,8 +801,12 @@ export const EmployeesList: React.FC = () => {
               >
                 <option value="">-- Pilih Jabatan --</option>
                 <option value="kepala_sekolah">Kepala Sekolah</option>
-                <option value="wakasek">Wakil Kepala Sekolah</option>
+                <option value="wakasek_umum">Wakil Kepala Sekolah (Umum)</option>
+                <option value="wakasek_kurikulum">Wakil Kepala Sekolah Bidang Kurikulum</option>
+                <option value="wakasek_kesiswaan">Wakil Kepala Sekolah Bidang Kesiswaan</option>
+                <option value="kepala_unit">Kepala Unit (Lintas Jenjang / &gt;1 Unit)</option>
                 <option value="guru">Guru / Pengajar</option>
+                <option value="guru_quran">Guru Al Qur'an</option>
                 <option value="school_center">School Center</option>
                 <option value="bendahara">Bendahara / Keuangan</option>
                 <option value="penanggung_jawab">Penanggung Jawab</option>
@@ -796,6 +814,7 @@ export const EmployeesList: React.FC = () => {
                 <option value="pustakawan">Pustakawan</option>
                 <option value="laboran">Laboran</option>
                 <option value="tu">Tata Usaha</option>
+                <option value="sarpras">Sarana Prasarana</option>
                 <option value="satpam">Satpam</option>
                 <option value="cleaning_service">Cleaning Service</option>
                 <option value="lainnya">Lainnya</option>

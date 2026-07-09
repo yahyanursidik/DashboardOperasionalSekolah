@@ -1,31 +1,51 @@
 import React from "react";
-import { useShow, useList, useDelete } from "@refinedev/core";
-import { useNavigate, useParams, Link } from "react-router-dom";
+import { useDelete, useList, useShow } from "@refinedev/core";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, Edit, Trash2, FileText, BookOpen } from "lucide-react";
+import { ArrowLeft, BookOpen, CalendarDays, CheckCircle2, Circle, Edit, FileText, Layers3, Plus, Trash2 } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
+import { SD_PHASES, getRppmRows, getRpphRows, getSdPhaseCompletion, hasRows } from "../subject-curriculums/sdCurriculumStructure";
+
+const StatusPill: React.FC<{ done: boolean; label: string; detail?: string }> = ({ done, label, detail }) => (
+  <span
+    className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-semibold ${
+      done
+        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+        : "border-slate-200 bg-slate-50 text-slate-500"
+    }`}
+  >
+    {done ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Circle className="h-3.5 w-3.5" />}
+    {label}
+    {detail ? <span className="font-normal opacity-80">({detail})</span> : null}
+  </span>
+);
 
 export const SubjectShow: React.FC = () => {
   const { id } = useParams();
+  const subjectId = id || "";
   const navigate = useNavigate();
   const { mutate: deleteCurriculum } = useDelete();
 
   const { queryResult } = useShow({
     resource: "subjects",
-    id,
-    meta: { select: "*, units(name)" }
+    id: subjectId,
+    meta: { select: "*, units(name)" },
   });
   const subject = queryResult?.data?.data;
 
   const { data: curriculumsData, isLoading: curriculumsLoading } = useList({
     resource: "subject_curriculums",
-    filters: [{ field: "subject_id", operator: "eq", value: id }],
+    filters: [{ field: "subject_id", operator: "eq", value: subjectId }],
     sorters: [{ field: "grade_level", order: "asc" }],
-    meta: { select: "*, academic_years(name)" }
+    meta: { select: "*, academic_years(name)" },
   });
 
   if (queryResult.isLoading) return <div className="p-8 text-center text-muted-foreground">Memuat data...</div>;
   if (!subject) return <div className="p-8 text-center text-rose-500">Mata pelajaran tidak ditemukan.</div>;
+
+  const records = curriculumsData?.data || [];
+  const allowedGrades = Array.isArray(subject.grade_levels) && subject.grade_levels.length > 0 ? subject.grade_levels.map(Number) : [1, 2, 3, 4, 5, 6];
+  const activePhases = SD_PHASES.filter((phase) => phase.grades.some((grade) => allowedGrades.includes(grade)));
 
   return (
     <div className="space-y-6">
@@ -33,110 +53,185 @@ export const SubjectShow: React.FC = () => {
         <Link to="/curriculum/subjects" className="p-2 hover:bg-muted rounded-full transition-colors">
           <ArrowLeft className="w-5 h-5" />
         </Link>
-        <PageHeader 
-          title={`Detail Mata Pelajaran: ${subject.name}`} 
-          description={`${subject.code ? subject.code + ' - ' : ''}Kategori: ${subject.category} | Unit: ${subject.units?.name || '-'}`}
+        <PageHeader
+          title={subject.name}
+          description={`${subject.code ? subject.code + " - " : ""}${subject.category || "Mata pelajaran"} | ${subject.units?.name || "Unit belum dipilih"}`}
           action={
-            <Link
-              to={`/curriculum/subjects/edit/${id}`}
-              className="flex items-center gap-2 border px-4 py-2 rounded-md hover:bg-muted transition-colors font-medium text-sm"
-            >
-              <Edit className="w-4 h-4" /> Edit Mapel
-            </Link>
+            <div className="flex flex-wrap gap-2">
+              <Link
+                to={`/curriculum/subject-curriculums/create?subject_id=${subjectId}`}
+                className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition-colors shadow-sm font-medium text-sm"
+              >
+                <Plus className="w-4 h-4" />
+                Tambah Kurikulum
+              </Link>
+              <Link
+                to={`/curriculum/subjects/edit/${subjectId}`}
+                className="flex items-center gap-2 border px-4 py-2 rounded-md hover:bg-muted transition-colors font-medium text-sm"
+              >
+                <Edit className="w-4 h-4" />
+                Edit Mapel
+              </Link>
+            </div>
           }
         />
       </div>
 
-      <div className="bg-card rounded-xl border shadow-sm p-6">
-        <div className="flex justify-between items-center mb-6 border-b pb-4">
+      <section className="rounded-xl border bg-card p-5 shadow-sm">
+        <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
           <div>
-            <h3 className="text-lg font-semibold flex items-center gap-2">
-              <BookOpen className="w-5 h-5 text-primary" />
-              Kurikulum & Modul Ajar (Per Jenjang Kelas)
-            </h3>
-            <p className="text-sm text-muted-foreground mt-1">Kelola CP, ATP, Prota, Prosem, dan Modul Ajar (Deep Learning) untuk tiap jenjang kelas.</p>
+            <div className="inline-flex items-center gap-2 rounded-md bg-primary/10 px-3 py-1 text-sm font-semibold text-primary">
+              <BookOpen className="h-4 w-4" />
+              Model Kurikulum Merdeka SD
+            </div>
+            <h2 className="mt-3 text-2xl font-bold">CP dan ATP per fase, perangkat ajar per kelas</h2>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              Untuk SD, Fase A mencakup kelas 1-2, Fase B kelas 3-4, dan Fase C kelas 5-6. Guru mengisi CP dan ATP sebagai arah satu fase, lalu menurunkannya menjadi Prota, Promes, RPPM, dan RPPH/Modul Ajar sesuai kelas.
+            </p>
           </div>
-          <Link
-            to={`/curriculum/subject-curriculums/create?subject_id=${id}`}
-            className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition-colors shadow-sm font-medium text-sm"
-          >
-            <Plus className="w-4 h-4" /> Tambah Kurikulum Kelas
-          </Link>
+          <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
+            <div className="rounded-lg border bg-muted/20 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Total Data</p>
+              <p className="mt-1 text-2xl font-bold">{records.length}</p>
+            </div>
+            <div className="rounded-lg border bg-muted/20 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Fase Aktif</p>
+              <p className="mt-1 text-2xl font-bold">{activePhases.length}</p>
+            </div>
+            <div className="rounded-lg border bg-muted/20 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Kelas Mapel</p>
+              <p className="mt-1 text-2xl font-bold">{allowedGrades.join(", ")}</p>
+            </div>
+          </div>
         </div>
+      </section>
 
-        {curriculumsLoading ? (
-          <div className="py-8 text-center text-muted-foreground">Memuat kurikulum...</div>
-        ) : curriculumsData?.data?.length === 0 ? (
-          <div className="py-12 text-center border-2 border-dashed rounded-xl bg-muted/20">
-            <FileText className="w-12 h-12 text-muted-foreground/50 mx-auto mb-3" />
-            <h4 className="font-medium text-slate-700">Belum ada data kurikulum</h4>
-            <p className="text-sm text-muted-foreground mt-1">Tambahkan kurikulum untuk jenjang kelas tertentu pada mata pelajaran ini.</p>
-          </div>
-        ) : (
-          <div className="grid gap-4 md:grid-cols-2">
-            {curriculumsData?.data?.map((curr: any) => (
-              <div key={curr.id} className="border rounded-xl p-5 hover:border-primary/50 transition-colors bg-background shadow-sm">
-                <div className="flex justify-between items-start mb-4">
+      {curriculumsLoading ? (
+        <div className="py-8 text-center text-muted-foreground">Memuat kurikulum...</div>
+      ) : records.length === 0 ? (
+        <div className="rounded-xl border-2 border-dashed bg-muted/20 py-14 text-center">
+          <FileText className="mx-auto mb-3 h-12 w-12 text-muted-foreground/50" />
+          <h4 className="font-semibold">Belum ada kurikulum SD untuk mapel ini</h4>
+          <p className="mt-1 text-sm text-muted-foreground">Mulai dari CP dan ATP fase, lalu turunkan perangkat ajar per kelas.</p>
+        </div>
+      ) : (
+        <div className="space-y-5">
+          {activePhases.map((phase) => {
+            const completion = getSdPhaseCompletion(records, phase.grades);
+            const cpAtpRecord = completion.records.find((record) => record.cp_text || record.atp_text);
+
+            return (
+              <section key={phase.id} className="rounded-xl border bg-card p-5 shadow-sm">
+                <div className="flex flex-wrap items-start justify-between gap-4 border-b pb-4">
                   <div>
-                    <div className="inline-flex items-center justify-center px-2.5 py-1 rounded-md bg-blue-50 text-blue-700 text-xs font-bold border border-blue-200 mb-2">
-                      Kelas {curr.grade_level}
+                    <div className="inline-flex rounded-md bg-primary/10 px-3 py-1 text-sm font-bold text-primary">
+                      {phase.label} | {phase.rangeLabel}
                     </div>
-                    <h4 className="font-semibold text-slate-800">Tahun Ajaran: {curr.academic_years?.name || '-'}</h4>
+                    <h3 className="mt-3 text-xl font-bold">{subject.name} {phase.label}</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">{phase.description}</p>
                   </div>
-                  <div className="flex gap-1">
-                    <Link
-                      to={`/curriculum/subject-curriculums/edit/${curr.id}`}
-                      className="p-1.5 text-muted-foreground hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
-                      title="Edit"
-                    >
-                      <Edit className="w-4 h-4" />
-                    </Link>
-                    <button
-                      onClick={() => {
-                        if (confirm("Hapus kurikulum kelas ini?")) {
-                          deleteCurriculum(
-                            { resource: "subject_curriculums", id: curr.id },
-                            {
-                              onSuccess: () => {
-                                toast.success("Kurikulum berhasil dihapus");
-                              },
-                              onError: (error) => {
-                                toast.error("Gagal menghapus kurikulum: " + error.message);
-                              }
-                            }
-                          );
-                        }
-                      }}
-                      className="p-1.5 text-muted-foreground hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors"
-                      title="Hapus"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                  <div className="flex flex-wrap gap-2">
+                    <StatusPill done={completion.cpFilled} label="CP Fase" />
+                    <StatusPill done={completion.atpFilled} label="ATP Fase" />
+                    <StatusPill done={completion.completedClasses === phase.grades.length} label="Kelas" detail={`${completion.completedClasses}/${phase.grades.length}`} />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div className={`p-2 rounded border ${curr.cp_text ? 'bg-emerald-50 border-emerald-100 text-emerald-700' : 'bg-slate-50 border-slate-100 text-slate-500'}`}>
-                    {curr.cp_text ? '✓ CP Terisi' : '✗ CP Kosong'}
+                <div className="mt-5 grid gap-4 lg:grid-cols-[320px_1fr]">
+                  <div className="rounded-lg border bg-muted/20 p-4">
+                    <p className="text-sm font-bold">Dokumen Fase</p>
+                    <div className="mt-4 space-y-3">
+                      <div className="rounded-md bg-background p-3">
+                        <p className="text-xs font-semibold uppercase text-muted-foreground">CP</p>
+                        <p className="mt-1 text-sm">{cpAtpRecord?.cp_text ? "Sudah tersedia" : "Belum diisi"}</p>
+                      </div>
+                      <div className="rounded-md bg-background p-3">
+                        <p className="text-xs font-semibold uppercase text-muted-foreground">ATP</p>
+                        <p className="mt-1 text-sm">{cpAtpRecord?.atp_text ? "Sudah tersedia" : "Belum diisi"}</p>
+                      </div>
+                    </div>
+                    <Link
+                      to={cpAtpRecord ? `/curriculum/subject-curriculums/edit/${cpAtpRecord.id}` : `/curriculum/subject-curriculums/create?subject_id=${subjectId}`}
+                      className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-md border bg-background px-3 py-2 text-sm font-semibold hover:bg-muted"
+                    >
+                      <FileText className="h-4 w-4" />
+                      {cpAtpRecord ? "Edit CP/ATP" : "Isi CP/ATP"}
+                    </Link>
                   </div>
-                  <div className={`p-2 rounded border ${curr.atp_text ? 'bg-emerald-50 border-emerald-100 text-emerald-700' : 'bg-slate-50 border-slate-100 text-slate-500'}`}>
-                    {curr.atp_text ? '✓ ATP Terisi' : '✗ ATP Kosong'}
-                  </div>
-                  <div className={`p-2 rounded border ${Array.isArray(curr.prota_data) && curr.prota_data.length > 0 ? 'bg-emerald-50 border-emerald-100 text-emerald-700' : 'bg-slate-50 border-slate-100 text-slate-500'}`}>
-                    {Array.isArray(curr.prota_data) && curr.prota_data.length > 0 ? '✓ Prota Terisi' : '✗ Prota Kosong'}
-                  </div>
-                  <div className={`p-2 rounded border ${curr.prosem_data && Array.isArray(curr.prosem_data.rows) && curr.prosem_data.rows.length > 0 ? 'bg-emerald-50 border-emerald-100 text-emerald-700' : 'bg-slate-50 border-slate-100 text-slate-500'}`}>
-                    {curr.prosem_data && Array.isArray(curr.prosem_data.rows) && curr.prosem_data.rows.length > 0 ? '✓ Prosem Terisi' : '✗ Prosem Kosong'}
-                  </div>
-                  <div className={`p-2 rounded border col-span-2 ${Array.isArray(curr.learning_plan_data) && curr.learning_plan_data.length > 0 ? 'bg-blue-50 border-blue-100 text-blue-700' : 'bg-slate-50 border-slate-100 text-slate-500'}`}>
-                    {Array.isArray(curr.learning_plan_data) && curr.learning_plan_data.length > 0 ? '✓ Modul Ajar (Deep Learning) Siap' : '✗ Modul Ajar Belum Ada'}
+
+                  <div className="grid gap-3 md:grid-cols-2">
+                    {phase.grades.filter((grade) => allowedGrades.includes(grade)).map((grade) => {
+                      const record = records.find((item) => Number(item.grade_level) === grade);
+                      const protaCount = Array.isArray(record?.prota_data) ? record.prota_data.length : 0;
+                      const prosemCount = Array.isArray(record?.prosem_data?.rows) ? record.prosem_data.rows.length : 0;
+                      const rppmCount = getRppmRows(record).length;
+                      const rpphCount = getRpphRows(record).length;
+
+                      return (
+                        <article key={grade} className="rounded-lg border bg-background p-4">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="text-lg font-bold">Kelas {grade}</p>
+                              <p className="text-xs text-muted-foreground">{record?.academic_years?.name || "Tahun ajaran belum dipilih"}</p>
+                            </div>
+                            <div className="flex gap-1">
+                              <Link
+                                to={record ? `/curriculum/subject-curriculums/edit/${record.id}` : `/curriculum/subject-curriculums/create?subject_id=${subjectId}`}
+                                className="rounded-md p-2 text-muted-foreground hover:bg-blue-50 hover:text-blue-600"
+                                title={record ? "Edit perangkat ajar" : "Buat perangkat ajar"}
+                              >
+                                {record ? <Edit className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                              </Link>
+                              {record ? (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (confirm(`Hapus kurikulum kelas ${grade}?`)) {
+                                      deleteCurriculum(
+                                        { resource: "subject_curriculums", id: String(record.id) },
+                                        {
+                                          onSuccess: () => toast.success("Kurikulum berhasil dihapus"),
+                                          onError: (error) => toast.error("Gagal menghapus kurikulum: " + error.message),
+                                        }
+                                      );
+                                    }
+                                  }}
+                                  className="rounded-md p-2 text-muted-foreground hover:bg-rose-50 hover:text-rose-600"
+                                  title="Hapus"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              ) : null}
+                            </div>
+                          </div>
+
+                          <div className="mt-4 flex flex-wrap gap-2">
+                            <StatusPill done={hasRows(record?.prota_data)} label="Prota" detail={`${protaCount} baris`} />
+                            <StatusPill done={prosemCount > 0} label="Promes" detail={`${prosemCount} pekan`} />
+                            <StatusPill done={rppmCount > 0} label="RPPM" detail={`${rppmCount} pekan`} />
+                            <StatusPill done={rpphCount > 0} label="RPPH" detail={`${rpphCount} modul`} />
+                          </div>
+
+                          <div className="mt-4 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+                            <div className="rounded-md border bg-muted/20 p-2">
+                              <CalendarDays className="mb-1 h-4 w-4 text-primary" />
+                              Prota dan Promes mengikuti kebutuhan kelas {grade}.
+                            </div>
+                            <div className="rounded-md border bg-muted/20 p-2">
+                              <Layers3 className="mb-1 h-4 w-4 text-primary" />
+                              RPPM dan RPPH dibuat per pekan/pertemuan.
+                            </div>
+                          </div>
+                        </article>
+                      );
+                    })}
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+              </section>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };

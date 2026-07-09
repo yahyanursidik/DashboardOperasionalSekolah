@@ -172,17 +172,6 @@ export const navigationConfig: NavigationGroup[] = [
     ],
   },
   {
-    name: "Kurikulum & Pembelajaran",
-    items: [
-      {
-        title: "Mata Pelajaran",
-        href: "/subjects",
-        icon: BookOpen,
-        resource: "subjects",
-      },
-    ],
-  },
-  {
     name: "Rapor Digital",
     items: [
       {

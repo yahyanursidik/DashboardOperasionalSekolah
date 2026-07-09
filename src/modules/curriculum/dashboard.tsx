@@ -44,7 +44,7 @@ export const CurriculumDashboard: React.FC = () => {
           </span>
           <h1 className="text-4xl lg:text-5xl font-extrabold tracking-tight leading-tight">Manajemen Kurikulum Modern</h1>
           <p className="text-primary-foreground/90 text-lg leading-relaxed font-medium">
-            Sistem terintegrasi untuk menyusun Capaian Pembelajaran, Alur Tujuan Pembelajaran, Prota, Promes, hingga Modul Ajar (RPPH) secara komprehensif menggunakan paradigma Kurikulum Merdeka.
+            Sistem terintegrasi untuk menyusun Capaian Pembelajaran, Alur Tujuan Pembelajaran, Prota, Prosem, RPPM, dan Modul Ajar/RPPH secara runtut menggunakan paradigma Kurikulum Merdeka.
           </p>
         </div>
       </div>
@@ -130,7 +130,7 @@ export const CurriculumDashboard: React.FC = () => {
             </div>
             <h4 className="font-extrabold text-xl text-foreground mb-2">Kurikulum Tingkat PAUD</h4>
             <p className="text-muted-foreground text-sm leading-relaxed font-medium">
-              Manajemen komprehensif kurikulum PAUD (KB/TK). Menyusun Prota, Promes, Rencana Mingguan (RPPM) & Rencana Harian Berbasis Sentra/Area (RPPH).
+              Susun satu dokumen induk Fase Fondasi untuk KB, TK A, dan TK B berisi ATP, Prota, serta Prosem; lalu turunkan menjadi RPPM dan RPPH/Modul Ajar per tingkat.
             </p>
           </Link>
 

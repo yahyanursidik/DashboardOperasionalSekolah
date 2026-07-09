@@ -87,8 +87,12 @@ export const VacancyEdit: React.FC = () => {
               >
                 <option value="">Pilih Posisi...</option>
                 <option value="kepala_sekolah">Kepala Sekolah / Pimpinan</option>
-                <option value="wakasek">Wakil Kepala Sekolah</option>
+                <option value="wakasek_umum">Wakil Kepala Sekolah (Umum)</option>
+                <option value="wakasek_kurikulum">Wakil Kepala Sekolah Bidang Kurikulum</option>
+                <option value="wakasek_kesiswaan">Wakil Kepala Sekolah Bidang Kesiswaan</option>
+                <option value="kepala_unit">Kepala Unit (Lintas Jenjang / &gt;1 Unit)</option>
                 <option value="guru">Guru / Tenaga Pendidik</option>
+                <option value="guru_quran">Guru Al Qur'an</option>
                 <option value="school_center">School Center</option>
                 <option value="bendahara">Bendahara / Keuangan</option>
                 <option value="penanggung_jawab">Penanggung Jawab</option>
@@ -96,6 +100,7 @@ export const VacancyEdit: React.FC = () => {
                 <option value="pustakawan">Pustakawan</option>
                 <option value="laboran">Laboran</option>
                 <option value="tu">Staff Tata Usaha / Administrasi</option>
+                <option value="sarpras">Sarana Prasarana</option>
                 <option value="satpam">Security / Keamanan</option>
                 <option value="cleaning_service">Cleaning Service</option>
                 <option value="lainnya">Posisi Lainnya</option>
