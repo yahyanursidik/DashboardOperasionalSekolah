@@ -154,9 +154,9 @@ export const CurriculumDashboard: React.FC = () => {
               </div>
               <span className="text-primary opacity-0 group-hover:opacity-100 transition-opacity flex items-center text-sm font-bold bg-primary/10 px-3 py-1.5 rounded-full">Buka Modul <ArrowRight className="w-4 h-4 ml-1.5" /></span>
             </div>
-            <h4 className="font-extrabold text-xl text-foreground mb-2">Dokumen Pendukung</h4>
+            <h4 className="font-extrabold text-xl text-foreground mb-2">Arsip & Lampiran Kurikulum</h4>
             <p className="text-muted-foreground text-sm leading-relaxed font-medium">
-              Repositori dokumen kurikulum tambahan. Unggah dan kelola file PDF pendukung seperti instrumen asesmen, pedoman, atau SK Kurikulum.
+              Simpan file pendukung seperti SK Kurikulum, panduan, template, referensi, dan PDF final tanpa mencampur alur penyusunan CP/ATP dan perangkat ajar.
             </p>
           </Link>
         </div>

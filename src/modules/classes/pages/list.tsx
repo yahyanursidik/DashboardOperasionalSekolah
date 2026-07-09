@@ -3,10 +3,26 @@ import { useTable } from "@refinedev/react-table";
 import { flexRender } from "@tanstack/react-table";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useNavigate } from "react-router-dom";
-import { Eye, Edit, Plus, Search, Filter, BookOpen, Trash2, AlertTriangle, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  Eye,
+  Edit,
+  Plus,
+  Search,
+  Filter,
+  BookOpen,
+  Trash2,
+  AlertTriangle,
+  Loader2,
+  ChevronLeft,
+  ChevronRight,
+  CalendarDays,
+  ClipboardCheck,
+  GraduationCap,
+  Users,
+} from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { Link } from "react-router-dom";
-import { useSelect, useDelete } from "@refinedev/core";
+import { useSelect, useDelete, useList } from "@refinedev/core";
 import { toast } from "sonner";
 import { useAcademicYear } from "../../../app/providers/AcademicYearProvider";
 
@@ -94,6 +110,25 @@ export const ClassesList: React.FC = () => {
 
   const { options: unitOptions } = useSelect({ resource: "units", optionLabel: "name", optionValue: "id" });
   const { options: yearOptions } = useSelect({ resource: "academic_years", optionLabel: "name", optionValue: "id" });
+  const { data: studentsData } = useList({
+    resource: "students",
+    filters: filterUnit ? [{ field: "unit_id", operator: "eq", value: filterUnit }] : [],
+    pagination: { pageSize: 3000 },
+  });
+  const { data: schedulesData } = useList({
+    resource: "employee_schedules",
+    filters: [
+      ...(filterYear ? [{ field: "academic_year_id", operator: "eq", value: filterYear }] : []),
+      ...(filterUnit ? [{ field: "unit_id", operator: "eq", value: filterUnit }] : []),
+      { field: "schedule_type", operator: "eq", value: "mengajar" },
+    ] as any,
+    pagination: { pageSize: 3000 },
+  });
+  const { data: curriculumsData } = useList({
+    resource: "subject_curriculums",
+    filters: filterYear ? [{ field: "academic_year_id", operator: "eq", value: filterYear }] : [],
+    pagination: { pageSize: 3000 },
+  });
 
   const { mutate: deleteMutate, isLoading: isDeleting } = useDelete();
   const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; id: string; name: string }>({ isOpen: false, id: "", name: "" });
@@ -168,6 +203,38 @@ export const ClassesList: React.FC = () => {
         },
       },
       {
+        id: "students",
+        header: "Siswa",
+        cell: function render({ row }) {
+          const count = studentsData?.data?.filter((student: any) => student.class_id === row.original.id).length || 0;
+          const capacity = row.original.capacity || 30;
+          return (
+            <span className={`text-xs font-semibold ${count > capacity ? "text-rose-600" : count >= capacity ? "text-amber-600" : "text-foreground"}`}>
+              {count}/{capacity}
+            </span>
+          );
+        },
+      },
+      {
+        id: "workflow",
+        header: "Kesiapan",
+        cell: function render({ row }) {
+          const grade = Number(row.original.grade_level || row.original.level);
+          const hasCurriculum = curriculumsData?.data?.some((record: any) => Number(record.grade_level) === grade);
+          const hasSchedule = schedulesData?.data?.some((schedule: any) => schedule.class_id === row.original.id);
+          return (
+            <div className="flex flex-wrap gap-1.5">
+              <span className={`rounded-md border px-2 py-1 text-[10px] font-bold ${hasCurriculum ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-200 bg-amber-50 text-amber-700"}`}>
+                Kurikulum
+              </span>
+              <span className={`rounded-md border px-2 py-1 text-[10px] font-bold ${hasSchedule ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-200 bg-amber-50 text-amber-700"}`}>
+                Jadwal
+              </span>
+            </div>
+          );
+        },
+      },
+      {
         id: "status",
         accessorKey: "is_active",
         header: "Status",
@@ -202,6 +269,13 @@ export const ClassesList: React.FC = () => {
                 <Edit className="w-4 h-4" />
               </button>
               <button
+                onClick={() => navigate(`/curriculum/subjects?grade_level=${row.original.grade_level || row.original.level || 1}`)}
+                className="p-1.5 text-muted-foreground hover:text-emerald-600 transition-colors rounded-md hover:bg-emerald-50"
+                title="Kurikulum kelas"
+              >
+                <BookOpen className="w-4 h-4" />
+              </button>
+              <button
                 onClick={() => handleDelete(row.original.id, row.original.name)}
                 className="p-1.5 text-muted-foreground hover:text-red-600 transition-colors rounded-md hover:bg-red-50"
                 title="Hapus Kelas"
@@ -213,7 +287,7 @@ export const ClassesList: React.FC = () => {
         },
       },
     ],
-    [navigate]
+    [navigate, studentsData?.data, schedulesData?.data, curriculumsData?.data]
   );
 
   const buildFilters = () => {
@@ -253,6 +327,19 @@ export const ClassesList: React.FC = () => {
   const isLoading = tableQueryResult.isLoading;
   const isError = tableQueryResult.isError;
   const error = tableQueryResult.error;
+  const rows = table.getRowModel().rows;
+  const visibleClasses = rows.map((row: any) => row.original);
+  const totalStudents = visibleClasses.reduce((sum: number, klass: any) => {
+    return sum + (studentsData?.data?.filter((student: any) => student.class_id === klass.id).length || 0);
+  }, 0);
+  const classesWithHomeroom = visibleClasses.filter((klass: any) => {
+    return klass.teacher_assignments?.some((assignment: any) => assignment.role_type === "homeroom" || assignment.role_type === "wali_kelas");
+  }).length;
+  const classesWithSchedule = visibleClasses.filter((klass: any) => schedulesData?.data?.some((schedule: any) => schedule.class_id === klass.id)).length;
+  const classesWithCurriculum = visibleClasses.filter((klass: any) => {
+    const grade = Number(klass.grade_level || klass.level);
+    return curriculumsData?.data?.some((record: any) => Number(record.grade_level) === grade);
+  }).length;
 
   return (
     <div className="space-y-6">
@@ -263,18 +350,47 @@ export const ClassesList: React.FC = () => {
         </div>
       )}
       <PageHeader
-        title="Daftar Kelas"
-        description="Kelola kelas, wali kelas, dan rombongan belajar."
+        title="Kelas & Rombongan Belajar"
+        description="Pusat navigasi kelas untuk siswa, wali kelas, jadwal, kurikulum per kelas, absensi, dan nilai."
         action={
           <Link
             to="/classes/create"
             className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition-colors shadow-sm font-medium text-sm"
           >
             <Plus className="w-4 h-4" />
-            Buat Kelas Baru
+            Tambah Kelas
           </Link>
         }
       />
+
+      <section className="rounded-xl border bg-card p-5 shadow-sm">
+        <div className="grid gap-5 lg:grid-cols-[1fr_1.2fr]">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-md bg-primary/10 px-3 py-1 text-sm font-semibold text-primary">
+              <GraduationCap className="h-4 w-4" />
+              Hub operasional kelas
+            </div>
+            <h2 className="mt-3 text-2xl font-bold">Mulai dari kelas, lanjut ke aktivitas akademik</h2>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              Setelah kurikulum menjadi per kelas dan per mapel, halaman kelas dipakai untuk mengecek rombel, wali kelas, jadwal mengajar, dan akses cepat ke kurikulum kelas.
+            </p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-4">
+            {[
+              { icon: Users, label: "Siswa", value: totalStudents },
+              { icon: ClipboardCheck, label: "Wali Kelas", value: `${classesWithHomeroom}/${visibleClasses.length}` },
+              { icon: CalendarDays, label: "Jadwal", value: `${classesWithSchedule}/${visibleClasses.length}` },
+              { icon: BookOpen, label: "Kurikulum", value: `${classesWithCurriculum}/${visibleClasses.length}` },
+            ].map(({ icon: Icon, label, value }) => (
+              <div key={label} className="rounded-lg border bg-muted/20 p-4">
+                <Icon className="mb-2 h-5 w-5 text-primary" />
+                <p className="text-2xl font-bold">{value}</p>
+                <p className="text-xs text-muted-foreground">{label}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
 
       <div className="bg-card rounded-xl border shadow-sm p-4 space-y-4">
         <form onSubmit={handleSearch} className="flex gap-4">

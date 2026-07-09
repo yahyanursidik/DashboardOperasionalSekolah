@@ -7,6 +7,15 @@ import { PageHeader } from "../../../components/layout/PageHeader";
 import { useCurrentUnit } from "../../../app/providers/UnitProvider";
 import { useAcademicYear } from "../../../app/providers/AcademicYearProvider";
 
+const DOCUMENT_TYPES = [
+  "SK Kurikulum",
+  "Panduan Kurikulum",
+  "Template",
+  "Referensi",
+  "PDF Final",
+  "Lainnya",
+];
+
 export const CurriculumDocumentCreate: React.FC = () => {
   const navigate = useNavigate();
   const { activeUnitId } = useCurrentUnit();
@@ -65,7 +74,10 @@ export const CurriculumDocumentCreate: React.FC = () => {
         <Link to="/curriculum/documents" className="p-2 hover:bg-muted rounded-full transition-colors">
           <ArrowLeft className="w-5 h-5" />
         </Link>
-        <PageHeader title="Unggah Dokumen Kurikulum / Modul Ajar" description="Tambahkan berkas administrasi pembelajaran ke dalam sistem." />
+        <PageHeader
+          title="Tambah Arsip / Lampiran Kurikulum"
+          description="Simpan file pendukung seperti SK, panduan, template, referensi, dan PDF final. CP/ATP dan perangkat ajar utama tetap diisi dari Kurikulum Per Kelas."
+        />
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="bg-card rounded-xl border shadow-sm p-6 space-y-8">
@@ -75,12 +87,12 @@ export const CurriculumDocumentCreate: React.FC = () => {
           <h3 className="font-semibold text-lg border-b pb-2">1. Detail Utama</h3>
           
           <div>
-            <label className="text-sm font-medium mb-1.5 block">Judul Dokumen / Modul <span className="text-rose-500">*</span></label>
+            <label className="text-sm font-medium mb-1.5 block">Judul Arsip / Lampiran <span className="text-rose-500">*</span></label>
             <input
               {...register("title", { required: "Judul wajib diisi" })}
               type="text"
               className="w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-primary/50"
-              placeholder="Contoh: Modul Ajar Bab 1 - Bilangan Bulat"
+              placeholder="Contoh: SK Kurikulum Operasional Sekolah 2026/2027"
             />
             {errors.title && <span className="text-xs text-rose-500 mt-1">{errors.title.message as string}</span>}
           </div>
@@ -91,11 +103,9 @@ export const CurriculumDocumentCreate: React.FC = () => {
               {...register("document_type", { required: "Jenis wajib dipilih" })}
               className="w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-primary/50"
             >
-              <option value="Modul Ajar">Modul Ajar / RPP</option>
-              <option value="ATP">ATP (Alur Tujuan Pembelajaran)</option>
-              <option value="CP">CP (Capaian Pembelajaran)</option>
-              <option value="Panduan Kurikulum">Panduan Kurikulum / Deep Learning</option>
-              <option value="Lainnya">Lainnya</option>
+              {DOCUMENT_TYPES.map((type) => (
+                <option key={type} value={type}>{type}</option>
+              ))}
             </select>
             {errors.document_type && <span className="text-xs text-rose-500 mt-1">{errors.document_type.message as string}</span>}
           </div>
@@ -106,24 +116,24 @@ export const CurriculumDocumentCreate: React.FC = () => {
               {...register("description")}
               rows={3}
               className="w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-primary/50"
-              placeholder="Jelaskan isi singkat dari dokumen ini..."
+              placeholder="Jelaskan fungsi lampiran ini, misalnya panduan sekolah, template, atau referensi pendukung..."
             />
           </div>
         </div>
 
         {/* Section 2: Relasi */}
         <div className="space-y-4">
-          <h3 className="font-semibold text-lg border-b pb-2">2. Pengaitan Akademik</h3>
-          <p className="text-xs text-muted-foreground -mt-2 mb-4">Pilih mata pelajaran dan/atau kelas jika modul ini spesifik. Kosongkan jika dokumen ini bersifat umum untuk sekolah.</p>
+          <h3 className="font-semibold text-lg border-b pb-2">2. Pengaitan Opsional</h3>
+          <p className="text-xs text-muted-foreground -mt-2 mb-4">Pilih mata pelajaran dan/atau kelas hanya jika lampiran ini spesifik. Kosongkan jika dokumen berlaku umum untuk unit sekolah.</p>
           
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="text-sm font-medium mb-1.5 block">Terkait Mata Pelajaran</label>
+              <label className="text-sm font-medium mb-1.5 block">Terkait Mapel</label>
               <select
                 {...register("subject_id")}
                 className="w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-primary/50"
               >
-                <option value="">-- Berlaku Umum --</option>
+                <option value="">-- Umum / Tidak terkait mapel --</option>
                 {subjectsData?.data?.map((s: any) => (
                   <option key={s.id} value={s.id}>{s.name} ({s.category})</option>
                 ))}
@@ -131,12 +141,12 @@ export const CurriculumDocumentCreate: React.FC = () => {
             </div>
 
             <div>
-              <label className="text-sm font-medium mb-1.5 block">Terkait Kelas Spesifik</label>
+              <label className="text-sm font-medium mb-1.5 block">Terkait Kelas</label>
               <select
                 {...register("class_id")}
                 className="w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-primary/50"
               >
-                <option value="">-- Semua Kelas --</option>
+                <option value="">-- Umum / Semua kelas --</option>
                 {classesData?.data?.map((c: any) => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
@@ -147,7 +157,7 @@ export const CurriculumDocumentCreate: React.FC = () => {
 
         {/* Section 3: File / Lampiran */}
         <div className="space-y-4">
-          <h3 className="font-semibold text-lg border-b pb-2">3. Lampiran Berkas</h3>
+          <h3 className="font-semibold text-lg border-b pb-2">3. Akses Lampiran</h3>
           
           <div className="flex gap-6 mb-4">
             <label className="flex items-center gap-2 text-sm cursor-pointer">
@@ -175,12 +185,12 @@ export const CurriculumDocumentCreate: React.FC = () => {
 
           {uploadType === "file" && (
             <div className="p-4 border rounded-lg bg-emerald-50/50 space-y-3">
-              <label className="text-sm font-medium flex items-center gap-2"><Upload className="w-4 h-4 text-emerald-600"/> URL File Berkas (PDF/Docx)</label>
+              <label className="text-sm font-medium flex items-center gap-2"><Upload className="w-4 h-4 text-emerald-600"/> URL File Berkas</label>
               <input
                 {...register("file_url", { required: uploadType === "file" ? "URL File wajib diisi" : false })}
                 type="url"
                 className="w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500/50"
-                placeholder="https://example.com/modul-ajar.pdf"
+                placeholder="https://example.com/sk-kurikulum.pdf"
               />
               <p className="text-xs text-muted-foreground">Masukkan URL langsung yang mengarah ke file PDF atau Word.</p>
             </div>
@@ -200,7 +210,7 @@ export const CurriculumDocumentCreate: React.FC = () => {
             className="flex items-center gap-2 bg-primary text-primary-foreground px-6 py-2 rounded-md font-medium text-sm hover:bg-primary/90 transition-colors disabled:opacity-50"
           >
             <Save className="w-4 h-4" />
-            {formLoading ? "Menyimpan..." : "Simpan Dokumen"}
+            {formLoading ? "Menyimpan..." : "Simpan Lampiran"}
           </button>
         </div>
       </form>

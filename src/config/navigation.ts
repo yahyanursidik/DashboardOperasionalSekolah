@@ -105,12 +105,6 @@ export const navigationConfig: NavigationGroup[] = [
         resource: "subjects",
       },
       {
-        title: "Dokumen Kurikulum",
-        href: "/curriculum/documents",
-        icon: FileText,
-        resource: "curriculum_documents",
-      },
-      {
         title: "Absensi Siswa",
         href: "/attendance",
         icon: CalendarCheck,

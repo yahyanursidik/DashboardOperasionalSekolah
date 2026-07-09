@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useShow, useList, useUpdate } from "@refinedev/core";
 import { PageHeader } from "../../../components/layout/PageHeader";
-import { Users, Edit, ArrowLeft, BookOpen, UserMinus, Plus, X, ShieldCheck, UserCheck, CalendarCheck } from "lucide-react";
+import { Users, Edit, ArrowLeft, BookOpen, UserMinus, Plus, X, ShieldCheck, UserCheck, CalendarCheck, ClipboardCheck, GraduationCap } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 
 export const ClassShow: React.FC = () => {
@@ -29,6 +29,25 @@ export const ClassShow: React.FC = () => {
     ],
     meta: { select: "*, employees(full_name)" },
     queryOptions: { enabled: !!record?.id }
+  });
+
+  const { data: schedulesData } = useList({
+    resource: "employee_schedules",
+    filters: [
+      { field: "class_id", operator: "eq", value: record?.id },
+      { field: "schedule_type", operator: "eq", value: "mengajar" },
+    ],
+    queryOptions: { enabled: !!record?.id },
+  });
+
+  const classGrade = Number(record?.grade_level || record?.level || 0);
+  const { data: curriculumsData } = useList({
+    resource: "subject_curriculums",
+    filters: [
+      { field: "grade_level", operator: "eq", value: classGrade },
+      ...(record?.academic_year_id ? [{ field: "academic_year_id", operator: "eq", value: record.academic_year_id }] : []),
+    ] as any,
+    queryOptions: { enabled: !!record?.id && !!classGrade },
   });
 
   const { mutate: updateStudent } = useUpdate();
@@ -97,6 +116,8 @@ export const ClassShow: React.FC = () => {
   
   const homeroomAssignment = assignmentsData?.data?.find((a: any) => a.role_type === 'homeroom' || a.role_type === 'wali_kelas');
   const homeroomName = homeroomAssignment?.employees?.full_name;
+  const scheduleCount = schedulesData?.data?.length || 0;
+  const curriculumCount = curriculumsData?.data?.length || 0;
 
   return (
     <div className="space-y-6">
@@ -167,10 +188,35 @@ export const ClassShow: React.FC = () => {
 
           <div className="bg-card rounded-xl border shadow-sm p-6">
             <h3 className="font-semibold text-sm flex items-center gap-2 mb-4 text-muted-foreground">
-              <CalendarCheck className="w-4 h-4" /> Ringkasan Kehadiran
+              <GraduationCap className="w-4 h-4" /> Akses Cepat Kelas
             </h3>
-            <div className="bg-muted/30 border border-dashed rounded-lg p-6 text-center">
-              <p className="text-xs text-muted-foreground">Modul absensi kelas belum diaktifkan.</p>
+            <div className="grid gap-2">
+              <Link
+                to={`/curriculum/subjects?grade_level=${classGrade || 1}`}
+                className="flex items-center justify-between rounded-lg border bg-background px-3 py-2 text-sm font-semibold hover:bg-muted"
+              >
+                <span className="flex items-center gap-2"><BookOpen className="h-4 w-4 text-primary" /> Kurikulum Kelas</span>
+                <span className="text-xs text-muted-foreground">{curriculumCount} dokumen</span>
+              </Link>
+              <Link
+                to="/schedules"
+                className="flex items-center justify-between rounded-lg border bg-background px-3 py-2 text-sm font-semibold hover:bg-muted"
+              >
+                <span className="flex items-center gap-2"><CalendarCheck className="h-4 w-4 text-primary" /> Jadwal Mengajar</span>
+                <span className="text-xs text-muted-foreground">{scheduleCount} jadwal</span>
+              </Link>
+              <Link
+                to={`/attendance/class/${record.id}?date=${new Date().toISOString().split("T")[0]}`}
+                className="flex items-center gap-2 rounded-lg border bg-background px-3 py-2 text-sm font-semibold hover:bg-muted"
+              >
+                <ClipboardCheck className="h-4 w-4 text-primary" /> Input Absensi
+              </Link>
+              <Link
+                to="/academic/gradebook"
+                className="flex items-center gap-2 rounded-lg border bg-background px-3 py-2 text-sm font-semibold hover:bg-muted"
+              >
+                <ShieldCheck className="h-4 w-4 text-primary" /> Gradebook
+              </Link>
             </div>
           </div>
         </div>
@@ -248,7 +294,7 @@ export const ClassShow: React.FC = () => {
             ) : assignmentsData?.data?.length === 0 ? (
               <div className="bg-muted/30 border border-dashed rounded-lg p-8 text-center">
                 <p className="text-sm text-muted-foreground">Belum ada penugasan guru mata pelajaran untuk kelas ini.</p>
-                <p className="text-xs text-muted-foreground mt-1">Anda dapat menambahkannya dari Profil Pegawai (Menu Guru).</p>
+                <p className="text-xs text-muted-foreground mt-1">Atur jadwal mengajar dari menu Jadwal Pegawai.</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -3,14 +3,34 @@ import { useTable } from "@refinedev/react-table";
 import { useList, useDelete } from "@refinedev/core";
 import { flexRender } from "@tanstack/react-table";
 import type { ColumnDef } from "@tanstack/react-table";
-import { useNavigate, Link } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { FileText, Plus, Trash2, ArrowLeft, ExternalLink, Download } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { useCurrentUnit } from "../../../app/providers/UnitProvider";
 
+const DOCUMENT_TYPES = [
+  "SK Kurikulum",
+  "Panduan Kurikulum",
+  "Template",
+  "Referensi",
+  "PDF Final",
+  "Lainnya",
+];
+
+const TYPE_STYLES: Record<string, string> = {
+  "SK Kurikulum": "bg-emerald-100 text-emerald-700 border-emerald-200",
+  "Panduan Kurikulum": "bg-blue-100 text-blue-700 border-blue-200",
+  Template: "bg-cyan-100 text-cyan-700 border-cyan-200",
+  Referensi: "bg-indigo-100 text-indigo-700 border-indigo-200",
+  "PDF Final": "bg-rose-100 text-rose-700 border-rose-200",
+  Lainnya: "bg-slate-100 text-slate-700 border-slate-200",
+  "Modul Ajar": "bg-amber-100 text-amber-700 border-amber-200",
+  ATP: "bg-amber-100 text-amber-700 border-amber-200",
+  CP: "bg-amber-100 text-amber-700 border-amber-200",
+};
+
 export const CurriculumDocumentsList: React.FC = () => {
-  const navigate = useNavigate();
   const { activeUnitId } = useCurrentUnit();
   const { mutate: deleteDocument } = useDelete();
 
@@ -28,7 +48,7 @@ export const CurriculumDocumentsList: React.FC = () => {
       {
         id: "title",
         accessorKey: "title",
-        header: "Judul Modul / Dokumen",
+        header: "Judul Arsip / Lampiran",
         cell: function render({ getValue, row }) {
           return (
             <div>
@@ -44,17 +64,14 @@ export const CurriculumDocumentsList: React.FC = () => {
         header: "Jenis",
         cell: function render({ getValue }) {
           const type = getValue<string>();
-          let color = "bg-slate-100 text-slate-700";
-          if (type === "Modul Ajar") color = "bg-purple-100 text-purple-700 border-purple-200";
-          if (type === "ATP") color = "bg-indigo-100 text-indigo-700 border-indigo-200";
-          if (type === "CP") color = "bg-blue-100 text-blue-700 border-blue-200";
+          const color = TYPE_STYLES[type] || TYPE_STYLES.Lainnya;
           return <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${color}`}>{type}</span>;
         },
       },
       {
         id: "subject",
         accessorKey: "subjects.name",
-        header: "Mata Pelajaran",
+        header: "Mapel Terkait",
         cell: function render({ row }) {
           return row.original.subjects?.name || <span className="text-muted-foreground italic">Umum</span>;
         },
@@ -62,7 +79,7 @@ export const CurriculumDocumentsList: React.FC = () => {
       {
         id: "class",
         accessorKey: "classes.name",
-        header: "Kelas",
+        header: "Kelas Terkait",
         cell: function render({ row }) {
           return row.original.classes?.name || <span className="text-muted-foreground italic">Semua Kelas</span>;
         },
@@ -144,15 +161,6 @@ export const CurriculumDocumentsList: React.FC = () => {
   });
 
   const isLoading = tableQueryResult.isLoading;
-  const data = tableQueryResult.data?.data || [];
-
-  // Client side filtering for unit if subject is null
-  const displayData = data.filter((doc: any) => {
-    if (activeUnitId && !doc.subjects && !doc.classes) {
-      // If it's a global document (no subject/class), we show it to everyone, or we can filter it. Let's show it.
-    }
-    return true;
-  });
 
   return (
     <div className="space-y-6">
@@ -161,18 +169,35 @@ export const CurriculumDocumentsList: React.FC = () => {
           <ArrowLeft className="w-5 h-5" />
         </Link>
         <PageHeader
-          title="Modul Ajar & Dokumen Kurikulum"
-          description="Pusat penyimpanan administrasi pembelajaran (RPP, Modul Ajar, ATP, CP)."
+          title="Arsip & Lampiran Kurikulum"
+          description="Simpan file pendukung kurikulum seperti SK, panduan, template, referensi, dan PDF final. Penyusunan CP, ATP, Prota, Promes, RPPM, dan RPPH dilakukan dari Kurikulum Per Kelas."
           action={
             <Link
               to="/curriculum/documents/create"
               className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition-colors shadow-sm font-medium text-sm"
             >
-              <Plus className="w-4 h-4" /> Unggah Modul
+              <Plus className="w-4 h-4" /> Tambah Lampiran
             </Link>
           }
         />
       </div>
+
+      <section className="rounded-xl border bg-card p-5 shadow-sm">
+        <div className="grid gap-4 md:grid-cols-3">
+          <div className="rounded-lg border bg-muted/20 p-4">
+            <p className="font-semibold">Untuk arsip pendukung</p>
+            <p className="mt-1 text-sm text-muted-foreground">SK, panduan, template, referensi, dan PDF final.</p>
+          </div>
+          <div className="rounded-lg border bg-muted/20 p-4">
+            <p className="font-semibold">Bukan form penyusunan</p>
+            <p className="mt-1 text-sm text-muted-foreground">CP/ATP dan perangkat ajar tetap diisi per kelas dan mapel.</p>
+          </div>
+          <div className="rounded-lg border bg-muted/20 p-4">
+            <p className="font-semibold">Opsional per mapel/kelas</p>
+            <p className="mt-1 text-sm text-muted-foreground">Kosongkan relasi jika dokumen berlaku umum.</p>
+          </div>
+        </div>
+      </section>
 
       <div className="flex gap-4 items-center bg-card p-3 rounded-xl border shadow-sm flex-wrap">
         <select 
@@ -181,11 +206,9 @@ export const CurriculumDocumentsList: React.FC = () => {
           className="border rounded-md px-3 py-1.5 text-sm bg-background outline-none focus:ring-2 focus:ring-primary/50"
         >
           <option value="">Semua Jenis Dokumen</option>
-          <option value="Modul Ajar">Modul Ajar / RPP</option>
-          <option value="ATP">ATP (Alur Tujuan Pembelajaran)</option>
-          <option value="CP">CP (Capaian Pembelajaran)</option>
-          <option value="Panduan Kurikulum">Panduan Kurikulum</option>
-          <option value="Lainnya">Lainnya</option>
+          {DOCUMENT_TYPES.map((type) => (
+            <option key={type} value={type}>{type}</option>
+          ))}
         </select>
 
         <select 
@@ -193,7 +216,7 @@ export const CurriculumDocumentsList: React.FC = () => {
           onChange={(e) => setFilterSubject(e.target.value)}
           className="border rounded-md px-3 py-1.5 text-sm bg-background outline-none focus:ring-2 focus:ring-primary/50"
         >
-          <option value="">Semua Mata Pelajaran</option>
+          <option value="">Semua Mapel / Umum</option>
           {subjectsData?.data?.map((s: any) => (
             <option key={s.id} value={s.id}>{s.name} ({s.category})</option>
           ))}
@@ -238,7 +261,7 @@ export const CurriculumDocumentsList: React.FC = () => {
                     <td colSpan={columns.length} className="px-6 py-12 text-center text-muted-foreground">
                       <div className="flex flex-col items-center justify-center">
                         <FileText className="w-12 h-12 text-muted-foreground/30 mb-3" />
-                        <p>Belum ada modul ajar atau dokumen kurikulum.</p>
+                <p>Belum ada arsip atau lampiran kurikulum.</p>
                       </div>
                     </td>
                   </tr>

@@ -11,6 +11,8 @@ import { getSdPhaseByGrade, getSdPhaseLabelByGrade } from "./sdCurriculumStructu
 export const SubjectCurriculumCreate: React.FC = () => {
   const [searchParams] = useSearchParams();
   const subjectId = searchParams.get("subject_id");
+  const gradeLevelParam = searchParams.get("grade_level");
+  const academicYearParam = searchParams.get("academic_year_id");
   const [activeTab, setActiveTab] = useState("identitas");
   const navigate = useNavigate();
 
@@ -33,6 +35,8 @@ export const SubjectCurriculumCreate: React.FC = () => {
     refineCore: { onFinish, formLoading },
   } = useForm<any>({
     defaultValues: {
+      grade_level: gradeLevelParam ? Number(gradeLevelParam) : undefined,
+      academic_year_id: academicYearParam || undefined,
       prota_data: [],
       prosem_data: { semester: "Ganjil", rows: [], rppm: [] },
       learning_plan_data: [],
@@ -41,14 +45,20 @@ export const SubjectCurriculumCreate: React.FC = () => {
       resource: "subject_curriculums",
       redirect: false,
       onMutationSuccess: () => {
-        navigate(`/curriculum/subjects/show/${subjectId}`);
+        navigate(gradeLevelParam ? `/curriculum/subjects?grade_level=${gradeLevelParam}` : `/curriculum/subjects/show/${subjectId}`);
       }
     }
   });
 
   const selectedGrade = useWatch({ control, name: "grade_level" });
+  const selectedAcademicYearId = useWatch({ control, name: "academic_year_id" });
   const selectedPhase = getSdPhaseByGrade(Number(selectedGrade));
   const phaseLabel = getSdPhaseLabelByGrade(Number(selectedGrade));
+  const subject = subjectData?.data;
+  const selectedAcademicYearName = academicYears?.data?.find((year: any) => String(year.id) === String(selectedAcademicYearId))?.name;
+  const contextTitle = selectedGrade
+    ? `Buat Kurikulum ${subject?.name || "Mapel"} Kelas ${selectedGrade}`
+    : `Buat Kurikulum ${subject?.name || "Mapel"}`;
 
   const tabs = [
     { id: "identitas", label: "CP & ATP Fase", icon: FileText },
@@ -66,13 +76,39 @@ export const SubjectCurriculumCreate: React.FC = () => {
         <button onClick={() => navigate(-1)} className="p-2 hover:bg-muted rounded-full transition-colors">
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <PageHeader 
-          title="Tambah Kurikulum SD" 
-          description={`Susun ${subjectData?.data?.name || "mata pelajaran"} dari CP/ATP fase sampai perangkat ajar kelas.`} 
+        <PageHeader
+          title={contextTitle}
+          description="Isi dokumen kurikulum untuk satu mata pelajaran pada satu kelas dan satu tahun ajaran."
         />
       </div>
 
-      <form onSubmit={handleSubmit((data) => onFinish({ ...data, subject_id: subjectId }))} className="bg-card rounded-xl border shadow-sm p-6 space-y-6">
+      <form
+        onSubmit={handleSubmit((data) => onFinish({ ...data, subject_id: subjectId }))}
+        className="bg-card rounded-xl border shadow-sm p-6 space-y-6"
+      >
+        <section className="grid gap-3 rounded-xl border bg-muted/20 p-4 md:grid-cols-4">
+          <div className="rounded-lg bg-background p-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Mata Pelajaran</p>
+            <p className="mt-1 font-bold">{subject?.name || "Memuat mapel..."}</p>
+            <p className="text-xs text-muted-foreground">{subject?.code || "Tanpa kode"}</p>
+          </div>
+          <div className="rounded-lg bg-background p-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Kelas</p>
+            <p className="mt-1 font-bold">{selectedGrade ? `Kelas ${selectedGrade}` : "Belum dipilih"}</p>
+            <p className="text-xs text-muted-foreground">{phaseLabel}</p>
+          </div>
+          <div className="rounded-lg bg-background p-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Tahun Ajaran</p>
+            <p className="mt-1 font-bold">{selectedAcademicYearName || "Belum dipilih"}</p>
+            <p className="text-xs text-muted-foreground">Kurikulum disimpan per tahun ajaran.</p>
+          </div>
+          <div className="rounded-lg bg-background p-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Ruang Lingkup</p>
+            <p className="mt-1 font-bold">Per Mapel per Kelas</p>
+            <p className="text-xs text-muted-foreground">CP/ATP fase, perangkat ajar kelas.</p>
+          </div>
+        </section>
+
         <div className="rounded-xl border bg-muted/20 p-4">
           <div className="grid gap-3 md:grid-cols-5">
             {tabs.map((tab, index) => {
@@ -105,10 +141,10 @@ export const SubjectCurriculumCreate: React.FC = () => {
           <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
             <div className="space-y-6">
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold border-b pb-2">Identitas Kurikulum</h3>
+                <h3 className="text-lg font-semibold border-b pb-2">Identitas Kurikulum Mapel</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label className="text-sm font-medium mb-1.5 block">Kelas Perangkat Ajar <span className="text-rose-500">*</span></label>
+                    <label className="text-sm font-medium mb-1.5 block">Kelas Kurikulum <span className="text-rose-500">*</span></label>
                     <select
                       {...register("grade_level", { required: "Jenjang Kelas wajib diisi", valueAsNumber: true })}
                       className="w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-primary/50"
@@ -116,6 +152,7 @@ export const SubjectCurriculumCreate: React.FC = () => {
                       <option value="">-- Pilih Kelas --</option>
                       {[1, 2, 3, 4, 5, 6].filter(g => !subjectData?.data?.grade_levels || subjectData.data.grade_levels.includes(g)).map(g => <option key={g} value={g}>Kelas {g}</option>)}
                     </select>
+                    <p className="mt-1 text-xs text-muted-foreground">Kurikulum ini hanya berlaku untuk mapel ini di kelas yang dipilih.</p>
                     {errors.grade_level && <span className="text-xs text-rose-500 mt-1">{errors.grade_level.message as string}</span>}
                   </div>
 
@@ -130,6 +167,7 @@ export const SubjectCurriculumCreate: React.FC = () => {
                         <option key={ay.id} value={ay.id}>{ay.name}</option>
                       ))}
                     </select>
+                    <p className="mt-1 text-xs text-muted-foreground">Satu mapel dan kelas hanya punya satu kurikulum per tahun ajaran.</p>
                     {errors.academic_year_id && <span className="text-xs text-rose-500 mt-1">{errors.academic_year_id.message as string}</span>}
                   </div>
                 </div>
@@ -139,7 +177,7 @@ export const SubjectCurriculumCreate: React.FC = () => {
                 <div className="border-b pb-2">
                   <h3 className="text-lg font-semibold">CP dan ATP Satu Fase</h3>
                   <p className="text-sm text-muted-foreground">
-                    {phaseLabel}. CP dan ATP ditulis sebagai dokumen fase, sedangkan Prota, Promes, RPPM, dan RPPH diisi untuk kelas yang dipilih.
+                    {phaseLabel}. CP dan ATP menjadi acuan fase untuk mapel ini, sedangkan Prota, Promes, RPPM, dan RPPH diisi khusus untuk kelas {selectedGrade || "yang dipilih"}.
                   </p>
                 </div>
                 
@@ -178,19 +216,19 @@ export const SubjectCurriculumCreate: React.FC = () => {
             </div>
 
             <aside className="rounded-xl border bg-muted/20 p-5">
-              <p className="text-sm font-bold text-foreground">Definition of Done</p>
+              <p className="text-sm font-bold text-foreground">Syarat lengkap</p>
               <div className="mt-4 space-y-3 text-sm text-muted-foreground">
                 <div className="rounded-lg bg-background p-3">
                   <p className="font-semibold text-foreground">1. CP & ATP</p>
-                  <p>Ditulis satu kali untuk {phaseLabel.toLowerCase()}.</p>
+                  <p>Diisi sebagai acuan {phaseLabel.toLowerCase()} untuk mapel ini.</p>
                 </div>
                 <div className="rounded-lg bg-background p-3">
                   <p className="font-semibold text-foreground">2. Prota & Promes</p>
-                  <p>Disusun khusus untuk kelas yang dipilih.</p>
+                  <p>Disusun khusus untuk kelas {selectedGrade || "yang dipilih"}.</p>
                 </div>
                 <div className="rounded-lg bg-background p-3">
                   <p className="font-semibold text-foreground">3. RPPM & RPPH</p>
-                  <p>RPPM per pekan, RPPH/modul ajar per pertemuan.</p>
+                  <p>RPPM per pekan dan RPPH/modul ajar per pertemuan.</p>
                 </div>
               </div>
             </aside>
@@ -213,7 +251,7 @@ export const SubjectCurriculumCreate: React.FC = () => {
             className="flex items-center gap-2 bg-primary text-primary-foreground px-6 py-2 rounded-md font-medium text-sm hover:bg-primary/90 transition-colors disabled:opacity-50"
           >
             <Save className="w-4 h-4" />
-            {formLoading ? "Menyimpan..." : "Simpan Kurikulum"}
+            {formLoading ? "Menyimpan..." : "Simpan Kurikulum Mapel"}
           </button>
         </div>
       </form>
