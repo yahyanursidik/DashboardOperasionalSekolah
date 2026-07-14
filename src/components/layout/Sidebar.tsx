@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { X, ChevronDown, ChevronRight } from "lucide-react";
+import { X, ChevronDown, ChevronRight, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { useCurrentRoles } from "../../hooks/useAuth";
 import { canAccessResource } from "../../lib/permissions";
 import { navigationConfig } from "../../config/navigation";
@@ -12,9 +12,11 @@ import { useOne } from "@refinedev/core";
 interface SidebarProps {
   isOpen?: boolean;
   onClose?: () => void;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, isCollapsed = false, onToggleCollapse }) => {
   const { roles } = useCurrentRoles();
   const location = useLocation();
   const { activeUnitId } = useCurrentUnit();
@@ -71,9 +73,22 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       )}
       
       {/* Sidebar Container */}
-      <aside className={`fixed md:sticky top-0 left-0 z-50 w-64 bg-card text-card-foreground flex-col h-screen border-r shadow-[2px_0_8px_-4px_rgba(0,0,0,0.05)] transition-transform duration-300 ease-in-out md:translate-x-0 flex overflow-hidden ${isOpen ? "translate-x-0" : "-translate-x-[110%]"}`}>
-        <div className="h-16 flex items-center justify-between px-6 bg-transparent shrink-0 border-b">
-          <BrandLogo textClassName="font-bold text-xl tracking-tight text-foreground" />
+      <aside className={`fixed md:sticky top-0 left-0 z-50 bg-card text-card-foreground flex-col h-screen border-r shadow-[2px_0_8px_-4px_rgba(0,0,0,0.05)] transition-all duration-300 ease-in-out md:translate-x-0 flex overflow-hidden ${isCollapsed ? "md:w-20" : "md:w-64"} w-64 ${isOpen ? "translate-x-0" : "-translate-x-[110%]"}`}>
+        <div className={`h-16 flex items-center justify-between bg-transparent shrink-0 border-b transition-all ${isCollapsed ? "px-6 md:justify-center md:px-3" : "px-6"}`}>
+          <div className={`${isCollapsed ? "md:hidden" : "block"}`}>
+            <BrandLogo textClassName="font-bold text-xl tracking-tight text-foreground" />
+          </div>
+          <div className={`${isCollapsed ? "hidden md:flex" : "hidden"} w-10 h-10 rounded-xl bg-primary/10 text-primary items-center justify-center font-bold`}>
+            TS
+          </div>
+          <button
+            onClick={onToggleCollapse}
+            className="hidden md:flex p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            title={isCollapsed ? "Lebarkan sidebar" : "Ciutkan sidebar"}
+            aria-label={isCollapsed ? "Lebarkan sidebar" : "Ciutkan sidebar"}
+          >
+            {isCollapsed ? <PanelLeftOpen className="w-5 h-5" /> : <PanelLeftClose className="w-5 h-5" />}
+          </button>
           {/* Mobile Close Button */}
           <button 
             onClick={onClose}
@@ -83,7 +98,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           </button>
         </div>
       <ScrollArea className="flex-1">
-        <nav className="px-3 py-6 space-y-4">
+        <nav className={`${isCollapsed ? "md:px-2" : "px-3"} px-3 py-6 space-y-4`}>
         {navigationConfig.map((group) => {
           // Hide PAUD module if active unit is not PAUD
           if (group.name === "Modul PAUD (KB/TK)" && !isPaudUnit && activeUnitId) {
@@ -97,17 +112,20 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
           if (visibleItems.length === 0) return null;
 
-          const isExpanded = expandedGroups[group.name];
+          const isExpanded = isCollapsed ? true : expandedGroups[group.name];
           const hasActiveChild = visibleItems.some(item => isActive(item.href));
 
           return (
             <div key={group.name} className="space-y-1.5">
               <button 
                 onClick={() => toggleGroup(group.name)}
-                className={`w-full flex items-center justify-between px-3 py-2 text-[11px] font-bold uppercase tracking-[0.15em] rounded-lg transition-colors hover:text-foreground group ${hasActiveChild && !isExpanded ? 'text-primary' : 'text-muted-foreground/70'}`}
+                className={`w-full items-center justify-between px-3 py-2 text-[11px] font-bold uppercase tracking-[0.15em] rounded-lg transition-colors hover:text-foreground group ${isCollapsed ? "hidden md:flex md:justify-center md:px-1" : "flex"} ${hasActiveChild && !isExpanded ? 'text-primary' : 'text-muted-foreground/70'}`}
+                title={group.name}
               >
-                <span>{group.name}</span>
-                {isExpanded ? (
+                <span className={isCollapsed ? "md:hidden" : ""}>{group.name}</span>
+                {isCollapsed ? (
+                  <span className="hidden md:block w-8 border-t border-border" />
+                ) : isExpanded ? (
                   <ChevronDown className="w-3.5 h-3.5 opacity-50 group-hover:opacity-100 transition-opacity" />
                 ) : (
                   <ChevronRight className="w-3.5 h-3.5 opacity-50 group-hover:opacity-100 transition-opacity" />
@@ -125,14 +143,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                       onClick={() => {
                         if (onClose) onClose();
                       }}
-                      className={`group flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all text-sm mx-1 ${
+                      title={isCollapsed ? item.title : undefined}
+                      className={`group flex items-center rounded-lg transition-all text-sm mx-1 ${isCollapsed ? "md:justify-center md:gap-0 md:px-2 md:py-3" : "gap-3 px-3 py-2.5"} ${
                         itemIsActive
                           ? "bg-primary/10 text-primary font-bold shadow-sm"
                           : "text-muted-foreground hover:bg-muted/50 hover:text-foreground font-medium"
                       }`}
                     >
-                      <Icon className={`w-4 h-4 transition-transform duration-200 ${itemIsActive ? 'text-primary scale-110' : 'group-hover:scale-110 group-hover:text-foreground'}`} />
-                      <span className={`transition-transform duration-200 ${itemIsActive ? 'translate-x-1' : 'group-hover:translate-x-1'}`}>
+                      <Icon className={`w-4 h-4 shrink-0 transition-transform duration-200 ${itemIsActive ? 'text-primary scale-110' : 'group-hover:scale-110 group-hover:text-foreground'}`} />
+                      <span className={`transition-all duration-200 ${isCollapsed ? "md:hidden" : ""} ${itemIsActive ? 'translate-x-1' : 'group-hover:translate-x-1'}`}>
                         {item.title}
                       </span>
                     </Link>

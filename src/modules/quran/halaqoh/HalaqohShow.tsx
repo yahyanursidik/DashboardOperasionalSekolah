@@ -1,13 +1,15 @@
 import React, { useState, useMemo } from "react";
 import { useShow, useList, useCreate, useDelete } from "@refinedev/core";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, Users, UserPlus, Trash2, CheckCircle2, Clock, Search, BookOpen, Filter } from "lucide-react";
+import { ArrowLeft, AlertTriangle, Award, BarChart3, BookOpen, CheckCircle2, ClipboardCheck, Clock, FileText, Filter, Search, Target, Trash2, UserPlus, Users, X } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { DeleteConfirmModal } from "../../../components/common/DeleteConfirmModal";
 import { toast } from "sonner";
+import { useAcademicYear } from "../../../app/providers/AcademicYearProvider";
 
 export const HalaqohShow: React.FC = () => {
   const { id } = useParams();
+  const { activeYearId, activeSemesterId } = useAcademicYear();
   const [isAdding, setIsAdding] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState("");
   
@@ -22,7 +24,7 @@ export const HalaqohShow: React.FC = () => {
   const { queryResult } = useShow({
     resource: "tahfidz_halaqohs",
     id,
-    meta: { select: "*, employees(name)" }
+    meta: { select: "*, employees(full_name)" }
   });
   const halaqoh = queryResult?.data?.data;
 
@@ -35,6 +37,7 @@ export const HalaqohShow: React.FC = () => {
   });
   const members = membersData?.data || [];
   const memberStudentIds = members.map(m => m.student_id);
+  const memberIdSet = new Set(memberStudentIds);
 
   // Filter members by search
   const filteredMembers = useMemo(() => {
@@ -51,6 +54,39 @@ export const HalaqohShow: React.FC = () => {
     filters: [{ field: "status", operator: "eq", value: "active" }],
     meta: { select: "id, full_name, class_id, classes(name, unit_id, units(id, name))" },
     pagination: { mode: "off" }
+  });
+
+  const { data: recordsData } = useList({
+    resource: "quran_records",
+    filters: [
+      ...(activeYearId ? [{ field: "academic_year_id", operator: "eq" as const, value: activeYearId }] : []),
+      ...(activeSemesterId ? [{ field: "semester_id", operator: "eq" as const, value: activeSemesterId }] : []),
+      { field: "record_type", operator: "eq", value: "tahfidz" },
+    ],
+    meta: { select: "id, halaqoh_id, student_id, fluency_score, date" },
+    pagination: { mode: "off" },
+  });
+
+  const { data: targetsData } = useList({
+    resource: "tahfidz_student_targets",
+    filters: [
+      ...(activeYearId ? [{ field: "academic_year_id", operator: "eq" as const, value: activeYearId }] : []),
+      ...(activeSemesterId ? [{ field: "semester_id", operator: "eq" as const, value: activeSemesterId }] : []),
+      { field: "target_type", operator: "eq", value: "tahfidz" },
+    ],
+    meta: { select: "id, student_id, status" },
+    pagination: { mode: "off" },
+  });
+
+  const { data: assessmentsData } = useList({
+    resource: "quran_assessments",
+    filters: [
+      ...(activeYearId ? [{ field: "academic_year_id", operator: "eq" as const, value: activeYearId }] : []),
+      ...(activeSemesterId ? [{ field: "semester_id", operator: "eq" as const, value: activeSemesterId }] : []),
+      { field: "assessment_type", operator: "in", value: ["tahfidz_juz", "tasmi"] },
+    ],
+    meta: { select: "id, student_id, status" },
+    pagination: { mode: "off" },
   });
 
   // Extract unique units and classes for filter dropdowns
@@ -94,6 +130,21 @@ export const HalaqohShow: React.FC = () => {
 
   const { mutate: createMutate, isLoading: isCreating } = useCreate();
   const { mutate: deleteMutate } = useDelete();
+  const halaqohRecords = (recordsData?.data || []).filter((record: any) => record.halaqoh_id === id || memberIdSet.has(record.student_id));
+  const halaqohTargets = (targetsData?.data || []).filter((target: any) => memberIdSet.has(target.student_id));
+  const halaqohAssessments = (assessmentsData?.data || []).filter((assessment: any) => memberIdSet.has(assessment.student_id));
+  const completedTargets = halaqohTargets.filter((target: any) => target.status === "completed").length;
+  const passedAssessments = halaqohAssessments.filter((assessment: any) => assessment.status === "Lulus").length;
+  const readinessItems = [
+    { label: "Muhaffizh", done: Boolean(halaqoh?.employee_id), detail: halaqoh?.employees?.full_name || "Belum ditentukan" },
+    { label: "Jadwal halaqoh", done: Boolean(halaqoh?.schedule_day || halaqoh?.schedule_time), detail: halaqoh?.schedule_day || halaqoh?.schedule_time ? `${halaqoh?.schedule_day || "-"}, ${halaqoh?.schedule_time || "-"}` : "Belum diatur" },
+    { label: "Anggota aktif", done: members.length > 0, detail: `${members.length} siswa` },
+    { label: "Target personal", done: members.length > 0 && halaqohTargets.length >= members.length, detail: `${halaqohTargets.length}/${members.length} target` },
+    { label: "Mutaba'ah berjalan", done: halaqohRecords.length > 0, detail: `${halaqohRecords.length} setoran` },
+  ];
+  const doneItems = readinessItems.filter((item) => item.done).length;
+  const readinessPercent = Math.round((doneItems / readinessItems.length) * 100);
+  const missingItems = readinessItems.filter((item) => !item.done);
 
   const handleAddMember = (e: React.FormEvent) => {
     e.preventDefault();
@@ -153,9 +204,70 @@ export const HalaqohShow: React.FC = () => {
         </Link>
         <PageHeader
           title={`Halaqoh: ${halaqoh?.name || "Memuat..."}`}
-          description={`Muhaffizh: ${halaqoh?.employees?.name || "Belum ditentukan"}`}
+          description={`Muhaffizh: ${halaqoh?.employees?.full_name || "Belum ditentukan"}`}
         />
       </div>
+
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {[
+          { icon: Users, label: "Anggota", value: members.length, detail: "siswa aktif", tone: members.length ? "text-emerald-600" : "text-amber-600" },
+          { icon: Target, label: "Target", value: `${halaqohTargets.length}/${members.length}`, detail: `${completedTargets} selesai`, tone: halaqohTargets.length >= members.length && members.length ? "text-emerald-600" : "text-amber-600" },
+          { icon: ClipboardCheck, label: "Setoran", value: halaqohRecords.length, detail: "mutaba'ah semester", tone: halaqohRecords.length ? "text-emerald-600" : "text-amber-600" },
+          { icon: Award, label: "Ujian", value: halaqohAssessments.length, detail: `${passedAssessments} lulus`, tone: halaqohAssessments.length ? "text-emerald-600" : "text-primary" },
+        ].map(({ icon: Icon, label, value, detail, tone }) => (
+          <div key={label} className="rounded-xl border bg-card p-5 shadow-sm">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase text-muted-foreground">{label}</p>
+                <p className={`mt-2 text-2xl font-bold ${tone}`}>{value}</p>
+                <p className="text-xs text-muted-foreground">{detail}</p>
+              </div>
+              <div className="rounded-lg bg-muted p-2">
+                <Icon className="h-5 w-5 text-emerald-600" />
+              </div>
+            </div>
+          </div>
+        ))}
+      </section>
+
+      <section className="grid gap-4 lg:grid-cols-[1fr_1.2fr]">
+        <div className="rounded-xl border bg-card p-5 shadow-sm">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-semibold text-muted-foreground">Skor kesiapan halaqoh</p>
+              <p className="mt-2 text-3xl font-bold">{readinessPercent}%</p>
+            </div>
+            <BarChart3 className="h-8 w-8 text-emerald-600" />
+          </div>
+          <div className="mt-4 h-2 rounded-full bg-muted">
+            <div className="h-2 rounded-full bg-emerald-600" style={{ width: `${readinessPercent}%` }} />
+          </div>
+          {missingItems.length > 0 && (
+            <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+              <div className="flex items-center gap-2 font-semibold">
+                <AlertTriangle className="h-4 w-4" />
+                Lengkapi sebelum monitoring penuh
+              </div>
+              <p className="mt-1 text-xs">Belum selesai: {missingItems.map((item) => item.label.toLowerCase()).join(", ")}.</p>
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-xl border bg-card p-5 shadow-sm">
+          <p className="text-sm font-semibold text-muted-foreground">Definition of done halaqoh</p>
+          <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            {readinessItems.map((item) => (
+              <div key={item.label} className="flex items-start gap-3 rounded-lg border bg-background p-3">
+                <CheckCircle2 className={`mt-0.5 h-4 w-4 ${item.done ? "text-emerald-600" : "text-muted-foreground"}`} />
+                <div>
+                  <p className="text-sm font-semibold">{item.label}</p>
+                  <p className="text-xs text-muted-foreground">{item.detail}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
@@ -175,7 +287,7 @@ export const HalaqohShow: React.FC = () => {
                 <p className="text-muted-foreground mb-1">Guru Pengampu</p>
                 {halaqoh?.employee_id ? (
                   <Link to={`/employees/show/${halaqoh.employee_id}`} className="font-medium text-primary hover:underline">
-                    {halaqoh.employees.name}
+                    {halaqoh.employees.full_name}
                   </Link>
                 ) : (
                   <p className="font-medium text-muted-foreground italic">Belum ditentukan</p>
@@ -205,6 +317,29 @@ export const HalaqohShow: React.FC = () => {
               </div>
             </div>
           </div>
+
+          <div className="bg-card border rounded-xl shadow-sm p-6">
+            <h3 className="font-semibold text-sm flex items-center gap-2 mb-4 text-muted-foreground">
+              <BookOpen className="w-4 h-4" /> Akses Cepat Tahfidz
+            </h3>
+            <div className="grid gap-2">
+              <Link to={`/tahfidz-student-targets/create?halaqoh_id=${id}`} className="flex items-center justify-between rounded-lg border bg-background px-3 py-2 text-sm font-semibold hover:bg-muted">
+                <span className="flex items-center gap-2"><Target className="h-4 w-4 text-emerald-600" /> Tambah Target</span>
+                <span className="text-xs text-muted-foreground">{halaqohTargets.length} target</span>
+              </Link>
+              <Link to={`/quran/create?halaqoh_id=${id}`} className="flex items-center justify-between rounded-lg border bg-background px-3 py-2 text-sm font-semibold hover:bg-muted">
+                <span className="flex items-center gap-2"><ClipboardCheck className="h-4 w-4 text-emerald-600" /> Input Setoran</span>
+                <span className="text-xs text-muted-foreground">{halaqohRecords.length} setoran</span>
+              </Link>
+              <Link to={`/quran-assessments/create?halaqoh_id=${id}`} className="flex items-center justify-between rounded-lg border bg-background px-3 py-2 text-sm font-semibold hover:bg-muted">
+                <span className="flex items-center gap-2"><Award className="h-4 w-4 text-emerald-600" /> Input Ujian</span>
+                <span className="text-xs text-muted-foreground">{halaqohAssessments.length} ujian</span>
+              </Link>
+              <Link to={`/tahfidz-reports?halaqoh_id=${id}`} className="flex items-center gap-2 rounded-lg border bg-background px-3 py-2 text-sm font-semibold hover:bg-muted">
+                <FileText className="h-4 w-4 text-emerald-600" /> Laporan Tahfidz
+              </Link>
+            </div>
+          </div>
         </div>
 
         {/* Members List */}
@@ -231,7 +366,7 @@ export const HalaqohShow: React.FC = () => {
                       : 'bg-emerald-600 text-white hover:bg-emerald-700'
                   }`}
                 >
-                  {isAdding ? <XIcon className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
+                  {isAdding ? <X className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
                   {isAdding ? "Batal" : "Tambah Anggota"}
                 </button>
               </div>
@@ -389,10 +524,3 @@ export const HalaqohShow: React.FC = () => {
     </div>
   );
 };
-
-// Helper for icon
-const XIcon = (props: any) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-    <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
-  </svg>
-);

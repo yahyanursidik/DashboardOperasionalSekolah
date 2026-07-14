@@ -2,8 +2,9 @@ import React from "react";
 import { useForm } from "@refinedev/react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { useNavigate } from "react-router-dom";
-import { Save, ArrowLeft, User, Phone, MapPin, Briefcase, CreditCard, Heart, BookOpen, Mail } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { Save, ArrowLeft, User, Phone, MapPin, Briefcase, CreditCard, Heart, BookOpen, Mail, ShieldCheck, CheckCircle, AlertTriangle, Link2 } from "lucide-react";
+import { getParentQualitySummary } from "../pages/list";
 
 const phoneRegex = /^(\+62|62|0)8[1-9][0-9]{6,10}$/;
 
@@ -34,18 +35,28 @@ export const ParentForm: React.FC<ParentFormProps> = ({ action, onSuccess, hideA
     refineCore: { onFinish, formLoading },
     register,
     handleSubmit,
+    watch,
     formState: { errors },
   } = useForm<ParentFormValues>({
     resolver: zodResolver(parentSchema) as any,
     refineCoreProps: {
       action,
       resource: "parents",
-      redirect: hideActions ? false : "list",
+      redirect: hideActions ? false : action === "edit" ? "show" : "list",
       onMutationSuccess: () => {
         if (onSuccess) onSuccess();
       }
     },
   });
+
+  const values = watch();
+  const quality = getParentQualitySummary(values, action === "edit" ? 1 : 0);
+  const readinessItems = [
+    { label: "Nama lengkap", ok: Boolean(values.full_name), icon: User },
+    { label: "No. WhatsApp", ok: Boolean(values.phone), icon: Phone },
+    { label: "Alamat", ok: Boolean(values.address), icon: MapPin },
+    { label: "Status aktif", ok: Boolean(values.is_active), icon: ShieldCheck },
+  ];
 
   const onSubmit = (values: any) => {
     const sanitizedValues: any = { ...values };
@@ -65,6 +76,43 @@ export const ParentForm: React.FC<ParentFormProps> = ({ action, onSuccess, hideA
   return (
     <div className="max-w-5xl space-y-6">
       <form id="parent-form" onSubmit={handleSubmit(onSubmit as any)} className="space-y-8">
+        <div className="bg-card rounded-2xl border shadow-sm overflow-hidden">
+          <div className="p-5 border-b bg-muted/30 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <h3 className="font-semibold flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-primary" />
+                Checklist Mutu Data Wali
+              </h3>
+              <p className="text-sm text-muted-foreground mt-1">
+                Lengkapi kontak dan alamat agar wali siap menerima komunikasi sekolah, portal orang tua, dan informasi tagihan.
+              </p>
+            </div>
+            <div className="text-left md:text-right">
+              <p className={`text-3xl font-bold ${quality.score >= 80 ? "text-emerald-600" : quality.score >= 60 ? "text-amber-600" : "text-destructive"}`}>{quality.score}%</p>
+              <p className="text-xs text-muted-foreground">Kesiapan data</p>
+            </div>
+          </div>
+          <div className="p-5 grid grid-cols-1 md:grid-cols-4 gap-3">
+            {readinessItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <div key={item.label} className={`rounded-lg border p-3 ${item.ok ? "bg-emerald-50 border-emerald-100 text-emerald-800" : "bg-amber-50 border-amber-100 text-amber-800"}`}>
+                  <div className="flex items-center justify-between gap-2">
+                    <Icon className="w-4 h-4" />
+                    {item.ok ? <CheckCircle className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
+                  </div>
+                  <p className="font-semibold text-sm mt-3">{item.label}</p>
+                </div>
+              );
+            })}
+          </div>
+          {action === "create" && (
+            <div className="mx-5 mb-5 rounded-lg border bg-blue-50 text-blue-800 border-blue-100 p-4 text-sm flex items-start gap-2">
+              <Link2 className="w-4 h-4 shrink-0 mt-0.5" />
+              Setelah wali dibuat, tautkan ke siswa dari halaman profil siswa agar relasi keluarga tidak duplikatif.
+            </div>
+          )}
+        </div>
         
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* ── Identitas Diri ── */}
@@ -210,6 +258,12 @@ export const ParentForm: React.FC<ParentFormProps> = ({ action, onSuccess, hideA
         {/* ── Form Actions ── */}
         {!hideActions && (
           <div className="flex items-center justify-end gap-3 pt-4 border-t mt-8">
+            <Link
+              to="/students"
+              className="hidden md:flex items-center gap-2 px-4 py-2.5 border rounded-lg hover:bg-muted transition-colors text-sm font-medium"
+            >
+              Tautkan dari Siswa
+            </Link>
             <button
               type="button"
               onClick={() => navigate(-1)}

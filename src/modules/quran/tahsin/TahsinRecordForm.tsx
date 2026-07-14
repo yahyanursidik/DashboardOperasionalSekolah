@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useMemo } from "react";
 import { useForm } from "@refinedev/react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { useList } from "@refinedev/core";
-import { useNavigate, useParams } from "react-router-dom";
-import { Save, ArrowLeft, BookOpen, CheckCircle } from "lucide-react";
+import { useList, useSelect } from "@refinedev/core";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { Save, ArrowLeft, Award, BookOpen, CheckCircle2, ClipboardCheck, ShieldCheck, Target, Users } from "lucide-react";
 import { useAcademicYear } from "../../../app/providers/AcademicYearProvider";
 import { PageHeader } from "../../../components/layout/PageHeader";
 
@@ -21,6 +21,7 @@ const tahsinSchema = z.object({
   makhroj_score: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
   halaqoh_id: z.string().optional().nullable(),
+  employee_id: z.string().optional().nullable(),
 });
 
 type TahsinFormValues = z.infer<typeof tahsinSchema>;
@@ -29,7 +30,10 @@ export const TahsinRecordForm: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const isEdit = !!id;
+  const [searchParams] = useSearchParams();
   const { activeYearId, activeSemesterId } = useAcademicYear();
+  const initialHalaqohId = searchParams.get("halaqoh_id") || "";
+  const initialStudentId = searchParams.get("student_id") || "";
 
   const {
     refineCore: { onFinish, formLoading, queryResult },
@@ -52,15 +56,27 @@ export const TahsinRecordForm: React.FC = () => {
       record_type: "tahsin",
       date: new Date().toISOString().split('T')[0],
       fluency_score: "Lancar",
+      halaqoh_id: initialHalaqohId,
+      student_id: initialStudentId,
+      employee_id: "",
     }
   });
 
-  const record = queryResult?.data?.data;
+  const record = queryResult?.data?.data as any;
   const currentHalaqohId = watch("halaqoh_id");
+  const currentStudentId = watch("student_id");
+  const currentJilid = watch("surah_or_jilid");
+  const currentPage = watch("ayat_or_page");
+  const currentFluency = watch("fluency_score");
+  const currentTajwid = watch("tajwid_score");
+  const currentMakhroj = watch("makhroj_score");
+  const currentEmployeeId = watch("employee_id");
 
   useEffect(() => {
     if (record) {
       setValue("halaqoh_id", record.halaqoh_id);
+      setValue("student_id", record.student_id);
+      setValue("employee_id", record.employee_id || "");
     }
   }, [record, setValue]);
 
@@ -75,24 +91,66 @@ export const TahsinRecordForm: React.FC = () => {
     pagination: { mode: "off" }
   });
   const halaqohs = halaqohsData?.data || [];
+  const tahsinHalaqohIds = useMemo(() => new Set(halaqohs.map((halaqoh: any) => halaqoh.id)), [halaqohs]);
+
+  const { data: allMembersData } = useList({
+    resource: "tahfidz_halaqoh_members",
+    meta: { select: "halaqoh_id, student_id, students(id, full_name, class_id, classes(name, units(name)))" },
+    pagination: { mode: "off" }
+  });
+  const allMembers = allMembersData?.data || [];
 
   // Fetch members of the selected halaqoh
   const { data: membersData, isLoading: isLoadingStudents } = useList({
     resource: "tahfidz_halaqoh_members",
     filters: currentHalaqohId ? [{ field: "halaqoh_id", operator: "eq", value: currentHalaqohId }] : [],
     queryOptions: { enabled: !!currentHalaqohId },
-    meta: { select: "student_id, students(id, full_name, classes(name, units(name)))" },
+    meta: { select: "student_id, students(id, full_name, class_id, classes(name, units(name)))" },
     pagination: { mode: "off" }
   });
 
   const members = membersData?.data || [];
+  const selectedMember = members.find((member: any) => member.student_id === currentStudentId) ||
+    allMembers.find((member: any) => member.student_id === currentStudentId && tahsinHalaqohIds.has(member.halaqoh_id));
+  const selectedStudent = selectedMember?.students;
+
+  useEffect(() => {
+    if (!initialStudentId || currentHalaqohId || tahsinHalaqohIds.size === 0) return;
+    const member = allMembers.find((item: any) => item.student_id === initialStudentId && tahsinHalaqohIds.has(item.halaqoh_id));
+    if (member?.halaqoh_id) setValue("halaqoh_id", member.halaqoh_id);
+  }, [allMembers, currentHalaqohId, initialStudentId, setValue, tahsinHalaqohIds]);
+
+  const { options: employeeOptions } = useSelect({
+    resource: "employees",
+    optionLabel: "full_name",
+    optionValue: "id",
+    sorters: [{ field: "full_name", order: "asc" }],
+  });
+  const selectedEmployee = employeeOptions?.find((option) => option.value === currentEmployeeId);
+  const checklist = [
+    { label: "Siswa", done: Boolean(currentStudentId), helper: selectedStudent?.full_name || "Pilih siswa halaqoh" },
+    { label: "Materi", done: Boolean(currentJilid && currentPage), helper: currentJilid && currentPage ? `${currentJilid} - ${currentPage}` : "Isi jilid/surah dan halaman/ayat" },
+    { label: "Kelancaran", done: Boolean(currentFluency), helper: currentFluency || "Pilih tingkat kelancaran" },
+    { label: "Tajwid/Makhraj", done: Boolean(currentTajwid || currentMakhroj), helper: currentTajwid || currentMakhroj ? "Skor kualitas terisi" : "Isi minimal salah satu bila ada" },
+    { label: "Penguji", done: Boolean(currentEmployeeId), helper: selectedEmployee?.label || "Pilih guru/penguji" },
+  ];
+
+  const handleFinish = (values: TahsinFormValues) => {
+    const member = members.find((item: any) => item.student_id === values.student_id) ||
+      allMembers.find((item: any) => item.student_id === values.student_id && tahsinHalaqohIds.has(item.halaqoh_id));
+    return onFinish({
+      ...values,
+      employee_id: values.employee_id || null,
+      class_id: member?.students?.class_id || record?.class_id || null,
+    });
+  };
 
   return (
-    <div className="max-w-4xl space-y-6">
+    <div className="mx-auto max-w-5xl space-y-6">
       <div className="flex items-center gap-4">
         <button
           type="button"
-          onClick={() => navigate("/tahsin-records")}
+          onClick={() => navigate(currentHalaqohId ? `/tahsin-records?halaqoh_id=${currentHalaqohId}` : "/tahsin-records")}
           className="p-2 hover:bg-muted rounded-full transition-colors"
         >
           <ArrowLeft className="w-5 h-5" />
@@ -103,12 +161,40 @@ export const TahsinRecordForm: React.FC = () => {
         />
       </div>
 
-      <form onSubmit={handleSubmit(onFinish as any)} className="bg-card rounded-xl border shadow-sm overflow-hidden">
+      <section className="rounded-xl border bg-card p-5 shadow-sm">
+        <div className="grid gap-5 lg:grid-cols-[1fr_1.2fr]">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-md bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-700">
+              <ShieldCheck className="h-4 w-4" />
+              Jurnal siap audit
+            </div>
+            <h2 className="mt-3 text-xl font-bold">
+              {isEdit ? "Perbarui jurnal tanpa memutus riwayat siswa" : "Catat latihan harian yang bisa ditindaklanjuti"}
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              Jurnal Tahsin menjadi bukti proses sebelum target dinyatakan tercapai atau siswa mengikuti ujian kenaikan jilid.
+            </p>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {checklist.map((item) => (
+              <div key={item.label} className="flex items-start gap-3 rounded-lg border bg-background p-3">
+                <CheckCircle2 className={`mt-0.5 h-4 w-4 ${item.done ? "text-emerald-600" : "text-muted-foreground"}`} />
+                <div>
+                  <p className="text-sm font-semibold">{item.label}</p>
+                  <p className="text-xs text-muted-foreground">{item.helper}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <form onSubmit={handleSubmit(handleFinish as any)} className="bg-card rounded-xl border shadow-sm overflow-hidden">
         
         {/* Identitas Program */}
         <div className="p-6 border-b bg-emerald-500/10 flex items-center gap-3">
            <BookOpen className="w-6 h-6 text-emerald-600" />
-           <div>
+          <div>
              <h2 className="font-semibold text-emerald-800 text-lg">Program Tahsin (Bacaan)</h2>
              <p className="text-sm text-emerald-700/80">Input mutaba'ah harian tilawah siswa.</p>
            </div>
@@ -160,6 +246,18 @@ export const TahsinRecordForm: React.FC = () => {
                   })}
                 </select>
                 {errors.student_id && <p className="text-sm text-destructive">{errors.student_id.message as string}</p>}
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <label className="text-sm font-medium">Guru / Penguji</label>
+                <select
+                  {...register("employee_id")}
+                  className="w-full flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                >
+                  <option value="">-- Pilih guru/penguji --</option>
+                  {employeeOptions?.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
               </div>
             </div>
           </div>
@@ -248,12 +346,30 @@ export const TahsinRecordForm: React.FC = () => {
               </div>
             </div>
           </div>
+
+          <div className="rounded-xl border bg-muted/20 p-4">
+            <h3 className="text-base font-semibold">Alur setelah jurnal tersimpan</h3>
+            <div className="mt-4 grid gap-3 md:grid-cols-4">
+              {[
+                { icon: Target, label: "Target", detail: "Bandingkan dengan target personal" },
+                { icon: BookOpen, label: "Latihan ulang", detail: "Tandai halaman yang perlu diulang" },
+                { icon: Award, label: "Ujian jilid", detail: "Ajukan saat bacaan stabil" },
+                { icon: ClipboardCheck, label: "Laporan", detail: "Terbaca di laporan Tahsin" },
+              ].map(({ icon: Icon, label, detail }) => (
+                <div key={label} className="rounded-lg border bg-background p-4">
+                  <Icon className="mb-2 h-5 w-5 text-emerald-600" />
+                  <p className="text-sm font-semibold">{label}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{detail}</p>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
 
         <div className="p-6 bg-muted/50 border-t flex justify-end gap-3">
           <button
             type="button"
-            onClick={() => navigate("/tahsin-records")}
+            onClick={() => navigate(currentHalaqohId ? `/tahsin-records?halaqoh_id=${currentHalaqohId}` : "/tahsin-records")}
             className="px-6 py-2 rounded-lg bg-background border hover:bg-muted font-medium transition-colors"
           >
             Batal

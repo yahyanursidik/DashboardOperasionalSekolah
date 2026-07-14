@@ -1,10 +1,40 @@
 import React, { useState } from "react";
 import { useShow, useList, useCreate, useDelete } from "@refinedev/core";
 import { PageHeader } from "../../../components/layout/PageHeader";
-import { User, Edit, ArrowLeft, Users, Plus, X, BookOpen, Star, AlertTriangle, ShieldAlert, Award, Activity, Eye, GraduationCap, History, Bookmark, CheckSquare, HeartPulse, PhoneCall, Trash2, Loader2 } from "lucide-react";
+import {
+  User,
+  Edit,
+  ArrowLeft,
+  Users,
+  Plus,
+  X,
+  BookOpen,
+  Star,
+  AlertTriangle,
+  ShieldAlert,
+  Award,
+  Activity,
+  Eye,
+  GraduationCap,
+  History,
+  Bookmark,
+  CheckSquare,
+  HeartPulse,
+  PhoneCall,
+  Trash2,
+  Loader2,
+  ShieldCheck,
+  School,
+  UserCheck,
+  CalendarCheck,
+  Receipt,
+  FileText,
+  MapPin,
+  IdCard,
+} from "lucide-react";
 import { AuditHistory } from "../../../components/common/AuditHistory";
 import { Link, useNavigate } from "react-router-dom";
-import { calculateCompleteness } from "./list";
+import { calculateCompleteness, getStudentQualitySummary } from "./list";
 import { ParentForm } from "../../parents/components/parent-form";
 import { AcademicHistoryModal } from "../components/AcademicHistoryModal";
 import { toast } from "sonner";
@@ -101,6 +131,30 @@ export const StudentShow: React.FC = () => {
     queryOptions: { enabled: !!record?.id && record?.units?.name?.toLowerCase().includes("paud") }
   });
 
+  const { data: attendanceData } = useList({
+    resource: "attendance_records",
+    filters: [{ field: "student_id", operator: "eq", value: record?.id }],
+    sorters: [{ field: "attendance_date", order: "desc" }],
+    pagination: { pageSize: 60 },
+    queryOptions: { enabled: !!record?.id }
+  });
+
+  const { data: invoicesData } = useList({
+    resource: "student_invoices",
+    filters: [{ field: "student_id", operator: "eq", value: record?.id }],
+    sorters: [{ field: "due_date", order: "desc" }],
+    meta: { select: "*, finance_categories(name)" },
+    pagination: { pageSize: 50 },
+    queryOptions: { enabled: !!record?.id }
+  });
+
+  const { data: reportCardsData } = useList({
+    resource: "academic_report_cards",
+    filters: [{ field: "student_id", operator: "eq", value: record?.id }],
+    pagination: { pageSize: 20 },
+    queryOptions: { enabled: !!record?.id }
+  });
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [linkMode, setLinkMode] = useState<"existing" | "new">("new");
@@ -187,6 +241,42 @@ export const StudentShow: React.FC = () => {
   }
 
   const score = calculateCompleteness(record);
+  const profileQuality = getStudentQualitySummary(record, (parentsData?.data?.length || 0) > 0);
+  const todayIso = new Date().toISOString().split("T")[0];
+  const currentMonth = new Date().getMonth();
+  const currentYear = new Date().getFullYear();
+  const attendanceRecords = attendanceData?.data || [];
+  const currentMonthAttendance = attendanceRecords.filter((item: any) => {
+    const rawDate = item.attendance_date || item.date;
+    if (!rawDate) return false;
+    const date = new Date(rawDate);
+    return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
+  });
+  const presentStatuses = ["present", "hadir", "late", "terlambat"];
+  const presentCount = currentMonthAttendance.filter((item: any) =>
+    presentStatuses.includes(String(item.status || "").toLowerCase())
+  ).length;
+  const attendanceRate = currentMonthAttendance.length > 0
+    ? Math.round((presentCount / currentMonthAttendance.length) * 100)
+    : null;
+  const unpaidInvoices = (invoicesData?.data || []).filter((invoice: any) => invoice.status !== "paid");
+  const outstandingAmount = unpaidInvoices.reduce((sum: number, invoice: any) => {
+    const amount = Number(invoice.amount || 0);
+    const discount = Number(invoice.discount || 0);
+    const paid = Number(invoice.paid_amount || 0);
+    return sum + Math.max(amount - discount - paid, 0);
+  }, 0);
+  const latestQuranRecord = quranData?.data?.[0];
+  const latestJournal = journalsData?.data?.[0];
+  const latestHistory = historyData?.data?.[0];
+
+  const formatCurrency = (value: number) =>
+    new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(value);
+
+  const formatDate = (value?: string | null) => {
+    if (!value) return "-";
+    return new Date(value).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
+  };
 
   const getCategoryDetails = (category: string) => {
     switch(category) {
@@ -269,9 +359,198 @@ export const StudentShow: React.FC = () => {
               </div>
             </div>
           </div>
+
+          <div className="bg-card rounded-xl border shadow-sm p-5">
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <div>
+                <h3 className="font-semibold">Kesiapan Operasional</h3>
+                <p className="text-xs text-muted-foreground mt-1">Sinyal cepat untuk absensi, rapor, portal wali, dan kelas.</p>
+              </div>
+              <span className={`text-[11px] font-bold uppercase px-2.5 py-1 rounded-full border ${
+                profileQuality.ready
+                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                  : "bg-amber-50 text-amber-700 border-amber-200"
+              }`}>
+                {profileQuality.ready ? "Siap" : "Perlu Dilengkapi"}
+              </span>
+            </div>
+            <div className="space-y-3">
+              {[
+                { label: "Identitas dasar", ok: profileQuality.hasIdentity, icon: ShieldCheck },
+                { label: "Terhubung ke kelas", ok: profileQuality.hasClass, icon: School },
+                { label: "Kontak orang tua/wali", ok: profileQuality.hasGuardianContact, icon: UserCheck },
+                { label: "Alamat domisili", ok: profileQuality.hasAddress, icon: Users },
+                { label: "Catatan kesehatan terpantau", ok: profileQuality.hasHealthAttention, icon: HeartPulse, neutral: true },
+              ].map((item) => {
+                const Icon = item.icon;
+                const isNeutralMissing = item.neutral && !item.ok;
+                return (
+                  <div key={item.label} className="flex items-center justify-between gap-3 text-sm">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Icon className={`w-4 h-4 shrink-0 ${item.ok ? "text-emerald-600" : isNeutralMissing ? "text-muted-foreground" : "text-amber-600"}`} />
+                      <span className="truncate">{item.label}</span>
+                    </div>
+                    <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
+                      item.ok
+                        ? "bg-emerald-50 text-emerald-700"
+                        : isNeutralMissing
+                          ? "bg-muted text-muted-foreground"
+                          : "bg-amber-50 text-amber-700"
+                    }`}>
+                      {item.ok ? "Ada" : isNeutralMissing ? "Tidak ada catatan" : "Kurang"}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+            {profileQuality.missing.length > 0 && (
+              <div className="mt-4 pt-4 border-t">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Prioritas perbaikan</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {profileQuality.missing.map((item) => (
+                    <span key={item} className="text-[11px] font-medium px-2 py-1 rounded-md bg-amber-50 text-amber-700 border border-amber-100">
+                      {item}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-2 mt-4 pt-4 border-t">
+              <Link to={`/students/edit/${record.id}`} className="text-center text-xs font-medium px-3 py-2 border rounded-md hover:bg-muted transition-colors">
+                Lengkapi Data
+              </Link>
+              <button onClick={() => setIsModalOpen(true)} className="text-xs font-medium px-3 py-2 border rounded-md hover:bg-muted transition-colors">
+                Tautkan Wali
+              </button>
+            </div>
+          </div>
+
+          <div className="bg-card rounded-xl border shadow-sm p-5">
+            <h3 className="font-semibold flex items-center gap-2 mb-4">
+              <IdCard className="w-4 h-4 text-primary" />
+              Identitas & Sekolah
+            </h3>
+            <div className="space-y-3 text-sm">
+              {[
+                { label: "NIS", value: record.nis || "-" },
+                { label: "NISN", value: record.nisn || "-" },
+                { label: "Unit", value: record.units?.name || "-" },
+                { label: "Kelas", value: record.classes?.name || "Belum ada kelas" },
+                { label: "L/P", value: record.gender === "L" ? "Ikhwan (L)" : record.gender === "P" ? "Akhawat (P)" : "-" },
+                { label: "Tempat/Tgl Lahir", value: `${record.birth_place || "-"} / ${formatDate(record.date_of_birth)}` },
+              ].map((item) => (
+                <div key={item.label} className="flex justify-between gap-3 border-b last:border-b-0 pb-2 last:pb-0">
+                  <span className="text-muted-foreground">{item.label}</span>
+                  <span className="font-medium text-right">{item.value}</span>
+                </div>
+              ))}
+              <div className="pt-1">
+                <p className="text-muted-foreground flex items-center gap-1 mb-1">
+                  <MapPin className="w-3.5 h-3.5" />
+                  Alamat
+                </p>
+                <p className="font-medium leading-relaxed">{record.address || "-"}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-card rounded-xl border shadow-sm p-5">
+            <h3 className="font-semibold mb-4">Akses Cepat</h3>
+            <div className="grid grid-cols-2 gap-2">
+              {record.class_id ? (
+                <Link to={`/attendance/class/${record.class_id}?date=${todayIso}`} className="text-center text-xs font-medium px-3 py-2 border rounded-md hover:bg-muted transition-colors">
+                  Absensi Kelas
+                </Link>
+              ) : (
+                <span className="text-center text-xs font-medium px-3 py-2 border rounded-md text-muted-foreground bg-muted/30">
+                  Absensi Kelas
+                </span>
+              )}
+              <Link to={`/student-journals/create?student_id=${record.id}&class_id=${record.class_id || ""}`} className="text-center text-xs font-medium px-3 py-2 border rounded-md hover:bg-muted transition-colors">
+                Tulis Jurnal
+              </Link>
+              <Link to={`/quran/create?student_id=${record.id}&class_id=${record.class_id || ""}`} className="text-center text-xs font-medium px-3 py-2 border rounded-md hover:bg-muted transition-colors">
+                Catat Qur'an
+              </Link>
+              <Link to="/finance/invoices" className="text-center text-xs font-medium px-3 py-2 border rounded-md hover:bg-muted transition-colors">
+                Tagihan
+              </Link>
+            </div>
+          </div>
         </div>
 
         <div className="lg:col-span-2 space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+            {[
+              {
+                label: "Kehadiran Bulan Ini",
+                value: attendanceRate === null ? "-" : `${attendanceRate}%`,
+                helper: `${currentMonthAttendance.length} catatan absensi`,
+                icon: CalendarCheck,
+                tone: attendanceRate === null || attendanceRate >= 90 ? "bg-emerald-50 text-emerald-700 border-emerald-100" : "bg-amber-50 text-amber-700 border-amber-100",
+              },
+              {
+                label: "Tagihan Terbuka",
+                value: unpaidInvoices.length,
+                helper: outstandingAmount > 0 ? formatCurrency(outstandingAmount) : "Tidak ada saldo",
+                icon: Receipt,
+                tone: unpaidInvoices.length === 0 ? "bg-emerald-50 text-emerald-700 border-emerald-100" : "bg-rose-50 text-rose-700 border-rose-100",
+              },
+              {
+                label: "Jurnal Siswa",
+                value: journalsData?.data?.length || 0,
+                helper: latestJournal ? `Terakhir ${formatDate(latestJournal.date_recorded)}` : "Belum ada catatan",
+                icon: FileText,
+                tone: "bg-indigo-50 text-indigo-700 border-indigo-100",
+              },
+              {
+                label: "Mutaba'ah Qur'an",
+                value: quranData?.data?.length || 0,
+                helper: latestQuranRecord ? `${latestQuranRecord.record_type || "Catatan"} terakhir ${formatDate(latestQuranRecord.date)}` : "Belum ada catatan",
+                icon: Bookmark,
+                tone: "bg-teal-50 text-teal-700 border-teal-100",
+              },
+            ].map((item) => {
+              const Icon = item.icon;
+              return (
+                <div key={item.label} className={`rounded-lg border p-4 ${item.tone}`}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wider opacity-80">{item.label}</p>
+                      <p className="text-2xl font-bold mt-1">{item.value}</p>
+                    </div>
+                    <Icon className="w-5 h-5 opacity-80" />
+                  </div>
+                  <p className="text-xs mt-2 opacity-80">{item.helper}</p>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="bg-card rounded-xl border shadow-sm p-4">
+            <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
+              <div>
+                <h3 className="font-semibold">Ringkasan Mutu Profil</h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {latestHistory
+                    ? `Riwayat terakhir: ${latestHistory.status} - ${latestHistory.classes?.name || "tanpa kelas"}`
+                    : "Belum ada riwayat akademik tercatat untuk siswa ini."}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-muted text-muted-foreground">
+                  {parentsData?.data?.length || 0} wali terhubung
+                </span>
+                <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-muted text-muted-foreground">
+                  {historyData?.data?.length || 0} riwayat akademik
+                </span>
+                <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-muted text-muted-foreground">
+                  {reportCardsData?.data?.length || 0} rapor tersimpan
+                </span>
+              </div>
+            </div>
+          </div>
+
           {/* TABS NAVIGATION */}
           <div className="flex border-b overflow-x-auto hide-scrollbar bg-card rounded-t-xl">
             <button
@@ -281,6 +560,7 @@ export const StudentShow: React.FC = () => {
               }`}
             >
               <Users className="w-4 h-4" /> Orang Tua & Kontak
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">{parentsData?.data?.length || 0}</span>
             </button>
             <button
               onClick={() => setActiveTab("health")}
@@ -289,6 +569,7 @@ export const StudentShow: React.FC = () => {
               }`}
             >
               <HeartPulse className="w-4 h-4" /> Medis & Kesehatan
+              {profileQuality.hasHealthAttention && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-rose-50 text-rose-700">Perlu pantau</span>}
             </button>
             <button
               onClick={() => setActiveTab("academic")}
@@ -297,6 +578,7 @@ export const StudentShow: React.FC = () => {
               }`}
             >
               <History className="w-4 h-4" /> Akademik & Kelas
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">{historyData?.data?.length || 0}</span>
             </button>
             <button
               onClick={() => setActiveTab("journals")}
@@ -305,6 +587,7 @@ export const StudentShow: React.FC = () => {
               }`}
             >
               <BookOpen className="w-4 h-4" /> Jurnal & Rekam Jejak
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">{(journalsData?.data?.length || 0) + (quranData?.data?.length || 0)}</span>
             </button>
           </div>
 
@@ -369,7 +652,12 @@ export const StudentShow: React.FC = () => {
               </div>
             )}
           </div>
+            </div>
+          )}
 
+          {/* TAB CONTENT: HEALTH */}
+          {activeTab === "health" && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
           <div className="bg-card rounded-xl border shadow-sm p-6 border-orange-200">
             <h3 className="font-semibold text-lg flex items-center gap-2 mb-6 border-b pb-4 text-rose-900">
               <HeartPulse className="w-5 h-5 text-rose-600" /> Data Kesehatan & Medis
@@ -429,7 +717,12 @@ export const StudentShow: React.FC = () => {
               </div>
             )}
           </div>
+            </div>
+          )}
 
+          {/* TAB CONTENT: ACADEMIC */}
+          {activeTab === "academic" && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
           <div className="bg-card rounded-xl border shadow-sm p-6">
             <div className="flex justify-between items-center mb-6 border-b pb-4">
               <h3 className="font-semibold text-lg flex items-center gap-2">
@@ -497,7 +790,7 @@ export const StudentShow: React.FC = () => {
                 <BookOpen className="w-5 h-5 text-indigo-600" /> Jurnal & Rekam Jejak
               </h3>
               <Link 
-                to="/student-journals/create"
+                to={`/student-journals/create?student_id=${record.id}&class_id=${record.class_id || ""}`}
                 className="text-sm flex items-center gap-1 bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-md font-medium hover:bg-indigo-100 transition-colors"
               >
                 <Plus className="w-4 h-4" /> Tulis Jurnal

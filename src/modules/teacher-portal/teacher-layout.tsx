@@ -1,157 +1,180 @@
 import React, { useEffect, useState } from "react";
 import { Outlet, useNavigate, useLocation, Link } from "react-router-dom";
 import { supabaseClient } from "../../lib/supabase/client";
-import { Home, Users, BookOpen, Calendar, LogOut, CheckSquare, Star } from "lucide-react";
+import { Home, BookOpen, Calendar, LogOut, CheckSquare, Star, ClipboardList, Clock, MoreHorizontal, X } from "lucide-react";
 import { useSystemSettings } from "../../app/providers/SettingsProvider";
-import { useCurrentUnit } from "../../app/providers/UnitProvider";
-import { useOne } from "@refinedev/core";
 
 export const TeacherLayout: React.FC = () => {
   const [employee, setEmployee] = useState<any>(null);
+  const [isMoreOpen, setIsMoreOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const { appName, logoUrl } = useSystemSettings();
-  const { activeUnitId } = useCurrentUnit();
-
-  const { data: unitData } = useOne({
-    resource: "units",
-    id: activeUnitId || "",
-    queryOptions: { enabled: !!activeUnitId }
-  });
-
-  const unitName = unitData?.data?.name?.toLowerCase() || "";
-  const isPaudUnit = unitName.includes("paud") || unitName.includes("tk") || unitName.includes("kb");
 
   useEffect(() => {
     const fetchSession = async () => {
       const { data: { session } } = await supabaseClient.auth.getSession();
-      
+
       if (!session) {
         navigate("/teacher/login");
         return;
       }
 
-      // Load employee data based on user_id
       const { data: empData, error } = await supabaseClient
         .from("employees")
-        .select("*")
+        .select("*, units(name)")
         .eq("user_id", session.user.id)
         .eq("status", "active")
         .single();
 
       if (error || !empData) {
-        console.error("Employee not found for this user", error, empData);
         await supabaseClient.auth.signOut();
         navigate("/teacher/login");
         return;
       }
 
-      console.log("Employee found:", empData);
       setEmployee(empData);
     };
 
     fetchSession();
   }, [navigate]);
 
+  useEffect(() => {
+    setIsMoreOpen(false);
+  }, [location.pathname]);
+
   const handleLogout = async () => {
     await supabaseClient.auth.signOut();
     navigate("/teacher/login");
   };
 
-  if (!employee) return null;
+  if (!employee) return <div className="min-h-screen bg-gray-50 flex items-center justify-center text-sm text-gray-500">Memuat portal pengajar...</div>;
+
+  const unitName = employee.units?.name?.toLowerCase() || "";
+  const isPaudUnit = unitName.includes("paud") || unitName.includes("tk") || unitName.includes("kb");
+  const navItems = [
+    { to: "/teacher", label: "Beranda", icon: Home, exact: true },
+    { to: "/teacher/classes", label: "Kelas & Nilai", icon: CheckSquare },
+    { to: "/teacher/quran", label: "Qur'an", icon: BookOpen },
+    ...(isPaudUnit ? [{ to: "/teacher/paud", label: "KB/TK", icon: Star }] : []),
+    { to: "/teacher/journals", label: "Jurnal Siswa", icon: ClipboardList },
+    { to: "/teacher/schedules", label: "Jadwal", icon: Calendar },
+    { to: "/teacher/leaves", label: "Izin Saya", icon: Clock },
+  ];
+  const mobileMainItems = navItems.slice(0, 3);
+
+  const isActive = (item: any) => item.exact ? location.pathname === item.to : location.pathname.startsWith(item.to);
 
   return (
-    <div className="min-h-screen bg-gray-50 flex justify-center font-sans pb-20 sm:pb-0">
-      {/* Mobile container mimicking app frame */}
-      <div className="w-full sm:max-w-md bg-white min-h-screen shadow-2xl relative overflow-x-hidden">
-        
-        {/* Top Header */}
-        <div className="bg-primary px-4 py-4 text-primary-foreground sticky top-0 z-50 shadow-md">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-2">
-              {logoUrl ? (
-                <img src={logoUrl} alt="Logo" className="h-8 w-8 object-contain rounded bg-white/20 p-1" />
-              ) : (
-                <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center font-bold text-sm">
-                  {appName?.charAt(0) || "T"}
-                </div>
-              )}
-              <div>
-                <h1 className="font-bold text-sm leading-none">Portal Guru</h1>
-                <p className="text-[10px] opacity-80 mt-1">{appName || "Sistem Informasi Sekolah"}</p>
-              </div>
-            </div>
-            
-            <button 
-              onClick={handleLogout}
-              className="p-2 bg-black/10 rounded-full hover:bg-black/20 transition"
-              title="Keluar"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
-          </div>
-
-          <div className="mt-4 flex items-center gap-3">
-            <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center text-xl font-bold uppercase shrink-0">
+    <div className="min-h-screen bg-gray-50 font-sans">
+      <aside className="hidden md:flex fixed inset-y-0 left-0 z-40 w-72 flex-col border-r bg-white">
+        <div className="flex h-16 items-center justify-center border-b px-4">
+          {logoUrl ? <img src={logoUrl} alt="Logo" className="max-h-10 object-contain" /> : <span className="text-lg font-bold text-emerald-700">{appName || "TSLS"}</span>}
+        </div>
+        <div className="border-b p-5">
+          <div className="flex items-start gap-3">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-lg font-black uppercase text-emerald-700">
               {employee.full_name?.charAt(0)}
             </div>
-            <div>
-              <p className="text-xs opacity-80">Selamat datang,</p>
-              <h2 className="font-bold text-lg leading-tight">{employee.full_name}</h2>
-              <div className="flex flex-wrap gap-1 mt-1.5">
-                <span className="text-[9px] font-medium bg-black/20 px-2 py-0.5 rounded">
-                  NIK: {employee.nik}
-                </span>
-                {employee.teacher_roles && employee.teacher_roles.length > 0 ? (
-                  employee.teacher_roles.map((role: string, idx: number) => (
-                    <span key={idx} className="text-[9px] font-bold bg-white/20 text-white px-2 py-0.5 rounded">
-                      {role}
-                    </span>
-                  ))
-                ) : (
-                  <span className="text-[9px] font-bold bg-white/20 text-white px-2 py-0.5 rounded">
-                    {employee.position === 'guru' ? 'Guru Umum' : employee.position}
-                  </span>
-                )}
-              </div>
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-gray-500">Portal Pengajar</p>
+              <h2 className="truncate text-base font-bold text-gray-900">{employee.full_name}</h2>
+              <p className="mt-0.5 text-xs text-gray-500">{employee.units?.name || "Unit sekolah"}</p>
+            </div>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-1">
+            {(employee.teacher_roles?.length ? employee.teacher_roles : [employee.position || "Guru"]).map((role: string) => (
+              <span key={role} className="rounded-md bg-emerald-50 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
+                {role}
+              </span>
+            ))}
+          </div>
+        </div>
+        <nav className="flex-1 space-y-1 overflow-y-auto p-4">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const active = isActive(item);
+            return (
+              <Link key={item.to} to={item.to} className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors ${active ? "bg-emerald-50 text-emerald-700" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"}`}>
+                <Icon className={`h-5 w-5 ${active ? "text-emerald-600" : "text-gray-400"}`} />
+                {item.label}
+              </Link>
+            );
+          })}
+        </nav>
+        <div className="border-t p-4">
+          <button onClick={handleLogout} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50">
+            <LogOut className="h-5 w-5" />
+            Keluar
+          </button>
+        </div>
+      </aside>
+
+      <div className="md:pl-72">
+        <header className="sticky top-0 z-30 border-b bg-white shadow-sm md:hidden">
+          <div className="flex items-center justify-between px-4 py-3">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-emerald-700">Portal Pengajar</p>
+              <h1 className="truncate text-base font-bold text-gray-900">{employee.full_name}</h1>
+              <p className="truncate text-[11px] text-gray-500">{employee.units?.name || appName || "Sekolah"}</p>
+            </div>
+            <button onClick={handleLogout} className="rounded-full bg-red-50 p-2 text-red-600">
+              <LogOut className="h-4 w-4" />
+            </button>
+          </div>
+        </header>
+
+        <main className="mx-auto w-full max-w-6xl pb-24 md:p-6 md:pb-10">
+          <Outlet context={{ employee }} />
+        </main>
+      </div>
+
+      <nav className="fixed bottom-0 left-0 right-0 z-40 border-t bg-white shadow-[0_-4px_10px_rgba(0,0,0,0.05)] md:hidden">
+        <div className="grid grid-cols-4 px-2">
+          {mobileMainItems.map((item) => {
+            const Icon = item.icon;
+            const active = isActive(item);
+            return (
+              <Link key={item.to} to={item.to} className={`flex flex-col items-center justify-center py-2 ${active ? "text-emerald-600" : "text-gray-400"}`}>
+                <Icon className="mb-1 h-5 w-5" />
+                <span className={`text-[10px] ${active ? "font-bold" : "font-medium"}`}>{item.label}</span>
+              </Link>
+            );
+          })}
+          <button onClick={() => setIsMoreOpen(true)} className={`flex flex-col items-center justify-center py-2 ${isMoreOpen ? "text-emerald-600" : "text-gray-400"}`}>
+            <MoreHorizontal className="mb-1 h-5 w-5" />
+            <span className="text-[10px] font-medium">Lainnya</span>
+          </button>
+        </div>
+      </nav>
+
+      {isMoreOpen && (
+        <div className="fixed inset-0 z-50 flex flex-col justify-end md:hidden">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setIsMoreOpen(false)} />
+          <div className="relative rounded-t-3xl bg-white p-5 shadow-xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-gray-900">Menu Pengajar</h3>
+              <button onClick={() => setIsMoreOpen(false)} className="rounded-full bg-gray-100 p-2 text-gray-500">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="grid grid-cols-4 gap-4">
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                const active = isActive(item);
+                return (
+                  <Link key={item.to} to={item.to} className="flex flex-col items-center gap-2 text-center">
+                    <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${active ? "bg-emerald-100 text-emerald-700" : "bg-gray-50 text-gray-600"}`}>
+                      <Icon className="h-6 w-6" />
+                    </div>
+                    <span className={`text-[11px] font-semibold ${active ? "text-emerald-700" : "text-gray-600"}`}>{item.label}</span>
+                  </Link>
+                );
+              })}
             </div>
           </div>
         </div>
-
-        {/* Content Area */}
-        <div className="bg-gray-50 min-h-full">
-          <Outlet context={{ employee }} />
-        </div>
-
-        {/* Bottom Navigation for Mobile */}
-        <div className="fixed bottom-0 left-0 right-0 sm:max-w-md sm:mx-auto bg-white border-t flex justify-around items-center p-2 z-50 pb-safe shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
-          <NavItem to="/teacher" icon={<Home />} label="Beranda" active={location.pathname === "/teacher"} />
-          <NavItem to="/teacher/classes" icon={<CheckSquare />} label="Absen & Nilai" active={location.pathname.includes("/teacher/classes")} />
-          {isPaudUnit ? (
-            <NavItem to="/teacher/paud" icon={<Star />} label="PAUD" active={location.pathname.includes("/teacher/paud")} />
-          ) : (
-            <NavItem to="/teacher/quran" icon={<BookOpen />} label="Al-Qur'an" active={location.pathname.includes("/teacher/quran")} />
-          )}
-          <NavItem to="/teacher/journals" icon={<BookOpen />} label="Jurnal" active={location.pathname.includes("/teacher/journals")} />
-        </div>
-
-      </div>
+      )}
     </div>
-  );
-};
-
-const NavItem = ({ to, icon, label, active }: { to: string, icon: React.ReactNode, label: string, active: boolean }) => {
-  return (
-    <Link 
-      to={to} 
-      className={`flex flex-col items-center justify-center w-full py-2 gap-1 transition-colors ${
-        active ? "text-primary" : "text-gray-400 hover:text-gray-600"
-      }`}
-    >
-      <div className={`[&>svg]:w-5 [&>svg]:h-5 ${active ? "[&>svg]:stroke-[2.5px]" : "[&>svg]:stroke-[2px]"}`}>
-        {icon}
-      </div>
-      <span className={`text-[9px] ${active ? "font-bold" : "font-medium"}`}>{label}</span>
-    </Link>
   );
 };

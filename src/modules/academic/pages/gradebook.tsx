@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { useList, useCustomMutation } from "@refinedev/core";
+import { useList } from "@refinedev/core";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { Save, FilterX } from "lucide-react";
 import { supabaseClient } from "../../../lib/supabase/client";
+import { useSearchParams } from "react-router-dom";
 
 const GRADE_TYPES = [
   { id: "tugas_1", label: "Tugas 1" },
@@ -14,8 +15,9 @@ const GRADE_TYPES = [
 const PAUD_OPTIONS = ["", "BB", "MB", "BSH", "BSB"];
 
 export const Gradebook: React.FC = () => {
+  const [searchParams] = useSearchParams();
   const [selectedSemester, setSelectedSemester] = useState<string>("");
-  const [selectedClass, setSelectedClass] = useState<string>("");
+  const [selectedClass, setSelectedClass] = useState<string>(searchParams.get("class_id") || "");
   const [selectedSubject, setSelectedSubject] = useState<string>("");
 
   const { data: semesters } = useList({ resource: "semesters", pagination: { mode: "off" } });

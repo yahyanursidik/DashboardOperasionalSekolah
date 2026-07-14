@@ -264,7 +264,7 @@ export const navigationConfig: NavigationGroup[] = [
         resource: "quran_targets",
       },
       {
-        title: "Munaqosyah/Ujian",
+        title: "Munaqosyah Tahfidz",
         href: "/quran-assessments",
         icon: Award,
         resource: "quran_assessments",

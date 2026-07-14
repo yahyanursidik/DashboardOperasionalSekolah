@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useForm, useSelect } from "@refinedev/core";
 import { useNavigate, useParams, Link } from "react-router-dom";
-import { ArrowLeft, Save, Clock, Users, BookOpen } from "lucide-react";
+import { ArrowLeft, Award, BookOpen, CheckCircle2, ClipboardCheck, Clock, Save, ShieldCheck, Target, Users } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { useAcademicYear } from "../../../app/providers/AcademicYearProvider";
 import { toast } from "sonner";
@@ -23,11 +23,38 @@ export const HalaqohForm: React.FC = () => {
   });
 
   const record = queryResult?.data?.data;
+  const [formPreview, setFormPreview] = useState({
+    name: record?.name || "",
+    employee_id: record?.employee_id || "",
+    schedule_day: record?.schedule_day || "",
+    schedule_time: record?.schedule_time || "",
+    academic_year_id: record?.academic_year_id || activeYearId || "",
+    semester_id: record?.semester_id || activeSemesterId || "",
+  });
+  const checklist = [
+    { label: "Nama halaqoh jelas", done: Boolean(formPreview.name), helper: "Mudah dikenali oleh guru, admin, dan laporan" },
+    { label: "Muhaffizh terisi", done: Boolean(formPreview.employee_id), helper: "Penanggung jawab target dan setoran" },
+    { label: "Periode akademik", done: Boolean(formPreview.academic_year_id && formPreview.semester_id), helper: "Memisahkan capaian setiap semester" },
+    { label: "Jadwal halaqoh", done: Boolean(formPreview.schedule_day || formPreview.schedule_time), helper: "Memudahkan monitoring kehadiran dan setoran" },
+  ];
+
+  useEffect(() => {
+    if (!record) return;
+    setFormPreview({
+      name: record.name || "",
+      employee_id: record.employee_id || "",
+      schedule_day: record.schedule_day || "",
+      schedule_time: record.schedule_time || "",
+      academic_year_id: record.academic_year_id || activeYearId || "",
+      semester_id: record.semester_id || activeSemesterId || "",
+    });
+  }, [record, activeYearId, activeSemesterId]);
 
   const { options: employeeOptions } = useSelect({
     resource: "employees",
     optionLabel: "full_name",
     optionValue: "id",
+    filters: [{ field: "status", operator: "eq", value: "active" }],
     sorters: [{ field: "full_name", order: "asc" }],
   });
 
@@ -79,7 +106,7 @@ export const HalaqohForm: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6 max-w-3xl mx-auto">
+    <div className="space-y-6 max-w-5xl mx-auto">
       <div className="flex items-center gap-4">
         <Link
           to="/tahfidz-halaqohs"
@@ -92,6 +119,34 @@ export const HalaqohForm: React.FC = () => {
           description="Atur nama kelompok halaqoh beserta guru/muhaffizh pengampunya"
         />
       </div>
+
+      <section className="rounded-xl border bg-card p-5 shadow-sm">
+        <div className="grid gap-5 lg:grid-cols-[1fr_1.2fr]">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-md bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-700">
+              <ShieldCheck className="h-4 w-4" />
+              Setup halaqoh bermutu
+            </div>
+            <h2 className="mt-3 text-xl font-bold">
+              {isEdit ? "Perbarui halaqoh tanpa memutus monitoring tahfidz" : "Buat halaqoh yang siap dipakai guru tahfidz"}
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              Setelah halaqoh dibuat, anggota dapat ditambahkan dari detail halaqoh, lalu guru bisa mengisi target personal, mutaba'ah, munaqosyah, dan laporan perkembangan.
+            </p>
+          </div>
+          <div className="grid gap-2">
+            {checklist.map((item) => (
+              <div key={item.label} className="flex items-start gap-3 rounded-lg border bg-background p-3">
+                <CheckCircle2 className={`mt-0.5 h-4 w-4 ${item.done ? "text-emerald-600" : "text-muted-foreground"}`} />
+                <div>
+                  <p className="text-sm font-semibold">{item.label}</p>
+                  <p className="text-xs text-muted-foreground">{item.helper}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
 
       <form onSubmit={handleSubmit} className="bg-card border rounded-xl shadow-sm overflow-hidden">
         <div className="p-6 space-y-6">
@@ -109,6 +164,7 @@ export const HalaqohForm: React.FC = () => {
                   name="name"
                   required
                   defaultValue={record?.name || ""}
+                  onChange={(event) => setFormPreview((prev) => ({ ...prev, name: event.target.value }))}
                   placeholder="Contoh: Halaqoh Abu Bakar"
                   className="w-full flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-primary/20 focus:outline-none transition-shadow"
                 />
@@ -121,6 +177,7 @@ export const HalaqohForm: React.FC = () => {
                     name="academic_year_id"
                     required
                     defaultValue={record?.academic_year_id || activeYearId || ""}
+                    onChange={(event) => setFormPreview((prev) => ({ ...prev, academic_year_id: event.target.value }))}
                     className="w-full flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-primary/20 focus:outline-none transition-shadow"
                   >
                     <option value="">-- Pilih Tahun Ajaran --</option>
@@ -136,6 +193,7 @@ export const HalaqohForm: React.FC = () => {
                     name="semester_id"
                     required
                     defaultValue={record?.semester_id || activeSemesterId || ""}
+                    onChange={(event) => setFormPreview((prev) => ({ ...prev, semester_id: event.target.value }))}
                     className="w-full flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-primary/20 focus:outline-none transition-shadow"
                   >
                     <option value="">-- Pilih Semester --</option>
@@ -152,6 +210,7 @@ export const HalaqohForm: React.FC = () => {
                   <select
                     name="employee_id"
                     defaultValue={record?.employee_id || ""}
+                    onChange={(event) => setFormPreview((prev) => ({ ...prev, employee_id: event.target.value }))}
                     className="w-full flex h-10 rounded-md border border-input bg-background pl-10 pr-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-primary/20 focus:outline-none transition-shadow appearance-none"
                   >
                     <option value="">-- Belum ada pengampu --</option>
@@ -176,6 +235,7 @@ export const HalaqohForm: React.FC = () => {
                   <select
                     name="schedule_day"
                     defaultValue={record?.schedule_day || ""}
+                    onChange={(event) => setFormPreview((prev) => ({ ...prev, schedule_day: event.target.value }))}
                     className="w-full flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-primary/20 focus:outline-none transition-shadow"
                   >
                     <option value="">-- Pilih Hari --</option>
@@ -191,6 +251,7 @@ export const HalaqohForm: React.FC = () => {
                     type="text"
                     name="schedule_time"
                     defaultValue={record?.schedule_time || ""}
+                    onChange={(event) => setFormPreview((prev) => ({ ...prev, schedule_time: event.target.value }))}
                     placeholder="Contoh: 15:30 - 17:00"
                     className="w-full flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-primary/20 focus:outline-none transition-shadow"
                   />
@@ -207,6 +268,24 @@ export const HalaqohForm: React.FC = () => {
                 placeholder="Catatan tambahan mengenai halaqoh ini..."
                 className="w-full flex rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-primary/20 focus:outline-none transition-shadow resize-y"
               />
+            </div>
+          </div>
+
+          <div className="rounded-xl border bg-muted/20 p-4">
+            <h3 className="font-semibold text-base">Alur setelah tersimpan</h3>
+            <div className="mt-4 grid gap-3 md:grid-cols-4">
+              {[
+                { icon: Users, label: "Isi anggota", detail: "Tambahkan siswa dari detail halaqoh" },
+                { icon: Target, label: "Target personal", detail: "Tetapkan target sesuai kemampuan" },
+                { icon: ClipboardCheck, label: "Mutaba'ah", detail: "Catat setoran rutin guru" },
+                { icon: Award, label: "Munaqosyah", detail: "Input ujian dan kelulusan" },
+              ].map(({ icon: Icon, label, detail }) => (
+                <div key={label} className="rounded-lg border bg-background p-4">
+                  <Icon className="mb-2 h-5 w-5 text-emerald-600" />
+                  <p className="text-sm font-semibold">{label}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{detail}</p>
+                </div>
+              ))}
             </div>
           </div>
 

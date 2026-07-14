@@ -4,9 +4,27 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useSelect } from "@refinedev/core";
 import { useNavigate } from "react-router-dom";
-import { Save, ArrowLeft, User, GraduationCap, MapPin, FileText, HeartPulse, PhoneCall } from "lucide-react";
+import {
+  Save,
+  ArrowLeft,
+  User,
+  GraduationCap,
+  MapPin,
+  FileText,
+  HeartPulse,
+  PhoneCall,
+  AlertTriangle,
+  CheckCircle,
+  ShieldCheck,
+  School,
+  UserCheck,
+  IdCard,
+  Activity,
+} from "lucide-react";
 import { useCurrentUnit } from "../../../app/providers/UnitProvider";
 import { PhotoUpload } from "../../../components/common/PhotoUpload";
+import { getStudentQualitySummary } from "../pages/list";
+import { Link } from "react-router-dom";
 
 const studentSchema = z.object({
   full_name: z.string().min(1, "Nama Lengkap wajib diisi"),
@@ -54,19 +72,23 @@ export const StudentForm: React.FC<StudentFormProps> = ({ action }) => {
     handleSubmit,
     watch,
     reset,
+    setValue,
     formState: { errors },
   } = useForm<StudentFormValues>({
     resolver: zodResolver(studentSchema) as any,
     refineCoreProps: {
       action,
       resource: "students",
-      redirect: "list",
+      redirect: action === "edit" ? "show" : "list",
     },
     defaultValues: action === "create" ? {
       unit_id: activeUnitId || "",
     } : undefined
   });
 
+  // Extract initial date properly for HTML date input
+  const initialData = queryResult?.data?.data;
+  const birthDateValue = initialData?.date_of_birth ? new Date(initialData.date_of_birth).toISOString().split('T')[0] : "";
   const selectedUnit = watch("unit_id");
 
   const { options: unitOptions, queryResult: unitQuery } = useSelect({
@@ -85,9 +107,23 @@ export const StudentForm: React.FC<StudentFormProps> = ({ action }) => {
     queryOptions: { enabled: !!selectedUnit }
   });
 
-  // Extract initial date properly for HTML date input
-  const initialData = queryResult?.data?.data;
-  const birthDateValue = initialData?.date_of_birth ? new Date(initialData.date_of_birth).toISOString().split('T')[0] : "";
+  const formValues = watch();
+  const studentId = ((initialData as any)?.id as string | undefined) || "";
+  const quality = getStudentQualitySummary(formValues, false);
+  const completionItems = [
+    { label: "Identitas dasar", ok: quality.hasIdentity, icon: IdCard, helper: "Nama, jenis kelamin, dan NIS" },
+    { label: "Kelas aktif", ok: quality.hasClass, icon: School, helper: "Dibutuhkan absensi, rapor, dan mutasi" },
+    { label: "Alamat", ok: quality.hasAddress, icon: MapPin, helper: "Dibutuhkan administrasi dan dokumen" },
+    { label: "NISN", ok: quality.hasNationalIdentity, icon: ShieldCheck, helper: "Dibutuhkan pelaporan nasional" },
+    { label: "Kontak darurat", ok: Boolean(formValues.emergency_contact_phone), icon: PhoneCall, helper: "Dipakai saat kondisi mendesak" },
+  ];
+  const healthHasAttention = Boolean(
+    formValues.allergies ||
+    formValues.medical_history ||
+    formValues.special_needs ||
+    formValues.uks_history ||
+    formValues.emergency_contact_phone
+  );
 
   React.useEffect(() => {
     if (action === "edit" && initialData) {
@@ -113,6 +149,104 @@ export const StudentForm: React.FC<StudentFormProps> = ({ action }) => {
   return (
     <div className="max-w-4xl space-y-6">
       <form onSubmit={handleSubmit(onSubmit as any)} className="space-y-6">
+        <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
+          <div className="p-5 border-b bg-muted/30 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <h3 className="font-semibold flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-primary" />
+                Checklist Mutu Data Siswa
+              </h3>
+              <p className="text-sm text-muted-foreground mt-1">
+                Pantau kesiapan data sebelum disimpan agar profil siswa siap dipakai oleh kelas, absensi, rapor, keuangan, dan portal wali.
+              </p>
+            </div>
+            <div className="text-left md:text-right">
+              <p className={`text-3xl font-bold ${quality.score >= 80 ? "text-emerald-600" : quality.score >= 60 ? "text-amber-600" : "text-destructive"}`}>
+                {quality.score}%
+              </p>
+              <p className="text-xs text-muted-foreground">Kelengkapan form</p>
+            </div>
+          </div>
+
+          <div className="p-5 space-y-5">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+              {completionItems.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <div key={item.label} className={`rounded-lg border p-3 ${item.ok ? "bg-emerald-50 border-emerald-100 text-emerald-800" : "bg-amber-50 border-amber-100 text-amber-800"}`}>
+                    <div className="flex items-center justify-between gap-2">
+                      <Icon className="w-4 h-4" />
+                      {item.ok ? <CheckCircle className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
+                    </div>
+                    <p className="font-semibold text-sm mt-3">{item.label}</p>
+                    <p className="text-xs mt-1 opacity-80">{item.helper}</p>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+              <div className={`rounded-lg border p-4 ${formValues.status === "active" ? "bg-emerald-50 text-emerald-800 border-emerald-100" : "bg-slate-50 text-slate-700 border-slate-200"}`}>
+                <div className="flex items-center gap-2 font-semibold text-sm">
+                  <Activity className="w-4 h-4" />
+                  Status Operasional
+                </div>
+                <p className="text-xs mt-2 opacity-80">
+                  {formValues.status === "active"
+                    ? "Siswa aktif akan muncul di absensi, rapor, dan pilihan pembelajaran."
+                    : "Status nonaktif/lulus/pindah dapat menyembunyikan siswa dari beberapa workflow aktif."}
+                </p>
+              </div>
+              <div className={`rounded-lg border p-4 ${healthHasAttention ? "bg-rose-50 text-rose-800 border-rose-100" : "bg-muted/40 text-muted-foreground border-border"}`}>
+                <div className="flex items-center gap-2 font-semibold text-sm">
+                  <HeartPulse className="w-4 h-4" />
+                  Kesehatan
+                </div>
+                <p className="text-xs mt-2 opacity-80">
+                  {healthHasAttention
+                    ? "Ada catatan kesehatan/kontak darurat yang perlu dipantau oleh wali kelas dan UKS."
+                    : "Belum ada catatan kesehatan khusus. Isi bila ada alergi, riwayat, atau kebutuhan khusus."}
+                </p>
+              </div>
+              <div className="rounded-lg border p-4 bg-blue-50 text-blue-800 border-blue-100">
+                <div className="flex items-center gap-2 font-semibold text-sm">
+                  <UserCheck className="w-4 h-4" />
+                  Orang Tua / Wali
+                </div>
+                <p className="text-xs mt-2 opacity-80">
+                  Data wali ditautkan dari profil siswa agar satu wali bisa terhubung ke beberapa siswa tanpa duplikasi.
+                </p>
+              </div>
+            </div>
+
+            {quality.missing.length > 0 && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+                <p className="text-sm font-semibold text-amber-900 mb-2">Prioritas yang masih perlu dilengkapi</p>
+                <div className="flex flex-wrap gap-2">
+                  {quality.missing.map((item) => (
+                    <span key={item} className="text-xs font-medium px-2 py-1 rounded-md bg-white text-amber-800 border border-amber-100">
+                      {item}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {action === "edit" && studentId && (
+              <div className="flex flex-wrap gap-2 pt-1">
+                <Link to={`/students/show/${studentId}`} className="text-sm font-medium px-3 py-2 border rounded-md hover:bg-muted transition-colors">
+                  Kembali ke Profil
+                </Link>
+                <Link to={`/student-journals/create?student_id=${studentId}&class_id=${formValues.class_id || ""}`} className="text-sm font-medium px-3 py-2 border rounded-md hover:bg-muted transition-colors">
+                  Tulis Jurnal
+                </Link>
+                <Link to={`/quran/create?student_id=${studentId}&class_id=${formValues.class_id || ""}`} className="text-sm font-medium px-3 py-2 border rounded-md hover:bg-muted transition-colors">
+                  Catat Qur'an
+                </Link>
+              </div>
+            )}
+          </div>
+        </div>
         
         {/* SECTION 1: Identitas Siswa */}
         <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
@@ -126,7 +260,7 @@ export const StudentForm: React.FC<StudentFormProps> = ({ action }) => {
               <label className="text-sm font-semibold mb-4 text-center">Foto Siswa</label>
               <PhotoUpload 
                 value={watch("photo_url") || null} 
-                onChange={(url) => register("photo_url").onChange({ target: { name: "photo_url", value: url } })} 
+                onChange={(url) => setValue("photo_url", url, { shouldDirty: true, shouldValidate: true })}
               />
             </div>
             
@@ -393,7 +527,7 @@ export const StudentForm: React.FC<StudentFormProps> = ({ action }) => {
         <div className="sticky bottom-0 bg-card/95 backdrop-blur-sm p-4 border-t shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] mt-8 flex items-center justify-end gap-3 z-10 rounded-b-xl -mx-1">
           <button
             type="button"
-            onClick={() => navigate("/students")}
+            onClick={() => navigate(action === "edit" && studentId ? `/students/show/${studentId}` : "/students")}
             className="flex items-center gap-2 px-6 py-2.5 border rounded-md hover:bg-muted transition-colors text-sm font-medium bg-background"
           >
             <ArrowLeft className="w-4 h-4" />

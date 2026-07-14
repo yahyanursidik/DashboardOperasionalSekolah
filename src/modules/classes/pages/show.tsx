@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useShow, useList, useUpdate } from "@refinedev/core";
 import { PageHeader } from "../../../components/layout/PageHeader";
-import { Users, Edit, ArrowLeft, BookOpen, UserMinus, Plus, X, ShieldCheck, UserCheck, CalendarCheck, ClipboardCheck, GraduationCap } from "lucide-react";
+import { AlertTriangle, ArrowLeft, BarChart3, BookOpen, CalendarCheck, CheckCircle2, ClipboardCheck, Edit, GraduationCap, Plus, ShieldCheck, UserCheck, UserMinus, Users, X } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 
 export const ClassShow: React.FC = () => {
@@ -61,7 +61,8 @@ export const ClassShow: React.FC = () => {
   const { data: availableStudentsData } = useList({
     resource: "students",
     filters: [
-      { field: "unit_id", operator: "eq", value: record?.unit_id }
+      { field: "unit_id", operator: "eq", value: record?.unit_id },
+      { field: "status", operator: "eq", value: "active" }
     ],
     queryOptions: { enabled: isModalOpen && !!record?.unit_id }
   });
@@ -118,12 +119,26 @@ export const ClassShow: React.FC = () => {
   const homeroomName = homeroomAssignment?.employees?.full_name;
   const scheduleCount = schedulesData?.data?.length || 0;
   const curriculumCount = curriculumsData?.data?.length || 0;
+  const todayIso = new Date().toISOString().split("T")[0];
+  const students = studentsData?.data || [];
+  const maleCount = students.filter((student: any) => String(student.gender || "").toLowerCase().startsWith("l")).length;
+  const femaleCount = students.filter((student: any) => String(student.gender || "").toLowerCase().startsWith("p")).length;
+  const readinessItems = [
+    { label: "Wali kelas", done: Boolean(homeroomName), detail: homeroomName || "Belum ditentukan" },
+    { label: "Siswa aktif", done: currentCapacity > 0, detail: `${currentCapacity}/${maxCapacity} siswa` },
+    { label: "Jadwal mengajar", done: scheduleCount > 0, detail: `${scheduleCount} jadwal` },
+    { label: "Kurikulum tingkat", done: curriculumCount > 0, detail: `${curriculumCount} mapel/kurikulum` },
+    { label: "Kapasitas aman", done: currentCapacity <= maxCapacity, detail: currentCapacity > maxCapacity ? "Melebihi kapasitas" : "Dalam batas" },
+  ];
+  const doneItems = readinessItems.filter((item) => item.done).length;
+  const readinessPercent = Math.round((doneItems / readinessItems.length) * 100);
+  const missingItems = readinessItems.filter((item) => !item.done);
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Dashboard Kelas"
-        description={`Manajemen ruang belajar, siswa, dan penugasan guru.`}
+        title={`Dashboard ${record.name}`}
+        description="Profil rombel, siswa, wali kelas, jadwal, kurikulum, absensi, dan nilai dalam satu halaman."
         action={
           <div className="flex gap-2">
             <button
@@ -143,6 +158,67 @@ export const ClassShow: React.FC = () => {
           </div>
         }
       />
+
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {[
+          { icon: Users, label: "Siswa", value: `${currentCapacity}/${maxCapacity}`, detail: `${maleCount} L / ${femaleCount} P`, tone: currentCapacity > maxCapacity ? "text-rose-600" : "text-primary" },
+          { icon: UserCheck, label: "Wali Kelas", value: homeroomName ? "Terisi" : "Kosong", detail: homeroomName || "Perlu ditugaskan", tone: homeroomName ? "text-emerald-600" : "text-amber-600" },
+          { icon: CalendarCheck, label: "Jadwal", value: `${scheduleCount}`, detail: "jadwal mengajar", tone: scheduleCount ? "text-emerald-600" : "text-amber-600" },
+          { icon: BookOpen, label: "Kurikulum", value: `${curriculumCount}`, detail: `tingkat ${classGrade || "-"}`, tone: curriculumCount ? "text-emerald-600" : "text-amber-600" },
+        ].map(({ icon: Icon, label, value, detail, tone }) => (
+          <div key={label} className="rounded-xl border bg-card p-5 shadow-sm">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase text-muted-foreground">{label}</p>
+                <p className={`mt-2 text-2xl font-bold ${tone}`}>{value}</p>
+                <p className="text-xs text-muted-foreground">{detail}</p>
+              </div>
+              <div className="rounded-lg bg-muted p-2">
+                <Icon className="h-5 w-5 text-primary" />
+              </div>
+            </div>
+          </div>
+        ))}
+      </section>
+
+      <section className="grid gap-4 lg:grid-cols-[1fr_1.2fr]">
+        <div className="rounded-xl border bg-card p-5 shadow-sm">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-semibold text-muted-foreground">Skor kesiapan kelas</p>
+              <p className="mt-2 text-3xl font-bold">{readinessPercent}%</p>
+            </div>
+            <BarChart3 className="h-8 w-8 text-primary" />
+          </div>
+          <div className="mt-4 h-2 rounded-full bg-muted">
+            <div className="h-2 rounded-full bg-primary" style={{ width: `${readinessPercent}%` }} />
+          </div>
+          {missingItems.length > 0 && (
+            <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+              <div className="flex items-center gap-2 font-semibold">
+                <AlertTriangle className="h-4 w-4" />
+                Lengkapi sebelum operasional penuh
+              </div>
+              <p className="mt-1 text-xs">Belum selesai: {missingItems.map((item) => item.label.toLowerCase()).join(", ")}.</p>
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-xl border bg-card p-5 shadow-sm">
+          <p className="text-sm font-semibold text-muted-foreground">Definition of done rombel</p>
+          <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            {readinessItems.map((item) => (
+              <div key={item.label} className="flex items-start gap-3 rounded-lg border bg-background p-3">
+                <CheckCircle2 className={`mt-0.5 h-4 w-4 ${item.done ? "text-emerald-600" : "text-muted-foreground"}`} />
+                <div>
+                  <p className="text-sm font-semibold">{item.label}</p>
+                  <p className="text-xs text-muted-foreground">{item.detail}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
@@ -206,16 +282,22 @@ export const ClassShow: React.FC = () => {
                 <span className="text-xs text-muted-foreground">{scheduleCount} jadwal</span>
               </Link>
               <Link
-                to={`/attendance/class/${record.id}?date=${new Date().toISOString().split("T")[0]}`}
+                to={`/attendance/class/${record.id}?date=${todayIso}`}
                 className="flex items-center gap-2 rounded-lg border bg-background px-3 py-2 text-sm font-semibold hover:bg-muted"
               >
                 <ClipboardCheck className="h-4 w-4 text-primary" /> Input Absensi
               </Link>
               <Link
-                to="/academic/gradebook"
+                to={`/academic/gradebook?class_id=${record.id}`}
                 className="flex items-center gap-2 rounded-lg border bg-background px-3 py-2 text-sm font-semibold hover:bg-muted"
               >
                 <ShieldCheck className="h-4 w-4 text-primary" /> Gradebook
+              </Link>
+              <Link
+                to={`/student-journals/create?class_id=${record.id}`}
+                className="flex items-center gap-2 rounded-lg border bg-background px-3 py-2 text-sm font-semibold hover:bg-muted"
+              >
+                <GraduationCap className="h-4 w-4 text-primary" /> Catatan Siswa
               </Link>
             </div>
           </div>

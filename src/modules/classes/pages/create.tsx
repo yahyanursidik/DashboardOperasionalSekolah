@@ -6,8 +6,8 @@ export const ClassCreate: React.FC = () => {
   return (
     <div>
       <PageHeader
-        title="Tambah Kelas"
-        description="Buat kelas baru pada unit sekolah dan tahun ajaran terkait."
+        title="Tambah Rombongan Belajar"
+        description="Buat kelas baru yang langsung siap dihubungkan dengan siswa, wali kelas, jadwal, absensi, nilai, dan kurikulum."
       />
       <ClassForm action="create" />
     </div>

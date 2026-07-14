@@ -4,8 +4,8 @@ import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useSelect, useList } from "@refinedev/core";
-import { useNavigate } from "react-router-dom";
-import { Save, ArrowLeft, BookOpen, CheckCircle } from "lucide-react";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { ArrowLeft, Award, BookOpen, CheckCircle, FileText, ShieldCheck, Target, Users } from "lucide-react";
 import { useAcademicYear } from "../../app/providers/AcademicYearProvider";
 import { PageHeader } from "../../components/layout/PageHeader";
 
@@ -29,7 +29,12 @@ type QuranFormValues = z.infer<typeof quranSchema>;
 
 export const QuranRecordForm: React.FC = () => {
   const navigate = useNavigate();
+  const { id } = useParams();
+  const [searchParams] = useSearchParams();
   const { activeYearId, activeSemesterId } = useAcademicYear();
+  const initialStudentId = searchParams.get("student_id") || "";
+  const initialClassId = searchParams.get("class_id") || "";
+  const initialHalaqohId = searchParams.get("halaqoh_id") || "";
 
   const {
     refineCore: { onFinish, formLoading },
@@ -41,8 +46,9 @@ export const QuranRecordForm: React.FC = () => {
   } = useForm<QuranFormValues>({
     resolver: zodResolver(quranSchema) as any,
     refineCoreProps: {
-      action: "create",
+      action: id ? "edit" : "create",
       resource: "quran_records",
+      id,
       redirect: "list",
     },
     defaultValues: {
@@ -51,15 +57,25 @@ export const QuranRecordForm: React.FC = () => {
       record_type: "tahfidz",
       date: new Date().toISOString().split('T')[0],
       fluency_score: "Lancar",
+      student_id: initialStudentId,
+      class_id: initialClassId || null,
+      halaqoh_id: initialHalaqohId || null,
     }
   });
 
   const recordType = watch("record_type");
+  const selectedStudentId = watch("student_id");
+  const selectedSurahOrJilid = watch("surah_or_jilid");
+  const selectedAyatOrPage = watch("ayat_or_page");
+  const selectedFluency = watch("fluency_score");
+  const selectedTajwid = watch("tajwid_score");
+  const selectedMakhroj = watch("makhroj_score");
+  const selectedDate = watch("date");
 
-  const [inputMode, setInputMode] = useState<"kelas" | "halaqoh">("halaqoh");
+  const [inputMode, setInputMode] = useState<"kelas" | "halaqoh">(initialHalaqohId ? "halaqoh" : (initialClassId || initialStudentId ? "kelas" : "halaqoh"));
   const [selectedUnitId, setSelectedUnitId] = useState<string>("");
-  const [selectedClassId, setSelectedClassId] = useState<string>("");
-  const [selectedHalaqohId, setSelectedHalaqohId] = useState<string>("");
+  const [selectedClassId, setSelectedClassId] = useState<string>(initialClassId);
+  const [selectedHalaqohId, setSelectedHalaqohId] = useState<string>(initialHalaqohId);
 
   const { options: unitOptions } = useSelect({
     resource: "units",
@@ -81,6 +97,7 @@ export const QuranRecordForm: React.FC = () => {
     resource: "tahfidz_halaqohs",
     optionLabel: "name",
     optionValue: "id",
+    filters: [{ field: "program_type", operator: "eq", value: "tahfidz" }],
     sorters: [{ field: "name", order: "asc" }],
   });
 
@@ -88,8 +105,31 @@ export const QuranRecordForm: React.FC = () => {
     resource: "tahfidz_halaqoh_members",
     filters: [{ field: "halaqoh_id", operator: "eq", value: selectedHalaqohId }],
     queryOptions: { enabled: !!selectedHalaqohId },
-    meta: { select: "student_id, students(name)" },
+    meta: { select: "student_id, students(full_name)" },
     pagination: { mode: "off" }
+  });
+
+  const { data: studentTargetsData } = useList({
+    resource: "tahfidz_student_targets",
+    filters: [
+      ...(selectedStudentId ? [{ field: "student_id", operator: "eq" as const, value: selectedStudentId }] : []),
+      ...(activeYearId ? [{ field: "academic_year_id", operator: "eq" as const, value: activeYearId }] : []),
+      ...(activeSemesterId ? [{ field: "semester_id", operator: "eq" as const, value: activeSemesterId }] : []),
+      { field: "target_type", operator: "eq" as const, value: "tahfidz" },
+    ],
+    queryOptions: { enabled: !!selectedStudentId && recordType === "tahfidz" },
+    pagination: { mode: "off" },
+  });
+
+  const { data: latestRecordsData } = useList({
+    resource: "quran_records",
+    filters: [
+      ...(selectedStudentId ? [{ field: "student_id", operator: "eq" as const, value: selectedStudentId }] : []),
+      { field: "record_type", operator: "eq" as const, value: recordType },
+    ],
+    sorters: [{ field: "date", order: "desc" }],
+    queryOptions: { enabled: !!selectedStudentId },
+    pagination: { pageSize: 3 },
   });
 
   const { options: studentOptions, queryResult: studentQuery } = useSelect({
@@ -100,7 +140,7 @@ export const QuranRecordForm: React.FC = () => {
       { field: "class_id", operator: "eq", value: selectedClassId },
       { field: "status", operator: "eq", value: "active" }
     ] : [{ field: "status", operator: "eq", value: "active" }],
-    queryOptions: { enabled: inputMode === "kelas" && !!selectedClassId },
+    queryOptions: { enabled: inputMode === "kelas" && (!!selectedClassId || !!initialStudentId) },
   });
 
   const handleModeChange = (mode: "kelas" | "halaqoh") => {
@@ -113,12 +153,58 @@ export const QuranRecordForm: React.FC = () => {
     }
   };
 
+  const activeTarget = studentTargetsData?.data?.[0];
+  const latestRecord = latestRecordsData?.data?.[0];
+  const checklist = [
+    { label: "Siswa terpilih", done: Boolean(selectedStudentId), helper: "Setoran harus melekat ke siswa yang tepat" },
+    { label: inputMode === "halaqoh" ? "Halaqoh terpilih" : "Kelas terpilih", done: inputMode === "halaqoh" ? Boolean(selectedHalaqohId) : Boolean(selectedClassId || initialClassId), helper: "Memudahkan rekap guru dan laporan" },
+    { label: "Materi setoran", done: Boolean(selectedSurahOrJilid && selectedAyatOrPage), helper: selectedSurahOrJilid ? `${selectedSurahOrJilid} ${selectedAyatOrPage || ""}` : "Isi surah/juz dan ayat" },
+    { label: "Kelancaran", done: Boolean(selectedFluency), helper: selectedFluency || "Pilih kualitas setoran" },
+    { label: "Tajwid/makhraj", done: Boolean(selectedTajwid || selectedMakhroj), helper: "Disarankan agar tindak lanjut lebih jelas" },
+  ];
+
   return (
-    <div className="max-w-4xl space-y-6">
+    <div className="max-w-5xl space-y-6">
       <PageHeader
         title="Input Jurnal Setoran (Mutaba'ah)"
-        description="Catat setoran hafalan atau bacaan tahsin siswa."
+        description="Catat setoran hafalan atau bacaan tahsin siswa dengan data yang siap dipakai untuk target, laporan, dan evaluasi guru."
       />
+
+      <section className="rounded-xl border bg-card p-5 shadow-sm">
+        <div className="grid gap-5 lg:grid-cols-[1fr_1.2fr]">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-md bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-700">
+              <ShieldCheck className="h-4 w-4" />
+              Setoran bermutu
+            </div>
+            <h2 className="mt-3 text-xl font-bold">Catat setoran yang bisa ditindaklanjuti</h2>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              Setoran yang baik mencatat siswa, kelompok, materi, kelancaran, dan catatan tajwid/makhraj sehingga guru bisa melihat progres sekaligus area perbaikan.
+            </p>
+            <div className="mt-4 grid gap-2 sm:grid-cols-2">
+              <div className="rounded-lg border bg-muted/20 p-3">
+                <p className="text-xs font-semibold text-muted-foreground">Target aktif</p>
+                <p className="mt-1 text-sm font-bold">{activeTarget ? activeTarget.description : "Belum ada / belum dipilih"}</p>
+              </div>
+              <div className="rounded-lg border bg-muted/20 p-3">
+                <p className="text-xs font-semibold text-muted-foreground">Setoran terakhir</p>
+                <p className="mt-1 text-sm font-bold">{latestRecord ? `${latestRecord.surah_or_jilid || "-"} (${new Date(latestRecord.date).toLocaleDateString("id-ID")})` : "-"}</p>
+              </div>
+            </div>
+          </div>
+          <div className="grid gap-2">
+            {checklist.map((item) => (
+              <div key={item.label} className="flex items-start gap-3 rounded-lg border bg-background p-3">
+                <CheckCircle className={`mt-0.5 h-4 w-4 ${item.done ? "text-emerald-600" : "text-muted-foreground"}`} />
+                <div>
+                  <p className="text-sm font-semibold">{item.label}</p>
+                  <p className="text-xs text-muted-foreground">{item.helper}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
 
       <form onSubmit={handleSubmit(onFinish as any)} className="bg-card rounded-xl border shadow-sm overflow-hidden">
         
@@ -186,7 +272,7 @@ export const QuranRecordForm: React.FC = () => {
                   >
                     <option value="">{selectedHalaqohId ? "-- Pilih Siswa --" : "-- Pilih Halaqoh Dulu --"}</option>
                     {halaqohMembers?.data?.map((m: any) => (
-                      <option key={m.student_id} value={m.student_id}>{m.students?.name}</option>
+                      <option key={m.student_id} value={m.student_id}>{m.students?.full_name}</option>
                     ))}
                   </select>
                   {errors.student_id && <p className="text-xs text-destructive">{errors.student_id.message as string}</p>}
@@ -353,15 +439,34 @@ export const QuranRecordForm: React.FC = () => {
             </div>
 
           </div>
+
+          <div className="rounded-xl border bg-muted/20 p-4">
+            <h3 className="font-semibold text-base">Dampak setelah setoran disimpan</h3>
+            <div className="mt-4 grid gap-3 md:grid-cols-4">
+              {[
+                { icon: Target, label: "Target personal", detail: "Progres target siswa bertambah" },
+                { icon: FileText, label: "Laporan", detail: "Rekap tahfidz semester terisi" },
+                { icon: Award, label: "Kesiapan ujian", detail: "Guru tahu kapan siswa siap tasmi" },
+                { icon: Users, label: "Monitoring halaqoh", detail: "Muhaffizh melihat ritme setoran" },
+              ].map(({ icon: Icon, label, detail }) => (
+                <div key={label} className="rounded-lg border bg-background p-4">
+                  <Icon className="mb-2 h-5 w-5 text-emerald-600" />
+                  <p className="text-sm font-semibold">{label}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{detail}</p>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
 
         {/* Footer */}
-        <div className="p-6 bg-muted/20 border-t flex items-center justify-end gap-3">
+        <div className="p-6 bg-muted/20 border-t flex items-center justify-between gap-3">
           <button
             type="button"
-            onClick={() => navigate("/quran")}
-            className="px-6 py-2.5 border rounded-md hover:bg-muted transition-colors text-sm font-medium"
+            onClick={() => navigate(selectedHalaqohId ? `/quran?halaqoh_id=${selectedHalaqohId}` : "/quran")}
+            className="flex items-center gap-2 px-6 py-2.5 border rounded-md hover:bg-muted transition-colors text-sm font-medium"
           >
+            <ArrowLeft className="w-4 h-4" />
             Batal
           </button>
           <button
@@ -377,4 +482,3 @@ export const QuranRecordForm: React.FC = () => {
     </div>
   );
 };
-

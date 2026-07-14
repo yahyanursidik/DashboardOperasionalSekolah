@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useForm, useSelect } from "@refinedev/core";
-import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Save, BookOpen } from "lucide-react";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { ArrowLeft, Award, BookOpen, CheckCircle2, ClipboardCheck, Save, ShieldCheck, Target, Users } from "lucide-react";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { useAcademicYear } from "../../app/providers/AcademicYearProvider";
 
@@ -13,6 +13,7 @@ export const QuranTargetForm: React.FC = () => {
   const { id } = useParams();
   const isEdit = !!id;
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { activeYearId, activeSemesterId } = useAcademicYear();
 
   const { onFinish, queryResult, formLoading } = useForm({
@@ -25,11 +26,21 @@ export const QuranTargetForm: React.FC = () => {
 
   const [targetType, setTargetType] = useState<string>("tahfidz");
   const [description, setDescription] = useState<string>("");
+  const [formPreview, setFormPreview] = useState({
+    class_id: record?.class_id || searchParams.get("class_id") || "",
+    target_amount: record?.target_amount || 1,
+    amount_unit: record?.amount_unit || "halaman",
+  });
 
   useEffect(() => {
     if (record) {
       setTargetType(record.target_type);
       setDescription(record.description);
+      setFormPreview({
+        class_id: record.class_id || "",
+        target_amount: record.target_amount || 1,
+        amount_unit: record.amount_unit || "halaman",
+      });
     }
   }, [record]);
 
@@ -39,6 +50,13 @@ export const QuranTargetForm: React.FC = () => {
     optionValue: "id",
     sorters: [{ field: "name", order: "asc" }],
   });
+  const selectedClass = classOptions?.find((option) => option.value === formPreview.class_id);
+  const checklist = [
+    { label: "Kelas terpilih", done: Boolean(formPreview.class_id), helper: selectedClass?.label || "Pilih kelas target" },
+    { label: "Tipe program", done: Boolean(targetType), helper: targetType === "tahfidz" ? "Tahfidz hafalan" : "Tahsin bacaan" },
+    { label: "Deskripsi jelas", done: Boolean(description), helper: "Contoh: Hafalan Surah Al-Mulk atau Tahsin jilid 4" },
+    { label: "Jumlah terukur", done: Number(formPreview.target_amount || 0) > 0, helper: `${formPreview.target_amount || 0} ${formPreview.amount_unit}` },
+  ];
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -70,7 +88,7 @@ export const QuranTargetForm: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 max-w-2xl mx-auto">
+    <div className="space-y-6 max-w-5xl mx-auto">
       <div className="flex items-center gap-4">
         <button
           type="button"
@@ -81,12 +99,40 @@ export const QuranTargetForm: React.FC = () => {
         </button>
         <PageHeader
           title={isEdit ? "Edit Target Al-Qur'an" : "Tambah Target Al-Qur'an"}
-          description="Atur target hafalan atau bacaan untuk satu semester"
+          description="Atur target Qur'an kelas yang spesifik, terukur, dan bisa dipantau dari mutaba'ah semester."
         />
       </div>
 
-      <form onSubmit={handleSubmit} className="bg-card border rounded-xl shadow-sm overflow-hidden">
-        <div className="p-6 space-y-4">
+      <section className="rounded-xl border bg-card p-5 shadow-sm">
+        <div className="grid gap-5 lg:grid-cols-[1fr_1.2fr]">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-md bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-700">
+              <ShieldCheck className="h-4 w-4" />
+              Target kelas bermutu
+            </div>
+            <h2 className="mt-3 text-xl font-bold">
+              {isEdit ? "Perbarui target kelas tanpa memutus monitoring" : "Buat standar capaian Qur'an untuk kelas"}
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              Target kelas adalah standar umum. Gunakan target personal untuk siswa yang butuh diferensiasi atau pengayaan.
+            </p>
+          </div>
+          <div className="grid gap-2">
+            {checklist.map((item) => (
+              <div key={item.label} className="flex items-start gap-3 rounded-lg border bg-background p-3">
+                <CheckCircle2 className={`mt-0.5 h-4 w-4 ${item.done ? "text-emerald-600" : "text-muted-foreground"}`} />
+                <div>
+                  <p className="text-sm font-semibold">{item.label}</p>
+                  <p className="text-xs text-muted-foreground">{item.helper}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <form key={record?.id || "create-quran-target"} onSubmit={handleSubmit} className="bg-card border rounded-xl shadow-sm overflow-hidden">
+        <div className="p-6 space-y-6">
           
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -94,7 +140,8 @@ export const QuranTargetForm: React.FC = () => {
               <select
                 name="class_id"
                 required
-                defaultValue={record?.class_id || ""}
+                defaultValue={record?.class_id || searchParams.get("class_id") || ""}
+                onChange={(event) => setFormPreview((prev) => ({ ...prev, class_id: event.target.value }))}
                 disabled={isEdit}
                 className="w-full flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background disabled:cursor-not-allowed disabled:opacity-50"
               >
@@ -160,6 +207,7 @@ export const QuranTargetForm: React.FC = () => {
                 required
                 min="1"
                 defaultValue={record?.target_amount || 1}
+                onChange={(event) => setFormPreview((prev) => ({ ...prev, target_amount: Number(event.target.value) }))}
                 className="w-full flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
               />
             </div>
@@ -169,6 +217,7 @@ export const QuranTargetForm: React.FC = () => {
                 name="amount_unit"
                 required
                 defaultValue={record?.amount_unit || "halaman"}
+                onChange={(event) => setFormPreview((prev) => ({ ...prev, amount_unit: event.target.value }))}
                 className="w-full flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
               >
                 <option value="juz">Juz</option>
@@ -180,8 +229,34 @@ export const QuranTargetForm: React.FC = () => {
             </div>
           </div>
 
+          <div className="rounded-xl border bg-muted/20 p-4">
+            <h3 className="font-semibold text-base">Alur setelah target tersimpan</h3>
+            <div className="mt-4 grid gap-3 md:grid-cols-4">
+              {[
+                { icon: ClipboardCheck, label: "Mutaba'ah", detail: "Setoran kelas menjadi bukti progres" },
+                { icon: Target, label: "Target personal", detail: "Buat diferensiasi bila dibutuhkan" },
+                { icon: Award, label: "Evaluasi", detail: "Bandingkan target dengan kelancaran" },
+                { icon: Users, label: "Komunikasi", detail: "Wali kelas dan orang tua punya acuan" },
+              ].map(({ icon: Icon, label, detail }) => (
+                <div key={label} className="rounded-lg border bg-background p-4">
+                  <Icon className="mb-2 h-5 w-5 text-emerald-600" />
+                  <p className="text-sm font-semibold">{label}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{detail}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
         </div>
-        <div className="p-6 bg-muted/50 border-t flex justify-end">
+        <div className="p-6 bg-muted/50 border-t flex justify-between gap-3">
+          <button
+            type="button"
+            onClick={() => navigate(formPreview.class_id ? `/quran-targets?class_id=${formPreview.class_id}` : "/quran-targets")}
+            className="flex items-center gap-2 rounded-lg border bg-background px-5 py-2 text-sm font-medium transition-colors hover:bg-muted"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Batal
+          </button>
           <button
             type="submit"
             disabled={formLoading}

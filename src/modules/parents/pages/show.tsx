@@ -3,10 +3,12 @@ import { useShow, useList, useDelete } from "@refinedev/core";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { 
   User, Edit, ArrowLeft, Phone, Mail, MapPin, GraduationCap, 
-  Users, Briefcase, CreditCard, BookOpen, Heart, Map, ExternalLink, Trash2, Loader2, AlertTriangle
+  Users, Briefcase, CreditCard, BookOpen, Heart, Map, ExternalLink, Trash2, Loader2, AlertTriangle,
+  ShieldCheck, Link2, MessageSquare, ClipboardCheck, Receipt, Megaphone, UserCheck, Wallet
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { getParentQualitySummary } from "./list";
 
 // ─── Modal Konfirmasi Lokal ──────────────────────────────────────────────────
 const ConfirmModal = ({ isOpen, onClose, onConfirm, isDeleting }: any) => {
@@ -148,6 +150,31 @@ export const ParentShow: React.FC = () => {
 
   const spouseLink = spouseLinksData?.data?.find((l: any) => l.parents);
   const spouse = spouseLink?.parents;
+  const linkedChildrenCount = childrenData?.data?.length || 0;
+  const quality = getParentQualitySummary(record || {}, linkedChildrenCount);
+
+  const { data: invoicesData, isLoading: invoicesLoading } = useList({
+    resource: "student_invoices",
+    filters: [
+      { field: "student_id", operator: "in", value: studentIds.length > 0 ? studentIds : ["empty"] }
+    ],
+    meta: { select: "id, student_id, title, amount, discount, paid_amount, status, due_date, students(full_name)" },
+    pagination: { pageSize: 100 },
+    queryOptions: { enabled: studentIds.length > 0 }
+  });
+
+  const activeChildrenCount = childrenData?.data?.filter((link: any) => link.students?.status === "active").length || 0;
+  const primaryChildrenCount = childrenData?.data?.filter((link: any) => link.is_primary).length || 0;
+  const openInvoices = (invoicesData?.data || []).filter((invoice: any) => invoice.status !== "paid");
+  const outstandingAmount = openInvoices.reduce((sum: number, invoice: any) => {
+    const amount = Number(invoice.amount || 0);
+    const discount = Number(invoice.discount || 0);
+    const paid = Number(invoice.paid_amount || 0);
+    return sum + Math.max(amount - discount - paid, 0);
+  }, 0);
+
+  const formatCurrency = (value: number) =>
+    new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(value);
 
   const mapUrl = `https://maps.google.com/maps?q=${encodeURIComponent(record?.address || "Jakarta")}&t=&z=13&ie=UTF8&iwloc=&output=embed`;
 
@@ -234,7 +261,13 @@ export const ParentShow: React.FC = () => {
             </a>
           )}
           <button
-            onClick={() => setDeleteConfirmId(record?.id as string)}
+            onClick={() => {
+              if (linkedChildrenCount > 0) {
+                toast.error("Lepaskan tautan siswa terlebih dahulu sebelum menghapus profil wali.");
+                return;
+              }
+              setDeleteConfirmId(record?.id as string);
+            }}
             className="flex items-center justify-center gap-2 bg-red-50 text-red-600 border border-red-200 px-5 py-2.5 rounded-lg hover:bg-red-100 transition-colors shadow-sm font-medium text-sm"
           >
             <Trash2 className="w-4 h-4" /> Hapus Profil
@@ -245,6 +278,171 @@ export const ParentShow: React.FC = () => {
           >
             <Edit className="w-4 h-4" /> Edit Profil
           </Link>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+        {[
+          {
+            label: "Mutu Kontak",
+            value: `${quality.score}%`,
+            helper: quality.ready ? "Siap komunikasi wali" : "Perlu dilengkapi",
+            icon: ShieldCheck,
+            tone: quality.ready ? "bg-emerald-50 text-emerald-700 border-emerald-100" : "bg-amber-50 text-amber-700 border-amber-100",
+          },
+          {
+            label: "Anak Tertaut",
+            value: linkedChildrenCount,
+            helper: linkedChildrenCount > 0 ? "Relasi siswa tersedia" : "Belum tertaut ke siswa",
+            icon: Link2,
+            tone: linkedChildrenCount > 0 ? "bg-blue-50 text-blue-700 border-blue-100" : "bg-rose-50 text-rose-700 border-rose-100",
+          },
+          {
+            label: "WhatsApp",
+            value: quality.hasPhone ? "Ada" : "Kosong",
+            helper: quality.hasPhone ? "Bisa dihubungi" : "Isi nomor aktif",
+            icon: MessageSquare,
+            tone: quality.hasPhone ? "bg-teal-50 text-teal-700 border-teal-100" : "bg-amber-50 text-amber-700 border-amber-100",
+          },
+          {
+            label: "Status",
+            value: record.is_active ? "Aktif" : "Nonaktif",
+            helper: record.is_active ? "Masuk komunikasi aktif" : "Tidak diprioritaskan",
+            icon: User,
+            tone: record.is_active ? "bg-indigo-50 text-indigo-700 border-indigo-100" : "bg-slate-50 text-slate-700 border-slate-200",
+          },
+        ].map((item) => {
+          const Icon = item.icon;
+          return (
+            <div key={item.label} className={`rounded-lg border p-4 ${item.tone}`}>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider opacity-80">{item.label}</p>
+                  <p className="text-2xl font-bold mt-1">{item.value}</p>
+                </div>
+                <Icon className="w-5 h-5 opacity-80" />
+              </div>
+              <p className="text-xs mt-2 opacity-80">{item.helper}</p>
+            </div>
+          );
+        })}
+      </div>
+
+      {quality.missing.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 text-amber-900 rounded-xl p-4 flex items-start gap-3">
+          <ClipboardCheck className="w-5 h-5 shrink-0 mt-0.5" />
+          <div>
+            <h3 className="font-semibold">Prioritas perbaikan data wali</h3>
+            <div className="flex flex-wrap gap-2 mt-2">
+              {quality.missing.map((item) => (
+                <span key={item} className="text-xs font-medium px-2 py-1 rounded-md bg-white text-amber-800 border border-amber-100">
+                  {item}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 bg-card rounded-2xl border shadow-sm p-5">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <h3 className="font-bold flex items-center gap-2">
+                <ClipboardCheck className="w-5 h-5 text-primary" />
+                Ringkasan Operasional Keluarga
+              </h3>
+              <p className="text-sm text-muted-foreground mt-1">
+                Sinyal cepat untuk wali kelas, tata usaha, bendahara, dan admin portal orang tua.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Link to="/announcements/create" className="inline-flex items-center gap-2 px-3 py-2 text-sm border rounded-md hover:bg-muted transition-colors">
+                <Megaphone className="w-4 h-4" />
+                Buat Pengumuman
+              </Link>
+              <Link to="/finance/invoices" className="inline-flex items-center gap-2 px-3 py-2 text-sm border rounded-md hover:bg-muted transition-colors">
+                <Receipt className="w-4 h-4" />
+                Cek Tagihan
+              </Link>
+              <Link to="/students" className="inline-flex items-center gap-2 px-3 py-2 text-sm border rounded-md hover:bg-muted transition-colors">
+                <GraduationCap className="w-4 h-4" />
+                Data Siswa
+              </Link>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mt-5">
+            {[
+              {
+                label: "Anak Aktif",
+                value: activeChildrenCount,
+                helper: `${linkedChildrenCount} total tertaut`,
+                icon: GraduationCap,
+                tone: activeChildrenCount > 0 ? "bg-emerald-50 text-emerald-700 border-emerald-100" : "bg-slate-50 text-slate-700 border-slate-200",
+              },
+              {
+                label: "Kontak Utama",
+                value: primaryChildrenCount,
+                helper: primaryChildrenCount > 0 ? "Ditandai pada relasi siswa" : "Belum ada penanda utama",
+                icon: UserCheck,
+                tone: primaryChildrenCount > 0 ? "bg-blue-50 text-blue-700 border-blue-100" : "bg-amber-50 text-amber-700 border-amber-100",
+              },
+              {
+                label: "Tagihan Terbuka",
+                value: invoicesLoading ? "-" : openInvoices.length,
+                helper: outstandingAmount > 0 ? formatCurrency(outstandingAmount) : "Tidak ada saldo",
+                icon: Wallet,
+                tone: openInvoices.length === 0 ? "bg-emerald-50 text-emerald-700 border-emerald-100" : "bg-rose-50 text-rose-700 border-rose-100",
+              },
+              {
+                label: "Pasangan",
+                value: spouse ? "Ada" : "Kosong",
+                helper: spouse ? spouse.full_name : "Belum terdeteksi dari anak yang sama",
+                icon: Users,
+                tone: spouse ? "bg-indigo-50 text-indigo-700 border-indigo-100" : "bg-muted/40 text-muted-foreground border-border",
+              },
+            ].map((item) => {
+              const Icon = item.icon;
+              return (
+                <div key={item.label} className={`rounded-lg border p-4 ${item.tone}`}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold uppercase tracking-wider opacity-80">{item.label}</p>
+                      <p className="text-xl font-bold mt-1 truncate">{item.value}</p>
+                    </div>
+                    <Icon className="w-5 h-5 opacity-80 shrink-0" />
+                  </div>
+                  <p className="text-xs mt-2 opacity-80 line-clamp-2">{item.helper}</p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="bg-card rounded-2xl border shadow-sm p-5">
+          <h3 className="font-bold flex items-center gap-2">
+            <ShieldCheck className="w-5 h-5 text-emerald-600" />
+            Kesiapan Portal Wali
+          </h3>
+          <div className="mt-4 space-y-3 text-sm">
+            {[
+              { label: "Nomor WhatsApp aktif", ok: quality.hasPhone },
+              { label: "Email alternatif", ok: quality.hasEmail, optional: true },
+              { label: "Terhubung ke siswa", ok: linkedChildrenCount > 0 },
+              { label: "Status wali aktif", ok: Boolean(record.is_active) },
+            ].map((item) => (
+              <div key={item.label} className="flex items-center justify-between gap-3">
+                <span className="text-muted-foreground">{item.label}</span>
+                <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${item.ok ? "bg-emerald-50 text-emerald-700" : item.optional ? "bg-muted text-muted-foreground" : "bg-amber-50 text-amber-700"}`}>
+                  {item.ok ? "Siap" : item.optional ? "Opsional" : "Kurang"}
+                </span>
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground mt-4 pt-4 border-t">
+            Portal wali membutuhkan relasi siswa dan kontak yang valid agar orang tua bisa menerima informasi akademik, tagihan, dan pengumuman.
+          </p>
         </div>
       </div>
 
@@ -374,11 +572,33 @@ export const ParentShow: React.FC = () => {
                           <span className="text-[10px] uppercase font-bold bg-muted px-2 py-0.5 rounded border">
                             {relations[link.relationship] || link.relationship}
                           </span>
+                          <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded border ${student.status === "active" ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-slate-50 text-slate-700 border-slate-200"}`}>
+                            {student.status === "active" ? "Aktif" : student.status || "Status kosong"}
+                          </span>
                           {link.is_primary && (
                             <span className="text-[10px] uppercase font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded border border-amber-200 flex items-center gap-1">
                               <Star className="w-3 h-3 fill-amber-500" /> Utama
                             </span>
                           )}
+                        </div>
+                        <div className="flex flex-wrap gap-2 mt-3">
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              navigate(`/students/show/${student.id}`);
+                            }}
+                            className="text-[11px] font-medium text-primary hover:underline"
+                          >
+                            Profil siswa
+                          </button>
+                          <Link
+                            to="/finance/invoices"
+                            onClick={(event) => event.stopPropagation()}
+                            className="text-[11px] font-medium text-muted-foreground hover:text-foreground hover:underline"
+                          >
+                            Tagihan
+                          </Link>
                         </div>
                       </div>
                     </div>

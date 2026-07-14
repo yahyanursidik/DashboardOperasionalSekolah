@@ -1,44 +1,75 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import { supabaseClient } from "../../lib/supabase/client";
-import { BookOpen, CheckCircle, Info } from "lucide-react";
+import { Award, BookOpen, CheckCircle, ClipboardCheck, Info, ShieldCheck, Target, Users } from "lucide-react";
 import { useAcademicYear } from "../../app/providers/AcademicYearProvider";
 import { toast } from "sonner";
 
+const getPredicate = (score: number) => {
+  if (score >= 90) return "Mumtaz (Istimewa)";
+  if (score >= 80) return "Jayyid Jiddan (Sangat Baik)";
+  if (score >= 70) return "Jayyid (Baik)";
+  if (score >= 60) return "Maqbul (Cukup)";
+  return "Rasib (Mengulang)";
+};
+
+const getStatus = (score: number) => {
+  if (score >= 75) return "Lulus";
+  if (score >= 60) return "Lulus Bersyarat";
+  return "Mengulang";
+};
+
 export const TeacherQuran: React.FC = () => {
   const { employee } = useOutletContext<any>();
+  const { activeYearId, activeSemesterId } = useAcademicYear();
+  const [mode, setMode] = useState<"record" | "assessment">("record");
+  const [sourceMode, setSourceMode] = useState<"halaqoh" | "class">("halaqoh");
+  const [programType, setProgramType] = useState<"tahfidz" | "tahsin">("tahfidz");
   const [units, setUnits] = useState<any[]>([]);
   const [classes, setClasses] = useState<any[]>([]);
+  const [halaqohs, setHalaqohs] = useState<any[]>([]);
+  const [members, setMembers] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
-  
-  const [selectedUnitId, setSelectedUnitId] = useState("");
+  const [selectedUnitId, setSelectedUnitId] = useState(employee.unit_id || "");
   const [selectedClassId, setSelectedClassId] = useState("");
-  
+  const [selectedHalaqohId, setSelectedHalaqohId] = useState("");
   const [lastRecord, setLastRecord] = useState<any>(null);
+  const [studentTargets, setStudentTargets] = useState<any[]>([]);
   const [isLoadingLastRecord, setIsLoadingLastRecord] = useState(false);
-
-  const { activeYearId, activeSemesterId } = useAcademicYear();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [formData, setFormData] = useState({
     student_id: "",
-    record_type: "tahfidz",
     surah_or_jilid: "",
     ayat_or_page: "",
     fluency_score: "Lancar",
-    notes: ""
+    tajwid_score: "",
+    makhroj_score: "",
+    notes: "",
+    title: "",
+    score: "",
+    status: "",
   });
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Fetch Units on mount
   useEffect(() => {
-    const fetchUnits = async () => {
-      const { data } = await supabaseClient.from("units").select("id, name").order("name");
-      if (data) setUnits(data);
-    };
-    fetchUnits();
-  }, []);
+    const fetchInitialData = async () => {
+      const { data: unitData } = await supabaseClient.from("units").select("id, name").order("name");
+      setUnits(unitData || []);
 
-  // Fetch Classes when Unit changes
+      let halaqohQuery = supabaseClient
+        .from("tahfidz_halaqohs")
+        .select("id, name, program_type, employee_id")
+        .eq("program_type", programType)
+        .order("name");
+      if (activeYearId) halaqohQuery = halaqohQuery.eq("academic_year_id", activeYearId);
+      if (activeSemesterId) halaqohQuery = halaqohQuery.eq("semester_id", activeSemesterId);
+      const { data: halaqohData } = await halaqohQuery;
+      const assigned = (halaqohData || []).filter((halaqoh: any) => !halaqoh.employee_id || halaqoh.employee_id === employee.id);
+      setHalaqohs(assigned.length ? assigned : (halaqohData || []));
+    };
+    fetchInitialData();
+  }, [activeSemesterId, activeYearId, employee.id, programType]);
+
   useEffect(() => {
     if (!selectedUnitId) {
       setClasses([]);
@@ -46,274 +77,351 @@ export const TeacherQuran: React.FC = () => {
       return;
     }
     const fetchClasses = async () => {
-      const { data } = await supabaseClient.from("classes").select("id, name").eq("unit_id", selectedUnitId).order("name");
-      if (data) setClasses(data);
+      const { data } = await supabaseClient.from("classes").select("id, name, unit_id").eq("unit_id", selectedUnitId).order("name");
+      setClasses(data || []);
     };
     fetchClasses();
   }, [selectedUnitId]);
 
-  // Fetch Students when Class changes
   useEffect(() => {
-    if (!selectedClassId) {
-      setStudents([]);
-      setFormData(prev => ({ ...prev, student_id: "" }));
+    if (sourceMode !== "class" || !selectedClassId) {
+      if (sourceMode === "class") setStudents([]);
       return;
     }
     const fetchStudents = async () => {
       const { data } = await supabaseClient
         .from("students")
-        .select("id, full_name")
+        .select("id, full_name, nis, class_id, classes(name, unit_id, units(name))")
         .eq("class_id", selectedClassId)
         .eq("status", "active")
         .order("full_name");
-      if (data) setStudents(data);
+      setStudents(data || []);
     };
     fetchStudents();
-  }, [selectedClassId]);
+  }, [selectedClassId, sourceMode]);
 
-  // Fetch Last Record when Student and Record Type changes
+  useEffect(() => {
+    if (sourceMode !== "halaqoh" || !selectedHalaqohId) {
+      if (sourceMode === "halaqoh") setMembers([]);
+      return;
+    }
+    const fetchMembers = async () => {
+      const { data } = await supabaseClient
+        .from("tahfidz_halaqoh_members")
+        .select("student_id, halaqoh_id, students(id, full_name, nis, class_id, classes(name, unit_id, units(name)))")
+        .eq("halaqoh_id", selectedHalaqohId);
+      setMembers(data || []);
+    };
+    fetchMembers();
+  }, [selectedHalaqohId, sourceMode]);
+
+  const studentOptions = useMemo(() => {
+    if (sourceMode === "halaqoh") return members.map((member: any) => member.students).filter(Boolean);
+    return students;
+  }, [members, sourceMode, students]);
+
+  const selectedStudent = studentOptions.find((student: any) => student.id === formData.student_id);
+
   useEffect(() => {
     if (!formData.student_id) {
       setLastRecord(null);
+      setStudentTargets([]);
       return;
     }
-    
-    const fetchLastRecord = async () => {
+
+    const fetchStudentContext = async () => {
       setIsLoadingLastRecord(true);
       try {
-        const { data } = await supabaseClient
+        const { data: recordData } = await supabaseClient
           .from("quran_records")
-          .select("surah_or_jilid, ayat_or_page, date")
+          .select("surah_or_jilid, ayat_or_page, date, fluency_score")
           .eq("student_id", formData.student_id)
-          .eq("record_type", formData.record_type)
+          .eq("record_type", programType)
           .order("date", { ascending: false })
           .order("created_at", { ascending: false })
           .limit(1)
           .single();
-        
-        setLastRecord(data || null);
-        
-        // Auto-fill surah/jilid based on last record to save time
-        if (data && !formData.surah_or_jilid) {
-          setFormData(prev => ({ ...prev, surah_or_jilid: (data as any).surah_or_jilid }));
+        setLastRecord(recordData || null);
+        if (recordData && !formData.surah_or_jilid) {
+          setFormData((prev) => ({ ...prev, surah_or_jilid: (recordData as any).surah_or_jilid }));
         }
-      } catch (e) {
+
+        const targetTable = programType === "tahsin" ? "tahsin_student_targets" : "tahfidz_student_targets";
+        let targetQuery = supabaseClient
+          .from(targetTable)
+          .select("id, description, target_amount, amount_unit, status")
+          .eq("student_id", formData.student_id)
+          .eq("target_type", programType)
+          .order("created_at", { ascending: false });
+        if (activeYearId) targetQuery = targetQuery.eq("academic_year_id", activeYearId);
+        if (activeSemesterId) targetQuery = targetQuery.eq("semester_id", activeSemesterId);
+        const { data: targetData } = await targetQuery;
+        setStudentTargets(targetData || []);
+      } catch {
         setLastRecord(null);
       } finally {
         setIsLoadingLastRecord(false);
       }
     };
-    
-    fetchLastRecord();
-  }, [formData.student_id, formData.record_type]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+    fetchStudentContext();
+  }, [activeSemesterId, activeYearId, formData.student_id, programType]);
+
+  const resetStudent = () => {
+    setFormData((prev) => ({ ...prev, student_id: "", surah_or_jilid: "", ayat_or_page: "", notes: "", title: "", score: "", status: "" }));
+    setLastRecord(null);
+    setStudentTargets([]);
+  };
+
+  const handleSubmitRecord = async () => {
     if (!formData.student_id || !formData.surah_or_jilid || !formData.ayat_or_page) {
-      toast.error("Harap isi semua field yang wajib");
+      toast.error("Lengkapi siswa, materi, dan halaman/ayat");
       return;
     }
 
+    const { error } = await supabaseClient.from("quran_records").insert({
+      student_id: formData.student_id,
+      class_id: selectedStudent?.class_id || selectedClassId || null,
+      halaqoh_id: sourceMode === "halaqoh" ? selectedHalaqohId : null,
+      employee_id: employee.id,
+      academic_year_id: activeYearId,
+      semester_id: activeSemesterId,
+      record_type: programType,
+      date: new Date().toISOString().split("T")[0],
+      surah_or_jilid: formData.surah_or_jilid,
+      ayat_or_page: formData.ayat_or_page,
+      fluency_score: formData.fluency_score,
+      tajwid_score: formData.tajwid_score || null,
+      makhroj_score: formData.makhroj_score || null,
+      notes: formData.notes || null,
+    });
+    if (error) throw error;
+    toast.success("Jurnal Qur'an berhasil disimpan");
+    setLastRecord({ surah_or_jilid: formData.surah_or_jilid, ayat_or_page: formData.ayat_or_page, date: new Date().toISOString(), fluency_score: formData.fluency_score });
+    setFormData((prev) => ({ ...prev, ayat_or_page: "", tajwid_score: "", makhroj_score: "", notes: "" }));
+  };
+
+  const handleSubmitAssessment = async () => {
+    const score = Number(formData.score || 0);
+    if (!formData.student_id || !formData.title || !score) {
+      toast.error("Lengkapi siswa, judul ujian, dan nilai");
+      return;
+    }
+
+    const { error } = await supabaseClient.from("quran_assessments").insert({
+      student_id: formData.student_id,
+      class_id: selectedStudent?.class_id || selectedClassId || null,
+      employee_id: employee.id,
+      date: new Date().toISOString().split("T")[0],
+      assessment_type: programType === "tahsin" ? "tahsin_jilid" : "tahfidz_juz",
+      title: formData.title,
+      score,
+      predicate: getPredicate(score),
+      status: formData.status || getStatus(score),
+      notes: formData.notes || null,
+      academic_year_id: activeYearId,
+      semester_id: activeSemesterId,
+    });
+    if (error) throw error;
+    toast.success("Hasil ujian Qur'an berhasil disimpan");
+    setFormData((prev) => ({ ...prev, title: "", score: "", status: "", notes: "" }));
+  };
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     setIsSubmitting(true);
     try {
-      const { error } = await supabaseClient
-        .from("quran_records")
-        .insert({
-          ...formData,
-          class_id: selectedClassId,
-          employee_id: employee.id,
-          academic_year_id: activeYearId,
-          semester_id: activeSemesterId,
-          date: new Date().toISOString().split('T')[0]
-        });
-
-      if (error) throw error;
-      
-      toast.success("Capaian berhasil disimpan!");
-      
-      // Update last record to the one just submitted
-      setLastRecord({
-        surah_or_jilid: formData.surah_or_jilid,
-        ayat_or_page: formData.ayat_or_page,
-        date: new Date().toISOString()
-      });
-      
-      // Clear specific fields
-      setFormData(prev => ({ ...prev, ayat_or_page: "", notes: "" }));
-    } catch (error: any) {
+      if (mode === "record") await handleSubmitRecord();
+      else await handleSubmitAssessment();
+    } catch (error) {
       console.error(error);
-      toast.error("Gagal menyimpan capaian");
+      toast.error(mode === "record" ? "Gagal menyimpan jurnal Qur'an" : "Gagal menyimpan hasil ujian");
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const checklist = [
+    { label: "Sumber siswa", done: sourceMode === "halaqoh" ? Boolean(selectedHalaqohId) : Boolean(selectedClassId) },
+    { label: "Siswa", done: Boolean(formData.student_id) },
+    { label: mode === "record" ? "Materi" : "Judul ujian", done: mode === "record" ? Boolean(formData.surah_or_jilid && formData.ayat_or_page) : Boolean(formData.title) },
+    { label: mode === "record" ? "Kelancaran" : "Nilai", done: mode === "record" ? Boolean(formData.fluency_score) : Boolean(formData.score) },
+  ];
+
   return (
-    <div className="p-4 space-y-6">
-      <div className="bg-gradient-to-br from-emerald-600 to-emerald-800 text-white p-6 rounded-2xl shadow-sm">
-        <div className="flex items-center gap-3 mb-2">
-          <BookOpen className="w-6 h-6" />
-          <h2 className="text-xl font-bold">Input Al-Qur'an</h2>
+    <div className="p-4 md:p-0 space-y-6">
+      <section className="rounded-3xl bg-gradient-to-br from-emerald-600 to-emerald-800 p-6 text-white shadow-sm">
+        <div className="flex items-center gap-3">
+          <BookOpen className="h-7 w-7" />
+          <div>
+            <h2 className="text-2xl font-black">Qur'an Pengajar</h2>
+            <p className="text-sm text-emerald-100">Input jurnal Tahfidz/Tahsin, pantau target, dan catat ujian kenaikan.</p>
+          </div>
         </div>
-        <p className="text-emerald-100 text-sm">Catat setoran hafalan dan perkembangan tahsin siswa dengan cepat.</p>
-      </div>
+      </section>
 
-      <div className="bg-white rounded-2xl shadow-sm border overflow-hidden p-5 space-y-5">
-        
-        {/* Type selector */}
-        <div className="flex gap-2 p-1 bg-gray-100 rounded-xl">
-          <button 
-            type="button"
-            onClick={() => setFormData(prev => ({...prev, record_type: 'tahfidz'}))}
-            className={`flex-1 py-2 text-sm font-bold rounded-lg transition-colors ${formData.record_type === 'tahfidz' ? 'bg-white shadow text-emerald-700' : 'text-gray-500'}`}
-          >
-            Tahfidz (Hafalan)
+      <section className="grid gap-3 md:grid-cols-4">
+        {checklist.map((item) => (
+          <div key={item.label} className="rounded-2xl border bg-white p-4 shadow-sm">
+            <ShieldCheck className={`mb-2 h-5 w-5 ${item.done ? "text-emerald-600" : "text-gray-300"}`} />
+            <p className="text-sm font-bold text-gray-900">{item.label}</p>
+            <p className="text-xs text-gray-500">{item.done ? "Siap" : "Belum lengkap"}</p>
+          </div>
+        ))}
+      </section>
+
+      <section className="rounded-2xl border bg-white p-5 shadow-sm">
+        <div className="mb-5 grid grid-cols-2 gap-2 rounded-xl bg-gray-100 p-1">
+          <button type="button" onClick={() => setMode("record")} className={`rounded-lg py-2 text-sm font-bold ${mode === "record" ? "bg-white text-emerald-700 shadow" : "text-gray-500"}`}>
+            Jurnal Harian
           </button>
-          <button 
-            type="button"
-            onClick={() => setFormData(prev => ({...prev, record_type: 'tahsin'}))}
-            className={`flex-1 py-2 text-sm font-bold rounded-lg transition-colors ${formData.record_type === 'tahsin' ? 'bg-white shadow text-emerald-700' : 'text-gray-500'}`}
-          >
-            Tahsin (Bacaan)
+          <button type="button" onClick={() => setMode("assessment")} className={`rounded-lg py-2 text-sm font-bold ${mode === "assessment" ? "bg-white text-emerald-700 shadow" : "text-gray-500"}`}>
+            Ujian
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          
-          {/* Unit & Class Selector */}
-          <div className="grid grid-cols-2 gap-3">
+        <div className="mb-5 grid grid-cols-2 gap-2">
+          <button type="button" onClick={() => { setProgramType("tahfidz"); resetStudent(); }} className={`rounded-xl border py-2 text-sm font-bold ${programType === "tahfidz" ? "border-emerald-500 bg-emerald-50 text-emerald-700" : "text-gray-500"}`}>
+            Tahfidz
+          </button>
+          <button type="button" onClick={() => { setProgramType("tahsin"); resetStudent(); }} className={`rounded-xl border py-2 text-sm font-bold ${programType === "tahsin" ? "border-blue-500 bg-blue-50 text-blue-700" : "text-gray-500"}`}>
+            Tahsin
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div className="grid gap-3 md:grid-cols-3">
             <div className="space-y-1.5">
-              <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Unit</label>
-              <select 
-                className="w-full border rounded-xl px-3 py-2.5 text-sm bg-gray-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none appearance-none"
-                value={selectedUnitId}
-                onChange={e => setSelectedUnitId(e.target.value)}
-              >
-                <option value="">-- Pilih Unit --</option>
-                {units.map(u => (
-                  <option key={u.id} value={u.id}>{u.name}</option>
-                ))}
+              <label className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Ambil siswa dari</label>
+              <select value={sourceMode} onChange={(event) => { setSourceMode(event.target.value as any); resetStudent(); }} className="h-11 w-full rounded-xl border bg-gray-50 px-3 text-sm outline-none focus:ring-2 focus:ring-emerald-500/30">
+                <option value="halaqoh">Halaqoh Qur'an</option>
+                <option value="class">Kelas</option>
               </select>
             </div>
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Kelas</label>
-              <select 
-                className="w-full border rounded-xl px-3 py-2.5 text-sm bg-gray-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none appearance-none disabled:opacity-50"
-                value={selectedClassId}
-                onChange={e => setSelectedClassId(e.target.value)}
-                disabled={!selectedUnitId}
-              >
-                <option value="">-- Pilih Kelas --</option>
-                {classes.map(c => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
-            </div>
+
+            {sourceMode === "halaqoh" ? (
+              <div className="space-y-1.5 md:col-span-2">
+                <label className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Halaqoh {programType}</label>
+                <select value={selectedHalaqohId} onChange={(event) => { setSelectedHalaqohId(event.target.value); resetStudent(); }} className="h-11 w-full rounded-xl border bg-gray-50 px-3 text-sm outline-none focus:ring-2 focus:ring-emerald-500/30">
+                  <option value="">-- Pilih Halaqoh --</option>
+                  {halaqohs.map((halaqoh) => <option key={halaqoh.id} value={halaqoh.id}>{halaqoh.name}</option>)}
+                </select>
+              </div>
+            ) : (
+              <>
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Unit</label>
+                  <select value={selectedUnitId} onChange={(event) => { setSelectedUnitId(event.target.value); setSelectedClassId(""); resetStudent(); }} className="h-11 w-full rounded-xl border bg-gray-50 px-3 text-sm outline-none focus:ring-2 focus:ring-emerald-500/30">
+                    <option value="">-- Pilih Unit --</option>
+                    {units.map((unit) => <option key={unit.id} value={unit.id}>{unit.name}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Kelas</label>
+                  <select value={selectedClassId} onChange={(event) => { setSelectedClassId(event.target.value); resetStudent(); }} disabled={!selectedUnitId} className="h-11 w-full rounded-xl border bg-gray-50 px-3 text-sm outline-none focus:ring-2 focus:ring-emerald-500/30 disabled:opacity-50">
+                    <option value="">-- Pilih Kelas --</option>
+                    {classes.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                  </select>
+                </div>
+              </>
+            )}
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Siswa <span className="text-red-500">*</span></label>
-            <select 
-              className="w-full border rounded-xl px-3 py-2.5 text-sm bg-gray-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none appearance-none disabled:opacity-50"
-              value={formData.student_id}
-              onChange={e => setFormData({...formData, student_id: e.target.value})}
-              disabled={!selectedClassId}
-            >
-              <option value="">{selectedClassId ? "-- Pilih Siswa --" : "-- Pilih Kelas Terlebih Dahulu --"}</option>
-              {students.map(s => (
-                <option key={s.id} value={s.id}>{s.full_name}</option>
-              ))}
+            <label className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Siswa</label>
+            <select value={formData.student_id} onChange={(event) => setFormData({ ...formData, student_id: event.target.value })} className="h-11 w-full rounded-xl border bg-gray-50 px-3 text-sm outline-none focus:ring-2 focus:ring-emerald-500/30">
+              <option value="">{studentOptions.length ? "-- Pilih Siswa --" : "-- Pilih halaqoh/kelas terlebih dahulu --"}</option>
+              {studentOptions.map((student: any) => <option key={student.id} value={student.id}>{student.full_name} ({student.classes?.name || "Tanpa kelas"})</option>)}
             </select>
           </div>
 
-          {/* Last Record Info */}
           {formData.student_id && (
-            <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3 flex items-start gap-2">
-              <Info className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-              <div className="text-xs text-emerald-800">
-                {isLoadingLastRecord ? (
-                  "Mengecek setoran terakhir..."
-                ) : lastRecord ? (
-                  <>
-                    <strong>Setoran terakhir:</strong> {lastRecord.surah_or_jilid} (Ayat/Hal: {lastRecord.ayat_or_page}) <br/>
-                    <span className="text-emerald-600/80">Pada tanggal: {new Date(lastRecord.date).toLocaleDateString('id-ID')}</span>
-                  </>
-                ) : (
-                  "Belum ada riwayat setoran di tipe ini."
-                )}
+            <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-3">
+              <div className="flex items-start gap-2 text-xs text-emerald-800">
+                <Info className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                <div>
+                  {isLoadingLastRecord ? "Mengecek jurnal terakhir..." : lastRecord ? (
+                    <>
+                      <strong>Jurnal terakhir:</strong> {lastRecord.surah_or_jilid} ({lastRecord.ayat_or_page}) - {lastRecord.fluency_score}<br />
+                      <span>Pada {new Date(lastRecord.date).toLocaleDateString("id-ID")}</span>
+                    </>
+                  ) : "Belum ada jurnal pada program ini."}
+                </div>
               </div>
+              {studentTargets.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {studentTargets.slice(0, 2).map((target: any) => (
+                    <span key={target.id} className="inline-flex items-center gap-1 rounded-md bg-white px-2 py-1 text-[10px] font-bold text-emerald-700">
+                      <Target className="h-3 w-3" /> {target.description}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">
-                {formData.record_type === 'tahfidz' ? 'Surah/Juz' : 'Jilid/Buku'} <span className="text-red-500">*</span>
-              </label>
-              <input 
-                type="text" 
-                placeholder={formData.record_type === 'tahfidz' ? 'Al-Mulk' : 'Iqro 4'}
-                className="w-full border rounded-xl px-3 py-2 text-sm bg-gray-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none"
-                value={formData.surah_or_jilid}
-                onChange={e => setFormData({...formData, surah_or_jilid: e.target.value})}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">
-                {formData.record_type === 'tahfidz' ? 'Ayat' : 'Halaman'} <span className="text-red-500">*</span>
-              </label>
-              <input 
-                type="text" 
-                placeholder={formData.record_type === 'tahfidz' ? '1-15' : 'Hal 20'}
-                className="w-full border rounded-xl px-3 py-2 text-sm bg-gray-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none"
-                value={formData.ayat_or_page}
-                onChange={e => setFormData({...formData, ayat_or_page: e.target.value})}
-              />
-            </div>
-          </div>
+          {mode === "record" ? (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold uppercase tracking-wide text-gray-500">{programType === "tahfidz" ? "Surah/Juz" : "Jilid/Buku"}</label>
+                  <input value={formData.surah_or_jilid} onChange={(event) => setFormData({ ...formData, surah_or_jilid: event.target.value })} placeholder={programType === "tahfidz" ? "Al-Mulk / Juz 29" : "Jilid 3"} className="h-11 w-full rounded-xl border bg-gray-50 px-3 text-sm outline-none focus:ring-2 focus:ring-emerald-500/30" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold uppercase tracking-wide text-gray-500">{programType === "tahfidz" ? "Ayat" : "Halaman"}</label>
+                  <input value={formData.ayat_or_page} onChange={(event) => setFormData({ ...formData, ayat_or_page: event.target.value })} placeholder={programType === "tahfidz" ? "1-15" : "Hal 20"} className="h-11 w-full rounded-xl border bg-gray-50 px-3 text-sm outline-none focus:ring-2 focus:ring-emerald-500/30" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+                {["Sangat Lancar", "Lancar", "Kurang Lancar", "Mengulang"].map((score) => (
+                  <button key={score} type="button" onClick={() => setFormData({ ...formData, fluency_score: score })} className={`rounded-lg border py-2 text-[11px] font-bold ${formData.fluency_score === score ? "border-emerald-500 bg-emerald-50 text-emerald-700" : "text-gray-500"}`}>
+                    {score}
+                  </button>
+                ))}
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <input value={formData.tajwid_score} onChange={(event) => setFormData({ ...formData, tajwid_score: event.target.value })} placeholder="Nilai tajwid (opsional)" className="h-11 rounded-xl border bg-gray-50 px-3 text-sm outline-none focus:ring-2 focus:ring-emerald-500/30" />
+                <input value={formData.makhroj_score} onChange={(event) => setFormData({ ...formData, makhroj_score: event.target.value })} placeholder="Nilai makhraj (opsional)" className="h-11 rounded-xl border bg-gray-50 px-3 text-sm outline-none focus:ring-2 focus:ring-emerald-500/30" />
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <input value={formData.title} onChange={(event) => setFormData({ ...formData, title: event.target.value })} placeholder={programType === "tahsin" ? "Kenaikan Jilid 3" : "Tasmi Juz 30"} className="h-11 rounded-xl border bg-gray-50 px-3 text-sm outline-none focus:ring-2 focus:ring-emerald-500/30" />
+                <input type="number" min="0" max="100" value={formData.score} onChange={(event) => setFormData({ ...formData, score: event.target.value, status: event.target.value ? getStatus(Number(event.target.value)) : "" })} placeholder="Nilai 0-100" className="h-11 rounded-xl border bg-gray-50 px-3 text-sm outline-none focus:ring-2 focus:ring-emerald-500/30" />
+              </div>
+              <select value={formData.status} onChange={(event) => setFormData({ ...formData, status: event.target.value })} className="h-11 w-full rounded-xl border bg-gray-50 px-3 text-sm outline-none focus:ring-2 focus:ring-emerald-500/30">
+                <option value="">Status otomatis dari nilai</option>
+                <option value="Lulus">Lulus</option>
+                <option value="Lulus Bersyarat">Lulus Bersyarat</option>
+                <option value="Mengulang">Mengulang</option>
+              </select>
+              {formData.score && <p className="text-xs text-gray-500">Predikat: <strong>{getPredicate(Number(formData.score))}</strong></p>}
+            </>
+          )}
 
-          <div className="space-y-1.5">
-            <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Kelancaran <span className="text-red-500">*</span></label>
-            <div className="grid grid-cols-2 gap-2">
-              {['Sangat Lancar', 'Lancar', 'Kurang Lancar', 'Mengulang'].map(score => (
-                <button
-                  key={score}
-                  type="button"
-                  onClick={() => setFormData({...formData, fluency_score: score})}
-                  className={`py-2 text-[11px] font-bold rounded-lg border transition-colors ${
-                    formData.fluency_score === score 
-                      ? 'bg-emerald-50 border-emerald-500 text-emerald-700' 
-                      : 'bg-white text-gray-500 hover:bg-gray-50'
-                  }`}
-                >
-                  {score}
-                </button>
-              ))}
-            </div>
-          </div>
+          <textarea value={formData.notes} onChange={(event) => setFormData({ ...formData, notes: event.target.value })} rows={3} placeholder="Catatan pembinaan atau tindak lanjut..." className="w-full rounded-xl border bg-gray-50 px-3 py-2 text-sm outline-none resize-none focus:ring-2 focus:ring-emerald-500/30" />
 
-          <div className="space-y-1.5">
-            <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Catatan Guru</label>
-            <textarea 
-              rows={2}
-              placeholder="Catatan tambahan (opsional)..."
-              className="w-full border rounded-xl px-3 py-2 text-sm bg-gray-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none resize-none"
-              value={formData.notes}
-              onChange={e => setFormData({...formData, notes: e.target.value})}
-            ></textarea>
-          </div>
-
-          <button 
-            type="submit" 
-            disabled={isSubmitting}
-            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-colors shadow-sm disabled:opacity-70"
-          >
-            <CheckCircle className="w-5 h-5" />
-            {isSubmitting ? 'Menyimpan...' : 'Simpan Capaian'}
+          <button type="submit" disabled={isSubmitting} className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 py-3 font-bold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-60">
+            {mode === "record" ? <CheckCircle className="h-5 w-5" /> : <Award className="h-5 w-5" />}
+            {isSubmitting ? "Menyimpan..." : mode === "record" ? "Simpan Jurnal Qur'an" : "Simpan Hasil Ujian"}
           </button>
         </form>
+      </section>
 
-      </div>
+      <section className="grid gap-3 md:grid-cols-3">
+        {[
+          { icon: Users, label: "Sumber siswa", value: sourceMode === "halaqoh" ? "Halaqoh" : "Kelas" },
+          { icon: ClipboardCheck, label: "Program", value: programType === "tahfidz" ? "Tahfidz" : "Tahsin" },
+          { icon: BookOpen, label: "Mode", value: mode === "record" ? "Jurnal harian" : "Ujian" },
+        ].map(({ icon: Icon, label, value }) => (
+          <div key={label} className="rounded-2xl border bg-white p-4 shadow-sm">
+            <Icon className="mb-2 h-5 w-5 text-emerald-600" />
+            <p className="text-xs font-semibold text-gray-500">{label}</p>
+            <p className="text-sm font-bold text-gray-900">{value}</p>
+          </div>
+        ))}
+      </section>
     </div>
   );
 };

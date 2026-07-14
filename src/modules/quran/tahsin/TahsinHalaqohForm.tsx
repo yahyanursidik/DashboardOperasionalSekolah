@@ -1,7 +1,7 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useForm, useSelect } from "@refinedev/core";
-import { useNavigate, useParams, Link } from "react-router-dom";
-import { ArrowLeft, Save, BookOpen, Clock, Users } from "lucide-react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { ArrowLeft, Award, BookOpen, CheckCircle2, ClipboardCheck, Clock, Save, ShieldCheck, Target, Users } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { useAcademicYear } from "../../../app/providers/AcademicYearProvider";
 import { toast } from "sonner";
@@ -12,6 +12,15 @@ export const TahsinHalaqohForm: React.FC = () => {
   const isEdit = !!id;
   const navigate = useNavigate();
   const { activeYearId, activeSemesterId } = useAcademicYear();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formPreview, setFormPreview] = useState({
+    name: "",
+    employee_id: "",
+    academic_year_id: activeYearId || "",
+    semester_id: activeSemesterId || "",
+    schedule_day: "",
+    schedule_time: "",
+  });
 
   const { queryResult, formLoading } = useForm({
     resource: "tahfidz_halaqohs",
@@ -21,7 +30,18 @@ export const TahsinHalaqohForm: React.FC = () => {
   });
 
   const record = queryResult?.data?.data;
-  const [isSubmitting, setIsSubmitting] = React.useState(false);
+
+  useEffect(() => {
+    if (!record) return;
+    setFormPreview({
+      name: record.name || "",
+      employee_id: record.employee_id || "",
+      academic_year_id: record.academic_year_id || activeYearId || "",
+      semester_id: record.semester_id || activeSemesterId || "",
+      schedule_day: record.schedule_day || "",
+      schedule_time: record.schedule_time || "",
+    });
+  }, [activeSemesterId, activeYearId, record]);
 
   const { options: employeeOptions } = useSelect({
     resource: "employees",
@@ -44,10 +64,18 @@ export const TahsinHalaqohForm: React.FC = () => {
     sorters: [{ field: "name", order: "asc" }],
   });
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const selectedTeacher = employeeOptions?.find((option) => option.value === formPreview.employee_id);
+  const checklist = [
+    { label: "Nama halaqoh", done: Boolean(formPreview.name), helper: formPreview.name || "Isi nama kelompok tahsin" },
+    { label: "Periode aktif", done: Boolean(formPreview.academic_year_id && formPreview.semester_id), helper: "Tahun ajaran dan semester" },
+    { label: "Guru pengampu", done: Boolean(formPreview.employee_id), helper: selectedTeacher?.label || "Pilih guru tahsin" },
+    { label: "Jadwal", done: Boolean(formPreview.schedule_day || formPreview.schedule_time), helper: formPreview.schedule_day || formPreview.schedule_time ? `${formPreview.schedule_day || "-"}, ${formPreview.schedule_time || "-"}` : "Isi hari atau waktu" },
+  ];
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
     setIsSubmitting(true);
-    const formData = new FormData(e.currentTarget);
+    const formData = new FormData(event.currentTarget);
     const data = {
       name: formData.get("name"),
       employee_id: formData.get("employee_id") || null,
@@ -56,7 +84,7 @@ export const TahsinHalaqohForm: React.FC = () => {
       schedule_time: formData.get("schedule_time") || null,
       academic_year_id: formData.get("academic_year_id"),
       semester_id: formData.get("semester_id"),
-      program_type: "tahsin"
+      program_type: "tahsin",
     };
 
     try {
@@ -78,159 +106,186 @@ export const TahsinHalaqohForm: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 max-w-3xl mx-auto">
+    <div className="mx-auto max-w-5xl space-y-6">
       <div className="flex items-center gap-4">
-        <Link
-          to="/tahsin-halaqohs"
-          className="p-2 hover:bg-muted rounded-full transition-colors shrink-0"
-        >
-          <ArrowLeft className="w-5 h-5" />
+        <Link to="/tahsin-halaqohs" className="p-2 hover:bg-muted rounded-full transition-colors shrink-0">
+          <ArrowLeft className="h-5 w-5" />
         </Link>
         <PageHeader
           title={isEdit ? "Edit Halaqoh Tahsin" : "Tambah Halaqoh Tahsin"}
-          description="Atur nama kelompok halaqoh tahsin/tilawah beserta guru pengampunya"
+          description="Atur kelompok tahsin/tilawah yang siap dipakai untuk target, jurnal harian, dan ujian kenaikan jilid."
         />
       </div>
 
-      <form onSubmit={handleSubmit} className="bg-card border rounded-xl shadow-sm overflow-hidden">
-        <div className="p-6 space-y-6">
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-4 md:col-span-2 border-b pb-6">
-              <h3 className="font-semibold text-lg flex items-center gap-2">
-                <BookOpen className="w-5 h-5 text-primary" /> Informasi Utama
-              </h3>
-              
-              <div className="space-y-2">
+      <section className="rounded-xl border bg-card p-5 shadow-sm">
+        <div className="grid gap-5 lg:grid-cols-[1fr_1.2fr]">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-md bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-700">
+              <ShieldCheck className="h-4 w-4" />
+              Halaqoh siap jalan
+            </div>
+            <h2 className="mt-3 text-xl font-bold">
+              {isEdit ? "Perbarui struktur halaqoh tanpa mengganggu riwayat siswa" : "Buat kelompok tahsin yang mudah dipantau"}
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              Setelah halaqoh dibuat, lanjutkan dengan menambah anggota, target personal, jurnal harian, dan ujian kenaikan jilid.
+            </p>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {checklist.map((item) => (
+              <div key={item.label} className="flex items-start gap-3 rounded-lg border bg-background p-3">
+                <CheckCircle2 className={`mt-0.5 h-4 w-4 ${item.done ? "text-emerald-600" : "text-muted-foreground"}`} />
+                <div>
+                  <p className="text-sm font-semibold">{item.label}</p>
+                  <p className="text-xs text-muted-foreground">{item.helper}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <form key={record?.id || "create-tahsin-halaqoh"} onSubmit={handleSubmit} className="overflow-hidden rounded-xl border bg-card shadow-sm">
+        <div className="space-y-8 p-6">
+          <section className="space-y-4">
+            <h3 className="flex items-center gap-2 border-b pb-2 text-lg font-semibold">
+              <BookOpen className="h-5 w-5 text-primary" />
+              Informasi Utama
+            </h3>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2 md:col-span-2">
                 <label className="text-sm font-medium">Nama Halaqoh Tahsin <span className="text-red-500">*</span></label>
                 <input
                   type="text"
                   name="name"
                   required
                   defaultValue={record?.name || ""}
-                  placeholder="Contoh: Kelas Tahsin Ula"
-                  className="w-full flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-primary/20 focus:outline-none transition-shadow"
+                  onChange={(event) => setFormPreview((prev) => ({ ...prev, name: event.target.value }))}
+                  placeholder="Contoh: Tahsin Ula Pagi"
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Tahun Ajaran <span className="text-red-500">*</span></label>
-                  <select
-                    name="academic_year_id"
-                    required
-                    defaultValue={record?.academic_year_id || activeYearId || ""}
-                    className="w-full flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-primary/20 focus:outline-none transition-shadow"
-                  >
-                    <option value="">-- Pilih Tahun Ajaran --</option>
-                    {yearOptions?.map(opt => (
-                      <option key={opt.value} value={opt.value}>{opt.label}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Semester <span className="text-red-500">*</span></label>
-                  <select
-                    name="semester_id"
-                    required
-                    defaultValue={record?.semester_id || activeSemesterId || ""}
-                    className="w-full flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-primary/20 focus:outline-none transition-shadow"
-                  >
-                    <option value="">-- Pilih Semester --</option>
-                    {semesterOptions?.map(opt => (
-                      <option key={opt.value} value={opt.value}>{opt.label}</option>
-                    ))}
-                  </select>
-                </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Tahun Ajaran <span className="text-red-500">*</span></label>
+                <select
+                  name="academic_year_id"
+                  required
+                  defaultValue={record?.academic_year_id || activeYearId || ""}
+                  onChange={(event) => setFormPreview((prev) => ({ ...prev, academic_year_id: event.target.value }))}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-primary/20"
+                >
+                  <option value="">-- Pilih Tahun Ajaran --</option>
+                  {yearOptions?.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Semester <span className="text-red-500">*</span></label>
+                <select
+                  name="semester_id"
+                  required
+                  defaultValue={record?.semester_id || activeSemesterId || ""}
+                  onChange={(event) => setFormPreview((prev) => ({ ...prev, semester_id: event.target.value }))}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-primary/20"
+                >
+                  <option value="">-- Pilih Semester --</option>
+                  {semesterOptions?.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                </select>
               </div>
             </div>
+          </section>
 
-            <div className="space-y-4 border-b pb-6 md:border-b-0 md:pb-0 md:border-r md:pr-6">
-              <h3 className="font-semibold text-lg flex items-center gap-2">
-                <Users className="w-5 h-5 text-primary" /> Guru & Keterangan
+          <section className="grid gap-6 md:grid-cols-2">
+            <div className="space-y-4 md:border-r md:pr-6">
+              <h3 className="flex items-center gap-2 text-lg font-semibold">
+                <Users className="h-5 w-5 text-primary" />
+                Guru & Keterangan
               </h3>
-
               <div className="space-y-2">
-                <label className="text-sm font-medium">Guru Tahsin (Pengampu)</label>
+                <label className="text-sm font-medium">Guru Tahsin</label>
                 <select
                   name="employee_id"
                   defaultValue={record?.employee_id || ""}
-                  className="w-full flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-primary/20 focus:outline-none transition-shadow"
+                  onChange={(event) => setFormPreview((prev) => ({ ...prev, employee_id: event.target.value }))}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-primary/20"
                 >
                   <option value="">-- Belum ada pengampu --</option>
-                  {employeeOptions?.map(opt => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
+                  {employeeOptions?.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                 </select>
               </div>
-
               <div className="space-y-2">
-                <label className="text-sm font-medium">Deskripsi / Catatan (Opsional)</label>
+                <label className="text-sm font-medium">Deskripsi / Catatan</label>
                 <textarea
                   name="description"
                   rows={4}
                   defaultValue={record?.description || ""}
-                  placeholder="Catatan tambahan mengenai halaqoh ini..."
-                  className="w-full flex rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-primary/20 focus:outline-none transition-shadow resize-none"
+                  placeholder="Contoh: Kelompok pembinaan makhraj dasar dan kelancaran jilid 1-2."
+                  className="flex w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </div>
             </div>
 
             <div className="space-y-4">
-              <h3 className="font-semibold text-lg flex items-center gap-2">
-                <Clock className="w-5 h-5 text-primary" /> Jadwal Halaqoh
+              <h3 className="flex items-center gap-2 text-lg font-semibold">
+                <Clock className="h-5 w-5 text-primary" />
+                Jadwal Halaqoh
               </h3>
-
               <div className="space-y-2">
-                <label className="text-sm font-medium">Hari (Opsional)</label>
+                <label className="text-sm font-medium">Hari</label>
                 <select
                   name="schedule_day"
                   defaultValue={record?.schedule_day || ""}
-                  className="w-full flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-primary/20 focus:outline-none transition-shadow"
+                  onChange={(event) => setFormPreview((prev) => ({ ...prev, schedule_day: event.target.value }))}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-primary/20"
                 >
                   <option value="">-- Pilih Hari --</option>
-                  <option value="Senin">Senin</option>
-                  <option value="Selasa">Selasa</option>
-                  <option value="Rabu">Rabu</option>
-                  <option value="Kamis">Kamis</option>
-                  <option value="Jumat">Jumat</option>
-                  <option value="Sabtu">Sabtu</option>
-                  <option value="Ahad">Ahad</option>
+                  {["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Ahad"].map((day) => <option key={day} value={day}>{day}</option>)}
                 </select>
               </div>
-
               <div className="space-y-2">
-                <label className="text-sm font-medium">Waktu / Jam (Opsional)</label>
+                <label className="text-sm font-medium">Waktu / Jam</label>
                 <input
                   type="text"
                   name="schedule_time"
                   defaultValue={record?.schedule_time || ""}
-                  placeholder="Contoh: 16:00 - 17:30"
-                  className="w-full flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-primary/20 focus:outline-none transition-shadow"
+                  onChange={(event) => setFormPreview((prev) => ({ ...prev, schedule_time: event.target.value }))}
+                  placeholder="Contoh: 07:30 - 08:15"
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </div>
             </div>
-          </div>
+          </section>
+
+          <section className="rounded-xl border bg-muted/20 p-4">
+            <h3 className="text-base font-semibold">Alur setelah halaqoh tersimpan</h3>
+            <div className="mt-4 grid gap-3 md:grid-cols-4">
+              {[
+                { icon: Users, label: "Anggota", detail: "Tambahkan siswa aktif" },
+                { icon: Target, label: "Target", detail: "Tetapkan target jilid/halaman" },
+                { icon: ClipboardCheck, label: "Jurnal", detail: "Catat latihan harian" },
+                { icon: Award, label: "Ujian", detail: "Validasi kenaikan jilid" },
+              ].map(({ icon: Icon, label, detail }) => (
+                <div key={label} className="rounded-lg border bg-background p-4">
+                  <Icon className="mb-2 h-5 w-5 text-emerald-600" />
+                  <p className="text-sm font-semibold">{label}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{detail}</p>
+                </div>
+              ))}
+            </div>
+          </section>
         </div>
-        
-        <div className="p-6 bg-muted/30 border-t flex items-center justify-between">
-          <p className="text-xs text-muted-foreground hidden sm:block">
-            <span className="text-red-500">*</span> Wajib diisi
-          </p>
-          <div className="flex gap-3 w-full sm:w-auto">
-            <Link
-              to="/tahsin-halaqohs"
-              className="flex-1 sm:flex-none flex items-center justify-center px-6 py-2 border rounded-lg hover:bg-muted transition-colors font-medium text-sm"
-            >
+
+        <div className="flex items-center justify-between gap-3 border-t bg-muted/30 p-6">
+          <p className="hidden text-xs text-muted-foreground sm:block"><span className="text-red-500">*</span> Wajib diisi</p>
+          <div className="flex w-full gap-3 sm:w-auto">
+            <Link to="/tahsin-halaqohs" className="flex flex-1 items-center justify-center rounded-lg border bg-background px-6 py-2 text-sm font-medium transition-colors hover:bg-muted sm:flex-none">
               Batal
             </Link>
             <button
               type="submit"
               disabled={isSubmitting || formLoading}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-primary text-primary-foreground px-6 py-2 rounded-lg hover:bg-primary/90 transition-colors shadow-sm font-medium text-sm disabled:opacity-50"
+              className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary px-6 py-2 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 disabled:opacity-50 sm:flex-none"
             >
-              <Save className="w-4 h-4" />
+              <Save className="h-4 w-4" />
               {isSubmitting || formLoading ? "Menyimpan..." : "Simpan Halaqoh"}
             </button>
           </div>

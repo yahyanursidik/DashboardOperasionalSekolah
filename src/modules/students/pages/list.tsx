@@ -4,7 +4,26 @@ import { useList, useDelete } from "@refinedev/core";
 import { flexRender } from "@tanstack/react-table";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useNavigate } from "react-router-dom";
-import { Eye, Edit, Plus, Search, FilterX, UploadCloud, Download, FileSpreadsheet, Trash2, AlertTriangle, Loader2 } from "lucide-react";
+import {
+  Eye,
+  Edit,
+  Plus,
+  Search,
+  FilterX,
+  UploadCloud,
+  Download,
+  FileSpreadsheet,
+  Trash2,
+  AlertTriangle,
+  Loader2,
+  ClipboardCheck,
+  GraduationCap,
+  HeartPulse,
+  School,
+  ShieldCheck,
+  UserCheck,
+  Users,
+} from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { Link } from "react-router-dom";
 import { useCurrentUnit } from "../../../app/providers/UnitProvider";
@@ -21,6 +40,49 @@ export const calculateCompleteness = (student: any) => {
   ];
   const filled = fields.filter(f => student[f] !== null && student[f] !== "").length;
   return Math.round((filled / fields.length) * 100);
+};
+
+const hasValue = (value: unknown) => value !== null && value !== undefined && String(value).trim() !== "";
+
+export const getStudentQualitySummary = (student: any, hasLinkedGuardian = false) => {
+  const score = calculateCompleteness(student);
+  const hasIdentity = hasValue(student.full_name) && hasValue(student.gender) && hasValue(student.nis);
+  const hasNationalIdentity = hasValue(student.nisn);
+  const hasClass = hasValue(student.class_id);
+  const hasAddress = hasValue(student.address);
+  const hasGuardianContact =
+    hasLinkedGuardian ||
+    hasValue(student.parent_phone) ||
+    hasValue(student.phone_number) ||
+    hasValue(student.phone) ||
+    hasValue(student.emergency_contact_phone);
+  const hasHealthAttention =
+    hasValue(student.allergies) ||
+    hasValue(student.medical_history) ||
+    hasValue(student.special_needs) ||
+    hasValue(student.health_notes) ||
+    hasValue(student.emergency_contact_phone);
+
+  const missing: string[] = [];
+  if (!hasIdentity) missing.push("Identitas dasar");
+  if (!hasNationalIdentity) missing.push("NISN");
+  if (!hasClass) missing.push("Kelas");
+  if (!hasAddress) missing.push("Alamat");
+  if (!hasGuardianContact) missing.push("Kontak wali");
+
+  const ready = student.status === "active" && hasIdentity && hasClass && hasGuardianContact && score >= 80;
+
+  return {
+    score,
+    ready,
+    hasIdentity,
+    hasNationalIdentity,
+    hasClass,
+    hasAddress,
+    hasGuardianContact,
+    hasHealthAttention,
+    missing,
+  };
 };
 
 // --- DELETE CONFIRM MODAL ---
@@ -105,6 +167,52 @@ export const StudentsList: React.FC = () => {
     
     return filters;
   };
+
+  const qualityFilters = React.useMemo(
+    () => buildFilters(),
+    [activeUnitId, filterUnit, filterClass, filterGender, filterStatus, searchTerm]
+  );
+
+  const { data: qualityStudentsData, isLoading: isQualityLoading } = useList({
+    resource: "students",
+    filters: qualityFilters,
+    pagination: { mode: "off" },
+    meta: {
+      select: "*, units(name), classes(name)",
+    },
+  });
+
+  const { data: parentLinksData } = useList({
+    resource: "student_parent_links",
+    pagination: { mode: "off" },
+    meta: { select: "student_id, is_primary, parents(full_name, phone)" },
+  });
+
+  const guardianStudentIds = React.useMemo(() => {
+    const ids = new Set<string>();
+    parentLinksData?.data?.forEach((link: any) => {
+      if (link.student_id) ids.add(link.student_id);
+    });
+    return ids;
+  }, [parentLinksData?.data]);
+
+  const qualityMetrics = React.useMemo(() => {
+    const students = qualityStudentsData?.data || [];
+    return students.reduce(
+      (acc, student: any) => {
+        const quality = getStudentQualitySummary(student, guardianStudentIds.has(student.id));
+        acc.total += 1;
+        if (student.status === "active") acc.active += 1;
+        if (quality.ready) acc.ready += 1;
+        if (!quality.hasClass) acc.noClass += 1;
+        if (!quality.hasGuardianContact) acc.noGuardian += 1;
+        if (quality.hasHealthAttention) acc.healthWatch += 1;
+        if (quality.missing.length > 0 || quality.score < 80) acc.incomplete += 1;
+        return acc;
+      },
+      { total: 0, active: 0, ready: 0, noClass: 0, noGuardian: 0, incomplete: 0, healthWatch: 0 }
+    );
+  }, [qualityStudentsData?.data, guardianStudentIds]);
 
   const downloadTemplate = () => {
     const csvContent = "Nama Siswa,NIS,Jenjang,Jenis Kelamin,Tanggal Lahir,Alamat lengkap,Nama Ayah/Wali,Nama Ibu\nSiswa Contoh,2425001,SD,L,2010-05-15,Jl. Merdeka No 1,Ayah Contoh,Ibu Contoh";
@@ -436,16 +544,41 @@ export const StudentsList: React.FC = () => {
       },
       {
         id: "completeness",
-        header: "Data",
+        header: "Kesiapan Data",
         cell: function render({ row }) {
-          const score = calculateCompleteness(row.original);
+          const quality = getStudentQualitySummary(row.original, guardianStudentIds.has(row.original.id));
+          const score = quality.score;
           const color = score === 100 ? "text-emerald-600" : score >= 70 ? "text-amber-600" : "text-destructive";
+          const missingPreview = quality.missing.slice(0, 2);
           return (
-            <div className="flex items-center gap-2 w-24">
-              <div className="w-full bg-muted rounded-full h-1.5">
-                <div className={`h-1.5 rounded-full ${score === 100 ? 'bg-emerald-500' : score >= 70 ? 'bg-amber-500' : 'bg-destructive'}`} style={{ width: `${score}%` }}></div>
+            <div className="min-w-[190px] space-y-2">
+              <div className="flex items-center gap-2">
+                <div className="w-24 bg-muted rounded-full h-1.5">
+                  <div className={`h-1.5 rounded-full ${score === 100 ? 'bg-emerald-500' : score >= 70 ? 'bg-amber-500' : 'bg-destructive'}`} style={{ width: `${score}%` }}></div>
+                </div>
+                <span className={`text-xs font-semibold ${color}`}>{score}%</span>
+                {quality.ready && (
+                  <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    Siap
+                  </span>
+                )}
               </div>
-              <span className={`text-xs font-semibold ${color}`}>{score}%</span>
+              {missingPreview.length > 0 ? (
+                <div className="flex flex-wrap gap-1">
+                  {missingPreview.map((item) => (
+                    <span key={item} className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-100">
+                      {item}
+                    </span>
+                  ))}
+                  {quality.missing.length > missingPreview.length && (
+                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                      +{quality.missing.length - missingPreview.length}
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <p className="text-[11px] text-muted-foreground">Data utama lengkap</p>
+              )}
             </div>
           );
         },
@@ -483,7 +616,7 @@ export const StudentsList: React.FC = () => {
         },
       },
     ],
-    [navigate]
+    [navigate, guardianStudentIds]
   );
 
   const { refineCore: { tableQueryResult, setFilters }, ...table } = useTable({
@@ -497,42 +630,116 @@ export const StudentsList: React.FC = () => {
   });
 
   React.useEffect(() => {
-    setFilters(buildFilters(), "replace");
-  }, [activeUnitId, filterUnit, filterClass, filterGender, filterStatus, searchTerm]);
+    setFilters(qualityFilters, "replace");
+  }, [qualityFilters]);
 
   const isLoading = tableQueryResult.isLoading;
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Administrasi Siswa"
-        description="Kelola data induk siswa, riwayat akademik, dan mutasi."
+        title="Data & Mutu Siswa"
+        description="Pusat data induk siswa, kesiapan kelas, kontak wali, kesehatan, dan mutasi akademik."
         action={
           <div className="flex items-center gap-2">
             <Link
               to="/students/mass-promotion"
               className="flex items-center gap-2 bg-emerald-50 text-emerald-600 border border-emerald-200 px-4 py-2 rounded-md hover:bg-emerald-100 transition-colors shadow-sm font-medium text-sm"
             >
-              <FilterX className="w-4 h-4" /> {/* Or use an icon like GraduationCap/Users */}
-              Aksi Massal
+              <GraduationCap className="w-4 h-4" />
+              Naik Kelas / Mutasi
             </Link>
             <button
               onClick={() => setIsUploadModalOpen(true)}
               className="flex items-center gap-2 bg-blue-50 text-blue-600 border border-blue-200 px-4 py-2 rounded-md hover:bg-blue-100 transition-colors shadow-sm font-medium text-sm"
             >
               <UploadCloud className="w-4 h-4" />
-              Upload Masal
+              Import CSV
             </button>
             <Link
               to="/students/create"
               className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition-colors shadow-sm font-medium text-sm"
             >
               <Plus className="w-4 h-4" />
-              Siswa Baru
+              Tambah Siswa
             </Link>
           </div>
         }
       />
+
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
+        {[
+          {
+            label: "Siswa Aktif",
+            value: qualityMetrics.active,
+            helper: `${qualityMetrics.total} data sesuai filter`,
+            icon: Users,
+            tone: "bg-blue-50 text-blue-700 border-blue-100",
+          },
+          {
+            label: "Siap Operasional",
+            value: qualityMetrics.ready,
+            helper: "Identitas, kelas, dan kontak siap",
+            icon: ShieldCheck,
+            tone: "bg-emerald-50 text-emerald-700 border-emerald-100",
+          },
+          {
+            label: "Belum Ada Kelas",
+            value: qualityMetrics.noClass,
+            helper: "Berdampak ke absensi dan rapor",
+            icon: School,
+            tone: "bg-amber-50 text-amber-700 border-amber-100",
+          },
+          {
+            label: "Kontak Wali Kosong",
+            value: qualityMetrics.noGuardian,
+            helper: "Berdampak ke portal orang tua",
+            icon: UserCheck,
+            tone: "bg-rose-50 text-rose-700 border-rose-100",
+          },
+          {
+            label: "Perhatian Kesehatan",
+            value: qualityMetrics.healthWatch,
+            helper: "Ada alergi, riwayat, atau kontak darurat",
+            icon: HeartPulse,
+            tone: "bg-violet-50 text-violet-700 border-violet-100",
+          },
+        ].map((item) => {
+          const Icon = item.icon;
+          return (
+            <div key={item.label} className={`rounded-lg border p-4 ${item.tone}`}>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider opacity-80">{item.label}</p>
+                  <p className="text-2xl font-bold mt-1">{isQualityLoading ? "-" : item.value}</p>
+                </div>
+                <Icon className="w-5 h-5 opacity-80" />
+              </div>
+              <p className="text-xs mt-2 opacity-80">{item.helper}</p>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="bg-card rounded-xl border shadow-sm p-4">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div>
+            <h3 className="font-semibold flex items-center gap-2">
+              <ClipboardCheck className="w-4 h-4 text-primary" />
+              Alur kerja kesiswaan
+            </h3>
+            <p className="text-sm text-muted-foreground mt-1">
+              Gunakan urutan ini agar data siswa siap dipakai oleh kelas, absensi, rapor, pembayaran, portal wali, dan rekam jejak.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Link to="/classes" className="px-3 py-2 text-sm border rounded-md hover:bg-muted transition-colors">Kelola Kelas</Link>
+            <Link to="/parents" className="px-3 py-2 text-sm border rounded-md hover:bg-muted transition-colors">Tautkan Wali</Link>
+            <Link to="/attendance" className="px-3 py-2 text-sm border rounded-md hover:bg-muted transition-colors">Absensi</Link>
+            <Link to="/student-journals" className="px-3 py-2 text-sm border rounded-md hover:bg-muted transition-colors">Jurnal Siswa</Link>
+          </div>
+        </div>
+      </div>
 
       {/* Advanced Filters */}
       <div className="bg-card rounded-xl border shadow-sm p-4 space-y-4">

@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useSelect } from "@refinedev/core";
 import { useNavigate } from "react-router-dom";
-import { Save, ArrowLeft, Users, Building } from "lucide-react";
+import { ArrowLeft, BookOpen, Building, CalendarCheck, CheckCircle2, ClipboardCheck, Save, ShieldCheck, Users } from "lucide-react";
 import { useCurrentUnit } from "../../../app/providers/UnitProvider";
 import { useAcademicYear } from "../../../app/providers/AcademicYearProvider";
 import { supabaseClient } from "../../../lib/supabase/client";
@@ -38,6 +38,7 @@ export const ClassForm: React.FC<ClassFormProps> = ({ action }) => {
     register,
     handleSubmit,
     setValue,
+    watch,
     formState: { errors },
   } = useForm<ClassFormValues>({
     resolver: zodResolver(classSchema) as any,
@@ -64,6 +65,14 @@ export const ClassForm: React.FC<ClassFormProps> = ({ action }) => {
   });
 
   const classId = (queryResult?.data?.data as any)?.id;
+  const formValues = watch();
+  const setupChecklist = [
+    { label: "Nama kelas jelas", done: Boolean(formValues.name), helper: "Contoh: Kelas 1A atau Kelas 7A Abu Bakar" },
+    { label: "Tingkat terisi", done: Boolean(formValues.level), helper: "Dipakai untuk kurikulum per kelas dan per mapel" },
+    { label: "Unit dan tahun ajaran", done: Boolean(formValues.unit_id && formValues.academic_year_id), helper: "Agar siswa, absensi, dan jadwal tidak tercampur" },
+    { label: "Kapasitas realistis", done: Number(formValues.capacity || 0) > 0, helper: "Menjadi kontrol rombel penuh atau over kapasitas" },
+    { label: "Wali kelas", done: Boolean(formValues.homeroom_teacher_id), helper: "Bisa dilengkapi sekarang atau setelah kelas dibuat" },
+  ];
 
   useEffect(() => {
     if (action === "edit" && classId) {
@@ -127,6 +136,33 @@ export const ClassForm: React.FC<ClassFormProps> = ({ action }) => {
   return (
     <div className="max-w-4xl space-y-6">
       <form onSubmit={handleSubmit(onSubmit as any)} className="space-y-6">
+        <div className="rounded-xl border bg-card p-5 shadow-sm">
+          <div className="grid gap-5 lg:grid-cols-[1fr_1.2fr]">
+            <div>
+              <div className="inline-flex items-center gap-2 rounded-md bg-primary/10 px-3 py-1 text-sm font-semibold text-primary">
+                <ShieldCheck className="h-4 w-4" />
+                Setup rombel bermutu
+              </div>
+              <h2 className="mt-3 text-xl font-bold">
+                {action === "create" ? "Buat kelas yang siap dipakai lintas fitur" : "Perbarui kelas tanpa memutus workflow akademik"}
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                Data kelas menjadi penghubung siswa, absensi, jadwal, nilai, catatan siswa, dan kurikulum per tingkat. Pastikan tingkat kelas sesuai agar mapel seperti Bahasa Inggris tidak rancu antar kelas.
+              </p>
+            </div>
+            <div className="grid gap-2">
+              {setupChecklist.map((item) => (
+                <div key={item.label} className="flex items-start gap-3 rounded-lg border bg-background p-3">
+                  <CheckCircle2 className={`mt-0.5 h-4 w-4 ${item.done ? "text-emerald-600" : "text-muted-foreground"}`} />
+                  <div>
+                    <p className="text-sm font-semibold">{item.label}</p>
+                    <p className="text-xs text-muted-foreground">{item.helper}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
         
         {/* SECTION 1: Identitas Kelas */}
         <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
@@ -229,6 +265,24 @@ export const ClassForm: React.FC<ClassFormProps> = ({ action }) => {
               <p className="text-[10px] text-muted-foreground mt-1">Anda juga dapat menugaskan wali kelas dari menu Penugasan Guru.</p>
             </div>
 
+          </div>
+        </div>
+
+        <div className="rounded-xl border bg-card p-5 shadow-sm">
+          <h3 className="font-semibold text-lg">3. Setelah kelas tersimpan</h3>
+          <div className="mt-4 grid gap-3 md:grid-cols-4">
+            {[
+              { icon: Users, label: "Isi siswa", detail: "Masukkan rombel dari detail kelas" },
+              { icon: CalendarCheck, label: "Atur jadwal", detail: "Hubungkan guru dan mapel" },
+              { icon: BookOpen, label: "Cek kurikulum", detail: "Pastikan mapel sesuai tingkat" },
+              { icon: ClipboardCheck, label: "Mulai operasional", detail: "Absensi, nilai, dan jurnal siswa" },
+            ].map(({ icon: Icon, label, detail }) => (
+              <div key={label} className="rounded-lg border bg-muted/20 p-4">
+                <Icon className="mb-2 h-5 w-5 text-primary" />
+                <p className="text-sm font-semibold">{label}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{detail}</p>
+              </div>
+            ))}
           </div>
         </div>
 

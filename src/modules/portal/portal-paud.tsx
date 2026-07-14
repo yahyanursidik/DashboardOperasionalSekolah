@@ -1,4 +1,5 @@
 import React from "react";
+import { useOutletContext } from "react-router-dom";
 import { useList, useOne } from "@refinedev/core";
 import { AlertCircle, Camera, Award, BookOpen } from "lucide-react";
 
@@ -27,14 +28,8 @@ const ASPECTS = [
 ];
 
 export const PortalPaud: React.FC = () => {
-  // We assume the auth provider metadata contains the parent's linked student.
-  // For demo, we might need a specific student ID or fetch the first linked student.
-  const { data: studentsData } = useList({
-    resource: "students", // Requires parents access to their students
-    pagination: { pageSize: 1 }
-  });
-  
-  const studentId = studentsData?.data?.[0]?.id;
+  const { student } = useOutletContext<any>();
+  const studentId = student?.id;
 
   const { data: activitiesData, isLoading: actLoading } = useList({
     resource: "paud_activities",
@@ -66,7 +61,7 @@ export const PortalPaud: React.FC = () => {
 
       {!studentId && (
         <div className="bg-amber-50 text-amber-800 p-4 rounded-xl border border-amber-200">
-          Memuat data anak atau Anda belum memiliki siswa KB/TK yang terhubung.
+          Pilih anak KB/TK yang terhubung untuk melihat dokumentasi kegiatan dan STPPA.
         </div>
       )}
 

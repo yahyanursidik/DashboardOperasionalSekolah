@@ -6,8 +6,8 @@ export const ClassEdit: React.FC = () => {
   return (
     <div>
       <PageHeader
-        title="Ubah Data Kelas"
-        description="Perbarui informasi kelas."
+        title="Ubah Pengaturan Kelas"
+        description="Perbarui identitas rombel, kapasitas, wali kelas, unit, dan tahun ajaran tanpa membuat workflow akademik rancu."
       />
       <ClassForm action="edit" />
     </div>

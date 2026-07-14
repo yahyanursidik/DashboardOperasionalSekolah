@@ -16,7 +16,9 @@ import {
   ChevronLeft,
   ChevronRight,
   CalendarDays,
+  CheckCircle2,
   ClipboardCheck,
+  Gauge,
   GraduationCap,
   Users,
 } from "lucide-react";
@@ -97,6 +99,51 @@ const TablePagination: React.FC<{
       </div>
     </div>
   );
+};
+
+const getClassGradeLevel = (klass: any) => {
+  const directGrade = Number(klass.grade_level || klass.level);
+  if (Number.isFinite(directGrade) && directGrade > 0) return directGrade;
+  const fromName = String(klass.name || "").match(/\d+/)?.[0];
+  return fromName ? Number(fromName) : 0;
+};
+
+const getHomeroomAssignment = (klass: any) => {
+  return klass.teacher_assignments?.find((assignment: any) => assignment.role_type === "homeroom" || assignment.role_type === "wali_kelas");
+};
+
+const getClassReadiness = (
+  klass: any,
+  students: any[] = [],
+  schedules: any[] = [],
+  curriculums: any[] = []
+) => {
+  const studentCount = students.filter((student: any) => student.class_id === klass.id).length;
+  const capacity = Number(klass.capacity || 30);
+  const grade = getClassGradeLevel(klass);
+  const hasHomeroom = Boolean(getHomeroomAssignment(klass)?.employees?.full_name);
+  const hasSchedule = schedules.some((schedule: any) => schedule.class_id === klass.id);
+  const hasCurriculum = curriculums.some((record: any) => Number(record.grade_level) === grade);
+  const missing: string[] = [];
+
+  if (!hasHomeroom) missing.push("wali kelas");
+  if (studentCount === 0) missing.push("siswa");
+  if (!hasSchedule) missing.push("jadwal");
+  if (!hasCurriculum) missing.push("kurikulum");
+  if (studentCount > capacity) missing.push("kapasitas");
+
+  return {
+    grade,
+    studentCount,
+    capacity,
+    hasHomeroom,
+    hasSchedule,
+    hasCurriculum,
+    isOverCapacity: studentCount > capacity,
+    isReady: missing.length === 0,
+    missing,
+    score: [hasHomeroom, studentCount > 0, hasSchedule, hasCurriculum, studentCount <= capacity].filter(Boolean).length,
+  };
 };
 
 export const ClassesList: React.FC = () => {
@@ -206,11 +253,10 @@ export const ClassesList: React.FC = () => {
         id: "students",
         header: "Siswa",
         cell: function render({ row }) {
-          const count = studentsData?.data?.filter((student: any) => student.class_id === row.original.id).length || 0;
-          const capacity = row.original.capacity || 30;
+          const metrics = getClassReadiness(row.original, studentsData?.data, schedulesData?.data, curriculumsData?.data);
           return (
-            <span className={`text-xs font-semibold ${count > capacity ? "text-rose-600" : count >= capacity ? "text-amber-600" : "text-foreground"}`}>
-              {count}/{capacity}
+            <span className={`text-xs font-semibold ${metrics.isOverCapacity ? "text-rose-600" : metrics.studentCount >= metrics.capacity ? "text-amber-600" : "text-foreground"}`}>
+              {metrics.studentCount}/{metrics.capacity}
             </span>
           );
         },
@@ -219,17 +265,23 @@ export const ClassesList: React.FC = () => {
         id: "workflow",
         header: "Kesiapan",
         cell: function render({ row }) {
-          const grade = Number(row.original.grade_level || row.original.level);
-          const hasCurriculum = curriculumsData?.data?.some((record: any) => Number(record.grade_level) === grade);
-          const hasSchedule = schedulesData?.data?.some((schedule: any) => schedule.class_id === row.original.id);
+          const metrics = getClassReadiness(row.original, studentsData?.data, schedulesData?.data, curriculumsData?.data);
           return (
-            <div className="flex flex-wrap gap-1.5">
-              <span className={`rounded-md border px-2 py-1 text-[10px] font-bold ${hasCurriculum ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-200 bg-amber-50 text-amber-700"}`}>
-                Kurikulum
-              </span>
-              <span className={`rounded-md border px-2 py-1 text-[10px] font-bold ${hasSchedule ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-200 bg-amber-50 text-amber-700"}`}>
-                Jadwal
-              </span>
+            <div className="space-y-1">
+              <div className="flex flex-wrap gap-1.5">
+                <span className={`rounded-md border px-2 py-1 text-[10px] font-bold ${metrics.hasCurriculum ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-200 bg-amber-50 text-amber-700"}`}>
+                  Kurikulum
+                </span>
+                <span className={`rounded-md border px-2 py-1 text-[10px] font-bold ${metrics.hasSchedule ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-200 bg-amber-50 text-amber-700"}`}>
+                  Jadwal
+                </span>
+                <span className={`rounded-md border px-2 py-1 text-[10px] font-bold ${metrics.hasHomeroom ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-200 bg-amber-50 text-amber-700"}`}>
+                  Wali
+                </span>
+              </div>
+              <p className={`text-[10px] font-medium ${metrics.isReady ? "text-emerald-700" : "text-amber-700"}`}>
+                {metrics.isReady ? "Siap operasional" : `Lengkapi: ${metrics.missing.slice(0, 2).join(", ")}`}
+              </p>
             </div>
           );
         },
@@ -329,17 +381,17 @@ export const ClassesList: React.FC = () => {
   const error = tableQueryResult.error;
   const rows = table.getRowModel().rows;
   const visibleClasses = rows.map((row: any) => row.original);
+  const classReadiness = visibleClasses.map((klass: any) => getClassReadiness(klass, studentsData?.data, schedulesData?.data, curriculumsData?.data));
   const totalStudents = visibleClasses.reduce((sum: number, klass: any) => {
     return sum + (studentsData?.data?.filter((student: any) => student.class_id === klass.id).length || 0);
   }, 0);
-  const classesWithHomeroom = visibleClasses.filter((klass: any) => {
-    return klass.teacher_assignments?.some((assignment: any) => assignment.role_type === "homeroom" || assignment.role_type === "wali_kelas");
-  }).length;
-  const classesWithSchedule = visibleClasses.filter((klass: any) => schedulesData?.data?.some((schedule: any) => schedule.class_id === klass.id)).length;
-  const classesWithCurriculum = visibleClasses.filter((klass: any) => {
-    const grade = Number(klass.grade_level || klass.level);
-    return curriculumsData?.data?.some((record: any) => Number(record.grade_level) === grade);
-  }).length;
+  const classesWithHomeroom = classReadiness.filter((metrics) => metrics.hasHomeroom).length;
+  const classesWithSchedule = classReadiness.filter((metrics) => metrics.hasSchedule).length;
+  const classesWithCurriculum = classReadiness.filter((metrics) => metrics.hasCurriculum).length;
+  const readyClasses = classReadiness.filter((metrics) => metrics.isReady).length;
+  const attentionClasses = classReadiness.filter((metrics) => !metrics.isReady).length;
+  const overCapacityClasses = classReadiness.filter((metrics) => metrics.isOverCapacity).length;
+  const readinessPercent = visibleClasses.length ? Math.round((readyClasses / visibleClasses.length) * 100) : 0;
 
   return (
     <div className="space-y-6">
@@ -386,6 +438,67 @@ export const ClassesList: React.FC = () => {
                 <Icon className="mb-2 h-5 w-5 text-primary" />
                 <p className="text-2xl font-bold">{value}</p>
                 <p className="text-xs text-muted-foreground">{label}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="grid gap-4 lg:grid-cols-3">
+        <div className="rounded-xl border bg-card p-5 shadow-sm">
+          <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+            <Gauge className="h-4 w-4 text-primary" />
+            Mutu kesiapan rombel
+          </div>
+          <div className="mt-4 flex items-end justify-between">
+            <div>
+              <p className="text-3xl font-bold">{readinessPercent}%</p>
+              <p className="text-xs text-muted-foreground">kelas siap operasional</p>
+            </div>
+            <span className={`rounded-full px-3 py-1 text-xs font-bold ${attentionClasses ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-800"}`}>
+              {attentionClasses} perlu tindak lanjut
+            </span>
+          </div>
+          <div className="mt-4 h-2 rounded-full bg-muted">
+            <div className="h-2 rounded-full bg-primary" style={{ width: `${readinessPercent}%` }} />
+          </div>
+        </div>
+
+        <div className="rounded-xl border bg-card p-5 shadow-sm">
+          <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+            <AlertTriangle className="h-4 w-4 text-amber-600" />
+            Perlu perhatian
+          </div>
+          <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+            <div className="rounded-lg border bg-muted/20 p-3">
+              <p className="text-xl font-bold">{attentionClasses}</p>
+              <p className="text-[11px] text-muted-foreground">Belum siap</p>
+            </div>
+            <div className="rounded-lg border bg-muted/20 p-3">
+              <p className="text-xl font-bold">{overCapacityClasses}</p>
+              <p className="text-[11px] text-muted-foreground">Over kapasitas</p>
+            </div>
+            <div className="rounded-lg border bg-muted/20 p-3">
+              <p className="text-xl font-bold">{visibleClasses.length - classesWithHomeroom}</p>
+              <p className="text-[11px] text-muted-foreground">Tanpa wali</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-xl border bg-card p-5 shadow-sm">
+          <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+            Definition of done kelas
+          </div>
+          <div className="mt-4 space-y-2 text-sm">
+            {[
+              `${classesWithHomeroom}/${visibleClasses.length} wali kelas terisi`,
+              `${classesWithSchedule}/${visibleClasses.length} kelas punya jadwal`,
+              `${classesWithCurriculum}/${visibleClasses.length} tingkat punya kurikulum`,
+            ].map((item) => (
+              <div key={item} className="flex items-center gap-2 text-muted-foreground">
+                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                <span>{item}</span>
               </div>
             ))}
           </div>

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useCreate, useSelect, useGetIdentity } from "@refinedev/core";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { ArrowLeft, Save, BookOpen, User, Calendar, FileText, AlertTriangle, Eye, ShieldAlert, Award, Activity, Star } from "lucide-react";
 import { useCurrentUnit } from "../../../app/providers/UnitProvider";
@@ -36,13 +36,14 @@ const STPPA_SCORES = [
 
 export const StudentJournalCreate: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { activeUnitId } = useCurrentUnit();
   const { activeYearId } = useAcademicYear();
   const { mutate: createJournal, isLoading: isSaving } = useCreate();
   const { data: user } = useGetIdentity<any>();
 
-  const [studentId, setStudentId] = useState("");
-  const [classIdFilter, setClassIdFilter] = useState("");
+  const [studentId, setStudentId] = useState(searchParams.get("student_id") || "");
+  const [classIdFilter, setClassIdFilter] = useState(searchParams.get("class_id") || "");
   const [category, setCategory] = useState("akademik");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { useForm, useSelect, useList } from "@refinedev/core";
-import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Save, BookOpen } from "lucide-react";
+import { useForm, useList } from "@refinedev/core";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { ArrowLeft, Award, BookOpen, CheckCircle2, ClipboardCheck, Save, ShieldCheck, Target, Users } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { useAcademicYear } from "../../../app/providers/AcademicYearProvider";
 
@@ -13,6 +13,7 @@ export const TahfidzTargetForm: React.FC = () => {
   const { id } = useParams();
   const isEdit = !!id;
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { activeYearId, activeSemesterId } = useAcademicYear();
 
   const { onFinish, queryResult, formLoading } = useForm({
@@ -25,33 +26,52 @@ export const TahfidzTargetForm: React.FC = () => {
 
   const [targetType, setTargetType] = useState<string>("tahfidz");
   const [description, setDescription] = useState<string>("");
+  const [formPreview, setFormPreview] = useState({
+    student_id: record?.student_id || searchParams.get("student_id") || "",
+    target_amount: record?.target_amount || 1,
+    amount_unit: record?.amount_unit || "juz",
+    status: record?.status || "in_progress",
+  });
 
   useEffect(() => {
     if (record) {
       setTargetType(record.target_type);
       setDescription(record.description);
+      setFormPreview({
+        student_id: record.student_id || "",
+        target_amount: record.target_amount || 1,
+        amount_unit: record.amount_unit || "juz",
+        status: record.status || "in_progress",
+      });
     }
   }, [record]);
 
-  const [selectedHalaqoh, setSelectedHalaqoh] = useState<string>("");
+  const [selectedHalaqoh, setSelectedHalaqoh] = useState<string>(searchParams.get("halaqoh_id") || "");
 
   // Fetch available halaqohs
-  const { data: halaqohsData, isLoading: isLoadingHalaqohs } = useList({
+  const { data: halaqohsData } = useList({
     resource: "tahfidz_halaqohs",
+    filters: [{ field: "program_type", operator: "eq", value: "tahfidz" }],
     pagination: { mode: "off" }
   });
   const halaqohs = halaqohsData?.data || [];
 
-  // Fetch members of the selected halaqoh
   const { data: membersData, isLoading: isLoadingStudents } = useList({
     resource: "tahfidz_halaqoh_members",
-    filters: [{ field: "halaqoh_id", operator: "eq", value: selectedHalaqoh }],
-    queryOptions: { enabled: !!selectedHalaqoh },
-    meta: { select: "*, students(id, full_name, classes(name, units(name)))" },
+    meta: { select: "*, tahfidz_halaqohs(name), students(id, full_name, classes(name, units(name)))" },
     pagination: { mode: "off" }
   });
 
-  const members = membersData?.data || [];
+  const allMembers = membersData?.data || [];
+  const members = selectedHalaqoh ? allMembers.filter((member: any) => member.halaqoh_id === selectedHalaqoh) : [];
+  const selectedMember = members.find((member: any) => member.student_id === formPreview.student_id);
+  const checklist = [
+    { label: "Halaqoh terpilih", done: Boolean(selectedHalaqoh), helper: "Target harus berada dalam kelompok pembinaan" },
+    { label: "Siswa terpilih", done: Boolean(formPreview.student_id), helper: selectedMember?.students?.full_name || "Pilih siswa anggota halaqoh" },
+    { label: "Deskripsi jelas", done: Boolean(description), helper: "Contoh: Hafalan Surah Al-Mulk atau Juz 30" },
+    { label: "Jumlah terukur", done: Number(formPreview.target_amount || 0) > 0, helper: `${formPreview.target_amount || 0} ${formPreview.amount_unit}` },
+    { label: "Status pemantauan", done: Boolean(formPreview.status), helper: "Proses, tercapai, atau perlu ulang" },
+  ];
 
   const [selectedSurahs, setSelectedSurahs] = useState<string[]>([]);
   const [surahSearch, setSurahSearch] = useState("");
@@ -79,6 +99,14 @@ export const TahfidzTargetForm: React.FC = () => {
 
   const filteredSurahs = QURAN_SURAHS.filter(s => s.toLowerCase().includes(surahSearch.toLowerCase()));
 
+  useEffect(() => {
+    if (!isEdit || !record?.student_id || selectedHalaqoh) return;
+    const currentMember = allMembers.find((member: any) => member.student_id === record.student_id);
+    if (currentMember?.halaqoh_id) {
+      setSelectedHalaqoh(currentMember.halaqoh_id);
+    }
+  }, [isEdit, record?.student_id, selectedHalaqoh, allMembers]);
+
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
@@ -100,7 +128,7 @@ export const TahfidzTargetForm: React.FC = () => {
   // handleSurahSelect is removed because we use custom toggle
 
   return (
-    <div className="space-y-6 max-w-2xl mx-auto">
+    <div className="space-y-6 max-w-5xl mx-auto">
       <div className="flex items-center gap-4">
         <button
           type="button"
@@ -111,18 +139,49 @@ export const TahfidzTargetForm: React.FC = () => {
         </button>
         <PageHeader
           title={isEdit ? "Edit Target Personal" : "Tambah Target Personal"}
-          description="Atur target hafalan spesifik untuk siswa"
+          description="Atur target tahfidz yang spesifik, terukur, dan mudah dipantau dari setoran harian."
         />
       </div>
 
-      <form onSubmit={handleSubmit} className="bg-card border rounded-xl shadow-sm overflow-hidden">
-        <div className="p-6 space-y-4">
+      <section className="rounded-xl border bg-card p-5 shadow-sm">
+        <div className="grid gap-5 lg:grid-cols-[1fr_1.2fr]">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-md bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-700">
+              <ShieldCheck className="h-4 w-4" />
+              Target tahfidz bermutu
+            </div>
+            <h2 className="mt-3 text-xl font-bold">
+              {isEdit ? "Perbarui target tanpa menghilangkan konteks setoran" : "Buat target yang bisa dipantau setiap pekan"}
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              Target personal membantu guru membedakan kemampuan siswa. Target yang baik punya halaqoh, siswa, materi hafalan, jumlah capaian, dan status pemantauan.
+            </p>
+          </div>
+          <div className="grid gap-2">
+            {checklist.map((item) => (
+              <div key={item.label} className="flex items-start gap-3 rounded-lg border bg-background p-3">
+                <CheckCircle2 className={`mt-0.5 h-4 w-4 ${item.done ? "text-emerald-600" : "text-muted-foreground"}`} />
+                <div>
+                  <p className="text-sm font-semibold">{item.label}</p>
+                  <p className="text-xs text-muted-foreground">{item.helper}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <form key={record?.id || "create-target"} onSubmit={handleSubmit} className="bg-card border rounded-xl shadow-sm overflow-hidden">
+        <div className="p-6 space-y-6">
           
           <div className="space-y-2">
             <label className="text-sm font-medium">Halaqoh / Kelompok Tahfidz</label>
             <select
               value={selectedHalaqoh}
-              onChange={(e) => setSelectedHalaqoh(e.target.value)}
+              onChange={(e) => {
+                setSelectedHalaqoh(e.target.value);
+                setFormPreview((prev) => ({ ...prev, student_id: "" }));
+              }}
               disabled={isEdit}
               className="w-full flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background disabled:opacity-50"
             >
@@ -140,6 +199,7 @@ export const TahfidzTargetForm: React.FC = () => {
                 name="student_id"
                 required
                 defaultValue={record?.student_id || ""}
+                onChange={(event) => setFormPreview((prev) => ({ ...prev, student_id: event.target.value }))}
                 disabled={isEdit || !selectedHalaqoh}
                 className="w-full flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background disabled:cursor-not-allowed disabled:opacity-50"
               >
@@ -250,6 +310,7 @@ export const TahfidzTargetForm: React.FC = () => {
                 required
                 min="1"
                 defaultValue={record?.target_amount || 1}
+                onChange={(event) => setFormPreview((prev) => ({ ...prev, target_amount: Number(event.target.value) }))}
                 className="w-full flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
               />
             </div>
@@ -259,6 +320,7 @@ export const TahfidzTargetForm: React.FC = () => {
                 name="amount_unit"
                 required
                 defaultValue={record?.amount_unit || "juz"}
+                onChange={(event) => setFormPreview((prev) => ({ ...prev, amount_unit: event.target.value }))}
                 className="w-full flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
               >
                 <option value="juz">Juz</option>
@@ -274,6 +336,7 @@ export const TahfidzTargetForm: React.FC = () => {
                 name="status"
                 required
                 defaultValue={record?.status || "in_progress"}
+                onChange={(event) => setFormPreview((prev) => ({ ...prev, status: event.target.value }))}
                 className="w-full flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
               >
                 <option value="in_progress">Proses (In Progress)</option>
@@ -283,8 +346,34 @@ export const TahfidzTargetForm: React.FC = () => {
             </div>
           </div>
 
+          <div className="rounded-xl border bg-muted/20 p-4">
+            <h3 className="font-semibold text-base">Alur pemantauan setelah target tersimpan</h3>
+            <div className="mt-4 grid gap-3 md:grid-cols-4">
+              {[
+                { icon: ClipboardCheck, label: "Setoran rutin", detail: "Guru mencatat ziyadah setiap pertemuan" },
+                { icon: Target, label: "Pantau progres", detail: "Bandingkan setoran dengan target" },
+                { icon: Award, label: "Ujian tasmi", detail: "Input munaqosyah saat siap diuji" },
+                { icon: Users, label: "Evaluasi halaqoh", detail: "Lihat rekap target per kelompok" },
+              ].map(({ icon: Icon, label, detail }) => (
+                <div key={label} className="rounded-lg border bg-background p-4">
+                  <Icon className="mb-2 h-5 w-5 text-emerald-600" />
+                  <p className="text-sm font-semibold">{label}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{detail}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
         </div>
-        <div className="p-6 bg-muted/50 border-t flex justify-end">
+        <div className="p-6 bg-muted/50 border-t flex justify-between gap-3">
+          <button
+            type="button"
+            onClick={() => navigate(selectedHalaqoh ? `/tahfidz-student-targets?halaqoh_id=${selectedHalaqoh}` : "/tahfidz-student-targets")}
+            className="flex items-center gap-2 rounded-lg border bg-background px-5 py-2 text-sm font-medium transition-colors hover:bg-muted"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Batal
+          </button>
           <button
             type="submit"
             disabled={formLoading}

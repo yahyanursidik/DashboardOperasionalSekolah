@@ -6,7 +6,8 @@ import { useNavigate, Link } from "react-router-dom";
 import { useList, useDelete } from "@refinedev/core";
 import {
   Eye, Edit, Plus, Search, Users, Phone, LayoutGrid, LayoutList,
-  UploadCloud, Download, FileSpreadsheet, UserCheck, Shield, Mail, Briefcase, UserX, Trash2, Loader2, AlertTriangle
+  UploadCloud, Download, FileSpreadsheet, UserCheck, Shield, Mail, Briefcase, UserX, Trash2, Loader2, AlertTriangle,
+  Link2, ShieldCheck, ClipboardCheck
 } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import Papa from "papaparse";
@@ -82,6 +83,36 @@ function getAvatarColor(name: string) {
   return AVATAR_COLORS[hash % AVATAR_COLORS.length] || AVATAR_COLORS[0];
 }
 
+const hasValue = (value: unknown) => value !== null && value !== undefined && String(value).trim() !== "";
+
+export const getParentQualitySummary = (parent: any, linkedChildrenCount = 0) => {
+  const checks = [
+    hasValue(parent.full_name),
+    hasValue(parent.phone),
+    hasValue(parent.address),
+    linkedChildrenCount > 0,
+    Boolean(parent.is_active),
+  ];
+  const score = Math.round((checks.filter(Boolean).length / checks.length) * 100);
+  const missing: string[] = [];
+  if (!hasValue(parent.full_name)) missing.push("Nama lengkap");
+  if (!hasValue(parent.phone)) missing.push("No. WhatsApp");
+  if (!hasValue(parent.address)) missing.push("Alamat");
+  if (linkedChildrenCount === 0) missing.push("Tautan siswa");
+  if (!parent.is_active) missing.push("Status aktif");
+
+  return {
+    score,
+    ready: score >= 80 && linkedChildrenCount > 0 && hasValue(parent.phone) && Boolean(parent.is_active),
+    hasPhone: hasValue(parent.phone),
+    hasEmail: hasValue(parent.email),
+    hasAddress: hasValue(parent.address),
+    hasNik: hasValue(parent.nik),
+    linkedChildrenCount,
+    missing,
+  };
+};
+
 // ─── Components ──────────────────────────────────────────────────────────────
 function StatCard({ icon: Icon, label, value, color }: { icon: any; label: string; value: number | string; color: string }) {
   return (
@@ -97,9 +128,10 @@ function StatCard({ icon: Icon, label, value, color }: { icon: any; label: strin
   );
 }
 
-function ParentCard({ parent, onClick, onEdit, onDelete }: { parent: any; onClick: () => void; onEdit: () => void; onDelete: () => void }) {
+function ParentCard({ parent, linkedChildrenCount, onClick, onEdit, onDelete }: { parent: any; linkedChildrenCount: number; onClick: () => void; onEdit: () => void; onDelete: () => void }) {
   const avatarColor = getAvatarColor(parent.full_name ?? "?");
   const waNumber = formatWhatsAppNumber(parent.phone);
+  const quality = getParentQualitySummary(parent, linkedChildrenCount);
 
   return (
     <div className="bg-card border rounded-xl p-5 hover:shadow-md hover:border-primary/30 transition-all cursor-pointer group flex flex-col gap-4">
@@ -147,6 +179,17 @@ function ParentCard({ parent, onClick, onEdit, onDelete }: { parent: any; onClic
         )}
       </div>
 
+      <div className="rounded-lg border bg-muted/20 p-3 text-xs space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <span className="font-medium text-muted-foreground">Mutu kontak</span>
+          <span className={`font-bold ${quality.ready ? "text-emerald-600" : "text-amber-600"}`}>{quality.score}%</span>
+        </div>
+        <div className="w-full bg-muted rounded-full h-1.5">
+          <div className={`h-1.5 rounded-full ${quality.ready ? "bg-emerald-500" : "bg-amber-500"}`} style={{ width: `${quality.score}%` }} />
+        </div>
+        <p className="text-muted-foreground">{linkedChildrenCount} siswa tertaut</p>
+      </div>
+
       <div className="flex gap-2 pt-2 border-t mt-auto">
         <button onClick={(e) => { e.stopPropagation(); onClick(); }} className="flex-1 flex items-center justify-center gap-1 text-xs font-medium text-primary hover:bg-primary/10 py-1.5 rounded-md transition-colors" title="Lihat Detail">
           <Eye className="w-3.5 h-3.5" /> Detail
@@ -184,17 +227,36 @@ export const ParentsList: React.FC = () => {
   const { data: allParents } = useList({
     resource: "parents",
     pagination: { pageSize: 1000 },
-    meta: { select: "id, is_active" }
+    meta: { select: "id, full_name, phone, email, nik, address, is_active" }
   });
+
+  const { data: allParentLinks } = useList({
+    resource: "student_parent_links",
+    pagination: { mode: "off" },
+    meta: { select: "parent_id, student_id, is_primary, students(full_name, status)" }
+  });
+
+  const linkedChildrenByParent = useMemo(() => {
+    const map = new Map<string, number>();
+    allParentLinks?.data?.forEach((link: any) => {
+      if (!link.parent_id) return;
+      map.set(link.parent_id, (map.get(link.parent_id) || 0) + 1);
+    });
+    return map;
+  }, [allParentLinks?.data]);
 
   const stats = useMemo(() => {
     const all = allParents?.data || [];
+    const quality = all.map((parent: any) => getParentQualitySummary(parent, linkedChildrenByParent.get(parent.id as string) || 0));
     return {
       total: all.length,
       active: all.filter((p) => p.is_active).length,
-      inactive: all.filter((p) => !p.is_active).length
+      inactive: all.filter((p) => !p.is_active).length,
+      ready: quality.filter((item) => item.ready).length,
+      noPhone: quality.filter((item) => !item.hasPhone).length,
+      unlinked: quality.filter((item) => item.linkedChildrenCount === 0).length,
     };
-  }, [allParents]);
+  }, [allParents, linkedChildrenByParent]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -291,6 +353,55 @@ export const ParentsList: React.FC = () => {
         },
       },
       {
+        id: "children",
+        header: "Anak Tertaut",
+        cell: function render({ row }) {
+          const count = linkedChildrenByParent.get(row.original.id as string) || 0;
+          return (
+            <div className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2 py-1 rounded-md border ${count > 0 ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-amber-50 text-amber-700 border-amber-200"}`}>
+              <Link2 className="w-3.5 h-3.5" />
+              {count > 0 ? `${count} siswa` : "Belum tertaut"}
+            </div>
+          );
+        },
+      },
+      {
+        id: "quality",
+        header: "Mutu Kontak",
+        cell: function render({ row }) {
+          const quality = getParentQualitySummary(row.original, linkedChildrenByParent.get(row.original.id as string) || 0);
+          const missingPreview = quality.missing.slice(0, 2);
+          return (
+            <div className="min-w-[180px] space-y-2">
+              <div className="flex items-center gap-2">
+                <div className="w-24 bg-muted rounded-full h-1.5">
+                  <div className={`h-1.5 rounded-full ${quality.ready ? "bg-emerald-500" : quality.score >= 60 ? "bg-amber-500" : "bg-destructive"}`} style={{ width: `${quality.score}%` }} />
+                </div>
+                <span className={`text-xs font-bold ${quality.ready ? "text-emerald-600" : "text-amber-600"}`}>{quality.score}%</span>
+              </div>
+              {quality.ready ? (
+                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  Siap komunikasi
+                </span>
+              ) : (
+                <div className="flex flex-wrap gap-1">
+                  {missingPreview.map((item) => (
+                    <span key={item} className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-100">
+                      {item}
+                    </span>
+                  ))}
+                  {quality.missing.length > missingPreview.length && (
+                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                      +{quality.missing.length - missingPreview.length}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        },
+      },
+      {
         id: "status",
         accessorKey: "is_active",
         header: "Status",
@@ -336,7 +447,7 @@ export const ParentsList: React.FC = () => {
         },
       },
     ],
-    [navigate]
+    [navigate, linkedChildrenByParent]
   );
 
   const filters: any[] = [];
@@ -444,7 +555,7 @@ export const ParentsList: React.FC = () => {
     <div className="space-y-6">
       <PageHeader
         title="Data Orang Tua / Wali"
-        description="Kelola direktori kontak, profil pekerjaan, dan data demografis orang tua/wali siswa."
+        description="Kelola kontak wali, kesiapan komunikasi, dan relasi orang tua dengan siswa."
         action={
           <div className="flex items-center gap-2">
             <button
@@ -452,7 +563,7 @@ export const ParentsList: React.FC = () => {
               className="flex items-center gap-2 bg-blue-50 text-blue-600 border border-blue-200 px-4 py-2 rounded-lg hover:bg-blue-100 transition-colors shadow-sm font-medium text-sm"
             >
               <UploadCloud className="w-4 h-4" />
-              Upload Masal
+              Import CSV
             </button>
             <Link
               to="/parents/create"
@@ -466,10 +577,32 @@ export const ParentsList: React.FC = () => {
       />
 
       {/* ── Stats Cards ── */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-4">
         <StatCard icon={Users} label="Total Orang Tua" value={stats.total} color="bg-blue-100 text-blue-700" />
         <StatCard icon={UserCheck} label="Orang Tua Aktif" value={stats.active} color="bg-emerald-100 text-emerald-700" />
+        <StatCard icon={ShieldCheck} label="Siap Komunikasi" value={stats.ready} color="bg-teal-100 text-teal-700" />
+        <StatCard icon={Phone} label="Tanpa No. WA" value={stats.noPhone} color="bg-amber-100 text-amber-700" />
+        <StatCard icon={Link2} label="Belum Tertaut" value={stats.unlinked} color="bg-rose-100 text-rose-700" />
         <StatCard icon={UserX} label="Nonaktif" value={stats.inactive} color="bg-gray-100 text-gray-700" />
+      </div>
+
+      <div className="bg-card rounded-xl border shadow-sm p-4">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div>
+            <h3 className="font-semibold flex items-center gap-2">
+              <ClipboardCheck className="w-4 h-4 text-primary" />
+              Alur kerja wali siswa
+            </h3>
+            <p className="text-sm text-muted-foreground mt-1">
+              Lengkapi nomor WhatsApp, alamat, status aktif, lalu tautkan wali ke siswa agar portal orang tua, pengumuman, dan komunikasi kelas siap dipakai.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Link to="/students" className="px-3 py-2 text-sm border rounded-md hover:bg-muted transition-colors">Cek Siswa</Link>
+            <Link to="/announcements" className="px-3 py-2 text-sm border rounded-md hover:bg-muted transition-colors">Pengumuman</Link>
+            <Link to="/finance/invoices" className="px-3 py-2 text-sm border rounded-md hover:bg-muted transition-colors">Tagihan</Link>
+          </div>
+        </div>
       </div>
 
       {/* ── Filter Bar ── */}
@@ -535,6 +668,7 @@ export const ParentsList: React.FC = () => {
               <ParentCard
                 key={row.original.id}
                 parent={row.original}
+                linkedChildrenCount={linkedChildrenByParent.get(row.original.id as string) || 0}
                 onClick={() => navigate(`/parents/show/${row.original.id}`)}
                 onEdit={() => navigate(`/parents/edit/${row.original.id}`)}
                 onDelete={() => setDeleteConfirmId(row.original.id)}
