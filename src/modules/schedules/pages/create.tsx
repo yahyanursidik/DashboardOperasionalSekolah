@@ -1,20 +1,15 @@
 import React, { useState } from "react";
-import { useCreate, useSelect, useGetIdentity } from "@refinedev/core";
+import { useCreate, useSelect } from "@refinedev/core";
 import { useNavigate } from "react-router-dom";
 import { PageHeader } from "../../../components/layout/PageHeader";
-import { ArrowLeft, Save, Calendar, Clock, MapPin } from "lucide-react";
+import { ArrowLeft, Save, Calendar, Clock, MapPin, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { useAcademicYear } from "../../../app/providers/AcademicYearProvider";
 import { useCurrentUnit } from "../../../app/providers/UnitProvider";
 import { toast } from "sonner";
+import { supabaseClient } from "../../../lib/supabase/client";
+import { daysOfWeek, formatTime, hasTimeOverlap, isValidTimeRange, scheduleTypes } from "../schedule-utils";
 
-const daysOfWeek = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"];
-const scheduleTypes = [
-  { value: 'mengajar', label: 'Mengajar (Guru)' },
-  { value: 'piket', label: 'Piket Harian' },
-  { value: 'shift_keamanan', label: 'Shift Keamanan (Satpam)' },
-  { value: 'shift_kebersihan', label: 'Shift Kebersihan (CS)' },
-  { value: 'standby', label: 'Standby / Umum' }
-];
+const CROSS_UNIT_VALUE = "__cross_unit__";
 
 export const ScheduleCreate: React.FC = () => {
   const navigate = useNavigate();
@@ -30,6 +25,7 @@ export const ScheduleCreate: React.FC = () => {
   const [classId, setClassId] = useState("");
   const [subjectId, setSubjectId] = useState("");
   const [selectedUnitId, setSelectedUnitId] = useState(activeUnitId || "");
+  const isCrossUnit = selectedUnitId === CROSS_UNIT_VALUE;
 
   const { options: unitOptions } = useSelect({
     resource: "units",
@@ -41,14 +37,14 @@ export const ScheduleCreate: React.FC = () => {
     resource: "employees", 
     optionLabel: "full_name", 
     optionValue: "id",
-    filters: selectedUnitId ? [{ field: "unit_id", operator: "eq", value: selectedUnitId }] : []
+    filters: selectedUnitId && !isCrossUnit ? [{ field: "unit_id", operator: "eq", value: selectedUnitId }] : []
   });
 
   const { options: classOptions } = useSelect({ 
     resource: "classes", 
     optionLabel: "name", 
     optionValue: "id",
-    filters: selectedUnitId ? [{ field: "unit_id", operator: "eq", value: selectedUnitId }] : []
+    filters: selectedUnitId && !isCrossUnit ? [{ field: "unit_id", operator: "eq", value: selectedUnitId }] : []
   });
 
   const { options: subjectOptions } = useSelect({
@@ -57,13 +53,73 @@ export const ScheduleCreate: React.FC = () => {
     optionValue: "id",
     filters: [
       { field: "is_active", operator: "eq", value: true },
-      ...(selectedUnitId ? [{ field: "unit_id", operator: "eq" as const, value: selectedUnitId }] : [])
+      ...(selectedUnitId && !isCrossUnit ? [{ field: "unit_id", operator: "eq" as const, value: selectedUnitId }] : [])
     ]
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const selectedSubjectName = subjectOptions?.find((option) => option.value === subjectId)?.label as string | undefined;
+  const formChecklist = [
+    { label: "Pegawai dipilih", done: Boolean(employeeId) },
+    { label: "Unit/lintas unit terpilih", done: Boolean(selectedUnitId || activeUnitId) },
+    { label: "Jam mulai dan selesai valid", done: isValidTimeRange(startTime, endTime, scheduleType === "shift_keamanan") },
+    { label: "Mapel terisi untuk mengajar", done: scheduleType !== "mengajar" || Boolean(subjectId) },
+    { label: "Kelas jelas untuk portal", done: scheduleType !== "mengajar" || Boolean(classId) },
+  ];
+
+  const findBlockingConflict = async () => {
+    let query = supabaseClient
+      .from("employee_schedules")
+      .select("id, employee_id, class_id, day_of_week, start_time, end_time, schedule_type, subject")
+      .eq("day_of_week", dayOfWeek);
+
+    if (activeYearId) query = query.eq("academic_year_id", activeYearId);
+    if (scheduleType === "mengajar" && classId) {
+      query = query.or(`employee_id.eq.${employeeId},class_id.eq.${classId}`);
+    } else {
+      query = query.eq("employee_id", employeeId);
+    }
+
+    const { data: existingSchedulesResult, error } = await query;
+    if (error) throw error;
+
+    const existingSchedules = (existingSchedulesResult ?? []) as any[];
+    const overlapping = existingSchedules.filter((schedule: any) =>
+      hasTimeOverlap(startTime, endTime, schedule.start_time, schedule.end_time)
+    );
+    const employeeConflict = overlapping.find((schedule: any) => schedule.employee_id === employeeId);
+    if (employeeConflict) {
+      return `Pegawai sudah punya jadwal ${employeeConflict.day_of_week} ${formatTime(employeeConflict.start_time)} - ${formatTime(employeeConflict.end_time)}.`;
+    }
+
+    const classConflict = scheduleType === "mengajar" && classId
+      ? overlapping.find((schedule: any) => schedule.class_id === classId && schedule.schedule_type === "mengajar")
+      : null;
+    if (classConflict) {
+      return `Kelas ini sudah punya jadwal mengajar ${formatTime(classConflict.start_time)} - ${formatTime(classConflict.end_time)}.`;
+    }
+
+    return null;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!employeeId) return toast.error("Pilih pegawai terlebih dahulu");
+    if (!isValidTimeRange(startTime, endTime, scheduleType === "shift_keamanan")) {
+      return toast.error("Jam selesai harus lebih besar dari jam mulai. Shift malam hanya diperbolehkan untuk keamanan.");
+    }
+    if (!selectedUnitId) return toast.error("Pilih unit sekolah atau Lintas Unit.");
+    if (scheduleType === "mengajar" && !subjectId) return toast.error("Pilih mata pelajaran untuk jadwal mengajar.");
+
+    try {
+      const conflictMessage = await findBlockingConflict();
+      if (conflictMessage) {
+        toast.error(conflictMessage);
+        return;
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Gagal memeriksa bentrok jadwal.");
+      return;
+    }
 
     createSchedule({
       resource: "employee_schedules",
@@ -75,9 +131,9 @@ export const ScheduleCreate: React.FC = () => {
         schedule_type: scheduleType,
         class_id: scheduleType === 'mengajar' ? (classId || null) : null,
         subject_id: scheduleType === 'mengajar' ? (subjectId || null) : null,
-        subject: null, // deprecated field
+        subject: scheduleType === 'mengajar' ? (selectedSubjectName || null) : null,
         academic_year_id: activeYearId,
-        unit_id: selectedUnitId || activeUnitId
+        unit_id: isCrossUnit ? null : (selectedUnitId || activeUnitId || null)
       },
       successNotification: () => ({ message: "Jadwal berhasil ditambahkan", type: "success" })
     }, {
@@ -89,9 +145,10 @@ export const ScheduleCreate: React.FC = () => {
     <div className="space-y-6 max-w-3xl">
       <PageHeader
         title="Tambah Jadwal Pegawai"
-        description="Atur jadwal kerja atau jam mengajar mingguan untuk pegawai."
+        description="Atur jadwal kerja atau jam mengajar mingguan, dengan pemeriksaan bentrok sebelum disimpan."
       />
 
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-5">
       <div className="bg-card rounded-xl border shadow-sm p-6">
         <form onSubmit={handleSubmit} className="space-y-6">
           
@@ -109,16 +166,22 @@ export const ScheduleCreate: React.FC = () => {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Unit Sekolah</label>
+            <label className="text-sm font-medium">Unit Sekolah / Lintas Unit</label>
             <select
               required
               value={selectedUnitId}
-              onChange={(e) => setSelectedUnitId(e.target.value)}
+              onChange={(e) => { setSelectedUnitId(e.target.value); setEmployeeId(""); setClassId(""); setSubjectId(""); }}
               className="w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-primary/50 outline-none bg-background"
             >
               <option value="">-- Pilih Unit --</option>
+              <option value={CROSS_UNIT_VALUE}>Lintas Unit</option>
               {unitOptions?.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
+            {isCrossUnit && (
+              <p className="text-xs text-muted-foreground">
+                Gunakan untuk jadwal pegawai yang berlaku lintas unit, seperti piket umum, shift kebersihan, keamanan, atau standby.
+              </p>
+            )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -214,6 +277,26 @@ export const ScheduleCreate: React.FC = () => {
             </button>
           </div>
         </form>
+      </div>
+      <aside className="space-y-4">
+        <div className="bg-card border rounded-xl shadow-sm p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <AlertTriangle className="w-4 h-4 text-amber-600" />
+            <p className="font-semibold text-sm">Cek sebelum simpan</p>
+          </div>
+          <div className="space-y-2">
+            {formChecklist.map((item) => (
+              <div key={item.label} className="flex items-center gap-2 text-xs">
+                <CheckCircle2 className={`w-3.5 h-3.5 ${item.done ? "text-emerald-600" : "text-muted-foreground"}`} />
+                <span className={item.done ? "text-foreground" : "text-muted-foreground"}>{item.label}</span>
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground mt-3">
+            Sistem akan menolak jadwal jika pegawai atau kelas sudah terpakai di jam yang sama.
+          </p>
+        </div>
+      </aside>
       </div>
     </div>
   );

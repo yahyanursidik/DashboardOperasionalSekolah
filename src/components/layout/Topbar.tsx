@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React from "react";
 import { useLogout, useSelect } from "@refinedev/core";
 import { LogOut, Building, Search, Bell, Calendar, Menu } from "lucide-react";
 import { useCurrentUser } from "../../hooks/useAuth";
@@ -21,13 +21,6 @@ export const Topbar: React.FC<TopbarProps> = ({ onMenuClick }) => {
     optionValue: "id",
     sorters: [{ field: "name", order: "desc" }]
   });
-
-  // Auto-select active year
-  useEffect(() => {
-    if (!activeYearId && yearOptions && yearOptions.length > 0) {
-      setActiveYearId(yearOptions[0].value.toString());
-    }
-  }, [yearOptions, activeYearId, setActiveYearId]);
 
   return (
     <header className="h-16 border-b bg-white flex items-center justify-between px-4 sm:px-6 shadow-sm dark:bg-card shrink-0">

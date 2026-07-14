@@ -157,12 +157,6 @@ export const navigationConfig: NavigationGroup[] = [
         icon: TrendingUp,
         resource: "admissions",
       },
-      {
-        title: "Ujian Online (CBT)",
-        href: "/recruitment/cbt/exams",
-        icon: BookOpen,
-        resource: "cbt_exams",
-      },
     ],
   },
   {
@@ -369,15 +363,15 @@ export const navigationConfig: NavigationGroup[] = [
         resource: "recruitment_vacancies",
       },
       {
+        title: "CBT Rekrutmen",
+        href: "/recruitment/cbt/exams",
+        icon: BookOpen,
+        resource: "recruitment_cbt",
+      },
+      {
         title: "PKG / Kinerja Guru",
         href: "/pkg",
         icon: ClipboardCheck,
-        resource: "pkg_assessments",
-      },
-      {
-        title: "Pengaturan Instrumen PKG",
-        href: "/pkg/settings",
-        icon: Settings,
         resource: "pkg_assessments",
       },
     ],

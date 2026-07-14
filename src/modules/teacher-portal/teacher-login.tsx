@@ -38,7 +38,7 @@ export const TeacherLogin: React.FC = () => {
         password: "sekolah123", 
       });
 
-      // Fallback untuk akun demo lama
+      // Fallback untuk akun lama yang masih memakai sandi awal.
       if (authError && authError.message.includes("Invalid login credentials")) {
         const retry = await supabaseClient.auth.signInWithPassword({
           email: userEmail,
@@ -157,13 +157,10 @@ export const TeacherLogin: React.FC = () => {
                   required
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
-                  placeholder="Contoh: EMP001 atau email@sekolah.com"
+                  placeholder="Masukkan NIK atau email resmi"
                   className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all text-sm"
                 />
               </div>
-              <p className="text-[10px] text-muted-foreground mt-2">
-                Untuk Demo: Gunakan NIK <strong>EMP001</strong> atau Email <strong>guru1@sekolah.demo</strong>
-              </p>
             </div>
 
             <button

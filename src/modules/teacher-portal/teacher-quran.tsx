@@ -53,35 +53,58 @@ export const TeacherQuran: React.FC = () => {
 
   useEffect(() => {
     const fetchInitialData = async () => {
-      const { data: unitData } = await supabaseClient.from("units").select("id, name").order("name");
-      setUnits(unitData || []);
+      let scheduleQuery = supabaseClient
+        .from("employee_schedules")
+        .select("class_id, classes(id, name, unit_id, units(id, name))")
+        .eq("employee_id", employee.id)
+        .not("class_id", "is", null);
+      if (activeYearId) scheduleQuery = scheduleQuery.eq("academic_year_id", activeYearId);
+      const { data: scheduleClasses } = await scheduleQuery;
+
+      const { data: homeroomClasses } = await supabaseClient
+        .from("classes")
+        .select("id, name, unit_id, units(id, name)")
+        .eq("homeroom_teacher_id", employee.id);
+
+      const classMap = new Map<string, any>();
+      [...(scheduleClasses || []).map((item: any) => item.classes), ...(homeroomClasses || [])]
+        .filter(Boolean)
+        .forEach((cls: any) => classMap.set(cls.id, cls));
+      const assignedClasses = Array.from(classMap.values()).sort((a, b) => String(a.name).localeCompare(String(b.name)));
+      setClasses(assignedClasses);
+
+      const unitMap = new Map<string, any>();
+      assignedClasses.forEach((cls: any) => {
+        const unit = cls.units || (cls.unit_id === employee.unit_id ? employee.units : null);
+        if (unit?.id) unitMap.set(unit.id, unit);
+      });
+      if (employee.unit_id && employee.units?.name) unitMap.set(employee.unit_id, { id: employee.unit_id, name: employee.units.name });
+      setUnits(Array.from(unitMap.values()));
 
       let halaqohQuery = supabaseClient
         .from("tahfidz_halaqohs")
         .select("id, name, program_type, employee_id")
+        .eq("employee_id", employee.id)
         .eq("program_type", programType)
         .order("name");
       if (activeYearId) halaqohQuery = halaqohQuery.eq("academic_year_id", activeYearId);
       if (activeSemesterId) halaqohQuery = halaqohQuery.eq("semester_id", activeSemesterId);
       const { data: halaqohData } = await halaqohQuery;
-      const assigned = (halaqohData || []).filter((halaqoh: any) => !halaqoh.employee_id || halaqoh.employee_id === employee.id);
-      setHalaqohs(assigned.length ? assigned : (halaqohData || []));
+      setHalaqohs(halaqohData || []);
     };
     fetchInitialData();
-  }, [activeSemesterId, activeYearId, employee.id, programType]);
+  }, [activeSemesterId, activeYearId, employee.id, employee.unit_id, employee.units, programType]);
 
   useEffect(() => {
-    if (!selectedUnitId) {
-      setClasses([]);
+    if (selectedUnitId && !classes.some((cls) => cls.unit_id === selectedUnitId)) {
       setSelectedClassId("");
-      return;
     }
-    const fetchClasses = async () => {
-      const { data } = await supabaseClient.from("classes").select("id, name, unit_id").eq("unit_id", selectedUnitId).order("name");
-      setClasses(data || []);
-    };
-    fetchClasses();
-  }, [selectedUnitId]);
+  }, [classes, selectedUnitId]);
+
+  const filteredClasses = useMemo(
+    () => selectedUnitId ? classes.filter((cls) => cls.unit_id === selectedUnitId) : classes,
+    [classes, selectedUnitId]
+  );
 
   useEffect(() => {
     if (sourceMode !== "class" || !selectedClassId) {
@@ -320,7 +343,7 @@ export const TeacherQuran: React.FC = () => {
                   <label className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Kelas</label>
                   <select value={selectedClassId} onChange={(event) => { setSelectedClassId(event.target.value); resetStudent(); }} disabled={!selectedUnitId} className="h-11 w-full rounded-xl border bg-gray-50 px-3 text-sm outline-none focus:ring-2 focus:ring-emerald-500/30 disabled:opacity-50">
                     <option value="">-- Pilih Kelas --</option>
-                    {classes.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                    {filteredClasses.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
                   </select>
                 </div>
               </>
@@ -333,6 +356,12 @@ export const TeacherQuran: React.FC = () => {
               <option value="">{studentOptions.length ? "-- Pilih Siswa --" : "-- Pilih halaqoh/kelas terlebih dahulu --"}</option>
               {studentOptions.map((student: any) => <option key={student.id} value={student.id}>{student.full_name} ({student.classes?.name || "Tanpa kelas"})</option>)}
             </select>
+            {sourceMode === "halaqoh" && halaqohs.length === 0 && (
+              <p className="mt-1 text-xs text-amber-600">Belum ada halaqoh {programType} yang ditugaskan kepada Anda.</p>
+            )}
+            {sourceMode === "class" && classes.length === 0 && (
+              <p className="mt-1 text-xs text-amber-600">Belum ada kelas yang tertaut ke jadwal/wali kelas Anda.</p>
+            )}
           </div>
 
           {formData.student_id && (

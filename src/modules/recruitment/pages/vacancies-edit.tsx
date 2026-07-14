@@ -1,8 +1,9 @@
-import React, { useEffect } from "react";
+import React from "react";
 import { useForm, useList, useOne } from "@refinedev/core";
 import { useNavigate, useLocation, useParams } from "react-router-dom";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { ArrowLeft, Save } from "lucide-react";
+import { recruitmentPositions } from "../recruitment-utils";
 
 export const VacancyEdit: React.FC = () => {
   const { id } = useParams();
@@ -86,24 +87,9 @@ export const VacancyEdit: React.FC = () => {
                 className="w-full border rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-primary/50 bg-background"
               >
                 <option value="">Pilih Posisi...</option>
-                <option value="kepala_sekolah">Kepala Sekolah / Pimpinan</option>
-                <option value="wakasek_umum">Wakil Kepala Sekolah (Umum)</option>
-                <option value="wakasek_kurikulum">Wakil Kepala Sekolah Bidang Kurikulum</option>
-                <option value="wakasek_kesiswaan">Wakil Kepala Sekolah Bidang Kesiswaan</option>
-                <option value="kepala_unit">Kepala Unit (Lintas Jenjang / &gt;1 Unit)</option>
-                <option value="guru">Guru / Tenaga Pendidik</option>
-                <option value="guru_quran">Guru Al Qur'an</option>
-                <option value="school_center">School Center</option>
-                <option value="bendahara">Bendahara / Keuangan</option>
-                <option value="penanggung_jawab">Penanggung Jawab</option>
-                <option value="bk">Bimbingan Konseling</option>
-                <option value="pustakawan">Pustakawan</option>
-                <option value="laboran">Laboran</option>
-                <option value="tu">Staff Tata Usaha / Administrasi</option>
-                <option value="sarpras">Sarana Prasarana</option>
-                <option value="satpam">Security / Keamanan</option>
-                <option value="cleaning_service">Cleaning Service</option>
-                <option value="lainnya">Posisi Lainnya</option>
+                {recruitmentPositions.map((position) => (
+                  <option key={position.value} value={position.value}>{position.label}</option>
+                ))}
               </select>
             </div>
 

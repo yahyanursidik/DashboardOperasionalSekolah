@@ -77,7 +77,7 @@ function InfoRow({ icon: Icon, label, value }: { icon: React.ElementType; label:
       </div>
       <div className="min-w-0">
         <p className="text-xs text-muted-foreground">{label}</p>
-        <p className="text-sm font-medium text-foreground mt-0.5 break-words">{value || "—"}</p>
+        <p className="text-sm font-medium text-foreground mt-0.5 break-words">{value || "-"}</p>
       </div>
     </div>
   );
@@ -201,7 +201,7 @@ function AssignmentModal({
               onChange={(e) => { setUnitId(e.target.value); setClassId(""); }}
               className="w-full border rounded-lg px-3 py-2.5 text-sm bg-background outline-none focus:ring-2 focus:ring-primary/30"
             >
-              <option value="">— Pilih Unit —</option>
+              <option value="">-- Pilih Unit --</option>
               {unitOptions?.map((u) => <option key={u.value} value={u.value}>{u.label}</option>)}
             </select>
           </div>
@@ -220,10 +220,10 @@ function AssignmentModal({
                 className="w-full border rounded-lg px-3 py-2.5 text-sm bg-background outline-none focus:ring-2 focus:ring-primary/30"
                 disabled={!unitId}
               >
-                <option value="">— Pilih Kelas —</option>
+                <option value="">-- Pilih Kelas --</option>
                 {classOptions?.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
               </select>
-              {!unitId && <p className="text-[11px] text-amber-600">⚠ Pilih unit terlebih dahulu.</p>}
+              {!unitId && <p className="text-[11px] text-amber-600">Pilih unit terlebih dahulu.</p>}
             </div>
           )}
 
@@ -367,7 +367,7 @@ export const EmployeeShow: React.FC = () => {
         <AlertCircle className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
         <h3 className="text-lg font-semibold mb-1">Pegawai tidak ditemukan</h3>
         <button onClick={() => navigate(basePath)} className="text-sm text-primary hover:underline">
-          ← Kembali ke daftar
+          Kembali ke daftar
         </button>
       </div>
     );
@@ -378,6 +378,15 @@ export const EmployeeShow: React.FC = () => {
   const sts = STATUS_MAP[record.status] ?? { label: record.status, color: "text-gray-700", bg: "bg-gray-50 border-gray-200" };
   const assignments = assignmentsData?.data ?? [];
   const teacherRoles: string[] = Array.isArray(record.teacher_roles) ? record.teacher_roles : [];
+  const isTeacher = ["guru", "guru_quran"].includes(record.position);
+  const profileChecklist = [
+    { label: "Identitas inti", done: Boolean(record.full_name && record.nik) },
+    { label: "Unit dan jabatan", done: Boolean(record.position && (record.unit_id || record.units?.name)) },
+    { label: "Kontak aktif", done: Boolean(record.phone && record.email) },
+    { label: "Role portal", done: !isTeacher || teacherRoles.length > 0 },
+    { label: "Penugasan aktif", done: !isTeacher || assignments.length > 0 },
+  ];
+  const completedChecklist = profileChecklist.filter((item) => item.done).length;
 
   const TABS = [
     { key: "assignments" as TabType, label: "Penugasan Akademik", icon: BookOpen, count: assignments.length },
@@ -473,6 +482,46 @@ export const EmployeeShow: React.FC = () => {
                 <span className="text-muted-foreground flex items-center gap-2"><BookOpen className="w-3.5 h-3.5" /> Mata Pelajaran</span>
                 <span className="font-bold text-foreground">{assignments.filter((a) => a.subject).length}</span>
               </div>
+            </div>
+          </div>
+
+          <div className="bg-card border rounded-xl shadow-sm p-4">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Kesiapan Data</p>
+              <span className="text-xs font-bold text-primary">{completedChecklist}/{profileChecklist.length}</span>
+            </div>
+            <div className="space-y-2">
+              {profileChecklist.map((item) => (
+                <div key={item.label} className="flex items-center gap-2 text-sm">
+                  {item.done ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  ) : (
+                    <XCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                  )}
+                  <span className={item.done ? "text-foreground" : "text-muted-foreground"}>{item.label}</span>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground mt-3">
+              Lengkapi semua item agar data pegawai siap untuk jadwal, presensi, PKG, dan portal pengajar.
+            </p>
+          </div>
+
+          <div className="bg-card border rounded-xl shadow-sm p-4">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Aksi Cepat</p>
+            <div className="grid grid-cols-2 gap-2">
+              <Link to="/schedules" className="text-xs border rounded-lg px-3 py-2 hover:bg-muted flex items-center gap-2">
+                <Calendar className="w-3.5 h-3.5" /> Jadwal
+              </Link>
+              <Link to="/attendance/employees" className="text-xs border rounded-lg px-3 py-2 hover:bg-muted flex items-center gap-2">
+                <Clock className="w-3.5 h-3.5" /> Presensi
+              </Link>
+              <Link to="/leaves" className="text-xs border rounded-lg px-3 py-2 hover:bg-muted flex items-center gap-2">
+                <History className="w-3.5 h-3.5" /> Izin/Cuti
+              </Link>
+              <Link to="/pkg" className="text-xs border rounded-lg px-3 py-2 hover:bg-muted flex items-center gap-2">
+                <ClipboardList className="w-3.5 h-3.5" /> PKG
+              </Link>
             </div>
           </div>
         </div>
@@ -611,7 +660,7 @@ export const EmployeeShow: React.FC = () => {
                   <p className="text-sm font-medium mb-1">Data Presensi</p>
                   <p className="text-xs text-muted-foreground">
                     Lihat riwayat lengkap di halaman{" "}
-                    <Link to="/employee-attendance" className="text-primary hover:underline font-medium">
+                    <Link to="/attendance/employees" className="text-primary hover:underline font-medium">
                       Presensi Pegawai
                     </Link>
                   </p>
@@ -671,12 +720,25 @@ export const EmployeeShow: React.FC = () => {
             {activeTab === "documents" && (
               <div className="p-5">
                 <h3 className="font-semibold text-base mb-4">Dokumen Kepegawaian</h3>
-                <div className="bg-muted/20 border border-dashed rounded-xl p-10 text-center">
-                  <FolderOpen className="w-10 h-10 text-muted-foreground mx-auto mb-3 opacity-50" />
-                  <p className="text-sm font-medium mb-1">Dokumen Pegawai</p>
-                  <p className="text-xs text-muted-foreground">
-                    Fitur unggah dokumen (SK, Kontrak, Sertifikat) akan segera tersedia.
-                  </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {[
+                    ["SK / Kontrak", "Dasar pengangkatan, masa kerja, dan status pegawai."],
+                    ["Ijazah & Sertifikat", "Validasi kualifikasi akademik, tahsin/tahfidz, dan kompetensi."],
+                    ["PKG & Supervisi", "Ringkasan evaluasi kinerja, tindak lanjut, dan pembinaan."],
+                    ["Administrasi Wajib", "KTP, NPWP, rekening, dan dokumen internal sekolah."],
+                  ].map(([title, description]) => (
+                    <div key={title} className="border rounded-xl p-4 bg-background">
+                      <div className="flex items-start gap-3">
+                        <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                          <FolderOpen className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold">{title}</p>
+                          <p className="text-xs text-muted-foreground mt-1">{description}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}

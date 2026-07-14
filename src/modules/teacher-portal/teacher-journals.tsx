@@ -3,9 +3,11 @@ import { useOutletContext } from "react-router-dom";
 import { supabaseClient } from "../../lib/supabase/client";
 import { BookOpen, Search, User, CheckCircle, Activity, Award, AlertTriangle, HeartPulse } from "lucide-react";
 import { toast } from "sonner";
+import { useAcademicYear } from "../../app/providers/AcademicYearProvider";
 
 export const TeacherJournals: React.FC = () => {
   const { employee } = useOutletContext<any>();
+  const { activeYearId } = useAcademicYear();
   const [students, setStudents] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStudent, setSelectedStudent] = useState<any>(null);
@@ -37,18 +39,51 @@ export const TeacherJournals: React.FC = () => {
     }
   }, [viewMode, isBK]);
 
-  // For demo, we load all active students
   useEffect(() => {
     const fetchStudents = async () => {
+      if (isBK) {
+        const { data } = await supabaseClient
+          .from("students")
+          .select("id, full_name, nis, classes(name)")
+          .eq("status", "active")
+          .order("full_name");
+        setStudents(data || []);
+        return;
+      }
+
+      let scheduleQuery = supabaseClient
+        .from("employee_schedules")
+        .select("class_id")
+        .eq("employee_id", employee.id)
+        .not("class_id", "is", null);
+      if (activeYearId) scheduleQuery = scheduleQuery.eq("academic_year_id", activeYearId);
+
+      const { data: schedules } = await scheduleQuery;
+      const { data: homeroomClasses } = await supabaseClient
+        .from("classes")
+        .select("id")
+        .eq("homeroom_teacher_id", employee.id);
+
+      const classIds = Array.from(new Set([
+        ...(schedules || []).map((item: any) => item.class_id).filter(Boolean),
+        ...(homeroomClasses || []).map((item: any) => item.id).filter(Boolean),
+      ]));
+
+      if (classIds.length === 0) {
+        setStudents([]);
+        return;
+      }
+
       const { data } = await supabaseClient
         .from("students")
         .select("id, full_name, nis, classes(name)")
+        .in("class_id", classIds)
         .eq("status", "active")
         .order("full_name");
-      if (data) setStudents(data);
+      setStudents(data || []);
     };
     fetchStudents();
-  }, []);
+  }, [activeYearId, employee.id, isBK]);
 
   useEffect(() => {
     if (!selectedStudent) return;
@@ -196,9 +231,14 @@ export const TeacherJournals: React.FC = () => {
                   </button>
                 ))
               ) : (
-                <div className="p-4 text-center text-sm text-gray-500">Siswa tidak ditemukan</div>
+                <div className="p-4 text-center text-sm text-gray-500">
+                  Siswa tidak ditemukan dalam penugasan Anda.
+                </div>
               )}
             </div>
+          )}
+          {!isBK && students.length === 0 && (
+            <p className="mt-3 text-xs text-amber-600">Belum ada kelas/siswa yang tertaut ke penugasan Anda.</p>
           )}
         </div>
       ) : (

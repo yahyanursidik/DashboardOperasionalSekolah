@@ -5,12 +5,13 @@ import { toast } from "sonner";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import {
   Save, CheckCircle, Info, ClipboardCheck,
-  BookOpen, Heart, Globe, Briefcase, Settings, Loader
+  BookOpen, Heart, Globe, Briefcase, Settings, Loader, AlertCircle
 } from "lucide-react";
 import {
-  hitungPKG, getPredikatColor, getTahunPelajaranOptions,
+  getTahunPelajaranOptions,
   type ScoreMap,
 } from "../utils/calculator";
+import { getPkgReadiness } from "../pkg-utils";
 
 // ── Score Button ───────────────────────────────────────────────────────────────
 const SCORE_LABELS: Record<number, { label: string }> = {
@@ -381,6 +382,17 @@ export const PkgCreate: React.FC = () => {
   const handleSubmit = (saveStatus: "draft" | "final") => {
     if (!employeeId) { toast.error("Pilih guru terlebih dahulu."); return; }
     if (!penilai) { toast.error("Nama penilai wajib diisi."); return; }
+    if (!tanggalPenilaian) { toast.error("Tanggal penilaian wajib diisi."); return; }
+    if (saveStatus === "final") {
+      if (!instrumentReadiness.ready) {
+        toast.error("Instrumen PKG belum siap untuk finalisasi.");
+        return;
+      }
+      if (totalIndicators === 0 || totalFilled < totalIndicators) {
+        toast.error(`Isi semua indikator sebelum finalisasi (${totalFilled}/${totalIndicators}).`);
+        return;
+      }
+    }
 
     const { nilaiAkhir, predikat, npkg, compResults } = computeResult();
 
@@ -448,6 +460,17 @@ export const PkgCreate: React.FC = () => {
     () => allIndicators.filter(i => i.is_active !== false).length,
     [allIndicators]
   );
+
+  const instrumentReadiness = useMemo(
+    () => getPkgReadiness({ competencies, indicators: allIndicators }),
+    [competencies, allIndicators]
+  );
+
+  const canFinalize =
+    instrumentReadiness.ready &&
+    totalIndicators > 0 &&
+    totalFilled === totalIndicators &&
+    Boolean(employeeId && penilai && tanggalPenilaian);
 
   const isSaving = creating || updating;
   const isLoadingInstrument = loadingComp || loadingInd;
@@ -576,6 +599,38 @@ export const PkgCreate: React.FC = () => {
               </div>
             </div>
 
+            <div className={`rounded-xl border p-4 ${canFinalize ? "bg-emerald-50 border-emerald-200" : "bg-amber-50 border-amber-200"}`}>
+              <div className="flex items-start gap-3">
+                {canFinalize ? (
+                  <CheckCircle className="w-5 h-5 text-emerald-700 shrink-0 mt-0.5" />
+                ) : (
+                  <AlertCircle className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
+                )}
+                <div>
+                  <h3 className="font-bold text-sm">Definition of Done PKG</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-3 text-xs">
+                    <span className={instrumentReadiness.ready ? "text-emerald-700" : "text-amber-700"}>
+                      {instrumentReadiness.ready ? "Selesai" : "Perlu dicek"}: instrumen aktif dan bobot 100%
+                    </span>
+                    <span className={totalFilled === totalIndicators && totalIndicators > 0 ? "text-emerald-700" : "text-amber-700"}>
+                      {totalFilled}/{totalIndicators} indikator terisi
+                    </span>
+                    <span className={employeeId ? "text-emerald-700" : "text-amber-700"}>
+                      Guru yang dinilai sudah dipilih
+                    </span>
+                    <span className={penilai && tanggalPenilaian ? "text-emerald-700" : "text-amber-700"}>
+                      Penilai dan tanggal penilaian lengkap
+                    </span>
+                  </div>
+                  {instrumentReadiness.issues.length > 0 && (
+                    <ul className="mt-3 space-y-1 text-xs text-amber-800">
+                      {instrumentReadiness.issues.map((issue) => <li key={issue}>{issue}</li>)}
+                    </ul>
+                  )}
+                </div>
+              </div>
+            </div>
+
             {/* Actions */}
             <div className="flex items-center gap-3 flex-wrap">
               <button type="button" onClick={() => handleSubmit("draft")} disabled={isSaving}
@@ -583,7 +638,7 @@ export const PkgCreate: React.FC = () => {
                 <Save className="w-4 h-4" />
                 {isSaving ? "Menyimpan..." : "Simpan Draft"}
               </button>
-              <button type="button" onClick={() => handleSubmit("final")} disabled={isSaving || totalFilled < totalIndicators}
+              <button type="button" onClick={() => handleSubmit("final")} disabled={isSaving || !canFinalize}
                 className="flex items-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                 <CheckCircle className="w-4 h-4" />
                 {isSaving ? "Memproses..." : "Finalisasi PKG"}

@@ -40,37 +40,53 @@ export const TeacherPaud: React.FC = () => {
 
   // Fetch Units on mount (Only PAUD)
   useEffect(() => {
-    const fetchUnits = async () => {
-      const { data } = await supabaseClient
-        .from("units")
-        .select("id, name")
-        .ilike("name", "%paud%")
-        .order("name");
-      
-      // If no units returned with %paud%, fallback to all units just in case
-      if (data && data.length > 0) {
-        setUnits(data);
-      } else {
-        const { data: all } = await supabaseClient.from("units").select("id, name").order("name");
-        setUnits(all || []);
+    const fetchAssignments = async () => {
+      let scheduleQuery = supabaseClient
+        .from("employee_schedules")
+        .select("class_id, classes(id, name, unit_id, units(id, name))")
+        .eq("employee_id", employee.id)
+        .not("class_id", "is", null);
+      if (activeYearId) scheduleQuery = scheduleQuery.eq("academic_year_id", activeYearId);
+
+      const { data: scheduleClasses } = await scheduleQuery;
+      const { data: homeroomClasses } = await supabaseClient
+        .from("classes")
+        .select("id, name, unit_id, units(id, name)")
+        .eq("homeroom_teacher_id", employee.id);
+
+      const classMap = new Map<string, any>();
+      [...(scheduleClasses || []).map((item: any) => item.classes), ...(homeroomClasses || [])]
+        .filter(Boolean)
+        .forEach((cls: any) => classMap.set(cls.id, cls));
+
+      const assignedClasses = Array.from(classMap.values()).sort((a, b) => String(a.name).localeCompare(String(b.name)));
+      const unitMap = new Map<string, any>();
+      assignedClasses.forEach((cls: any) => {
+        if (cls.units?.id) unitMap.set(cls.units.id, cls.units);
+      });
+
+      setClasses(assignedClasses);
+      setUnits(Array.from(unitMap.values()));
+
+      if (!selectedUnitId && unitMap.size === 1) {
+        setSelectedUnitId(Array.from(unitMap.keys())[0]);
       }
     };
-    fetchUnits();
-  }, []);
+    fetchAssignments();
+  }, [activeYearId, employee.id]);
 
   // Fetch Classes when Unit changes
   useEffect(() => {
     if (!selectedUnitId) {
-      setClasses([]);
       setSelectedClassId("");
       return;
     }
-    const fetchClasses = async () => {
-      const { data } = await supabaseClient.from("classes").select("id, name").eq("unit_id", selectedUnitId).order("name");
-      if (data) setClasses(data);
-    };
-    fetchClasses();
-  }, [selectedUnitId]);
+    if (!classes.some((cls) => cls.unit_id === selectedUnitId && cls.id === selectedClassId)) {
+      setSelectedClassId("");
+    }
+  }, [classes, selectedClassId, selectedUnitId]);
+
+  const filteredClasses = classes.filter((cls) => !selectedUnitId || cls.unit_id === selectedUnitId);
 
   // Fetch Students when Class changes
   useEffect(() => {
@@ -221,7 +237,7 @@ export const TeacherPaud: React.FC = () => {
               disabled={!selectedUnitId}
             >
               <option value="">-- Pilih Kelas --</option>
-              {classes.map(c => (
+              {filteredClasses.map(c => (
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}
             </select>
@@ -241,6 +257,12 @@ export const TeacherPaud: React.FC = () => {
             </select>
           </div>
         </div>
+
+        {classes.length === 0 && (
+          <div className="rounded-xl border border-dashed bg-amber-50 p-4 text-sm text-amber-700">
+            Belum ada kelas PAUD yang tertaut ke jadwal/wali kelas Anda.
+          </div>
+        )}
 
         {/* JURNAL TAB */}
         {activeTab === 'jurnal' && (

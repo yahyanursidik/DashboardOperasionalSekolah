@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { useOne, useUpdate } from "@refinedev/core";
+import { useOne, useUpdate, useList } from "@refinedev/core";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { toast } from "sonner";
 import { PageHeader } from "../../../components/layout/PageHeader";
@@ -13,6 +13,7 @@ import {
   getPredikatColor,
   type ScoreMap,
 } from "../utils/calculator";
+import { getPkgFollowUp, getPkgReadiness, getPkgStatusConfig } from "../pkg-utils";
 
 // ── Score label ───────────────────────────────────────────────────────────────
 const SCORE_LABELS: Record<number, string> = {
@@ -112,7 +113,33 @@ export const PkgShow: React.FC = () => {
     },
   });
 
+  const { data: compData } = useList({
+    resource: "pkg_competencies",
+    sorters: [{ field: "sort_order", order: "asc" }],
+    pagination: { pageSize: 50 },
+  });
+
+  const { data: indData } = useList({
+    resource: "pkg_indicators",
+    sorters: [{ field: "sort_order", order: "asc" }],
+    pagination: { pageSize: 200 },
+  });
+
   const record = data?.data as any;
+  const dbCompetencies = ((compData?.data ?? []) as any[]).filter((c) => c.is_active !== false);
+  const dbIndicators = ((indData?.data ?? []) as any[]).filter((i) => i.is_active !== false);
+  const displayCompetencies = dbCompetencies.length > 0
+    ? dbCompetencies.map((comp) => ({
+        ...comp,
+        indicators: dbIndicators
+          .filter((ind) => ind.competency_id === comp.id)
+          .sort((a, b) => Number(a.sort_order ?? 0) - Number(b.sort_order ?? 0)),
+      }))
+    : PKG_COMPETENCIES;
+  const instrumentReadiness = getPkgReadiness({
+    competencies: dbCompetencies,
+    indicators: dbIndicators,
+  });
 
   const formatDate = (d: string) => {
     try {
@@ -175,6 +202,8 @@ export const PkgShow: React.FC = () => {
   }
 
   const isFinal = record.status === "final";
+  const statusConfig = getPkgStatusConfig(record.status);
+  const followUp = getPkgFollowUp(record.nilai_akhir, record.status);
 
   return (
     <div className="space-y-6">
@@ -284,13 +313,32 @@ export const PkgShow: React.FC = () => {
       </div>
 
       {/* ── Overview chart ── */}
+      <div className={`rounded-xl border shadow-sm p-5 ${followUp.color}`}>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h3 className="font-bold text-sm flex items-center gap-2">
+              <TrendingUp className="w-4 h-4" />
+              Tindak Lanjut Mutu
+            </h3>
+            <p className="text-sm mt-2">{followUp.description}</p>
+            <p className="text-xs mt-1 opacity-80">Status penilaian: {statusConfig.label}</p>
+            {!instrumentReadiness.ready && dbCompetencies.length > 0 && (
+              <p className="text-xs mt-2">Catatan: instrumen saat ini perlu dicek agar konsisten dengan penilaian berikutnya.</p>
+            )}
+          </div>
+          <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-white/70 border">
+            {followUp.label}
+          </span>
+        </div>
+      </div>
+
       <div className="bg-card rounded-xl border shadow-sm p-5">
         <h3 className="font-bold text-sm mb-4 flex items-center gap-2">
           <BarChart2 className="w-4 h-4 text-primary" />
           Skor Per Kompetensi
         </h3>
         <div className="space-y-3">
-          {PKG_COMPETENCIES.map((comp) => {
+          {displayCompetencies.map((comp) => {
             const score = Number(record[COMP_SCORE_KEYS[comp.key]] ?? 0);
             const Icon = COMP_ICONS[comp.key] ?? BookOpen;
             const color = COMP_COLORS[comp.key] ?? "bg-gray-100 text-gray-700";
@@ -325,7 +373,7 @@ export const PkgShow: React.FC = () => {
         <h3 className="font-bold text-sm text-muted-foreground uppercase tracking-wide">
           Detail Skor Per Indikator
         </h3>
-        {PKG_COMPETENCIES.map((comp) => (
+        {displayCompetencies.map((comp) => (
           <CompetencyBar
             key={comp.key}
             label={comp.label}
