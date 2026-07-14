@@ -6,8 +6,7 @@ import { toast } from "sonner";
 import { useSystemSettings } from "../../app/providers/SettingsProvider";
 
 export const PortalLogin: React.FC = () => {
-  const [nisn, setNisn] = useState("");
-  const [nis, setNis] = useState("");
+  const [studentIdentifier, setStudentIdentifier] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { loginCoverUrl, logoUrl, appName } = useSystemSettings();
@@ -20,15 +19,21 @@ export const PortalLogin: React.FC = () => {
       return;
     }
 
+    const identifier = studentIdentifier.trim();
+    if (!identifier) {
+      toast.error("Masukkan NIS atau NISN siswa terlebih dahulu.");
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      // 1. Cari email orang tua berdasarkan NISN & NIS
+      // 1. Cari email orang tua berdasarkan NIS atau NISN siswa.
       const { data: parentEmail, error: emailError } = await supabaseClient
-        .rpc("get_parent_login_email_by_student", { p_nisn: nisn, p_nis: nis });
+        .rpc("get_parent_login_email_by_student", { p_nisn: identifier, p_nis: identifier });
 
       if (emailError || !parentEmail) {
-        toast.error("Data Siswa tidak ditemukan atau belum ditautkan ke Orang Tua.");
+        toast.error("Data siswa tidak ditemukan, belum tertaut ke orang tua, atau email orang tua belum diisi.");
         return;
       }
 
@@ -146,29 +151,17 @@ export const PortalLogin: React.FC = () => {
         <div className="p-8">
           <form onSubmit={handleLogin} className="space-y-5">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">NISN Siswa</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">NIS / NISN Siswa</label>
               <input
                 type="text"
                 required
-                value={nisn}
-                onChange={(e) => setNisn(e.target.value)}
-                placeholder="Masukkan NISN"
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">NIS (Nomor Induk Siswa Sekolah)</label>
-              <input
-                type="text"
-                required
-                value={nis}
-                onChange={(e) => setNis(e.target.value)}
-                placeholder="Masukkan NIS"
+                value={studentIdentifier}
+                onChange={(e) => setStudentIdentifier(e.target.value)}
+                placeholder="Contoh: 25260011"
                 className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all"
               />
               <p className="text-xs text-muted-foreground mt-2">
-                Untuk Demo: Gunakan NISN <strong>0102030407</strong> dan NIS <strong>2425003</strong> (Atas nama: Aisyah Putri)
+                Gunakan NIS sekolah atau NISN nasional siswa yang sudah ditautkan ke data orang tua.
               </p>
             </div>
 

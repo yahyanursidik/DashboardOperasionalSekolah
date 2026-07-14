@@ -3,15 +3,25 @@ import { useOutletContext } from "react-router-dom";
 import { supabaseClient } from "../../lib/supabase/client";
 import { Calendar, Plus, Clock, CheckCircle, XCircle } from "lucide-react";
 import { toast } from "sonner";
+import {
+  formatLeaveDate,
+  formatLeaveType,
+  getLeaveDurationDays,
+  leaveStatusConfig,
+  leaveTypes,
+  requiresStrongProof,
+} from "../leaves/leave-utils";
+import { useAcademicYear } from "../../app/providers/AcademicYearProvider";
 
 export const TeacherLeaves: React.FC = () => {
   const { employee } = useOutletContext<any>();
+  const { activeYearId } = useAcademicYear();
   const [leaves, setLeaves] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
 
   // Form State
-  const [leaveType, setLeaveType] = useState("sick");
+  const [leaveType, setLeaveType] = useState("sakit");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [reason, setReason] = useState("");
@@ -44,6 +54,18 @@ export const TeacherLeaves: React.FC = () => {
       toast.error("Gagal mengajukan: Tidak ada koneksi internet.");
       return;
     }
+    if (!startDate || !endDate) {
+      toast.error("Tanggal mulai dan selesai wajib diisi.");
+      return;
+    }
+    if (startDate > endDate) {
+      toast.error("Tanggal selesai tidak boleh sebelum tanggal mulai.");
+      return;
+    }
+    if (reason.trim().length < 10) {
+      toast.error("Alasan izin minimal 10 karakter agar mudah diverifikasi HRD.");
+      return;
+    }
     
     setIsSubmitting(true);
     
@@ -55,15 +77,17 @@ export const TeacherLeaves: React.FC = () => {
           leave_type: leaveType,
           start_date: startDate,
           end_date: endDate,
-          reason,
-          status: 'pending'
+          reason: reason.trim(),
+          status: 'pending',
+          academic_year_id: activeYearId,
+          unit_id: employee.unit_id || null,
         }]);
 
       if (error) throw error;
       toast.success("Pengajuan cuti/izin berhasil dikirim!");
       
       setShowForm(false);
-      setLeaveType("sick");
+      setLeaveType("sakit");
       setStartDate("");
       setEndDate("");
       setReason("");
@@ -85,12 +109,13 @@ export const TeacherLeaves: React.FC = () => {
   };
 
   const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'approved': return <span className="flex items-center gap-1 text-[10px] font-bold uppercase px-2 py-1 bg-emerald-100 text-emerald-700 rounded"><CheckCircle className="w-3 h-3" /> Disetujui</span>;
-      case 'rejected': return <span className="flex items-center gap-1 text-[10px] font-bold uppercase px-2 py-1 bg-red-100 text-red-700 rounded"><XCircle className="w-3 h-3" /> Ditolak</span>;
-      default: return <span className="flex items-center gap-1 text-[10px] font-bold uppercase px-2 py-1 bg-amber-100 text-amber-700 rounded"><Clock className="w-3 h-3" /> Menunggu</span>;
-    }
+    const config = leaveStatusConfig[status || "pending"] ?? leaveStatusConfig.pending;
+    const Icon = status === "approved" ? CheckCircle : status === "rejected" ? XCircle : Clock;
+    return <span className={`flex items-center gap-1 text-[10px] font-bold uppercase px-2 py-1 rounded border ${config.className}`}><Icon className="w-3 h-3" /> {config.label}</span>;
   };
+
+  const durationDays = getLeaveDurationDays(startDate, endDate);
+  const needsProof = requiresStrongProof(leaveType, durationDays);
 
   return (
     <div className="p-4 space-y-4">
@@ -117,10 +142,7 @@ export const TeacherLeaves: React.FC = () => {
                 onChange={e => setLeaveType(e.target.value)}
                 className="w-full border rounded-xl p-3 text-sm outline-none focus:border-orange-500 bg-white"
               >
-                <option value="sick">Sakit</option>
-                <option value="annual">Cuti Tahunan</option>
-                <option value="maternity">Cuti Melahirkan</option>
-                <option value="other">Keperluan Lain (Izin)</option>
+                {leaveTypes.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}
               </select>
             </div>
 
@@ -157,6 +179,10 @@ export const TeacherLeaves: React.FC = () => {
                 placeholder="Jelaskan alasan izin Anda..."
                 className="w-full border rounded-xl p-3 text-sm outline-none focus:border-orange-500 resize-none"
               ></textarea>
+              <p className="mt-1 text-[11px] text-gray-500">
+                {durationDays > 0 ? `${durationDays} hari pengajuan.` : "Pilih rentang tanggal."}
+                {needsProof ? " Lampirkan bukti pendukung ke HRD sesuai prosedur sekolah." : ""}
+              </p>
             </div>
 
             <button
@@ -182,15 +208,13 @@ export const TeacherLeaves: React.FC = () => {
             <div key={leave.id} className="bg-white p-4 rounded-2xl shadow-sm border">
               <div className="flex justify-between items-start mb-2">
                 <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider bg-gray-100 px-2 py-0.5 rounded">
-                  {leave.leave_type === 'sick' ? 'Sakit' : 
-                   leave.leave_type === 'annual' ? 'Cuti Tahunan' : 
-                   leave.leave_type === 'maternity' ? 'Cuti Melahirkan' : 'Izin Lainnya'}
+                  {formatLeaveType(leave.leave_type)}
                 </span>
                 {getStatusBadge(leave.status)}
               </div>
               <div className="font-bold text-gray-900 text-sm mb-1">
-                {new Date(leave.start_date).toLocaleDateString('id-ID', {day: 'numeric', month: 'short'})} 
-                {leave.start_date !== leave.end_date && ` - ${new Date(leave.end_date).toLocaleDateString('id-ID', {day: 'numeric', month: 'short'})}`}
+                {formatLeaveDate(leave.start_date, { day: "numeric", month: "short" })}
+                {leave.start_date !== leave.end_date && ` - ${formatLeaveDate(leave.end_date, { day: "numeric", month: "short" })}`}
               </div>
               <p className="text-xs text-gray-600 line-clamp-2">{leave.reason}</p>
             </div>

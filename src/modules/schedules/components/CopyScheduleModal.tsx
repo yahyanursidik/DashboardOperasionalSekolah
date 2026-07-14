@@ -17,6 +17,7 @@ export const CopyScheduleModal: React.FC<CopyScheduleModalProps> = ({ isOpen, on
   const { activeUnitId } = useCurrentUnit();
   
   const [sourceYearId, setSourceYearId] = useState("");
+  const [replaceExisting, setReplaceExisting] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
   // Fetch academic years
@@ -54,6 +55,30 @@ export const CopyScheduleModal: React.FC<CopyScheduleModalProps> = ({ isOpen, on
         toast.error("Tidak ada jadwal yang ditemukan di semester sumber untuk unit ini.");
         setIsProcessing(false);
         return;
+      }
+
+      const { data: targetSchedules, error: targetError } = await supabaseClient
+        .from("employee_schedules")
+        .select("id")
+        .eq("academic_year_id", activeYearId)
+        .eq("unit_id", activeUnitId);
+
+      if (targetError) throw targetError;
+
+      if ((targetSchedules?.length || 0) > 0 && !replaceExisting) {
+        toast.error("Semester tujuan sudah memiliki jadwal. Aktifkan opsi ganti jadwal tujuan jika ingin menimpa.");
+        setIsProcessing(false);
+        return;
+      }
+
+      if ((targetSchedules?.length || 0) > 0 && replaceExisting) {
+        const { error: deleteError } = await supabaseClient
+          .from("employee_schedules")
+          .delete()
+          .eq("academic_year_id", activeYearId)
+          .eq("unit_id", activeUnitId);
+
+        if (deleteError) throw deleteError;
       }
 
       // 2. Map payload for current year
@@ -106,7 +131,7 @@ export const CopyScheduleModal: React.FC<CopyScheduleModalProps> = ({ isOpen, on
           <div className="bg-amber-500/10 text-amber-600 p-3 rounded-lg flex gap-3 items-start border border-amber-500/20">
             <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
             <p className="text-sm">
-              Fitur ini akan menduplikasi <strong>semua jadwal</strong> (mengajar, piket, shift) dari semester sumber ke semester yang aktif saat ini.
+              Fitur ini menyalin <strong>semua jadwal</strong> (mengajar, piket, shift) dari semester sumber ke semester aktif.
             </p>
           </div>
 
@@ -132,6 +157,21 @@ export const CopyScheduleModal: React.FC<CopyScheduleModalProps> = ({ isOpen, on
               {yearsData?.data.find((y) => y.id === activeYearId)?.name || "Sedang memuat..."}
             </div>
           </div>
+
+          <label className="flex items-start gap-3 rounded-lg border p-3 text-sm cursor-pointer hover:bg-muted/40">
+            <input
+              type="checkbox"
+              checked={replaceExisting}
+              onChange={(event) => setReplaceExisting(event.target.checked)}
+              className="mt-1"
+            />
+            <span>
+              <span className="font-semibold block">Ganti jadwal tujuan jika sudah ada</span>
+              <span className="text-xs text-muted-foreground">
+                Jadwal semester aktif untuk unit ini akan dihapus terlebih dahulu sebelum jadwal sumber disalin.
+              </span>
+            </span>
+          </label>
         </div>
 
         <div className="p-4 border-t bg-muted/20 flex justify-end gap-2">

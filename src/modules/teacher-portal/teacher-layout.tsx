@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Outlet, useNavigate, useLocation, Link } from "react-router-dom";
 import { supabaseClient } from "../../lib/supabase/client";
-import { Home, BookOpen, Calendar, LogOut, CheckSquare, Star, ClipboardList, Clock, MoreHorizontal, X } from "lucide-react";
+import { Home, BookOpen, Calendar, LogOut, CheckSquare, Star, ClipboardList, Clock, MoreHorizontal, X, CalendarCheck, Bell, UserRound } from "lucide-react";
 import { useSystemSettings } from "../../app/providers/SettingsProvider";
 
 export const TeacherLayout: React.FC = () => {
@@ -54,12 +54,15 @@ export const TeacherLayout: React.FC = () => {
   const isPaudUnit = unitName.includes("paud") || unitName.includes("tk") || unitName.includes("kb");
   const navItems = [
     { to: "/teacher", label: "Beranda", icon: Home, exact: true },
+    { to: "/teacher/announcements", label: "Informasi", icon: Bell },
+    { to: "/teacher/attendance", label: "Absensi Saya", icon: CalendarCheck },
     { to: "/teacher/classes", label: "Kelas & Nilai", icon: CheckSquare },
     { to: "/teacher/quran", label: "Qur'an", icon: BookOpen },
     ...(isPaudUnit ? [{ to: "/teacher/paud", label: "KB/TK", icon: Star }] : []),
     { to: "/teacher/journals", label: "Jurnal Siswa", icon: ClipboardList },
     { to: "/teacher/schedules", label: "Jadwal", icon: Calendar },
     { to: "/teacher/leaves", label: "Izin Saya", icon: Clock },
+    { to: "/teacher/profile", label: "Profil Guru", icon: UserRound },
   ];
   const mobileMainItems = navItems.slice(0, 3);
 

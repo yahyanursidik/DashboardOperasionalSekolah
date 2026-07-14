@@ -7,6 +7,7 @@ import {
   BookOpen, Heart, Globe, Briefcase, GripVertical,
   ClipboardCheck, Info, AlertCircle, CheckCircle
 } from "lucide-react";
+import { getPkgReadiness } from "../pkg-utils";
 
 // ── Icon map per competency key ───────────────────────────────────────────────
 const COMP_ICON: Record<string, React.ElementType> = {
@@ -454,6 +455,9 @@ export const PkgSettings: React.FC = () => {
   // Total weight warning
   const totalWeight = competencies.reduce((a, c) => a + Number(c.weight ?? 0), 0);
   const weightOk = Math.abs(totalWeight - 100) < 0.01;
+  const readiness = getPkgReadiness({ competencies, indicators, totalWeight });
+  const activeCompetencies = competencies.filter((c) => c.is_active !== false).length;
+  const activeIndicators = indicators.filter((i) => i.is_active !== false).length;
 
   return (
     <>
@@ -494,6 +498,41 @@ export const PkgSettings: React.FC = () => {
             ))}
           </div>
         </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="bg-card rounded-xl border shadow-sm p-4">
+            <p className="text-xs text-muted-foreground">Kompetensi Aktif</p>
+            <p className="text-2xl font-black mt-1">{activeCompetencies}</p>
+          </div>
+          <div className="bg-card rounded-xl border shadow-sm p-4">
+            <p className="text-xs text-muted-foreground">Indikator Aktif</p>
+            <p className="text-2xl font-black mt-1">{activeIndicators}</p>
+          </div>
+          <div className="bg-card rounded-xl border shadow-sm p-4">
+            <p className="text-xs text-muted-foreground">Total Bobot</p>
+            <p className={`text-2xl font-black mt-1 ${weightOk ? "text-emerald-700" : "text-amber-700"}`}>{totalWeight}%</p>
+          </div>
+          <div className={`rounded-xl border shadow-sm p-4 ${readiness.ready ? "bg-emerald-50 border-emerald-200" : "bg-amber-50 border-amber-200"}`}>
+            <p className="text-xs text-muted-foreground">Kesiapan Finalisasi</p>
+            <p className={`text-sm font-bold mt-2 ${readiness.ready ? "text-emerald-700" : "text-amber-700"}`}>
+              {readiness.ready ? "Siap digunakan" : "Perlu perbaikan"}
+            </p>
+          </div>
+        </div>
+
+        {!readiness.ready && (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold">Checklist instrumen belum lengkap</p>
+                <ul className="mt-2 space-y-1 text-xs">
+                  {readiness.issues.map((issue) => <li key={issue}>{issue}</li>)}
+                </ul>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Competency cards */}
         {loadingComp || loadingInd ? (

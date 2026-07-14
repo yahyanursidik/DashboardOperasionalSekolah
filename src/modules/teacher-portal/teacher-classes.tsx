@@ -1,11 +1,39 @@
 import React, { useEffect, useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import { supabaseClient } from "../../lib/supabase/client";
-import { Users, CheckSquare, Award, ChevronDown } from "lucide-react";
+import { Users, CheckSquare, Award, Loader2, Save } from "lucide-react";
 import { toast } from "sonner";
+import { useAcademicYear } from "../../app/providers/AcademicYearProvider";
+import { getScheduleSubjectName } from "../schedules/schedule-utils";
+
+type AttendanceStatus = "hadir" | "izin" | "sakit" | "alpa" | "terlambat" | "pulang_awal";
+type SubjectOption = { id?: string | null; name: string };
+
+const attendanceOptions: Array<{ value: AttendanceStatus; label: string }> = [
+  { value: "hadir", label: "Hadir" },
+  { value: "sakit", label: "Sakit" },
+  { value: "izin", label: "Izin" },
+  { value: "alpa", label: "Alpa" },
+  { value: "terlambat", label: "Terlambat" },
+];
+
+const gradeTypes = [
+  { value: "tugas_1", label: "Tugas 1" },
+  { value: "tugas_2", label: "Tugas 2" },
+  { value: "uts", label: "UTS" },
+  { value: "uas", label: "UAS" },
+];
+
+const getLocalDateString = () => {
+  const date = new Date();
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getDate()}`.padStart(2, "0");
+  return `${date.getFullYear()}-${month}-${day}`;
+};
 
 export const TeacherClasses: React.FC = () => {
   const { employee } = useOutletContext<any>();
+  const { activeYearId, activeSemesterId } = useAcademicYear();
   const [classes, setClasses] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
@@ -14,19 +42,45 @@ export const TeacherClasses: React.FC = () => {
   const [actionType, setActionType] = useState<"attendance" | "grades" | null>(null);
   const [students, setStudents] = useState<any[]>([]);
   const [isStudentsLoading, setIsStudentsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [attendanceDate, setAttendanceDate] = useState(getLocalDateString());
+  const [attendanceValues, setAttendanceValues] = useState<Record<string, AttendanceStatus>>({});
+  const [selectedSubjectId, setSelectedSubjectId] = useState("");
+  const [gradeType, setGradeType] = useState("tugas_1");
+  const [gradeValues, setGradeValues] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    // For demo purposes, we fetch all classes in the unit where the teacher belongs
     const fetchClasses = async () => {
       try {
-        let query = supabaseClient.from("classes").select("*").order("name");
-        
-        if (employee.unit_id) {
-          query = query.eq("unit_id", employee.unit_id);
-        }
-        
-        const { data } = await query;
-        if (data) setClasses(data);
+        let scheduleQuery = supabaseClient
+          .from("employee_schedules")
+          .select("class_id, subject_id, subject, classes(id, name, level, capacity, homeroom_teacher_id, unit_id), subjects(id, name)")
+          .eq("employee_id", employee.id);
+        if (activeYearId) scheduleQuery = scheduleQuery.eq("academic_year_id", activeYearId);
+
+        const { data: schedules } = await scheduleQuery;
+        const { data: homeroomClasses } = await supabaseClient
+          .from("classes")
+          .select("id, name, level, capacity, homeroom_teacher_id, unit_id")
+          .eq("homeroom_teacher_id", employee.id);
+
+        const map = new Map<string, any>();
+        (schedules || []).forEach((schedule: any) => {
+          const cls = schedule.classes;
+          if (!cls?.id) return;
+          const current = map.get(cls.id) ?? { ...cls, _subjects: [] };
+          const subjectName = getScheduleSubjectName(schedule);
+          const subjectOption: SubjectOption = { id: schedule.subject_id || schedule.subjects?.id || null, name: subjectName };
+          if (subjectName && !current._subjects.some((subject: SubjectOption) => subject.name === subjectName)) {
+            current._subjects.push(subjectOption);
+          }
+          map.set(cls.id, current);
+        });
+        (homeroomClasses || []).forEach((cls: any) => {
+          map.set(cls.id, map.get(cls.id) ?? { ...cls, _subjects: [] });
+        });
+
+        setClasses(Array.from(map.values()).sort((a, b) => String(a.name).localeCompare(String(b.name))));
       } catch (err) {
         console.error(err);
       } finally {
@@ -34,12 +88,86 @@ export const TeacherClasses: React.FC = () => {
       }
     };
     fetchClasses();
-  }, [employee.unit_id]);
+  }, [activeYearId, employee.id]);
+
+  useEffect(() => {
+    const fetchExistingGrades = async () => {
+      if (actionType !== "grades" || !selectedClass?.id || !activeSemesterId || !selectedSubjectId || students.length === 0) {
+        return;
+      }
+
+      const { data, error } = await supabaseClient
+        .from("academic_grades")
+        .select("student_id, score")
+        .eq("class_id", selectedClass.id)
+        .eq("semester_id", activeSemesterId)
+        .eq("subject_id", selectedSubjectId)
+        .eq("grade_type", gradeType);
+
+      if (error) {
+        toast.error("Gagal memuat nilai sebelumnya", { description: error.message });
+        return;
+      }
+
+      const nextValues: Record<string, string> = {};
+      students.forEach((student) => {
+        nextValues[student.id] = "";
+      });
+      (data || []).forEach((grade: any) => {
+        nextValues[grade.student_id] = grade.score || "";
+      });
+      setGradeValues(nextValues);
+    };
+
+    fetchExistingGrades();
+  }, [actionType, activeSemesterId, gradeType, selectedClass?.id, selectedSubjectId, students]);
+
+  const loadAttendanceForDate = async (clsId: string, date: string, studentRows: any[]) => {
+    const defaults: Record<string, AttendanceStatus> = {};
+    studentRows.forEach((student) => {
+      defaults[student.id] = "hadir";
+    });
+
+    const { data, error } = await supabaseClient
+      .from("attendance_records")
+      .select("student_id, status")
+      .eq("class_id", clsId)
+      .eq("attendance_date", date);
+
+    if (error) {
+      toast.error("Gagal memuat absensi sebelumnya", { description: error.message });
+      setAttendanceValues(defaults);
+      return;
+    }
+
+    (data || []).forEach((record: any) => {
+      defaults[record.student_id] = record.status || "hadir";
+    });
+    setAttendanceValues(defaults);
+  };
+
+  const closeModal = () => {
+    setSelectedClass(null);
+    setActionType(null);
+    setStudents([]);
+    setAttendanceValues({});
+    setGradeValues({});
+    setSelectedSubjectId("");
+    setGradeType("tugas_1");
+  };
 
   const openClassAction = async (cls: any, type: "attendance" | "grades") => {
     setSelectedClass(cls);
     setActionType(type);
     setIsStudentsLoading(true);
+    setAttendanceDate(getLocalDateString());
+    setAttendanceValues({});
+    setGradeValues({});
+    setGradeType("tugas_1");
+
+    const firstSubject = (cls._subjects || []).find((subject: SubjectOption) => subject.id);
+    setSelectedSubjectId(type === "grades" ? (firstSubject?.id || "") : "");
+
     try {
       const { data } = await supabaseClient
         .from("students")
@@ -48,7 +176,11 @@ export const TeacherClasses: React.FC = () => {
         .eq("status", "active")
         .order("full_name");
       
-      setStudents(data || []);
+      const studentRows = data || [];
+      setStudents(studentRows);
+      if (type === "attendance") {
+        await loadAttendanceForDate(cls.id, getLocalDateString(), studentRows);
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -62,8 +194,36 @@ export const TeacherClasses: React.FC = () => {
       toast.error("Gagal menyimpan: Tidak ada koneksi internet.");
       return;
     }
-    toast.success("Absensi harian massal berhasil disimpan!");
-    setSelectedClass(null);
+    if (!activeYearId || !selectedClass?.unit_id) {
+      toast.error("Tahun ajaran aktif atau unit kelas belum lengkap.");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const payload = students.map((student) => ({
+        student_id: student.id,
+        class_id: selectedClass.id,
+        unit_id: selectedClass.unit_id,
+        academic_year_id: activeYearId,
+        attendance_date: attendanceDate,
+        status: attendanceValues[student.id] || "hadir",
+        recorded_by: employee.user_id || null,
+        updated_at: new Date().toISOString(),
+      }));
+
+      const { error } = await supabaseClient
+        .from("attendance_records")
+        .upsert(payload, { onConflict: "student_id,attendance_date" });
+
+      if (error) throw error;
+      toast.success("Absensi kelas berhasil disimpan.", { description: `${students.length} siswa diperbarui untuk ${selectedClass.name}.` });
+      closeModal();
+    } catch (error: any) {
+      toast.error("Gagal menyimpan absensi", { description: error.message });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleSaveGrades = async (e: React.FormEvent) => {
@@ -72,8 +232,56 @@ export const TeacherClasses: React.FC = () => {
       toast.error("Gagal menyimpan: Tidak ada koneksi internet.");
       return;
     }
-    toast.success("Nilai akademik berhasil disimpan ke dalam sistem!");
-    setSelectedClass(null);
+    if (!activeSemesterId) {
+      toast.error("Semester aktif belum dipilih.");
+      return;
+    }
+    if (!selectedSubjectId) {
+      toast.error("Pilih mata pelajaran yang tertaut jadwal.");
+      return;
+    }
+
+    const invalidStudent = students.find((student) => {
+      const score = gradeValues[student.id];
+      if (!score) return false;
+      const numeric = Number(score);
+      return Number.isNaN(numeric) || numeric < 0 || numeric > 100;
+    });
+    if (invalidStudent) {
+      toast.error("Nilai harus berupa angka 0-100.", { description: invalidStudent.full_name });
+      return;
+    }
+
+    const payload = students
+      .map((student) => ({
+        student_id: student.id,
+        subject_id: selectedSubjectId,
+        class_id: selectedClass.id,
+        semester_id: activeSemesterId,
+        grade_type: gradeType,
+        score: gradeValues[student.id]?.trim(),
+      }))
+      .filter((row) => row.score);
+
+    if (payload.length === 0) {
+      toast.error("Belum ada nilai yang diisi.");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const { error } = await supabaseClient
+        .from("academic_grades")
+        .upsert(payload, { onConflict: "student_id,subject_id,class_id,semester_id,grade_type" });
+
+      if (error) throw error;
+      toast.success("Nilai akademik berhasil disimpan.", { description: `${payload.length} nilai diperbarui untuk ${selectedClass.name}.` });
+      closeModal();
+    } catch (error: any) {
+      toast.error("Gagal menyimpan nilai", { description: error.message });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   if (isLoading) {
@@ -86,7 +294,19 @@ export const TeacherClasses: React.FC = () => {
         <Users className="w-6 h-6 text-primary" /> Kelola Kelas
       </h2>
 
+      <div className="rounded-2xl border bg-white p-4 shadow-sm">
+        <p className="text-sm font-bold text-gray-900">Ruang kerja kelas berdasarkan penugasan</p>
+        <p className="mt-1 text-xs leading-5 text-gray-500">
+          Daftar ini hanya menampilkan kelas wali dan kelas yang memiliki jadwal mengajar untuk Anda pada tahun ajaran aktif. Absensi dan nilai yang disimpan langsung masuk ke data sekolah.
+        </p>
+      </div>
+
       <div className="space-y-4 pb-8">
+        {classes.length === 0 && (
+          <div className="bg-white rounded-2xl border border-dashed p-8 text-center text-sm text-gray-500">
+            Belum ada kelas yang ditugaskan kepada Anda pada tahun ajaran aktif.
+          </div>
+        )}
         {classes.map((cls) => (
           <div key={cls.id} className="bg-white border rounded-2xl shadow-sm overflow-hidden">
             <div className="p-4 border-b bg-gray-50 flex justify-between items-center">
@@ -97,7 +317,10 @@ export const TeacherClasses: React.FC = () => {
                     <span className="bg-amber-100 text-amber-700 text-[10px] px-2 py-0.5 rounded-full border border-amber-200 uppercase tracking-wide">Wali Kelas</span>
                   )}
                 </h3>
-                <p className="text-xs text-muted-foreground mt-0.5">Tingkat: {cls.level}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Tingkat: {cls.level}
+                  {cls._subjects?.length > 0 && ` - ${cls._subjects.map((subject: SubjectOption) => subject.name).join(", ")}`}
+                </p>
               </div>
               <div className="bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-bold shrink-0">
                 {cls.capacity} Siswa
@@ -135,7 +358,7 @@ export const TeacherClasses: React.FC = () => {
                 </h3>
                 <p className="text-xs text-primary font-medium">Kelas: {selectedClass.name}</p>
               </div>
-              <button onClick={() => setSelectedClass(null)} className="text-gray-400 hover:text-gray-900 font-bold px-2 py-1">
+              <button onClick={closeModal} className="text-gray-400 hover:text-gray-900 font-bold px-2 py-1">
                 TUTUP
               </button>
             </div>
@@ -149,15 +372,51 @@ export const TeacherClasses: React.FC = () => {
                   onSubmit={actionType === 'attendance' ? handleSaveAttendance : handleSaveGrades}
                   className="space-y-4"
                 >
-                  {/* Mock subject selector if grades */}
-                  {actionType === 'grades' && (
+                  {actionType === 'attendance' && (
                     <div className="mb-6">
-                      <label className="block text-xs font-bold text-gray-700 mb-1 uppercase">Mata Pelajaran</label>
-                      <select className="w-full border rounded-lg p-2 text-sm outline-none focus:border-primary">
-                        <option>Matematika</option>
-                        <option>Bahasa Indonesia</option>
-                        <option>Pendidikan Agama Islam</option>
-                      </select>
+                      <label className="block text-xs font-bold text-gray-700 mb-1 uppercase">Tanggal Absensi</label>
+                      <input
+                        type="date"
+                        value={attendanceDate}
+                        onChange={async (event) => {
+                          const nextDate = event.target.value;
+                          setAttendanceDate(nextDate);
+                          await loadAttendanceForDate(selectedClass.id, nextDate, students);
+                        }}
+                        className="w-full border rounded-lg p-2 text-sm outline-none focus:border-primary"
+                      />
+                    </div>
+                  )}
+
+                  {actionType === 'grades' && (
+                    <div className="mb-6 grid gap-3">
+                      <div>
+                        <label className="block text-xs font-bold text-gray-700 mb-1 uppercase">Mata Pelajaran</label>
+                        <select
+                          value={selectedSubjectId}
+                          onChange={(event) => setSelectedSubjectId(event.target.value)}
+                          className="w-full border rounded-lg p-2 text-sm outline-none focus:border-primary"
+                        >
+                          <option value="">Pilih mata pelajaran</option>
+                          {(selectedClass._subjects || []).map((subject: SubjectOption) => (
+                            <option key={`${subject.id || subject.name}`} value={subject.id || ""} disabled={!subject.id}>
+                              {subject.name}{!subject.id ? " (belum tertaut master mapel)" : ""}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-gray-700 mb-1 uppercase">Jenis Nilai</label>
+                        <select
+                          value={gradeType}
+                          onChange={(event) => setGradeType(event.target.value)}
+                          className="w-full border rounded-lg p-2 text-sm outline-none focus:border-primary"
+                        >
+                          {gradeTypes.map((type) => (
+                            <option key={type.value} value={type.value}>{type.label}</option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
                   )}
 
@@ -175,17 +434,22 @@ export const TeacherClasses: React.FC = () => {
                         </div>
 
                         {actionType === 'attendance' ? (
-                          <select className="border rounded px-2 py-1 text-xs font-medium outline-none focus:border-primary shrink-0 bg-white">
-                            <option value="Hadir">Hadir</option>
-                            <option value="Sakit">Sakit</option>
-                            <option value="Izin">Izin</option>
-                            <option value="Alpa">Alpa</option>
+                          <select
+                            value={attendanceValues[student.id] || "hadir"}
+                            onChange={(event) => setAttendanceValues((prev) => ({ ...prev, [student.id]: event.target.value as AttendanceStatus }))}
+                            className="border rounded px-2 py-1 text-xs font-medium outline-none focus:border-primary shrink-0 bg-white"
+                          >
+                            {attendanceOptions.map((option) => (
+                              <option key={option.value} value={option.value}>{option.label}</option>
+                            ))}
                           </select>
                         ) : (
                           <input 
                             type="number" 
                             min="0" max="100" 
                             placeholder="Nilai" 
+                            value={gradeValues[student.id] || ""}
+                            onChange={(event) => setGradeValues((prev) => ({ ...prev, [student.id]: event.target.value }))}
                             className="w-16 border rounded px-2 py-1 text-sm text-center outline-none focus:border-primary shrink-0"
                           />
                         )}
@@ -204,10 +468,11 @@ export const TeacherClasses: React.FC = () => {
               <button
                 type="submit"
                 form="actionForm"
-                disabled={isStudentsLoading || students.length === 0}
-                className="w-full py-3 bg-primary text-primary-foreground font-bold rounded-xl hover:bg-primary/90 transition-all disabled:opacity-50"
+                disabled={isStudentsLoading || isSaving || students.length === 0}
+                className="w-full py-3 bg-primary text-primary-foreground font-bold rounded-xl hover:bg-primary/90 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
               >
-                Simpan Data
+                {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                {isSaving ? "Menyimpan..." : "Simpan Data"}
               </button>
             </div>
           </div>

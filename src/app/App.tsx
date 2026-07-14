@@ -115,13 +115,17 @@ import { TeacherDashboard } from "../modules/teacher-portal/teacher-dashboard";
 import { TeacherClasses } from "../modules/teacher-portal/teacher-classes";
 import { TeacherJournals } from "../modules/teacher-portal/teacher-journals";
 import { TeacherLeaves } from "../modules/teacher-portal/teacher-leaves";
+import { TeacherAttendance } from "../modules/teacher-portal/teacher-attendance";
 import { TeacherSchedules } from "../modules/teacher-portal/teacher-schedules";
 import { TeacherQuran } from "../modules/teacher-portal/teacher-quran";
 import { TeacherPaud } from "../modules/teacher-portal/teacher-paud";
+import { TeacherAnnouncements } from "../modules/teacher-portal/teacher-announcements";
+import { TeacherProfile } from "../modules/teacher-portal/teacher-profile";
 
 import { BendaharaLayout, BendaharaLogin } from "../modules/bendahara-portal";
 import { AdminSpmbLayout, AdminSpmbLogin } from "../modules/admin-spmb-portal";
 import { HrdPortalLayout, HrdPortalLogin, HrdDashboard } from "../modules/hrd-portal";
+import { StaffLogin, StaffLayout, StaffDashboard, StaffAttendance, StaffLeaves, StaffAnnouncements, StaffSchedules, StaffProfile } from "../modules/staff-portal";
 
 import { ReportPeriodsList, ReportPeriodCreate, ReportPeriodEdit, ReportPeriodShow } from "../modules/digital-reports/periods/pages";
 import { ReportTemplatesList, ReportTemplateCreate, ReportTemplateEdit, ReportTemplateShow } from "../modules/digital-reports/templates/pages";
@@ -145,6 +149,7 @@ import { DigitalLibraryBooksCreate } from "../modules/digital-library/books-crea
 import { DigitalLibraryBooksEdit } from "../modules/digital-library/books-edit";
 import { PortalLibrary } from "../modules/portal/portal-library";
 import { PortalOnboarding } from "../modules/portal/portal-onboarding";
+import { PortalProfile } from "../modules/portal/portal-profile";
 
 // Onboarding Imports
 import { OnboardingList, OnboardingCreate, OnboardingEdit, OnboardingShow } from "../modules/onboarding/pages";
@@ -484,7 +489,7 @@ export default function App() {
           },
           {
             name: "employee_attendance",
-            list: "/employee-attendance",
+            list: "/attendance/employees",
             meta: { canDelete: false },
           },
           {
@@ -570,42 +575,46 @@ export default function App() {
             meta: { canDelete: true },
           },
           {
+            name: "recruitment",
+            list: "/recruitment",
+            meta: { label: "Rekrutmen" },
+          },
+          {
             name: "recruitment_vacancies",
             list: "/recruitment/vacancies",
             create: "/recruitment/vacancies/create",
-            meta: { canDelete: true },
+            meta: { label: "Lowongan", parent: "recruitment", canDelete: true },
           },
           {
             name: "recruitment_applicants",
             list: "/recruitment/applicants",
             create: "/recruitment/applicants/create",
             show: "/recruitment/applicants/show/:id",
-            meta: { canDelete: true },
+            meta: { label: "Pelamar", parent: "recruitment", canDelete: true },
           },
           {
-            name: "admissions_applicants",
-            list: "/admissions/applicants",
-            show: "/admissions/applicants/:id",
-            meta: { canDelete: true },
+            name: "recruitment_cbt",
+            list: "/recruitment/cbt/exams",
+            meta: { label: "CBT Rekrutmen", parent: "recruitment", canDelete: false },
           },
           {
             name: "cbt_banks",
             list: "/recruitment/cbt/banks",
-            meta: { canDelete: true },
+            meta: { label: "Bank Soal", parent: "recruitment_cbt", canDelete: true },
           },
           {
             name: "cbt_questions",
-            meta: { canDelete: true },
+            meta: { canDelete: true, hide: true },
           },
           {
             name: "cbt_exams",
             list: "/recruitment/cbt/exams",
-            meta: { canDelete: true },
+            meta: { label: "Pengaturan Ujian", parent: "recruitment_cbt", canDelete: true },
           },
           {
             name: "cbt_participants",
             list: "/recruitment/cbt/results",
-            meta: { canDelete: true },
+            meta: { label: "Hasil Ujian", parent: "recruitment_cbt", canDelete: true },
           },
           {
             name: "admissions",
@@ -1058,6 +1067,7 @@ export default function App() {
               <Route path="/portal/login" element={<PortalLogin />} />
               <Route path="/portal" element={<PortalLayout />}>
                 <Route index element={<PortalDashboard />} />
+                <Route path="profile" element={<PortalProfile />} />
                 <Route path="extracurricular" element={<PortalExtracurricular />} />
                 <Route path="finance" element={<PortalFinance />} />
                 <Route path="academic" element={<PortalAcademic />} />
@@ -1109,8 +1119,21 @@ export default function App() {
                 <Route path="quran" element={<TeacherQuran />} />
                 <Route path="paud" element={<TeacherPaud />} />
                 <Route path="journals" element={<TeacherJournals />} />
+                <Route path="attendance" element={<TeacherAttendance />} />
                 <Route path="leaves" element={<TeacherLeaves />} />
                 <Route path="schedules" element={<TeacherSchedules />} />
+                <Route path="announcements" element={<TeacherAnnouncements />} />
+                <Route path="profile" element={<TeacherProfile />} />
+              </Route>
+
+              <Route path="/staff/login" element={<StaffLogin />} />
+              <Route path="/staff" element={<StaffLayout />}>
+                <Route index element={<StaffDashboard />} />
+                <Route path="attendance" element={<StaffAttendance />} />
+                <Route path="leaves" element={<StaffLeaves />} />
+                <Route path="announcements" element={<StaffAnnouncements />} />
+                <Route path="schedules" element={<StaffSchedules />} />
+                <Route path="profile" element={<StaffProfile />} />
               </Route>
 
               <Route path="/bendahara/login" element={<BendaharaLogin />} />

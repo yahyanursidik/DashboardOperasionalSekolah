@@ -2,11 +2,16 @@ import React, { useEffect, useState } from "react";
 import { useOutletContext, Link } from "react-router-dom";
 import { supabaseClient } from "../../lib/supabase/client";
 import { BookOpen, Award, FileText, Download } from "lucide-react";
+import { useAcademicYear } from "../../app/providers/AcademicYearProvider";
+import { LessonSchedulePanel } from "../schedules/components/LessonSchedulePanel";
 
 export const PortalAcademic: React.FC = () => {
   const { student } = useOutletContext<any>();
+  const { activeYearId } = useAcademicYear();
   const [grades, setGrades] = useState<any[]>([]);
+  const [schedules, setSchedules] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSchedulesLoading, setIsSchedulesLoading] = useState(true);
 
   useEffect(() => {
     const fetchGrades = async () => {
@@ -28,6 +33,35 @@ export const PortalAcademic: React.FC = () => {
 
     fetchGrades();
   }, [student.id]);
+
+  useEffect(() => {
+    const fetchSchedules = async () => {
+      setIsSchedulesLoading(true);
+      try {
+        if (!student?.class_id) {
+          setSchedules([]);
+          return;
+        }
+
+        let query = supabaseClient
+          .from("employee_schedules")
+          .select("id, day_of_week, start_time, end_time, schedule_type, subject, subject_id, unit_id, class_id, classes(name, unit_id, units(name)), units(name), subjects(name), employees(full_name)")
+          .eq("class_id", student.class_id)
+          .eq("schedule_type", "mengajar")
+          .order("start_time");
+        if (activeYearId) query = query.eq("academic_year_id", activeYearId);
+
+        const { data } = await query;
+        setSchedules(data || []);
+      } catch (error) {
+        console.error("Portal academic schedules error:", error);
+      } finally {
+        setIsSchedulesLoading(false);
+      }
+    };
+
+    fetchSchedules();
+  }, [activeYearId, student?.class_id]);
 
   if (isLoading) {
     return <div className="p-6 text-center text-muted-foreground animate-pulse">Memuat data akademik...</div>;
@@ -55,6 +89,16 @@ export const PortalAcademic: React.FC = () => {
       <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2 mb-2">
         <BookOpen className="w-6 h-6 text-emerald-600" /> Nilai & e-Rapor
       </h2>
+
+      <LessonSchedulePanel
+        schedules={schedules}
+        isLoading={isSchedulesLoading}
+        title="Jadwal Pelajaran"
+        description="Jadwal pelajaran kelas aktif siswa untuk membantu orang tua menyiapkan buku, tugas, dan pendampingan belajar."
+        emptyMessage="Belum ada jadwal pelajaran untuk kelas siswa ini."
+        defaultType="mengajar"
+        compact
+      />
 
       {Object.keys(groupedGrades).length === 0 ? (
         <div className="bg-gray-50 rounded-xl border border-dashed p-8 text-center text-gray-500">

@@ -4,9 +4,15 @@ import { useNavigate, Link } from "react-router-dom";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import {
   Plus, Filter, ClipboardCheck, Users, TrendingUp,
-  Award, BarChart3, Eye, Edit, Search, Star, Calendar, Settings, ChevronLeft, ChevronRight
+  Award, BarChart3, Eye, Edit, Search, Star, Calendar, Settings, ChevronLeft, ChevronRight,
+  CheckCircle, AlertCircle, Clock, UserCheck
 } from "lucide-react";
 import { getPredikatColor, getTahunPelajaranOptions } from "../utils/calculator";
+import {
+  getPkgFollowUp,
+  getPkgReadiness,
+  isPkgEligibleEmployee,
+} from "../pkg-utils";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -142,7 +148,38 @@ export const PkgList: React.FC = () => {
     pagination: { pageSize: 100 },
   });
 
+  const { data: employeeData } = useList({
+    resource: "employees",
+    filters: [{ field: "status", operator: "eq", value: "active" }],
+    sorters: [{ field: "full_name", order: "asc" }],
+    pagination: { pageSize: 1000 },
+    meta: { select: "id, full_name, position, status, unit_id, units(name)" },
+  });
+
+  const { data: compData } = useList({
+    resource: "pkg_competencies",
+    sorters: [{ field: "sort_order", order: "asc" }],
+    pagination: { pageSize: 100 },
+  });
+
+  const { data: indData } = useList({
+    resource: "pkg_indicators",
+    sorters: [{ field: "sort_order", order: "asc" }],
+    pagination: { pageSize: 300 },
+  });
+
   const allRecords = data?.data ?? [];
+  const eligibleEmployees = useMemo(
+    () => ((employeeData?.data ?? []) as any[]).filter(isPkgEligibleEmployee),
+    [employeeData?.data]
+  );
+  const instrumentReadiness = useMemo(
+    () => getPkgReadiness({
+      competencies: (compData?.data ?? []) as any[],
+      indicators: (indData?.data ?? []) as any[],
+    }),
+    [compData?.data, indData?.data]
+  );
 
   // Client-side search by employee name
   const records = useMemo(() => {
@@ -201,6 +238,28 @@ export const PkgList: React.FC = () => {
     wakasek: "Wakil Kepala", tu: "Tata Usaha",
   };
 
+  const selectedYearRecords = useMemo(
+    () => filterTahun
+      ? allRecords.filter((r: any) => r.tahun_pelajaran === filterTahun)
+      : allRecords,
+    [allRecords, filterTahun]
+  );
+
+  const qualityStats = useMemo(() => {
+    const finalRecords = selectedYearRecords.filter((r: any) => r.status === "final");
+    const assessedEmployeeIds = new Set(finalRecords.map((r: any) => r.employee_id));
+    const needCoaching = finalRecords.filter((r: any) => Number(r.nilai_akhir ?? 0) < 76).length;
+    return {
+      eligible: eligibleEmployees.length,
+      assessed: assessedEmployeeIds.size,
+      unassessed: Math.max(eligibleEmployees.length - assessedEmployeeIds.size, 0),
+      coverage: eligibleEmployees.length > 0
+        ? Math.round((assessedEmployeeIds.size / eligibleEmployees.length) * 100)
+        : 0,
+      needCoaching,
+    };
+  }, [eligibleEmployees.length, selectedYearRecords]);
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -233,6 +292,66 @@ export const PkgList: React.FC = () => {
       </div>
 
       {/* ── Distribution Chart ── */}
+      <div className="grid grid-cols-1 xl:grid-cols-[1.4fr_1fr] gap-4">
+        <div className="bg-card rounded-xl border shadow-sm p-5">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h3 className="font-semibold text-sm flex items-center gap-2">
+                <UserCheck className="w-4 h-4 text-primary" />
+                Cakupan PKG Guru
+              </h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                {filterTahun ? `Tahun pelajaran ${filterTahun}` : "Semua tahun pelajaran"} berdasarkan guru aktif yang layak dinilai.
+              </p>
+            </div>
+            <span className="text-2xl font-black text-foreground">{qualityStats.coverage}%</span>
+          </div>
+          <div className="mt-4 h-3 rounded-full bg-muted overflow-hidden">
+            <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${qualityStats.coverage}%` }} />
+          </div>
+          <div className="grid grid-cols-3 gap-3 mt-4">
+            <div className="rounded-lg bg-muted/40 p-3">
+              <p className="text-xs text-muted-foreground">Target Guru</p>
+              <p className="text-xl font-bold">{qualityStats.eligible}</p>
+            </div>
+            <div className="rounded-lg bg-emerald-50 p-3">
+              <p className="text-xs text-emerald-700">Sudah Final</p>
+              <p className="text-xl font-bold text-emerald-800">{qualityStats.assessed}</p>
+            </div>
+            <div className="rounded-lg bg-amber-50 p-3">
+              <p className="text-xs text-amber-700">Belum Final</p>
+              <p className="text-xl font-bold text-amber-800">{qualityStats.unassessed}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className={`rounded-xl border shadow-sm p-5 ${instrumentReadiness.ready ? "bg-emerald-50 border-emerald-200" : "bg-amber-50 border-amber-200"}`}>
+          <div className="flex items-start gap-3">
+            {instrumentReadiness.ready ? (
+              <CheckCircle className="w-5 h-5 text-emerald-700 shrink-0 mt-0.5" />
+            ) : (
+              <AlertCircle className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
+            )}
+            <div className="min-w-0">
+              <h3 className="font-semibold text-sm">
+                {instrumentReadiness.ready ? "Instrumen Siap Digunakan" : "Instrumen Perlu Dicek"}
+              </h3>
+              <p className="text-xs mt-1 text-muted-foreground">
+                {instrumentReadiness.activeCompetencies} kompetensi aktif, {instrumentReadiness.activeIndicators} indikator aktif, total bobot {instrumentReadiness.totalWeight}%.
+              </p>
+              {instrumentReadiness.issues.length > 0 && (
+                <ul className="mt-3 space-y-1 text-xs text-amber-800">
+                  {instrumentReadiness.issues.map((issue) => <li key={issue}>{issue}</li>)}
+                </ul>
+              )}
+              <Link to="/pkg/settings" className="inline-flex items-center gap-1.5 mt-4 text-xs font-semibold text-primary hover:underline">
+                <Settings className="w-3.5 h-3.5" /> Kelola instrumen
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {allRecords.length > 0 && (
         <div className="bg-card rounded-xl border shadow-sm p-5">
           <div className="flex items-center gap-2 mb-4">
@@ -334,6 +453,7 @@ export const PkgList: React.FC = () => {
                   <th className="px-6 py-4">Tgl Penilaian</th>
                   <th className="px-6 py-4 text-center">Nilai PKG</th>
                   <th className="px-6 py-4 text-center">Predikat</th>
+                  <th className="px-6 py-4">Tindak Lanjut</th>
                   <th className="px-6 py-4 text-center">Status</th>
                   <th className="px-6 py-4 text-right">Aksi</th>
                 </tr>
@@ -375,11 +495,24 @@ export const PkgList: React.FC = () => {
                     <td className="px-6 py-4 text-center">
                       {r.predikat ? (
                         <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${getPredikatColor(r.predikat)}`}>
-                          {getPredikatIcon(r.predikat)} {r.predikat}
+                          {r.predikat}
                         </span>
                       ) : (
                         <span className="text-muted-foreground text-xs">—</span>
                       )}
+                    </td>
+                    <td className="px-6 py-4">
+                      {(() => {
+                        const followUp = getPkgFollowUp(r.nilai_akhir, r.status);
+                        return (
+                          <div>
+                            <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full border ${followUp.color}`}>
+                              <Clock className="w-3 h-3" /> {followUp.label}
+                            </span>
+                            <p className="text-[11px] text-muted-foreground mt-1 max-w-[220px]">{followUp.description}</p>
+                          </div>
+                        );
+                      })()}
                     </td>
                     <td className="px-6 py-4 text-center">
                       <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${

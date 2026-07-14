@@ -8,7 +8,8 @@ import {
   Eye, Edit, Plus, Search, Users, Shield, BookOpen,
   Filter, LayoutGrid, LayoutList, Phone, Building2,
   UserCheck, UserX, GraduationCap, Briefcase, TrendingUp,
-  ChevronRight, Star, Clock, UploadCloud, Download, FileSpreadsheet, Trash2
+  ChevronRight, Star, Clock, UploadCloud, Download, FileSpreadsheet, Trash2,
+  CalendarCheck, ClipboardList, AlertTriangle
 } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import Papa from "papaparse";
@@ -44,6 +45,16 @@ const STATUS_MAP: Record<string, { label: string; color: string; dot: string }> 
   resigned: { label: "Resign",   color: "bg-red-50 text-red-700",         dot: "bg-red-500" },
   contract: { label: "Kontrak",  color: "bg-yellow-50 text-yellow-700",   dot: "bg-yellow-500" },
 };
+
+const TEACHING_POSITIONS = new Set(["guru", "guru_quran"]);
+
+function isTeachingEmployee(employee: any) {
+  return TEACHING_POSITIONS.has(employee?.position);
+}
+
+function isContactComplete(employee: any) {
+  return Boolean(employee?.phone && employee?.email);
+}
 
 function getInitials(name: string) {
   return name
@@ -92,8 +103,8 @@ function StatCard({
 
 // ─── Employee Card (Grid View) ─────────────────────────────────────────────────
 function EmployeeCard({ employee, onClick, onEdit, onDelete }: { employee: any; onClick: () => void; onEdit: () => void; onDelete: () => void }) {
-  const pos = POSITION_MAP[employee.position] ?? { label: employee.position ?? "—", color: "bg-gray-100 text-gray-800 border-gray-200" };
-  const sts = STATUS_MAP[employee.status] ?? { label: employee.status ?? "—", color: "bg-gray-100 text-gray-600", dot: "bg-gray-400" };
+  const pos = POSITION_MAP[employee.position] ?? { label: employee.position ?? "-", color: "bg-gray-100 text-gray-800 border-gray-200" };
+  const sts = STATUS_MAP[employee.status] ?? { label: employee.status ?? "-", color: "bg-gray-100 text-gray-600", dot: "bg-gray-400" };
   const avatarColor = getAvatarColor(employee.full_name ?? "?");
 
   const assignments: any[] = employee._assignments ?? [];
@@ -236,20 +247,44 @@ export const EmployeesList: React.FC = () => {
   const { data: allEmployeesData } = useList({
     resource: "employees",
     pagination: { pageSize: 1000 },
-    meta: { select: "id, status, position" },
+    meta: { select: "id, status, position, unit_id, phone, email" },
+  });
+
+  const { data: allAssignmentsData } = useList({
+    resource: "teacher_assignments",
+    pagination: { pageSize: 1000 },
+    meta: { select: "employee_id, is_active" },
   });
 
   // Stats calculation
   const stats = useMemo(() => {
     const all = allEmployeesData?.data ?? [];
+    const active = all.filter((e) => e.status === "active");
+    const teaching = active.filter(isTeachingEmployee);
+    const assignedEmployeeIds = new Set(
+      (allAssignmentsData?.data ?? [])
+        .filter((assignment) => assignment.is_active !== false)
+        .map((assignment) => assignment.employee_id)
+    );
+    const assignedTeachers = teaching.filter((e) => assignedEmployeeIds.has(e.id)).length;
+    const unassignedTeachers = teaching.length - assignedTeachers;
+    const incompleteContacts = active.filter((e) => !isContactComplete(e)).length;
+    const withoutUnit = active.filter((e) => !e.unit_id).length;
+
     return {
       total: all.length,
-      active: all.filter((e) => e.status === "active").length,
-      teachers: all.filter((e) => e.position === "guru" && e.status === "active").length,
-      nonTeachers: all.filter((e) => e.position !== "guru" && e.status === "active").length,
+      active: active.length,
+      teachers: teaching.length,
+      quranTeachers: active.filter((e) => e.position === "guru_quran").length,
+      nonTeachers: active.filter((e) => !isTeachingEmployee(e)).length,
       inactive: all.filter((e) => e.status !== "active").length,
+      assignedTeachers,
+      unassignedTeachers,
+      incompleteContacts,
+      withoutUnit,
+      qualityIssues: unassignedTeachers + incompleteContacts + withoutUnit,
     };
-  }, [allEmployeesData]);
+  }, [allEmployeesData, allAssignmentsData]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -418,7 +453,7 @@ export const EmployeesList: React.FC = () => {
             <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
               <Phone className="w-3.5 h-3.5" /> {val}
             </span>
-          ) : <span className="text-muted-foreground text-xs">—</span>;
+          ) : <span className="text-muted-foreground text-xs">-</span>;
         },
       },
       {
@@ -550,8 +585,8 @@ export const EmployeesList: React.FC = () => {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Data Pegawai & Staf"
-        description="Kelola data kepegawaian, penugasan mata pelajaran, dan informasi staf sekolah."
+        title="Direktori Pegawai"
+        description="Kelola identitas SDM, unit kerja, role portal, penugasan mengajar, dan kesiapan data operasional sekolah."
         action={
           <div className="flex items-center gap-2">
             <button
@@ -573,11 +608,71 @@ export const EmployeesList: React.FC = () => {
       />
 
       {/* ── Stats Cards ── */}
+      <section className="bg-card border rounded-xl shadow-sm p-5">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div>
+            <p className="text-xs font-semibold text-primary uppercase tracking-wide">Audit Mutu SDM</p>
+            <h2 className="text-lg font-bold text-foreground mt-1">Pastikan data pegawai siap dipakai lintas fitur</h2>
+            <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
+              Data pegawai menjadi dasar jadwal, presensi, pengajuan izin, PKG, wali kelas, dan penugasan mata pelajaran/Qur'an.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Link to="/schedules" className="inline-flex items-center gap-2 border rounded-lg px-3 py-2 text-sm font-medium hover:bg-muted">
+              <CalendarCheck className="w-4 h-4" /> Jadwal
+            </Link>
+            <Link to="/attendance/employees" className="inline-flex items-center gap-2 border rounded-lg px-3 py-2 text-sm font-medium hover:bg-muted">
+              <Clock className="w-4 h-4" /> Presensi
+            </Link>
+            <Link to="/pkg" className="inline-flex items-center gap-2 border rounded-lg px-3 py-2 text-sm font-medium hover:bg-muted">
+              <ClipboardList className="w-4 h-4" /> PKG
+            </Link>
+          </div>
+        </div>
+      </section>
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard icon={Users}        label="Total Pegawai"   value={stats.total}      color="bg-blue-100 text-blue-700"    />
         <StatCard icon={UserCheck}    label="Pegawai Aktif"   value={stats.active}     color="bg-emerald-100 text-emerald-700" sub={`${stats.inactive} nonaktif`} />
-        <StatCard icon={GraduationCap} label="Tenaga Pengajar" value={stats.teachers}  color="bg-purple-100 text-purple-700" />
-        <StatCard icon={Briefcase}    label="Staf Non-Guru"   value={stats.nonTeachers} color="bg-amber-100 text-amber-700" />
+        <StatCard icon={GraduationCap} label="Guru & Ustadz" value={stats.teachers}  color="bg-purple-100 text-purple-700" sub={`${stats.quranTeachers} guru Qur'an`} />
+        <StatCard icon={BookOpen}    label="Guru Tertugaskan"   value={stats.assignedTeachers} color="bg-amber-100 text-amber-700" sub={`${stats.unassignedTeachers} belum ditugaskan`} />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="bg-card border rounded-xl p-4 shadow-sm lg:col-span-2">
+          <div className="flex items-center gap-2 mb-3">
+            <AlertTriangle className="w-4 h-4 text-amber-600" />
+            <p className="font-semibold text-sm">Perlu tindak lanjut</p>
+            <span className="ml-auto text-xs bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full font-semibold">
+              {stats.qualityIssues} item
+            </span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="rounded-lg border p-3 bg-background">
+              <p className="text-2xl font-bold text-foreground">{stats.unassignedTeachers}</p>
+              <p className="text-xs text-muted-foreground mt-1">Guru/ustadz belum punya penugasan aktif</p>
+            </div>
+            <div className="rounded-lg border p-3 bg-background">
+              <p className="text-2xl font-bold text-foreground">{stats.incompleteContacts}</p>
+              <p className="text-xs text-muted-foreground mt-1">Kontak pegawai belum lengkap</p>
+            </div>
+            <div className="rounded-lg border p-3 bg-background">
+              <p className="text-2xl font-bold text-foreground">{stats.withoutUnit}</p>
+              <p className="text-xs text-muted-foreground mt-1">Pegawai belum punya unit kerja</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-card border rounded-xl p-4 shadow-sm">
+          <p className="font-semibold text-sm mb-3">Definition of done data pegawai</p>
+          <div className="space-y-2 text-xs text-muted-foreground">
+            {["Identitas dan NIK tercatat", "Unit kerja dan jabatan valid", "Kontak aktif tersedia", "Role portal sesuai tugas", "Penugasan akademik/Qur'an aktif"].map((item) => (
+              <div key={item} className="flex items-center gap-2">
+                <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
+                <span>{item}</span>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* ── Filter Bar ── */}
@@ -754,14 +849,14 @@ export const EmployeesList: React.FC = () => {
                 disabled={!table.getCanPreviousPage()}
                 className="text-xs px-3 py-1.5 border rounded-md hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                ← Sebelumnya
+                Sebelumnya
               </button>
               <button
                 onClick={() => table.nextPage()}
                 disabled={!table.getCanNextPage()}
                 className="text-xs px-3 py-1.5 border rounded-md hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                Selanjutnya →
+                Selanjutnya
               </button>
             </div>
           </div>
@@ -845,7 +940,7 @@ export const EmployeesList: React.FC = () => {
 
           {previewData.length > 0 && (
             <div className="bg-gray-50 p-3 rounded-lg border text-sm text-center">
-              Ditemukan <span className="font-bold text-primary">{previewData.filter(r => r['Nama Lengkap']).length}</span> baris data pegawai yang valid siap untuk diunggah.
+              Ditemukan <span className="font-bold text-primary">{previewData.filter((r: any) => r['full_name'] || r['Nama Lengkap']).length}</span> baris data pegawai yang valid siap untuk diunggah.
             </div>
           )}
 

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Outlet, useNavigate, useLocation, Link } from "react-router-dom";
 import { supabaseClient } from "../../lib/supabase/client";
-import { Home, Wallet, BookOpen, LogOut, Smile, ClipboardList, Bell, Target, FileText, MoreHorizontal, X, Users } from "lucide-react";
+import { Home, Wallet, BookOpen, LogOut, Smile, ClipboardList, Bell, Target, FileText, MoreHorizontal, X, Users, UserRound } from "lucide-react";
 import { useSystemSettings } from "../../app/providers/SettingsProvider";
 
 export const PortalLayout: React.FC = () => {
@@ -73,6 +73,7 @@ export const PortalLayout: React.FC = () => {
 
   const navItems = [
     { name: "Beranda", path: "/portal", icon: Home },
+    { name: "Profil", path: "/portal/profile", icon: UserRound },
     { name: "Akademik", path: "/portal/academic", icon: BookOpen },
     { name: "e-Rapor", path: "/portal/reports", icon: FileText },
     { name: "Perpustakaan", path: "/portal/library", icon: BookOpen },
@@ -84,7 +85,7 @@ export const PortalLayout: React.FC = () => {
     { name: "Panduan", path: "/portal/onboarding", icon: Target },
   ];
 
-  const mobileMainItems = [navItems[0], navItems[6], navItems[7]];
+  const mobileMainItems = navItems.filter((item) => ["/portal", "/portal/profile", "/portal/quran"].includes(item.path));
   const parentContext = useMemo(() => ({ student, students, selectedStudentId, setSelectedStudentId }), [student, students, selectedStudentId]);
 
   if (!student) return <div className="min-h-screen flex items-center justify-center bg-gray-50">Memuat...</div>;

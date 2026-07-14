@@ -1,8 +1,12 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useOutletContext, Link } from "react-router-dom";
 import { supabaseClient } from "../../lib/supabase/client";
-import { Calendar, Clock, BookOpen, ChevronRight, UserCheck, Users, AlertTriangle, Award, BarChart3, ClipboardCheck, Target } from "lucide-react";
+import { Calendar, Clock, BookOpen, ChevronRight, UserCheck, BarChart3, CalendarCheck, FileText, Megaphone, UserRound } from "lucide-react";
 import { useAcademicYear } from "../../app/providers/AcademicYearProvider";
+import { dayMap, getScheduleSubjectName } from "../schedules/schedule-utils";
+import { isLeaveActiveOnDate } from "../leaves/leave-utils";
+
+const READ_ANNOUNCEMENTS_KEY = "teacher_portal_read_announcement_ids";
 
 export const TeacherDashboard: React.FC = () => {
   const { employee } = useOutletContext<any>();
@@ -15,8 +19,13 @@ export const TeacherDashboard: React.FC = () => {
     quranRecords: 0,
     assessments: 0,
     followUps: 0,
+    pendingLeaves: 0,
+    activeLeave: false,
+    substitutesToday: 0,
+    unreadAnnouncements: 0,
   });
   const [recentQuranRecords, setRecentQuranRecords] = useState<any[]>([]);
+  const [recentAnnouncements, setRecentAnnouncements] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -30,20 +39,72 @@ export const TeacherDashboard: React.FC = () => {
           .eq("date", todayStr)
           .single();
 
-        const dayOfWeek = new Date().getDay();
-        const { data: schedules } = await supabaseClient
+        const { data: leaves } = await supabaseClient
+          .from("leave_requests")
+          .select("id, leave_type, start_date, end_date, status")
+          .eq("employee_id", employee.id)
+          .order("created_at", { ascending: false })
+          .limit(20);
+
+        const { data: substituteRows } = await supabaseClient
+          .from("substitute_assignments")
+          .select("id, status")
+          .eq("substitute_employee_id", employee.id)
+          .eq("date", todayStr)
+          .neq("status", "cancelled");
+
+        const dayOfWeek = dayMap[new Date().getDay()] || "Senin";
+        let todayScheduleQuery = supabaseClient
           .from("employee_schedules")
           .select("*, classes(id, name), subjects(name)")
           .eq("employee_id", employee.id)
           .eq("day_of_week", dayOfWeek)
           .order("start_time");
+        if (activeYearId) todayScheduleQuery = todayScheduleQuery.eq("academic_year_id", activeYearId);
+        const { data: schedules } = await todayScheduleQuery;
         setTodaySchedules(schedules || []);
 
-        let classQuery = supabaseClient
+        let assignmentQuery = supabaseClient
+          .from("employee_schedules")
+          .select("class_id")
+          .eq("employee_id", employee.id)
+          .not("class_id", "is", null);
+        if (activeYearId) assignmentQuery = assignmentQuery.eq("academic_year_id", activeYearId);
+        const { data: assignedClasses } = await assignmentQuery;
+        const { data: homeroomClasses } = await supabaseClient
           .from("classes")
-          .select("id", { count: "exact", head: true });
-        if (employee.unit_id) classQuery = classQuery.eq("unit_id", employee.unit_id);
-        const { count: classCount } = await classQuery;
+          .select("id")
+          .eq("homeroom_teacher_id", employee.id);
+        const assignedClassIds = new Set<string>();
+        (assignedClasses || []).forEach((row: any) => {
+          if (row.class_id) assignedClassIds.add(row.class_id);
+        });
+        (homeroomClasses || []).forEach((row: any) => {
+          if (row.id) assignedClassIds.add(row.id);
+        });
+
+        const { data: announcementRows } = await supabaseClient
+          .from("announcements")
+          .select("id, title, content, target_type, unit_id, class_id, publish_at, created_at, units(name), classes(name)")
+          .eq("status", "terkirim")
+          .order("publish_at", { ascending: false })
+          .order("created_at", { ascending: false })
+          .limit(20);
+        const now = Date.now();
+        const scopedAnnouncements = (announcementRows || []).filter((item: any) => {
+          if (item.publish_at && new Date(item.publish_at).getTime() > now) return false;
+          if (item.target_type === "all" || item.target_type === "staff") return true;
+          if (item.target_type === "unit") return !item.unit_id || item.unit_id === employee.unit_id;
+          if (item.target_type === "class") return item.class_id && assignedClassIds.has(item.class_id);
+          return false;
+        });
+        setRecentAnnouncements(scopedAnnouncements.slice(0, 3));
+        let readIds: string[] = [];
+        try {
+          readIds = JSON.parse(localStorage.getItem(READ_ANNOUNCEMENTS_KEY) || "[]");
+        } catch {
+          readIds = [];
+        }
 
         let quranQuery = supabaseClient
           .from("quran_records")
@@ -67,13 +128,18 @@ export const TeacherDashboard: React.FC = () => {
         const myAttendance = myAtt as any;
         const records = quranRecords || [];
         const assessmentList = assessments || [];
+        const leaveList = leaves || [];
         setStats({
           myAttendance: myAttendance ? (myAttendance.status === "present" ? `Hadir (${myAttendance.time_in?.substring(0, 5)})` : myAttendance.status) : "Belum Absen",
           classesToday: schedules?.length || 0,
-          classCount: classCount || 0,
+          classCount: assignedClassIds.size,
           quranRecords: records.length,
           assessments: assessmentList.length,
           followUps: records.filter((record: any) => record.fluency_score === "Mengulang").length + assessmentList.filter((item: any) => item.status === "Mengulang" || item.status === "Lulus Bersyarat").length,
+          pendingLeaves: leaveList.filter((leave: any) => leave.status === "pending").length,
+          activeLeave: leaveList.some((leave: any) => leave.status === "approved" && isLeaveActiveOnDate(leave, todayStr)),
+          substitutesToday: substituteRows?.length || 0,
+          unreadAnnouncements: scopedAnnouncements.filter((item: any) => !readIds.includes(item.id)).length,
         });
       } catch (err) {
         console.error("Dashboard fetch error:", err);
@@ -86,6 +152,9 @@ export const TeacherDashboard: React.FC = () => {
   const hariIni = new Date().toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
   const qualityChecklist = useMemo(() => ([
     { label: "Kehadiran", done: stats.myAttendance.includes("Hadir"), value: stats.myAttendance },
+    { label: "Izin", done: !stats.activeLeave && stats.pendingLeaves === 0, value: stats.activeLeave ? "Izin aktif" : `${stats.pendingLeaves} pending` },
+    { label: "Inval", done: stats.substitutesToday === 0, value: `${stats.substitutesToday} tugas` },
+    { label: "Informasi", done: stats.unreadAnnouncements === 0, value: `${stats.unreadAnnouncements} baru` },
     { label: "Jadwal", done: stats.classesToday > 0, value: `${stats.classesToday} kelas` },
     { label: "Jurnal Qur'an", done: stats.quranRecords > 0, value: stats.quranRecords },
     { label: "Assessment", done: stats.assessments > 0, value: stats.assessments },
@@ -102,9 +171,9 @@ export const TeacherDashboard: React.FC = () => {
       <section className="grid gap-3 md:grid-cols-4">
         {[
           { label: "Kelas Hari Ini", value: stats.classesToday, icon: Calendar, color: "text-blue-700 bg-blue-50" },
-          { label: "Kelas Unit", value: stats.classCount, icon: Users, color: "text-emerald-700 bg-emerald-50" },
-          { label: "Jurnal Qur'an", value: stats.quranRecords, icon: BookOpen, color: "text-cyan-700 bg-cyan-50" },
-          { label: "Follow-up", value: stats.followUps, icon: AlertTriangle, color: "text-amber-700 bg-amber-50" },
+          { label: "Absensi", value: stats.myAttendance.includes("Hadir") ? "OK" : "Cek", icon: CalendarCheck, color: "text-emerald-700 bg-emerald-50" },
+          { label: "Info Baru", value: stats.unreadAnnouncements, icon: Megaphone, color: "text-amber-700 bg-amber-50" },
+          { label: "Izin Pending", value: stats.pendingLeaves, icon: FileText, color: "text-amber-700 bg-amber-50" },
         ].map(({ label, value, icon: Icon, color }) => (
           <div key={label} className="rounded-2xl border bg-white p-4 shadow-sm">
             <div className={`mb-3 flex h-10 w-10 items-center justify-center rounded-xl ${color}`}>
@@ -164,10 +233,10 @@ export const TeacherDashboard: React.FC = () => {
         <h3 className="mb-3 px-1 text-sm font-bold text-gray-900">Aksi Cepat</h3>
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           {[
+            { to: "/teacher/announcements", label: "Informasi", icon: Megaphone, color: "bg-amber-100 text-amber-600" },
             { to: "/teacher/classes", label: "Absen & Nilai", icon: UserCheck, color: "bg-emerald-100 text-emerald-600" },
-            { to: "/teacher/quran", label: "Qur'an", icon: BookOpen, color: "bg-cyan-100 text-cyan-600" },
-            { to: "/teacher/journals", label: "Jurnal Siswa", icon: ClipboardCheck, color: "bg-blue-100 text-blue-600" },
-            { to: "/teacher/schedules", label: "Jadwal", icon: Clock, color: "bg-amber-100 text-amber-600" },
+            { to: "/teacher/attendance", label: "Absensi Saya", icon: CalendarCheck, color: "bg-green-100 text-green-600" },
+            { to: "/teacher/profile", label: "Profil Guru", icon: UserRound, color: "bg-blue-100 text-blue-600" },
           ].map(({ to, label, icon: Icon, color }) => (
             <Link key={to} to={to} className="flex flex-col items-center justify-center gap-3 rounded-2xl border bg-white p-4 shadow-sm transition hover:border-primary/50 hover:shadow-md">
               <div className={`rounded-full p-3 ${color}`}>
@@ -180,6 +249,37 @@ export const TeacherDashboard: React.FC = () => {
       </section>
 
       <section className="grid gap-6 lg:grid-cols-[1fr_1fr]">
+        <div>
+          <div className="mb-3 flex items-end justify-between px-1">
+            <h3 className="text-sm font-bold text-gray-900">Informasi Terbaru</h3>
+            <Link to="/teacher/announcements" className="flex items-center gap-0.5 text-xs font-bold text-primary hover:underline">
+              Semua <ChevronRight className="h-3 w-3" />
+            </Link>
+          </div>
+          {recentAnnouncements.length === 0 ? (
+            <div className="rounded-2xl border border-dashed bg-white p-8 text-center shadow-sm">
+              <Megaphone className="mx-auto mb-3 h-8 w-8 text-gray-300" />
+              <p className="text-sm text-gray-500">Belum ada pengumuman baru untuk Anda.</p>
+            </div>
+          ) : (
+            <div className="overflow-hidden rounded-2xl border bg-white shadow-sm">
+              <div className="divide-y">
+                {recentAnnouncements.map((item: any) => (
+                  <Link key={item.id} to="/teacher/announcements" className="block p-4 hover:bg-amber-50/40">
+                    <div className="mb-1 flex items-center justify-between gap-3">
+                      <p className="line-clamp-1 text-sm font-bold text-gray-900">{item.title}</p>
+                      <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-700">
+                        {item.target_type === "staff" ? "Staf" : item.target_type === "unit" ? "Unit" : item.target_type === "class" ? "Kelas" : "Umum"}
+                      </span>
+                    </div>
+                    <p className="line-clamp-2 text-xs leading-5 text-gray-500">{item.content}</p>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
         <div>
           <div className="mb-3 flex items-end justify-between px-1">
             <h3 className="text-sm font-bold text-gray-900">Jadwal Mengajar Hari Ini</h3>
@@ -204,7 +304,7 @@ export const TeacherDashboard: React.FC = () => {
                       </div>
                       <div className="h-10 w-px bg-gray-200" />
                       <div>
-                        <h4 className="font-bold text-gray-900">{schedule.subjects?.name || "Mata Pelajaran"}</h4>
+                        <h4 className="font-bold text-gray-900">{getScheduleSubjectName(schedule)}</h4>
                         <p className="mt-0.5 text-xs font-medium text-primary">{schedule.classes?.name}</p>
                       </div>
                     </div>
