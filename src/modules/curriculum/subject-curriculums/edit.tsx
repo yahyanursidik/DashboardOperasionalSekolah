@@ -1,18 +1,28 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useForm } from "@refinedev/react-hook-form";
 import { useWatch } from "react-hook-form";
 import { useList, useOne } from "@refinedev/core";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
-import { ArrowLeft, Save, FileText, CalendarDays, BookOpen, LayoutList, Layers3 } from "lucide-react";
+import { ArrowLeft, Save, FileText, CalendarDays, BookOpen, LayoutList, Layers3, ClipboardCheck } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { CurriculumFormFields } from "./components/CurriculumFormFields";
 import { getSdPhaseByGrade, getSdPhaseLabelByGrade } from "./sdCurriculumStructure";
+import { useAcademicYear } from "../../../app/providers/AcademicYearProvider";
+import { supabaseClient } from "../../../lib/supabase/client";
+import {
+  normalizeSemesterPlans,
+  type CurriculumSemesterName,
+} from "../curriculum-utils";
+import { getEnabledSubjectSemesters, saveCurriculumSemesterPlans } from "../semester-plan-persistence";
 
 export const SubjectCurriculumEdit: React.FC = () => {
   const { id } = useParams();
   const [activeTab, setActiveTab] = useState("identitas");
+  const [selectedSemester, setSelectedSemester] = useState<CurriculumSemesterName>("Ganjil");
+  const [isSaving, setIsSaving] = useState(false);
   const navigate = useNavigate();
+  const { activeSemesterId } = useAcademicYear();
 
   const { data: academicYears } = useList({
     resource: "academic_years",
@@ -22,26 +32,15 @@ export const SubjectCurriculumEdit: React.FC = () => {
   const {
     register,
     control,
+    setValue,
     handleSubmit,
     formState: { errors },
-    refineCore: { onFinish, formLoading, queryResult },
-  } = useForm({
+    refineCore: { queryResult },
+  } = useForm<any>({
     refineCoreProps: {
       resource: "subject_curriculums",
       id,
       redirect: false,
-      onMutationSuccess: (data: any) => {
-        toast.success("Perubahan kurikulum kelas berhasil disimpan");
-        const gradeLevel = data?.data?.grade_level || queryResult?.data?.data?.grade_level;
-        if (gradeLevel) {
-          navigate(`/curriculum/subjects?grade_level=${gradeLevel}`);
-        } else {
-          navigate(-1);
-        }
-      },
-      onMutationError: (error: any) => {
-        toast.error("Gagal menyimpan perubahan: " + error?.message);
-      }
     },
   });
 
@@ -59,10 +58,70 @@ export const SubjectCurriculumEdit: React.FC = () => {
     queryOptions: { enabled: !!subjectId }
   });
   const subject = subjectData?.data;
+  const enabledSemesters = useMemo(() => getEnabledSubjectSemesters(subject), [subject]);
+  const { data: semesterPlansData } = useList({
+    resource: "subject_curriculum_semesters",
+    filters: [{ field: "subject_curriculum_id", operator: "eq", value: id || "" }],
+    pagination: { pageSize: 10 },
+    queryOptions: { enabled: Boolean(id) },
+  });
+  const { data: activeSemesterData } = useOne({
+    resource: "semesters",
+    id: activeSemesterId || "",
+    queryOptions: { enabled: Boolean(activeSemesterId) },
+  });
   const selectedAcademicYearName = academicYears?.data?.find((year: any) => String(year.id) === String(selectedAcademicYearId))?.name;
   const contextTitle = selectedGrade
     ? `Edit Kurikulum ${subject?.name || "Mapel"} Kelas ${selectedGrade}`
     : `Edit Kurikulum ${subject?.name || "Mapel"}`;
+
+  useEffect(() => {
+    if (!currData) return;
+    setValue("semester_plans", normalizeSemesterPlans(semesterPlansData?.data || [], currData), { shouldDirty: false });
+  }, [currData, semesterPlansData?.data, setValue]);
+
+  useEffect(() => {
+    const activeName = activeSemesterData?.data?.name as CurriculumSemesterName | undefined;
+    if (activeName && enabledSemesters.includes(activeName)) {
+      setSelectedSemester(activeName);
+    } else if (!enabledSemesters.includes(selectedSemester)) {
+      setSelectedSemester(enabledSemesters[0] || "Ganjil");
+    }
+  }, [activeSemesterData?.data?.name, enabledSemesters, selectedSemester]);
+
+  const handleSave = async (data: any) => {
+    if (!id || !currData) return;
+    const semesterPlans = data.semester_plans || normalizeSemesterPlans(semesterPlansData?.data || [], currData);
+    const academicYearId = data.academic_year_id || currData.academic_year_id;
+    const gradeLevel = data.grade_level || currData.grade_level;
+    setIsSaving(true);
+    try {
+      const { error } = await supabaseClient
+        .from("subject_curriculums")
+        .update({
+          grade_level: gradeLevel,
+          academic_year_id: academicYearId,
+          cp_text: data.cp_text || null,
+          atp_text: data.atp_text || null,
+          kktp_text: data.kktp_text || null,
+          prota_data: Array.isArray(data.prota_data) ? data.prota_data : [],
+        })
+        .eq("id", id);
+      if (error) throw error;
+      await saveCurriculumSemesterPlans({
+        subjectCurriculumId: id,
+        academicYearId,
+        plans: semesterPlans,
+        enabledSemesters,
+      });
+      toast.success("Kurikulum tahunan dan rencana semester berhasil diperbarui");
+      navigate(`/curriculum/subjects?grade_level=${gradeLevel}`);
+    } catch (error: any) {
+      toast.error("Gagal menyimpan perubahan", { description: error.message });
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   if (queryResult?.isLoading) return <div className="p-8 text-muted-foreground">Memuat...</div>;
 
@@ -70,6 +129,7 @@ export const SubjectCurriculumEdit: React.FC = () => {
     { id: "identitas", label: "CP & ATP Fase", icon: FileText },
     { id: "prota", label: "Prota Kelas", icon: LayoutList },
     { id: "promes", label: "Promes Kelas", icon: CalendarDays },
+    { id: "assessment", label: "Asesmen & Rapor", icon: ClipboardCheck },
     { id: "rppm", label: "RPPM", icon: Layers3 },
     { id: "rpph", label: "RPPH / Modul", icon: BookOpen },
   ];
@@ -86,7 +146,7 @@ export const SubjectCurriculumEdit: React.FC = () => {
         />
       </div>
 
-      <form onSubmit={handleSubmit(onFinish)} className="bg-card rounded-xl border shadow-sm p-6 space-y-6">
+      <form onSubmit={handleSubmit(handleSave)} className="bg-card rounded-xl border shadow-sm p-6 space-y-6">
         <section className="grid gap-3 rounded-xl border bg-muted/20 p-4 md:grid-cols-4">
           <div className="rounded-lg bg-background p-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Mata Pelajaran</p>
@@ -106,7 +166,7 @@ export const SubjectCurriculumEdit: React.FC = () => {
           <div className="rounded-lg bg-background p-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Ruang Lingkup</p>
             <p className="mt-1 font-bold">Per Mapel per Kelas</p>
-            <p className="text-xs text-muted-foreground">CP/ATP fase, perangkat ajar kelas.</p>
+            <p className="text-xs text-muted-foreground">Fondasi tahunan dan pelaksanaan per semester.</p>
           </div>
         </section>
 
@@ -148,12 +208,13 @@ export const SubjectCurriculumEdit: React.FC = () => {
                     <label className="text-sm font-medium mb-1.5 block">Kelas Kurikulum <span className="text-destructive">*</span></label>
                     <select
                       {...register("grade_level", { required: "Jenjang Kelas wajib diisi", valueAsNumber: true })}
+                      disabled
                       className="w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-primary/50"
                     >
                       <option value="">-- Pilih Kelas --</option>
-                      {[1, 2, 3, 4, 5, 6].filter(g => !subjectData?.data?.grade_levels || subjectData.data.grade_levels.includes(g)).map(g => <option key={g} value={g}>Kelas {g}</option>)}
+                      {[1, 2, 3, 4, 5, 6].filter(g => !subjectData?.data?.grade_levels || subjectData.data.grade_levels.map(Number).includes(g)).map(g => <option key={g} value={g}>Kelas {g}</option>)}
                     </select>
-                    <p className="mt-1 text-xs text-muted-foreground">Kurikulum ini hanya berlaku untuk mapel ini di kelas yang dipilih.</p>
+                    <p className="mt-1 text-xs text-muted-foreground">Identitas kelas dikunci untuk menjaga histori dan relasi rencana semester.</p>
                     {errors.grade_level && <span className="text-xs text-destructive mt-1">{errors.grade_level.message as string}</span>}
                   </div>
 
@@ -161,6 +222,7 @@ export const SubjectCurriculumEdit: React.FC = () => {
                     <label className="text-sm font-medium mb-1.5 block">Tahun Ajaran <span className="text-destructive">*</span></label>
                     <select
                       {...register("academic_year_id", { required: "Tahun Ajaran wajib diisi" })}
+                      disabled
                       className="w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-primary/50"
                     >
                       <option value="">-- Pilih Tahun Ajaran --</option>
@@ -168,7 +230,7 @@ export const SubjectCurriculumEdit: React.FC = () => {
                         <option key={ay.id} value={ay.id}>{ay.name}</option>
                       ))}
                     </select>
-                    <p className="mt-1 text-xs text-muted-foreground">Satu mapel dan kelas hanya punya satu kurikulum per tahun ajaran.</p>
+                    <p className="mt-1 text-xs text-muted-foreground">Tahun ajaran dikunci agar histori Ganjil dan Genap tidak berpindah periode.</p>
                     {errors.academic_year_id && <span className="text-xs text-destructive mt-1">{errors.academic_year_id.message as string}</span>}
                   </div>
                 </div>
@@ -236,7 +298,25 @@ export const SubjectCurriculumEdit: React.FC = () => {
           </div>
         </div>
 
-        <CurriculumFormFields register={register} control={control} errors={errors} activeTab={activeTab} />
+        {activeTab !== "identitas" && activeTab !== "prota" ? (
+          <section className="rounded-md border bg-muted/20 p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-bold">Rencana pelaksanaan semester</p>
+                <p className="text-xs text-muted-foreground">Pilih semester untuk mengelola Promes, RPPM, RPPH/Modul Ajar, dan alokasi JP.</p>
+              </div>
+              <div className="inline-flex rounded-md border bg-background p-1">
+                {enabledSemesters.map((semester) => (
+                  <button key={semester} type="button" onClick={() => setSelectedSemester(semester)} className={`rounded px-4 py-2 text-sm font-semibold ${selectedSemester === semester ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}>
+                    {semester}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </section>
+        ) : null}
+
+        <CurriculumFormFields key={selectedSemester} register={register} control={control} errors={errors} activeTab={activeTab} selectedSemester={selectedSemester} />
 
         <div className="pt-4 border-t flex justify-end gap-3">
           <button
@@ -248,11 +328,11 @@ export const SubjectCurriculumEdit: React.FC = () => {
           </button>
           <button
             type="submit"
-            disabled={formLoading}
+            disabled={isSaving}
             className="flex items-center gap-2 bg-primary text-primary-foreground px-6 py-2 rounded-md font-medium text-sm hover:bg-primary/90 transition-colors disabled:opacity-50"
           >
             <Save className="w-4 h-4" />
-            {formLoading ? "Menyimpan..." : "Simpan Kurikulum Mapel"}
+            {isSaving ? "Menyimpan..." : "Simpan Kurikulum Mapel"}
           </button>
         </div>
       </form>

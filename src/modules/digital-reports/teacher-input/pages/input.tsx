@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useShow, useList, useGetIdentity } from "@refinedev/core";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { PageHeader } from "../../../../components/layout/PageHeader";
 import { ArrowLeft, Save, Loader2, CheckCircle2, AlertCircle, MessageSquare } from "lucide-react";
 import { supabaseClient } from "../../../../lib/supabase/client";
@@ -12,6 +12,8 @@ import { logAudit } from "../../../../lib/audit";
 export const TeacherInputForm: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const listPath = location.pathname.startsWith("/teacher/") ? "/teacher/reports" : "/reports/teacher-input";
   const { data: user } = useGetIdentity<any>();
   const { roles } = useCurrentRoles();
   const isHomeroom = hasRole(roles, 'homeroom' as any) || hasRole(roles, 'wali_kelas' as any);
@@ -174,7 +176,7 @@ export const TeacherInputForm: React.FC = () => {
       {/* Header & Quick Navigation */}
       <div className="bg-card border rounded-xl shadow-sm p-4 sticky top-16 z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <button onClick={() => navigate("/reports/teacher-input")} className="p-2 hover:bg-muted rounded-full transition-colors shrink-0">
+          <button onClick={() => navigate(listPath)} className="p-2 hover:bg-muted rounded-full transition-colors shrink-0">
             <ArrowLeft className="w-5 h-5 text-muted-foreground" />
           </button>
           <div>
@@ -196,7 +198,7 @@ export const TeacherInputForm: React.FC = () => {
           </div>
           <div className="flex items-center bg-muted rounded-lg p-1">
             <button 
-              onClick={() => prevPeer && navigate(`/reports/teacher-input/${prevPeer.id}`)}
+              onClick={() => prevPeer && navigate(`${listPath}/${prevPeer.id}`)}
               disabled={!prevPeer}
               className="px-3 py-1.5 text-sm font-medium rounded-md hover:bg-background hover:shadow-sm disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:shadow-none transition-all"
             >
@@ -204,7 +206,7 @@ export const TeacherInputForm: React.FC = () => {
             </button>
             <div className="w-px h-4 bg-border mx-1"></div>
             <button 
-              onClick={() => nextPeer && navigate(`/reports/teacher-input/${nextPeer.id}`)}
+              onClick={() => nextPeer && navigate(`${listPath}/${nextPeer.id}`)}
               disabled={!nextPeer}
               className="px-3 py-1.5 text-sm font-medium rounded-md hover:bg-background hover:shadow-sm disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:shadow-none transition-all"
             >

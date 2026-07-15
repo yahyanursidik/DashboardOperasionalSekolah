@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Edit, Calendar, Clock, Settings, Building2, CheckCircle2, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
+import { getAssessmentBasisLabel, getReportTypeLabel } from "../../report-period-utils";
 
 export const ReportPeriodShow: React.FC = () => {
   const navigate = useNavigate();
@@ -72,7 +73,7 @@ export const ReportPeriodShow: React.FC = () => {
               {getStatusBadge(period.status)}
             </div>
             <p className="text-sm text-muted-foreground uppercase tracking-wider font-semibold">
-              {period.report_type?.replace(/_/g, ' ')}
+              {getReportTypeLabel(period.report_type)} | {getAssessmentBasisLabel(period.assessment_basis)}
             </p>
           </div>
         </div>
@@ -106,6 +107,11 @@ export const ReportPeriodShow: React.FC = () => {
               <div>
                 <h3 className="text-sm font-medium text-muted-foreground mb-1">Semester</h3>
                 <p className="font-semibold text-foreground">{Array.isArray(sm) ? sm[0]?.name : sm?.name || "-"}</p>
+              </div>
+
+              <div className="col-span-2">
+                <h3 className="text-sm font-medium text-muted-foreground mb-1">Basis Asesmen Rapor</h3>
+                <p className="font-semibold text-primary">{getAssessmentBasisLabel(period.assessment_basis)}</p>
               </div>
 
               <div className="col-span-2">

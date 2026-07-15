@@ -20,16 +20,19 @@ import { SettingsProvider } from "./providers/SettingsProvider";
 import { StudentsList, StudentCreate, StudentEdit, StudentShow } from "../modules/students";
 import { TeachersList, TeacherCreate, TeacherEdit, TeacherShow } from "../modules/teachers";
 import { ClassesList, ClassCreate, ClassEdit, ClassShow } from "../modules/classes";
-import { ParentsList, ParentCreate, ParentEdit, ParentShow } from "../modules/parents";
+import { ParentsList, ParentCreate, ParentEdit, ParentShow, ParentPortalRequestsAdmin } from "../modules/parents";
 import { TasksList, TaskCreate, TaskEdit, TaskShow } from "../modules/tasks";
 import { AttendanceSelector, AttendanceInput, AttendanceReports } from "../modules/attendance";
-import { DocumentsList, DocumentTypesList, DocumentCreate, DocumentShow } from "../modules/documents";
+import { DocumentsList, DocumentTypesList, DocumentCreate, DocumentShow, DocumentGovernance } from "../modules/documents";
 import { AnnouncementsList, AnnouncementCreate, AnnouncementEdit, AnnouncementShow } from "../modules/announcements";
 import { AuditLogsList } from "../modules/audit-logs";
-import { ReportsDashboard, StudentReport, AttendanceReport, DocumentReport, TaskReport, ReportEmployeeAttendance, ReportLeaves, VisualAnalytics } from "../modules/reports";
+import { ReportsDashboard, StudentReport, AttendanceReport, DocumentReport, TaskReport, ReportEmployeeAttendance, ReportLeaves, VisualAnalytics, ReportExportHistory } from "../modules/reports";
 
 import { EmployeesList, EmployeeCreate, EmployeeEdit, EmployeeShow } from "../modules/employees";
 import { EmployeeAttendanceList } from "../modules/attendance/pages/employee-attendance";
+import { AttendanceSettings } from "../modules/attendance/pages/attendance-settings";
+import { AttendanceReviews } from "../modules/attendance/pages/attendance-reviews";
+import { StaffOperationalReportsAdmin } from "../modules/attendance/pages/staff-operational-reports";
 import { SchedulesList, ScheduleCreate, ScheduleEdit } from "../modules/schedules";
 import { LeavesList, LeaveCreate, LeaveShow } from "../modules/leaves";
 import { SubstitutesList, SubstituteCreate, SubstituteEdit } from "../modules/substitutes";
@@ -54,8 +57,9 @@ import { SettingsPage } from "../modules/settings";
 import { StudentMassPromotion } from "../modules/students/pages/mass-promotion";
 import { CommunicationsPage } from "../modules/communications";
 import { StudentJournalsList, StudentJournalCreate, StudentJournalEdit } from "../modules/student-journals/pages";
-import { FinanceDashboard, InvoicesList, PaymentVerifications, SchoolExpenses, FinanceCategories, SpmbFeesConfig, FinanceSettings } from "../modules/finance/pages";
+import { FinanceDashboard, InvoicesList, PaymentVerifications, SchoolExpenses, FinanceCategories, SpmbFeesConfig, FinanceSettings, FinanceCashbook, FinanceBudgets, FinanceAccounting, FinanceReports, FinanceTariffs, FinanceReceipts } from "../modules/finance/pages";
 import { CurriculumDashboard } from "../modules/curriculum/dashboard";
+import { CurriculumQualityControl } from "../modules/curriculum/quality-control";
 import { SubjectsList, SubjectCreate, SubjectEdit, SubjectShow, SubjectTeacherDirectory } from "../modules/curriculum/subjects";
 import { SubjectCurriculumCreate, SubjectCurriculumEdit } from "../modules/curriculum/subject-curriculums";
 import { PaudThemeList } from "../modules/curriculum/paud-curriculums/list";
@@ -63,7 +67,7 @@ import { PaudThemeCreate } from "../modules/curriculum/paud-curriculums/create";
 import { PaudThemeEdit } from "../modules/curriculum/paud-curriculums/edit";
 import { PaudThemeShow } from "../modules/curriculum/paud-curriculums/show";
 import { CurriculumDocumentsList, CurriculumDocumentCreate } from "../modules/curriculum/documents";
-import { MailDashboard, IncomingMailList, OutgoingMailList, DispositionsList, IncomingMailCreate, OutgoingMailCreate } from "../modules/mail";
+import { MailDashboard, IncomingMailList, OutgoingMailList, DispositionsList, IncomingMailCreate, OutgoingMailCreate, MailShow } from "../modules/mail";
 import { RecruitmentDashboard, VacanciesList, ApplicantsList, ApplicantShow, VacancyCreate, VacancyEdit, ApplicantCreate } from "../modules/recruitment";
 import { CbtBanksList } from "../modules/recruitment/cbt/CbtBanksList";
 import { CbtQuestionsManager } from "../modules/recruitment/cbt/CbtQuestionsManager";
@@ -73,7 +77,7 @@ import { CbtAttemptsList } from "../modules/recruitment/cbt/CbtAttemptsList";
 import { CbtAttemptShow } from "../modules/recruitment/cbt/CbtAttemptShow";
 import { AdmissionsDashboard, AdmissionsSettings, AdmissionsReports, ApplicantsList as AdmissionsApplicantsList, ApplicantShow as AdmissionsApplicantShow } from "../modules/admissions/pages";
 import { AcademicDashboard, Gradebook, ReportCards, ReportPrint } from "../modules/academic";
-import { SarprasDashboard, AssetsList, AssetLoansList, ProcurementsList, UnifiedAssetsDashboard, RoomsList, RoomSchedulesList } from "../modules/sarpras";
+import { SarprasDashboard, AssetLoansList, ProcurementsList, UnifiedAssetsDashboard, RoomsList, RoomSchedulesList, MaintenanceList, StocktakesList } from "../modules/sarpras";
 import { AcademicCalendar } from "../modules/calendar";
 import { PkgList, PkgCreate, PkgShow, PkgHistory, PkgSettings } from "../modules/pkg";
 import { 
@@ -121,11 +125,14 @@ import { TeacherQuran } from "../modules/teacher-portal/teacher-quran";
 import { TeacherPaud } from "../modules/teacher-portal/teacher-paud";
 import { TeacherAnnouncements } from "../modules/teacher-portal/teacher-announcements";
 import { TeacherProfile } from "../modules/teacher-portal/teacher-profile";
+import { TeacherTasks } from "../modules/teacher-portal/teacher-tasks";
+import { TeacherReports } from "../modules/teacher-portal/teacher-reports";
+import { TeacherPerformance } from "../modules/teacher-portal/teacher-performance";
 
 import { BendaharaLayout, BendaharaLogin } from "../modules/bendahara-portal";
 import { AdminSpmbLayout, AdminSpmbLogin } from "../modules/admin-spmb-portal";
 import { HrdPortalLayout, HrdPortalLogin, HrdDashboard } from "../modules/hrd-portal";
-import { StaffLogin, StaffLayout, StaffDashboard, StaffAttendance, StaffLeaves, StaffAnnouncements, StaffSchedules, StaffProfile } from "../modules/staff-portal";
+import { StaffLogin, StaffLayout, StaffDashboard, StaffAttendance, StaffLeaves, StaffAnnouncements, StaffSchedules, StaffProfile, StaffTasks, StaffOperationalReports } from "../modules/staff-portal";
 
 import { ReportPeriodsList, ReportPeriodCreate, ReportPeriodEdit, ReportPeriodShow } from "../modules/digital-reports/periods/pages";
 import { ReportTemplatesList, ReportTemplateCreate, ReportTemplateEdit, ReportTemplateShow } from "../modules/digital-reports/templates/pages";
@@ -150,6 +157,8 @@ import { DigitalLibraryBooksEdit } from "../modules/digital-library/books-edit";
 import { PortalLibrary } from "../modules/portal/portal-library";
 import { PortalOnboarding } from "../modules/portal/portal-onboarding";
 import { PortalProfile } from "../modules/portal/portal-profile";
+import { PortalAttendance } from "../modules/portal/portal-attendance";
+import { PortalRequests } from "../modules/portal/portal-requests";
 
 // Onboarding Imports
 import { OnboardingList, OnboardingCreate, OnboardingEdit, OnboardingShow } from "../modules/onboarding/pages";
@@ -328,6 +337,26 @@ export default function App() {
             meta: { label: "Pengaturan Keuangan", parent: "finance" }
           },
           {
+            name: "finance_cash_accounts",
+            list: "/finance/cashbook",
+            meta: { label: "Kas & Bank" }
+          },
+          {
+            name: "finance_budgets",
+            list: "/finance/budgets",
+            meta: { label: "RKAS & Anggaran" }
+          },
+          {
+            name: "finance_accounts",
+            list: "/finance/accounting",
+            meta: { label: "Bagan Akun" }
+          },
+          {
+            name: "finance_journal_entries",
+            list: "/finance/accounting",
+            meta: { label: "Jurnal Akuntansi" }
+          },
+          {
             name: "teachers",
             list: "/teachers",
             create: "/teachers/create",
@@ -356,6 +385,11 @@ export default function App() {
             meta: {
               canDelete: true,
             },
+          },
+          {
+            name: "staff_operational_reports",
+            list: "/operations/reports",
+            meta: { label: "Laporan Operasional Staf", canDelete: false },
           },
           {
             name: "attendance_records",
@@ -391,6 +425,11 @@ export default function App() {
             name: "reports",
             list: "/reports",
             meta: { canDelete: false },
+          },
+          {
+            name: "report_export_logs",
+            list: "/reports/history",
+            meta: { label: "Riwayat Ekspor Laporan", canDelete: false },
           },
           {
             name: "onboarding_materials",
@@ -523,6 +562,15 @@ export default function App() {
             name: "subject_curriculums",
             create: "/curriculum/subject-curriculums/create",
             edit: "/curriculum/subject-curriculums/edit/:id",
+            meta: { canDelete: true },
+          },
+          {
+            name: "document_governance_actions",
+            list: "/documents/governance",
+            meta: { canDelete: false, label: "Retensi & Kepatuhan Dokumen" },
+          },
+          {
+            name: "subject_curriculum_semesters",
             meta: { canDelete: true },
           },
           {
@@ -671,6 +719,20 @@ export default function App() {
             meta: { canDelete: true, label: "Jadwal Ruangan" },
           },
           {
+            name: "asset_maintenance_requests",
+            list: "/sarpras/maintenance",
+            meta: { canDelete: false, label: "Pemeliharaan Sarpras" },
+          },
+          {
+            name: "asset_stocktakes",
+            list: "/sarpras/stocktakes",
+            meta: { canDelete: false, label: "Stok Opname" },
+          },
+          {
+            name: "asset_stocktake_items",
+            meta: { canDelete: false, hide: true },
+          },
+          {
             name: "extracurricular",
             list: "/extracurricular",
             meta: { label: "Ekstrakurikuler" }
@@ -729,6 +791,7 @@ export default function App() {
 
               <Route path="/parents">
                 <Route index element={<ParentsList />} />
+                <Route path="requests" element={<ParentPortalRequestsAdmin />} />
                 <Route path="create" element={<ParentCreate />} />
                 <Route path="edit/:id" element={<ParentEdit />} />
                 <Route path="show/:id" element={<ParentShow />} />
@@ -759,8 +822,11 @@ export default function App() {
                   <Route index element={<AttendanceSelector />} />
                   <Route path="class/:classId" element={<AttendanceInput />} />
                   <Route path="employees" element={<EmployeeAttendanceList />} />
+                  <Route path="settings" element={<AttendanceSettings />} />
+                  <Route path="reviews" element={<AttendanceReviews />} />
                   <Route path="reports" element={<AttendanceReports />} />
                 </Route>
+                <Route path="operations/reports" element={<StaffOperationalReportsAdmin />} />
 
                 <Route path="employees">
                    <Route index element={<EmployeesList />} />
@@ -794,6 +860,7 @@ export default function App() {
                 <Route path="documents">
                   <Route index element={<DocumentsList />} />
                   <Route path="create" element={<DocumentCreate />} />
+                  <Route path="governance" element={<DocumentGovernance />} />
                   <Route path="show/:id" element={<DocumentShow />} />
                 </Route>
 
@@ -817,6 +884,7 @@ export default function App() {
                   <Route path="tasks" element={<TaskReport />} />
                   <Route path="employee-attendance" element={<ReportEmployeeAttendance />} />
                   <Route path="leaves" element={<ReportLeaves />} />
+                  <Route path="history" element={<ReportExportHistory />} />
                   <Route path="periods">
                     <Route index element={<ReportPeriodsList />} />
                     <Route path="create" element={<ReportPeriodCreate />} />
@@ -950,6 +1018,7 @@ export default function App() {
 
                 <Route path="/curriculum">
                   <Route index element={<CurriculumDashboard />} />
+                  <Route path="quality" element={<CurriculumQualityControl />} />
                   <Route path="subjects">
                     <Route index element={<SubjectsList />} />
                     <Route path="create" element={<SubjectCreate />} />
@@ -976,8 +1045,14 @@ export default function App() {
                 <Route path="/finance">
                   <Route index element={<FinanceDashboard />} />
                   <Route path="invoices" element={<InvoicesList />} />
+                  <Route path="receipts" element={<FinanceReceipts />} />
                   <Route path="verifications" element={<PaymentVerifications />} />
                   <Route path="expenses" element={<SchoolExpenses />} />
+                  <Route path="cashbook" element={<FinanceCashbook />} />
+                  <Route path="budgets" element={<FinanceBudgets />} />
+                  <Route path="tariffs" element={<FinanceTariffs />} />
+                  <Route path="accounting" element={<FinanceAccounting />} />
+                  <Route path="reports" element={<FinanceReports />} />
                   <Route path="categories" element={<FinanceCategories />} />
                   <Route path="spmb-fees" element={<SpmbFeesConfig />} />
                   <Route path="settings" element={<FinanceSettings />} />
@@ -990,6 +1065,7 @@ export default function App() {
                   <Route path="outgoing" element={<OutgoingMailList />} />
                   <Route path="outgoing/create" element={<OutgoingMailCreate />} />
                   <Route path="dispositions" element={<DispositionsList />} />
+                  <Route path="show/:id" element={<MailShow />} />
                 </Route>
 
                 <Route path="/recruitment">
@@ -1032,6 +1108,8 @@ export default function App() {
                   <Route path="procurements" element={<ProcurementsList />} />
                   <Route path="rooms" element={<RoomsList />} />
                   <Route path="room-schedules" element={<RoomSchedulesList />} />
+                  <Route path="maintenance" element={<MaintenanceList />} />
+                  <Route path="stocktakes" element={<StocktakesList />} />
                 </Route>
 
                 <Route path="/pkg">
@@ -1068,6 +1146,8 @@ export default function App() {
               <Route path="/portal" element={<PortalLayout />}>
                 <Route index element={<PortalDashboard />} />
                 <Route path="profile" element={<PortalProfile />} />
+                <Route path="attendance" element={<PortalAttendance />} />
+                <Route path="requests" element={<PortalRequests />} />
                 <Route path="extracurricular" element={<PortalExtracurricular />} />
                 <Route path="finance" element={<PortalFinance />} />
                 <Route path="academic" element={<PortalAcademic />} />
@@ -1116,6 +1196,8 @@ export default function App() {
               <Route path="/teacher" element={<TeacherLayout />}>
                 <Route index element={<TeacherDashboard />} />
                 <Route path="classes" element={<TeacherClasses />} />
+                <Route path="reports" element={<TeacherReports />} />
+                <Route path="reports/:id" element={<TeacherInputForm />} />
                 <Route path="quran" element={<TeacherQuran />} />
                 <Route path="paud" element={<TeacherPaud />} />
                 <Route path="journals" element={<TeacherJournals />} />
@@ -1123,6 +1205,8 @@ export default function App() {
                 <Route path="leaves" element={<TeacherLeaves />} />
                 <Route path="schedules" element={<TeacherSchedules />} />
                 <Route path="announcements" element={<TeacherAnnouncements />} />
+                <Route path="tasks" element={<TeacherTasks />} />
+                <Route path="performance" element={<TeacherPerformance />} />
                 <Route path="profile" element={<TeacherProfile />} />
               </Route>
 
@@ -1133,6 +1217,8 @@ export default function App() {
                 <Route path="leaves" element={<StaffLeaves />} />
                 <Route path="announcements" element={<StaffAnnouncements />} />
                 <Route path="schedules" element={<StaffSchedules />} />
+                <Route path="tasks" element={<StaffTasks />} />
+                <Route path="reports" element={<StaffOperationalReports />} />
                 <Route path="profile" element={<StaffProfile />} />
               </Route>
 
@@ -1140,10 +1226,17 @@ export default function App() {
               <Route path="/bendahara" element={<BendaharaLayout />}>
                 <Route index element={<FinanceDashboard />} />
                 <Route path="invoices" element={<InvoicesList />} />
+                <Route path="receipts" element={<FinanceReceipts />} />
                 <Route path="verifications" element={<PaymentVerifications />} />
                 <Route path="expenses" element={<SchoolExpenses />} />
+                <Route path="cashbook" element={<FinanceCashbook />} />
+                <Route path="budgets" element={<FinanceBudgets />} />
+                <Route path="tariffs" element={<FinanceTariffs />} />
+                <Route path="accounting" element={<FinanceAccounting />} />
+                <Route path="reports" element={<FinanceReports />} />
                 <Route path="students" element={<StudentsList />} />
                 <Route path="categories" element={<FinanceCategories />} />
+                <Route path="settings" element={<FinanceSettings />} />
               </Route>
 
               <Route path="/admin-spmb/login" element={<AdminSpmbLogin />} />

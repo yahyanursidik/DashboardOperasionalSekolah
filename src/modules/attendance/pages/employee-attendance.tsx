@@ -4,12 +4,11 @@ import { Link } from "react-router-dom";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import {
   Users, Clock, Loader2, Play, ChevronLeft, ChevronRight, CalendarCheck,
-  AlertTriangle, CheckCircle2, FileText, Briefcase, Timer, Filter,
-  ClipboardList, CalendarDays
+  AlertTriangle, CheckCircle2, FileText, Filter,
+  ClipboardList, CalendarDays, ShieldCheck, MapPin
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAcademicYear } from "../../../app/providers/AcademicYearProvider";
-import { supabaseClient } from "../../../lib/supabase/client";
 import { dayMap, formatTime, getScheduleSubjectName } from "../../schedules/schedule-utils";
 
 const STATUS_OPTIONS = [
@@ -105,7 +104,6 @@ export const EmployeeAttendanceList: React.FC = () => {
   const [filterPosition, setFilterPosition] = useState("");
   const [filterAttendance, setFilterAttendance] = useState("");
   const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
-  const [bulkLoading, setBulkLoading] = useState(false);
   const { activeYearId } = useAcademicYear();
 
   const dayName = getDateDayName(selectedDate);
@@ -123,7 +121,7 @@ export const EmployeeAttendanceList: React.FC = () => {
     },
     sorters: { permanent: [{ field: "full_name", order: "asc" }] },
     meta: {
-      select: "*, units(name), employee_attendance(id, status, time_in, time_out, notes, date)"
+      select: "*, units(name), employee_attendance(id, status, time_in, time_out, notes, date, verification_status, location_status, site_id, is_late, late_minutes, is_early_departure, early_departure_minutes, attendance_sites(name))"
     }
   });
 
@@ -153,6 +151,16 @@ export const EmployeeAttendanceList: React.FC = () => {
     meta: { select: "id, employee_id, leave_type, start_date, end_date, status" },
   });
 
+  const { data: correctionsData } = useList({
+    resource: "attendance_correction_requests",
+    filters: [
+      { field: "status", operator: "eq", value: "pending" },
+      { field: "request_date", operator: "eq", value: selectedDate },
+    ],
+    pagination: { pageSize: 1000 },
+    meta: { select: "id,employee_id,attendance_action,request_type,requested_time,status" },
+  });
+
   const { mutate: updateAttendance } = useUpdate();
   const { mutate: createAttendance } = useCreate();
 
@@ -176,6 +184,15 @@ export const EmployeeAttendanceList: React.FC = () => {
     });
     return map;
   }, [leavesData, selectedDate]);
+
+  const correctionMap = useMemo(() => {
+    const map: Record<string, any[]> = {};
+    (correctionsData?.data ?? []).forEach((request: any) => {
+      if (!map[request.employee_id]) map[request.employee_id] = [];
+      map[request.employee_id].push(request);
+    });
+    return map;
+  }, [correctionsData]);
 
   const getRecord = (employee: any) => employee.employee_attendance?.find((a: any) => a.date === selectedDate);
   const displayedEmployees = employees.filter((employee: any) => {
@@ -203,8 +220,9 @@ export const EmployeeAttendanceList: React.FC = () => {
         return (scheduleMap[employee.id] ?? []).length > 0 && record?.status !== "present" && record?.status !== "late";
       }).length,
       approvedLeaves: employees.filter((employee: any) => Boolean(leaveMap[employee.id])).length,
+      pendingReview: employees.filter((employee: any) => (correctionMap[employee.id] ?? []).length > 0 || getRecord(employee)?.verification_status === "pending_review").length,
     };
-  }, [employees, selectedDate, scheduleMap, leaveMap]);
+  }, [employees, selectedDate, scheduleMap, leaveMap, correctionMap]);
 
   const saveAttendance = (employee: any, values: Record<string, any>, successMessage: string) => {
     setLoadingStates(prev => ({ ...prev, [employee.id]: true }));
@@ -214,7 +232,7 @@ export const EmployeeAttendanceList: React.FC = () => {
       updateAttendance({
         resource: "employee_attendance",
         id: existingRecord.id,
-        values,
+        values: { ...values, verification_status: "manual", review_note: "Penyesuaian manual oleh operator absensi." },
         invalidates: ["list"]
       }, {
         onSuccess: () => {
@@ -235,6 +253,10 @@ export const EmployeeAttendanceList: React.FC = () => {
         employee_id: employee.id,
         date: selectedDate,
         ...values,
+        verification_status: "manual",
+        location_status: "unavailable",
+        check_in_method: "admin",
+        review_note: "Dicatat manual oleh operator absensi.",
       },
       invalidates: ["list"]
     }, {
@@ -277,40 +299,6 @@ export const EmployeeAttendanceList: React.FC = () => {
     handleTimeChange(employee, field, timeStr);
   };
 
-  const markScheduledPresent = async () => {
-    const payload = displayedEmployees
-      .filter((employee: any) => !getRecord(employee) && !leaveMap[employee.id] && (scheduleMap[employee.id] ?? []).length > 0)
-      .map((employee: any) => {
-        const firstSchedule = scheduleMap[employee.id]?.[0];
-        return {
-          employee_id: employee.id,
-          date: selectedDate,
-          status: "present",
-          time_in: firstSchedule?.start_time ? formatTime(firstSchedule.start_time) : null,
-          notes: "Ditandai hadir massal berdasarkan jadwal aktif hari ini.",
-        };
-      });
-
-    if (payload.length === 0) {
-      toast.info("Tidak ada pegawai terjadwal yang perlu ditandai hadir.");
-      return;
-    }
-
-    setBulkLoading(true);
-    const { error } = await supabaseClient
-      .from("employee_attendance")
-      .upsert(payload, { onConflict: "employee_id,date" });
-
-    setBulkLoading(false);
-    if (error) {
-      toast.error(error.message || "Gagal menandai hadir massal.");
-      return;
-    }
-
-    toast.success(`${payload.length} pegawai terjadwal ditandai hadir.`);
-    tableQueryResult.refetch();
-  };
-
   return (
     <div className="space-y-6">
       <PageHeader
@@ -323,6 +311,12 @@ export const EmployeeAttendanceList: React.FC = () => {
             </Link>
             <Link to="/leaves" className="flex items-center gap-2 border px-3 py-2 rounded-lg hover:bg-muted text-sm font-medium">
               <FileText className="w-4 h-4" /> Izin/Cuti
+            </Link>
+            <Link to="/attendance/reviews" className="flex items-center gap-2 border px-3 py-2 rounded-lg hover:bg-muted text-sm font-medium">
+              <ShieldCheck className="w-4 h-4" /> Tinjauan
+            </Link>
+            <Link to="/attendance/settings" className="flex items-center gap-2 border px-3 py-2 rounded-lg hover:bg-muted text-sm font-medium">
+              <MapPin className="w-4 h-4" /> Aturan & Lokasi
             </Link>
             <Link to="/reports/employee-attendance" className="flex items-center gap-2 bg-primary text-primary-foreground px-3 py-2 rounded-lg hover:bg-primary/90 text-sm font-medium">
               <ClipboardList className="w-4 h-4" /> Laporan
@@ -337,17 +331,12 @@ export const EmployeeAttendanceList: React.FC = () => {
             <p className="text-xs font-semibold text-primary uppercase tracking-wide">Workflow Presensi Mutu</p>
             <h2 className="text-lg font-bold text-foreground mt-1">Sinkronkan presensi dengan jadwal dan pengajuan izin</h2>
             <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
-              Tanggal menggunakan waktu lokal perangkat. Pegawai yang punya jadwal hari ini dan izin/cuti approved ditandai agar operator tidak salah input.
+              Waktu absensi mandiri berasal dari server. Lokasi, jadwal, izin, dan koreksi ditampilkan agar operator dapat memvalidasi pengecualian secara tertib.
             </p>
           </div>
-          <button
-            onClick={markScheduledPresent}
-            disabled={bulkLoading || displayedEmployees.length === 0}
-            className="inline-flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 disabled:opacity-60 text-sm font-semibold"
-          >
-            {bulkLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-            Tandai Hadir Pegawai Terjadwal
-          </button>
+          <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
+            Kehadiran tidak dibuat otomatis dari jadwal.
+          </div>
         </div>
       </section>
 
@@ -471,6 +460,11 @@ export const EmployeeAttendanceList: React.FC = () => {
                               {emp.units.name}
                             </span>
                           )}
+                          {record?.verification_status && (
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${record.verification_status === "verified" ? "bg-emerald-50 text-emerald-700" : record.verification_status === "approved_exception" ? "bg-blue-50 text-blue-700" : "bg-amber-50 text-amber-700"}`}>
+                              {record.verification_status === "verified" ? "Lokasi valid" : record.verification_status === "approved_exception" ? "Pengecualian disetujui" : record.verification_status === "manual" ? "Input admin" : "Belum terverifikasi"}
+                            </span>
+                          )}
                         </div>
                       </td>
                       <td className="px-4 py-3 min-w-[220px]">
@@ -497,6 +491,11 @@ export const EmployeeAttendanceList: React.FC = () => {
                           <div className="mt-2 rounded-lg border border-blue-100 bg-blue-50 px-2 py-1.5 text-xs text-blue-700">
                             Izin approved: {String(leave.leave_type || "izin").replace(/_/g, " ")}
                           </div>
+                        )}
+                        {(correctionMap[emp.id] ?? []).length > 0 && (
+                          <Link to="/attendance/reviews" className="mt-2 block rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5 text-xs font-semibold text-amber-700">
+                            Koreksi menunggu tinjauan
+                          </Link>
                         )}
                       </td>
                       <td className="px-4 py-3 min-w-[260px]">
@@ -600,15 +599,15 @@ export const EmployeeAttendanceList: React.FC = () => {
               <p className="text-xs text-muted-foreground mt-1">Terjadwal tetapi belum hadir/terlambat</p>
             </div>
             <div className="rounded-lg border p-3 bg-background">
-              <p className="text-2xl font-bold text-foreground">{stats.approvedLeaves}</p>
-              <p className="text-xs text-muted-foreground mt-1">Izin approved perlu disinkronkan presensi</p>
+              <p className="text-2xl font-bold text-foreground">{stats.pendingReview}</p>
+              <p className="text-xs text-muted-foreground mt-1">Presensi atau koreksi perlu ditinjau</p>
             </div>
           </div>
         </div>
         <div className="bg-card border rounded-xl p-4 shadow-sm">
           <p className="font-semibold text-sm mb-3">Definition of done presensi</p>
           <div className="space-y-2 text-xs text-muted-foreground">
-            {["Tanggal lokal benar", "Pegawai terjadwal sudah dicek", "Izin/cuti approved sinkron", "Jam masuk/keluar terisi untuk hadir", "Catatan ada untuk kasus khusus"].map((item) => (
+            {["Waktu server dan tanggal benar", "Pegawai terjadwal sudah dicek", "Izin/cuti disetujui sudah sinkron", "Koreksi lokasi sudah ditinjau", "Input manual memiliki catatan"].map((item) => (
               <div key={item} className="flex items-center gap-2">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                 <span>{item}</span>

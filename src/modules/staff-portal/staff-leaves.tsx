@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from "react";
+/* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/set-state-in-effect */
+import React, { useCallback, useEffect, useState } from "react";
 import { Link, useOutletContext } from "react-router-dom";
-import { ArrowLeft, Calendar, CheckCircle, Clock, Plus, XCircle } from "lucide-react";
+import { ArrowLeft, CheckCircle, Clock, Plus, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { supabaseClient } from "../../lib/supabase/client";
 import { useAcademicYear } from "../../app/providers/AcademicYearProvider";
@@ -18,7 +19,7 @@ export const StaffLeaves: React.FC = () => {
   const [reason, setReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const fetchLeaves = async () => {
+  const fetchLeaves = useCallback(async () => {
     setIsLoading(true);
     try {
       const { data } = await supabaseClient
@@ -30,11 +31,11 @@ export const StaffLeaves: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [employee.id]);
 
   useEffect(() => {
-    fetchLeaves();
-  }, [employee.id]);
+    void fetchLeaves();
+  }, [fetchLeaves]);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();

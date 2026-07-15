@@ -1,12 +1,18 @@
-import React from "react";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import React, { useState } from "react";
 import { useForm, useGetIdentity } from "@refinedev/core";
 import { useNavigate } from "react-router-dom";
 import { PageHeader } from "../../../components/layout/PageHeader";
-import { ArrowLeft, Save } from "lucide-react";
+import { ArrowLeft, Paperclip, Save } from "lucide-react";
+import { useCurrentUnit } from "../../../app/providers/UnitProvider";
+import { uploadDocument } from "../../../lib/supabase/storage";
+import { OfficeSectionNav } from "../components/OfficeSectionNav";
 
 export const OutgoingMailCreate: React.FC = () => {
   const navigate = useNavigate();
   const { data: user } = useGetIdentity<any>();
+  const { activeUnitId } = useCurrentUnit();
+  const [attachment, setAttachment] = useState<File | null>(null);
   
   const { onFinish, formLoading } = useForm({
     resource: "mail_records",
@@ -19,14 +25,25 @@ export const OutgoingMailCreate: React.FC = () => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     
+    const attachmentMeta = attachment ? await uploadDocument(attachment, `mail/outgoing/${new Date().getFullYear()}`) : null;
     const values = {
       type: "outgoing",
+      unit_id: activeUnitId || null,
       mail_number: formData.get("mail_number") as string,
       title: formData.get("title") as string,
       recipient: formData.get("recipient") as string,
       mail_date: formData.get("mail_date") as string,
       description: formData.get("description") as string,
-      status: "completed",
+      classification_code: formData.get("classification_code") as string || null,
+      confidentiality: formData.get("confidentiality") as string,
+      priority: formData.get("priority") as string,
+      channel: formData.get("channel") as string,
+      physical_location: formData.get("physical_location") as string || null,
+      attachment_path: attachmentMeta?.filePath || null,
+      attachment_name: attachmentMeta?.fileName || null,
+      attachment_mime_type: attachmentMeta?.mimeType || null,
+      attachment_size: attachmentMeta?.fileSize || null,
+      status: "awaiting_approval",
       created_by: user?.profile?.id
     };
 
@@ -48,6 +65,8 @@ export const OutgoingMailCreate: React.FC = () => {
           </button>
         }
       />
+
+      <OfficeSectionNav />
 
       <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
@@ -93,6 +112,13 @@ export const OutgoingMailCreate: React.FC = () => {
               />
             </div>
 
+            <div className="space-y-2"><label className="text-sm font-medium">Kode klasifikasi</label><input name="classification_code" placeholder="Contoh: 005 / 421.3" className="w-full rounded-lg border bg-background px-4 py-2.5" /></div>
+            <div className="space-y-2"><label className="text-sm font-medium">Media pengiriman</label><select name="channel" defaultValue="email" className="w-full rounded-lg border bg-background px-4 py-2.5"><option value="physical">Surat fisik</option><option value="email">Email</option><option value="whatsapp">WhatsApp</option><option value="courier">Kurir</option><option value="system">Sistem</option><option value="other">Lainnya</option></select></div>
+            <div className="space-y-2"><label className="text-sm font-medium">Kerahasiaan</label><select name="confidentiality" defaultValue="internal" className="w-full rounded-lg border bg-background px-4 py-2.5"><option value="public">Publik</option><option value="internal">Internal</option><option value="confidential">Rahasia</option><option value="restricted">Sangat terbatas</option></select></div>
+            <div className="space-y-2"><label className="text-sm font-medium">Prioritas</label><select name="priority" defaultValue="normal" className="w-full rounded-lg border bg-background px-4 py-2.5"><option value="low">Rendah</option><option value="normal">Normal</option><option value="high">Tinggi</option><option value="urgent">Darurat</option></select></div>
+            <div className="space-y-2"><label className="text-sm font-medium">Lokasi arsip fisik</label><input name="physical_location" placeholder="Lemari/Rak/Ordner" className="w-full rounded-lg border bg-background px-4 py-2.5" /></div>
+            <label className="space-y-2"><span className="flex items-center gap-2 text-sm font-medium"><Paperclip className="h-4 w-4" />Draf/lampiran surat</span><input type="file" accept="application/pdf,image/*" onChange={(event) => setAttachment(event.target.files?.[0] || null)} className="block w-full rounded-lg border bg-background p-2.5 text-sm" /></label>
+
             <div className="md:col-span-2 space-y-2">
               <label className="text-sm font-medium">Keterangan / Ringkasan Isi (Opsional)</label>
               <textarea 
@@ -110,7 +136,7 @@ export const OutgoingMailCreate: React.FC = () => {
               disabled={formLoading}
               className="flex items-center gap-2 bg-emerald-600 text-white px-6 py-2.5 rounded-lg hover:bg-emerald-700 font-medium transition-colors shadow-sm disabled:opacity-70"
             >
-              <Save className="w-4 h-4" /> {formLoading ? "Menyimpan..." : "Simpan Surat Keluar"}
+              <Save className="w-4 h-4" /> {formLoading ? "Menyimpan..." : "Ajukan Persetujuan"}
             </button>
           </div>
         </form>

@@ -1,17 +1,30 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Outlet, useNavigate, useLocation, Link } from "react-router-dom";
 import { supabaseClient } from "../../lib/supabase/client";
-import { Home, Wallet, BookOpen, LogOut, Smile, ClipboardList, Bell, Target, FileText, MoreHorizontal, X, Users, UserRound } from "lucide-react";
+import { Home, Wallet, BookOpen, LogOut, Smile, ClipboardList, Bell, Target, FileText, MoreHorizontal, X, Users, UserRound, CalendarCheck, LifeBuoy, Library } from "lucide-react";
 import { useSystemSettings } from "../../app/providers/SettingsProvider";
+import type { ParentPortalParent, ParentPortalStudent } from "./portal-context";
+
+type LinkedStudentRow = {
+  relationship?: string | null;
+  is_primary?: boolean | null;
+  can_access_parent_portal?: boolean | null;
+  students?: ParentPortalStudent | null;
+};
+
+type AnnouncementIdRow = { id: string };
+type AnnouncementReadRow = { announcement_id: string };
 
 export const PortalLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { logoUrl, appName } = useSystemSettings();
-  const [student, setStudent] = useState<any>(null);
-  const [students, setStudents] = useState<any[]>([]);
+  const [parent, setParent] = useState<ParentPortalParent | null>(null);
+  const [students, setStudents] = useState<ParentPortalStudent[]>([]);
   const [selectedStudentId, setSelectedStudentId] = useState("");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [unreadAnnouncements, setUnreadAnnouncements] = useState(0);
 
   useEffect(() => {
     const fetchSession = async () => {
@@ -23,7 +36,7 @@ export const PortalLayout: React.FC = () => {
 
       const { data: parentDataResult, error: parentError } = await supabaseClient
         .from("parents")
-        .select("id")
+        .select("id, full_name, phone, email, address, nik, occupation")
         .eq("user_id", session.user.id)
         .single();
 
@@ -33,62 +46,100 @@ export const PortalLayout: React.FC = () => {
         return;
       }
 
-      const parentData = parentDataResult as any;
+      const parentData = parentDataResult as unknown as ParentPortalParent;
+      setParent(parentData);
       const { data: linkedStudents } = await supabaseClient
         .from("student_parent_links")
-        .select("students(*, classes(name, unit_id, units(name)))")
+        .select("relationship, is_primary, can_access_parent_portal, students(*, classes(id, name, unit_id, units(name)))")
         .eq("parent_id", parentData.id)
         .order("created_at", { ascending: true });
 
-      const mappedStudents = ((linkedStudents || []) as any[])
-        .map((item) => item.students)
-        .filter(Boolean);
+      const mappedStudents: ParentPortalStudent[] = ((linkedStudents || []) as unknown as LinkedStudentRow[])
+        .filter((item) => item.can_access_parent_portal !== false)
+        .flatMap((item) => item.students ? [{
+          ...item.students,
+          relationship: item.relationship,
+          is_primary_guardian: Boolean(item.is_primary),
+        }] : []);
 
       if (mappedStudents.length > 0) {
         setStudents(mappedStudents);
         setSelectedStudentId((current) => current || mappedStudents[0].id);
-        setStudent(mappedStudents[0]);
       } else {
-        setStudent({ full_name: "Orang Tua Siswa" });
+        setStudents([]);
       }
+      setIsLoading(false);
     };
 
     fetchSession();
   }, [navigate]);
 
-  useEffect(() => {
-    setIsMobileMenuOpen(false);
-  }, [location.pathname]);
+  const refreshUnreadAnnouncements = useCallback(async () => {
+    if (!parent?.id) return;
+    const [{ data: announcements }, { data: reads }] = await Promise.all([
+      supabaseClient
+        .from("announcements")
+        .select("id")
+        .eq("status", "terkirim")
+        .in("target_type", ["all", "parents", "unit", "class"]),
+      supabaseClient
+        .from("parent_announcement_reads")
+        .select("announcement_id")
+        .eq("parent_id", parent.id),
+    ]);
+    const readIds = new Set(((reads || []) as unknown as AnnouncementReadRow[]).map((item) => item.announcement_id));
+    setUnreadAnnouncements(((announcements || []) as unknown as AnnouncementIdRow[]).filter((item) => !readIds.has(item.id)).length);
+  }, [parent]);
 
   useEffect(() => {
-    if (!selectedStudentId || students.length === 0) return;
-    const nextStudent = students.find((item) => item.id === selectedStudentId);
-    if (nextStudent) setStudent(nextStudent);
-  }, [selectedStudentId, students]);
+    // The query resolves asynchronously before updating the unread badge.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void refreshUnreadAnnouncements();
+  }, [refreshUnreadAnnouncements, students.length]);
 
   const handleLogout = async () => {
     await supabaseClient.auth.signOut();
     navigate("/portal/login");
   };
 
-  const navItems = [
-    { name: "Beranda", path: "/portal", icon: Home },
-    { name: "Profil", path: "/portal/profile", icon: UserRound },
-    { name: "Akademik", path: "/portal/academic", icon: BookOpen },
-    { name: "e-Rapor", path: "/portal/reports", icon: FileText },
-    { name: "Perpustakaan", path: "/portal/library", icon: BookOpen },
-    { name: "Ekskul", path: "/portal/extracurricular", icon: Target },
-    { name: "KB/TK", path: "/portal/paud", icon: Smile },
-    { name: "Qur'an", path: "/portal/quran", icon: BookOpen },
-    { name: "Keuangan", path: "/portal/finance", icon: Wallet },
-    { name: "Catatan Siswa", path: "/portal/journals", icon: ClipboardList },
-    { name: "Panduan", path: "/portal/onboarding", icon: Target },
+  const navGroups = [
+    { label: "Ringkasan", items: [
+      { name: "Beranda", path: "/portal", icon: Home },
+      { name: "Profil Keluarga", path: "/portal/profile", icon: UserRound },
+    ]},
+    { label: "Perkembangan Anak", items: [
+      { name: "Kehadiran", path: "/portal/attendance", icon: CalendarCheck },
+      { name: "Akademik & Jadwal", path: "/portal/academic", icon: BookOpen },
+      { name: "e-Rapor", path: "/portal/reports", icon: FileText },
+      { name: "Catatan Siswa", path: "/portal/journals", icon: ClipboardList },
+      { name: "Qur'an", path: "/portal/quran", icon: BookOpen },
+      { name: "KB/TK", path: "/portal/paud", icon: Smile },
+      { name: "Ekstrakurikuler", path: "/portal/extracurricular", icon: Target },
+    ]},
+    { label: "Layanan Sekolah", items: [
+      { name: "Keuangan", path: "/portal/finance", icon: Wallet },
+      { name: "Pengajuan", path: "/portal/requests", icon: LifeBuoy },
+      { name: "Perpustakaan", path: "/portal/library", icon: Library },
+      { name: "Panduan Keluarga", path: "/portal/onboarding", icon: Target },
+    ]},
   ];
 
-  const mobileMainItems = navItems.filter((item) => ["/portal", "/portal/profile", "/portal/quran"].includes(item.path));
-  const parentContext = useMemo(() => ({ student, students, selectedStudentId, setSelectedStudentId }), [student, students, selectedStudentId]);
+  const navItems = navGroups.flatMap((group) => group.items);
+  const mobileMainItems = navItems.filter((item) => ["/portal", "/portal/attendance", "/portal/finance", "/portal/requests"].includes(item.path));
+  const student = useMemo(() => students.find((item) => item.id === selectedStudentId) || students[0] || null, [selectedStudentId, students]);
+  const parentContext = useMemo(() => ({ parent, student, students, selectedStudentId, setSelectedStudentId, unreadAnnouncements, refreshUnreadAnnouncements }), [parent, student, students, selectedStudentId, unreadAnnouncements, refreshUnreadAnnouncements]);
 
-  if (!student) return <div className="min-h-screen flex items-center justify-center bg-gray-50">Memuat...</div>;
+  if (isLoading) return <div className="min-h-screen flex items-center justify-center bg-gray-50 text-sm text-gray-500">Memuat portal orang tua...</div>;
+  if (!parent || !student) return (
+    <div className="min-h-screen bg-gray-50 p-6 flex items-center justify-center">
+      <div className="max-w-md rounded-lg border bg-white p-6 text-center shadow-sm">
+        <Users className="mx-auto h-10 w-10 text-gray-300" />
+        <h1 className="mt-3 text-lg font-bold text-gray-900">Belum ada siswa yang dapat diakses</h1>
+        <p className="mt-2 text-sm leading-6 text-gray-500">Akun orang tua sudah ditemukan, tetapi relasi portal ke siswa belum aktif. Hubungi admin sekolah untuk memeriksa tautan dan izin akses portal.</p>
+        <button onClick={handleLogout} className="mt-5 rounded-md border px-4 py-2 text-sm font-semibold text-gray-700">Keluar</button>
+      </div>
+    </div>
+  );
 
   const selectedStudentPhoto = student.photo_url || student.photoUrl;
   const studentClassText = [student.classes?.units?.name, student.classes?.name].filter(Boolean).join(" - ") || "Kelas -";
@@ -104,14 +155,16 @@ export const PortalLayout: React.FC = () => {
           )}
         </div>
         <div className="flex-1 overflow-y-auto py-4 custom-scrollbar">
-          <nav className="space-y-1 px-3">
-            {navItems.map((item) => {
+          <nav className="space-y-4 px-3">
+            {navGroups.map((group) => <div key={group.label}>
+              <p className="mb-1 px-3 text-[10px] font-bold uppercase text-gray-400">{group.label}</p>
+              <div className="space-y-1">{group.items.map((item) => {
               const isActive = location.pathname === item.path || (item.path !== "/portal" && location.pathname.startsWith(item.path));
               return (
                 <Link
                   key={item.path}
                   to={item.path}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+                  className={`flex items-center gap-3 px-3 py-2 rounded-md transition-colors ${
                     isActive ? "bg-emerald-50 text-emerald-700 font-medium" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                   }`}
                 >
@@ -119,7 +172,7 @@ export const PortalLayout: React.FC = () => {
                   <span>{item.name}</span>
                 </Link>
               );
-            })}
+            })}</div></div>)}
           </nav>
         </div>
         <div className="p-4 border-t border-gray-100 shrink-0">
@@ -162,9 +215,9 @@ export const PortalLayout: React.FC = () => {
                   </select>
                 </div>
               )}
-              <button onClick={() => navigate("/portal/announcements")} className="p-2 text-gray-500 hover:text-emerald-600 rounded-full hover:bg-emerald-50 transition-colors relative">
+              <button title="Pengumuman" onClick={() => navigate("/portal/announcements")} className="p-2 text-gray-500 hover:text-emerald-600 rounded-full hover:bg-emerald-50 transition-colors relative">
                 <Bell className="w-5 h-5" />
-                <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
+                {unreadAnnouncements > 0 && <span className="absolute -right-0.5 -top-0.5 min-w-4 rounded-full bg-red-500 px-1 text-center text-[9px] font-bold leading-4 text-white">{unreadAnnouncements > 9 ? "9+" : unreadAnnouncements}</span>}
               </button>
             </div>
           </div>
@@ -198,11 +251,11 @@ export const PortalLayout: React.FC = () => {
       </div>
 
       <nav className="md:hidden fixed bottom-0 left-0 w-full bg-white border-t z-40 pb-safe shadow-[0_-4px_10px_-1px_rgba(0,0,0,0.05)]">
-        <div className="grid grid-cols-4 px-2">
+        <div className="grid grid-cols-5 px-1">
           {mobileMainItems.map((item) => {
             const isActive = location.pathname === item.path || (item.path !== "/portal" && location.pathname.startsWith(item.path));
             return (
-              <Link key={item.path} to={item.path} className={`flex flex-col items-center justify-center py-2 transition-colors ${isActive ? "text-emerald-600" : "text-gray-400 hover:text-gray-700"}`}>
+              <Link key={item.path} to={item.path} onClick={() => setIsMobileMenuOpen(false)} className={`flex flex-col items-center justify-center py-2 transition-colors ${isActive ? "text-emerald-600" : "text-gray-400 hover:text-gray-700"}`}>
                 <div className={`p-1.5 rounded-full mb-1 transition-all ${isActive ? "bg-emerald-50 scale-110" : "bg-transparent"}`}>
                   <item.icon className={`w-5 h-5 ${isActive ? "stroke-[2.5px]" : ""}`} />
                 </div>
@@ -237,7 +290,7 @@ export const PortalLayout: React.FC = () => {
                 {navItems.map((item) => {
                   const isActive = location.pathname === item.path || (item.path !== "/portal" && location.pathname.startsWith(item.path));
                   return (
-                    <Link key={item.path} to={item.path} className="flex flex-col items-center gap-2 group">
+                    <Link key={item.path} to={item.path} onClick={() => setIsMobileMenuOpen(false)} className="flex flex-col items-center gap-2 group">
                       <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${
                         isActive ? "bg-emerald-100 text-emerald-600 shadow-sm" : "bg-gray-50 text-gray-600 group-hover:bg-emerald-50 group-hover:text-emerald-600 border border-gray-100"
                       }`}>

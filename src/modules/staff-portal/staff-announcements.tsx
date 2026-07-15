@@ -35,13 +35,10 @@ export const StaffAnnouncements: React.FC = () => {
     const fetchAnnouncements = async () => {
       setIsLoading(true);
       try {
-        const { data } = await supabaseClient
-          .from("announcements")
-          .select("id, title, content, target_type, unit_id, status, publish_at, created_at, units(name)")
-          .eq("status", "terkirim")
-          .order("publish_at", { ascending: false })
-          .order("created_at", { ascending: false })
-          .limit(100);
+        const [{ data }, readsResult] = await Promise.all([
+          supabaseClient.from("announcements").select("id, title, content, target_type, unit_id, status, publish_at, created_at, units(name)").eq("status", "terkirim").order("publish_at", { ascending: false }).order("created_at", { ascending: false }).limit(100),
+          supabaseClient.from("employee_announcement_reads").select("announcement_id").eq("employee_id", employee.id),
+        ]);
 
         const scoped = (data || []).filter((item: any) => {
           if (item.publish_at && new Date(item.publish_at).getTime() > Date.now()) return false;
@@ -50,13 +47,18 @@ export const StaffAnnouncements: React.FC = () => {
           return false;
         });
         setAnnouncements(scoped);
+        if (!readsResult.error) {
+          const persisted = new Set<string>((readsResult.data || []).map((row: any) => row.announcement_id));
+          setReadIds(persisted);
+          saveReadIds(persisted);
+        }
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchAnnouncements();
-  }, [employee.unit_id]);
+  }, [employee.id, employee.unit_id]);
 
   const filteredAnnouncements = useMemo(() => {
     return announcements.filter((item) => {
@@ -69,18 +71,24 @@ export const StaffAnnouncements: React.FC = () => {
 
   const unreadCount = announcements.filter((item) => !readIds.has(item.id)).length;
 
-  const markRead = (id: string) => {
+  const markRead = async (id: string) => {
     const next = new Set(readIds);
     next.add(id);
     setReadIds(next);
     saveReadIds(next);
+    const { error } = await supabaseClient.from("employee_announcement_reads").upsert({ employee_id: employee.id, announcement_id: id, read_at: new Date().toISOString() }, { onConflict: "employee_id,announcement_id" });
+    if (error && error.code !== "42P01") console.error("Staff announcement receipt error:", error);
   };
 
-  const markAllRead = () => {
+  const markAllRead = async () => {
     const next = new Set(readIds);
     announcements.forEach((item) => next.add(item.id));
     setReadIds(next);
     saveReadIds(next);
+    if (announcements.length) {
+      const { error } = await supabaseClient.from("employee_announcement_reads").upsert(announcements.map((item) => ({ employee_id: employee.id, announcement_id: item.id, read_at: new Date().toISOString() })), { onConflict: "employee_id,announcement_id" });
+      if (error && error.code !== "42P01") console.error("Staff announcement receipts error:", error);
+    }
   };
 
   return (

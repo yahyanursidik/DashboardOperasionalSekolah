@@ -1,90 +1,23 @@
-import React from "react";
-import { useList, useDelete } from "@refinedev/core";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import React, { useState } from "react";
+import { useCreate, useList, useUpdate } from "@refinedev/core";
+import { Edit, FileCog, Plus, Power, X } from "lucide-react";
+import { toast } from "sonner";
 import { PageHeader } from "../../../components/layout/PageHeader";
-import { FileText, Plus, Trash2, Edit } from "lucide-react";
+import { useCurrentUnit } from "../../../app/providers/UnitProvider";
+import { OfficeSectionNav } from "../../mail/components/OfficeSectionNav";
+
+const emptyForm = { name: "", category: "sekolah", classification_code: "", audience: "umum", is_required: false, retention_years: 5, review_frequency_months: 12, requires_expiry: false, default_confidentiality: "internal", is_active: true };
 
 export const DocumentTypesList: React.FC = () => {
-  const { data, isLoading } = useList({
-    resource: "document_types",
-    meta: { select: "*, units(name)" },
-    sorters: [{ field: "category", order: "asc" }]
-  });
-
-  const { mutate: deleteType } = useDelete();
-
-  return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Pengaturan Jenis Dokumen"
-        description="Kelola master data persyaratan dokumen yang harus diunggah."
-        action={
-          <button className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition-colors shadow-sm font-medium text-sm">
-            <Plus className="w-4 h-4" /> Tambah Jenis Dokumen
-          </button>
-        }
-      />
-
-      <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
-        {isLoading ? (
-          <div className="p-8 text-center text-muted-foreground animate-pulse">Memuat data...</div>
-        ) : (
-          <table className="w-full text-sm text-left">
-            <thead className="bg-muted/50 text-muted-foreground text-xs uppercase font-medium border-b">
-              <tr>
-                <th className="px-6 py-4">Nama Dokumen</th>
-                <th className="px-6 py-4">Kode / Klasifikasi</th>
-                <th className="px-6 py-4">Kategori</th>
-                <th className="px-6 py-4">Peruntukan</th>
-                <th className="px-6 py-4">Wajib / Opsional</th>
-                <th className="px-6 py-4">Unit Terkait</th>
-                <th className="px-6 py-4 text-right">Aksi</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {data?.data.map((type) => (
-                <tr key={type.id} className="hover:bg-muted/30 transition-colors">
-                  <td className="px-6 py-4 font-medium flex items-center gap-2">
-                    <FileText className="w-4 h-4 text-muted-foreground"/> {type.name}
-                  </td>
-                  <td className="px-6 py-4 font-mono text-xs text-muted-foreground">
-                    {type.classification_code || "-"}
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="px-2 py-1 bg-slate-100 border text-slate-800 text-xs font-semibold rounded-md uppercase">
-                      {type.category}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    {type.category === 'surat' ? (
-                      <span className={`px-2 py-1 border text-xs font-semibold rounded-md capitalize ${type.audience === 'internal' ? 'bg-blue-50 text-blue-700' : type.audience === 'eksternal' ? 'bg-orange-50 text-orange-700' : 'bg-gray-50 text-gray-700'}`}>
-                        {type.audience || "Umum"}
-                      </span>
-                    ) : "-"}
-                  </td>
-                  <td className="px-6 py-4">
-                    {type.is_required ? (
-                      <span className="text-destructive font-semibold text-xs bg-red-50 px-2 py-1 rounded border border-red-100">Wajib</span>
-                    ) : (
-                      <span className="text-muted-foreground text-xs bg-muted px-2 py-1 rounded border">Opsional</span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 text-muted-foreground">{type.units?.name || "Semua Unit"}</td>
-                  <td className="px-6 py-4 text-right">
-                    <button className="p-1.5 text-muted-foreground hover:text-primary transition-colors"><Edit className="w-4 h-4"/></button>
-                    <button 
-                      onClick={() => { if(confirm('Hapus jenis dokumen ini?')) deleteType({ resource: "document_types", id: type.id as string }) }}
-                      className="p-1.5 text-muted-foreground hover:text-destructive transition-colors ml-2"
-                    ><Trash2 className="w-4 h-4"/></button>
-                  </td>
-                </tr>
-              ))}
-              {data?.data.length === 0 && (
-                <tr><td colSpan={7} className="text-center p-8 text-muted-foreground">Belum ada jenis dokumen diatur.</td></tr>
-              )}
-            </tbody>
-          </table>
-        )}
-      </div>
-    </div>
-  );
+  const { activeUnitId } = useCurrentUnit(); const [open, setOpen] = useState(false); const [editing, setEditing] = useState<any>(null); const [form, setForm] = useState(emptyForm);
+  const { data, isLoading, refetch } = useList({ resource: "document_types", filters: activeUnitId ? [{ field: "unit_id", operator: "eq", value: activeUnitId }] : [], pagination: { mode: "off" }, sorters: [{ field: "category", order: "asc" }], meta: { select: "*,units(name)" } });
+  const { mutate: create, isLoading: isCreating } = useCreate(); const { mutate: update, isLoading: isUpdating } = useUpdate();
+  const showCreate = () => { setEditing(null); setForm(emptyForm); setOpen(true); };
+  const showEdit = (row: any) => { setEditing(row); setForm({ name: row.name || "", category: row.category || "sekolah", classification_code: row.classification_code || "", audience: row.audience || "umum", is_required: Boolean(row.is_required), retention_years: row.retention_years ?? 5, review_frequency_months: row.review_frequency_months ?? 12, requires_expiry: Boolean(row.requires_expiry), default_confidentiality: row.default_confidentiality || "internal", is_active: row.is_active !== false }); setOpen(true); };
+  const submit = (event: React.FormEvent) => { event.preventDefault(); const values = { ...form, unit_id: activeUnitId || null, classification_code: form.classification_code || null, review_frequency_months: form.review_frequency_months || null }; const done = () => { toast.success(editing ? "Jenis dokumen diperbarui." : "Jenis dokumen ditambahkan."); setOpen(false); refetch(); }; if (editing) update({ resource: "document_types", id: editing.id, values }, { onSuccess: done }); else create({ resource: "document_types", values }, { onSuccess: done }); };
+  return <div className="space-y-6"><PageHeader title="Master Jenis Dokumen" description="Atur klasifikasi, peruntukan, kewajiban, masa retensi, jadwal tinjau, dan kerahasiaan default dokumen." action={<button onClick={showCreate} className="flex items-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground"><Plus className="h-4 w-4" />Tambah Jenis</button>} /><OfficeSectionNav />
+    <div className="overflow-hidden rounded-lg border bg-card"><div className="overflow-x-auto"><table className="w-full min-w-[950px] text-left text-sm"><thead className="border-b bg-muted/40 text-xs uppercase text-muted-foreground"><tr><th className="px-4 py-3">Jenis / kode</th><th className="px-4 py-3">Kategori</th><th className="px-4 py-3">Peruntukan</th><th className="px-4 py-3">Retensi / tinjau</th><th className="px-4 py-3">Aturan</th><th className="px-4 py-3">Unit</th><th className="px-4 py-3 text-right">Aksi</th></tr></thead><tbody className="divide-y">{isLoading ? <tr><td colSpan={7} className="h-48 text-center">Memuat jenis dokumen...</td></tr> : data?.data?.map((row: any) => <tr key={row.id} className={`hover:bg-muted/20 ${row.is_active === false ? "opacity-60" : ""}`}><td className="px-4 py-3"><p className="flex items-center gap-2 font-semibold"><FileCog className="h-4 w-4 text-primary" />{row.name}{row.is_active === false && <span className="rounded bg-muted px-2 py-0.5 text-[10px]">NONAKTIF</span>}</p><p className="mt-1 font-mono text-xs text-muted-foreground">{row.classification_code || "Tanpa kode"}</p></td><td className="px-4 py-3 uppercase">{row.category}</td><td className="px-4 py-3 capitalize">{row.audience || "umum"}</td><td className="px-4 py-3"><p>{row.retention_years ?? 5} tahun</p><p className="mt-1 text-xs text-muted-foreground">Tinjau tiap {row.review_frequency_months || "-"} bulan</p></td><td className="px-4 py-3"><div className="flex flex-wrap gap-1">{row.is_required && <span className="rounded bg-red-50 px-2 py-1 text-[10px] font-bold text-red-700">WAJIB</span>}{row.requires_expiry && <span className="rounded bg-amber-50 px-2 py-1 text-[10px] font-bold text-amber-700">MASA BERLAKU</span>}<span className="rounded bg-muted px-2 py-1 text-[10px] font-bold uppercase">{row.default_confidentiality}</span></div></td><td className="px-4 py-3">{row.units?.name || "Lintas unit"}</td><td className="px-4 py-3 text-right"><button onClick={() => showEdit(row)} className="rounded-md p-2 text-primary" title="Ubah"><Edit className="h-4 w-4" /></button><button onClick={() => { if (confirm(`${row.is_active === false ? "Aktifkan kembali" : "Nonaktifkan"} jenis dokumen ini?`)) update({ resource: "document_types", id: row.id, values: { is_active: row.is_active === false } }, { onSuccess: () => { toast.success(row.is_active === false ? "Jenis dokumen diaktifkan." : "Jenis dokumen dinonaktifkan."); refetch(); } }); }} className={`rounded-md p-2 ${row.is_active === false ? "text-emerald-700" : "text-red-600"}`} title={row.is_active === false ? "Aktifkan" : "Nonaktifkan"}><Power className="h-4 w-4" /></button></td></tr>)}{!isLoading && !data?.data?.length && <tr><td colSpan={7} className="h-48 text-center text-muted-foreground">Belum ada jenis dokumen.</td></tr>}</tbody></table></div></div>
+    {open && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"><div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg border bg-card p-6 shadow-xl"><div className="mb-5 flex items-center justify-between"><div><h2 className="text-lg font-bold">{editing ? "Ubah Jenis Dokumen" : "Tambah Jenis Dokumen"}</h2><p className="text-xs text-muted-foreground">Aturan ini menjadi default saat dokumen diunggah.</p></div><button onClick={() => setOpen(false)} className="rounded-md p-2 hover:bg-muted"><X className="h-4 w-4" /></button></div><form onSubmit={submit} className="space-y-4"><label className="block text-sm font-semibold">Nama jenis dokumen<input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="mt-1.5 h-10 w-full rounded-md border bg-background px-3 font-normal" /></label><div className="grid gap-4 sm:grid-cols-2"><label className="text-sm font-semibold">Kategori<select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="mt-1.5 h-10 w-full rounded-md border bg-background px-3 font-normal"><option value="siswa">Siswa</option><option value="guru">Guru/Pegawai</option><option value="sekolah">Sekolah</option><option value="surat">Surat</option></select></label><label className="text-sm font-semibold">Kode klasifikasi<input value={form.classification_code} onChange={(e) => setForm({ ...form, classification_code: e.target.value })} className="mt-1.5 h-10 w-full rounded-md border bg-background px-3 font-normal" /></label><label className="text-sm font-semibold">Peruntukan<select value={form.audience} onChange={(e) => setForm({ ...form, audience: e.target.value })} className="mt-1.5 h-10 w-full rounded-md border bg-background px-3 font-normal"><option value="internal">Internal</option><option value="eksternal">Eksternal</option><option value="umum">Umum</option></select></label><label className="text-sm font-semibold">Kerahasiaan default<select value={form.default_confidentiality} onChange={(e) => setForm({ ...form, default_confidentiality: e.target.value })} className="mt-1.5 h-10 w-full rounded-md border bg-background px-3 font-normal"><option value="public">Publik</option><option value="internal">Internal</option><option value="confidential">Rahasia</option><option value="restricted">Sangat terbatas</option></select></label><label className="text-sm font-semibold">Retensi (tahun)<input type="number" min="0" value={form.retention_years} onChange={(e) => setForm({ ...form, retention_years: Number(e.target.value) })} className="mt-1.5 h-10 w-full rounded-md border bg-background px-3 font-normal" /></label><label className="text-sm font-semibold">Tinjau berkala (bulan)<input type="number" min="0" value={form.review_frequency_months} onChange={(e) => setForm({ ...form, review_frequency_months: Number(e.target.value) })} className="mt-1.5 h-10 w-full rounded-md border bg-background px-3 font-normal" /></label></div><div className="flex flex-wrap gap-5 rounded-md bg-muted/40 p-3"><label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={form.is_required} onChange={(e) => setForm({ ...form, is_required: e.target.checked })} />Wajib tersedia</label><label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={form.requires_expiry} onChange={(e) => setForm({ ...form, requires_expiry: e.target.checked })} />Wajib masa berlaku</label><label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} />Aktif</label></div><div className="flex justify-end gap-2 border-t pt-4"><button type="button" onClick={() => setOpen(false)} className="rounded-md border px-4 py-2 text-sm font-bold">Batal</button><button disabled={isCreating || isUpdating} className="rounded-md bg-primary px-4 py-2 text-sm font-bold text-primary-foreground">Simpan Jenis</button></div></form></div></div>}
+  </div>;
 };

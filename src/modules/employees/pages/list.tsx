@@ -16,6 +16,7 @@ import Papa from "papaparse";
 import { supabaseClient } from "../../../lib/supabase/client";
 import { toast } from "sonner";
 import { Modal } from "../../../components/common/Modal";
+import { useAcademicYear } from "../../../app/providers/AcademicYearProvider";
 
 // ─── Position label & color helpers ───────────────────────────────────────────
 const POSITION_MAP: Record<string, { label: string; color: string }> = {
@@ -187,6 +188,7 @@ function EmployeeCard({ employee, onClick, onEdit, onDelete }: { employee: any; 
 
 // ─── Main Component ────────────────────────────────────────────────────────────
 export const EmployeesList: React.FC = () => {
+  const { activeYearId, activeSemesterId } = useAcademicYear();
   const navigate = useNavigate();
   const location = useLocation();
   const basePath = location.pathname.startsWith("/hrd") ? "/hrd/employees" : "/employees";
@@ -252,6 +254,11 @@ export const EmployeesList: React.FC = () => {
 
   const { data: allAssignmentsData } = useList({
     resource: "teacher_assignments",
+    filters: [
+      { field: "is_active", operator: "eq", value: true },
+      ...(activeYearId ? [{ field: "academic_year_id", operator: "eq" as const, value: activeYearId }] : []),
+      ...(activeSemesterId ? [{ field: "semester_id", operator: "eq" as const, value: activeSemesterId }] : []),
+    ],
     pagination: { pageSize: 1000 },
     meta: { select: "employee_id, is_active" },
   });
@@ -560,7 +567,12 @@ export const EmployeesList: React.FC = () => {
   const employeeIds = rows.map((r) => r.original.id);
   const { data: assignmentsData } = useList({
     resource: "teacher_assignments",
-    filters: employeeIds.length > 0 ? [{ field: "employee_id", operator: "in", value: employeeIds }] : [],
+    filters: employeeIds.length > 0 ? [
+      { field: "employee_id", operator: "in" as const, value: employeeIds },
+      { field: "is_active", operator: "eq" as const, value: true },
+      ...(activeYearId ? [{ field: "academic_year_id", operator: "eq" as const, value: activeYearId }] : []),
+      ...(activeSemesterId ? [{ field: "semester_id", operator: "eq" as const, value: activeSemesterId }] : []),
+    ] : [],
     pagination: { pageSize: 500 },
     meta: { select: "employee_id, subject, role_type, is_active" },
     queryOptions: { enabled: employeeIds.length > 0 },

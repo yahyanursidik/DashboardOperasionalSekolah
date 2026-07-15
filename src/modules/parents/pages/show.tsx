@@ -9,6 +9,7 @@ import {
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { getParentQualitySummary } from "./list";
+import { supabaseClient } from "../../../lib/supabase/client";
 
 // ─── Modal Konfirmasi Lokal ──────────────────────────────────────────────────
 const ConfirmModal = ({ isOpen, onClose, onConfirm, isDeleting }: any) => {
@@ -122,7 +123,7 @@ export const ParentShow: React.FC = () => {
   };
 
   // Fetch linked children
-  const { data: childrenData, isLoading: childrenLoading } = useList({
+  const { data: childrenData, isLoading: childrenLoading, refetch: refetchChildren } = useList({
     resource: "student_parent_links",
     filters: [
       { field: "parent_id", operator: "eq", value: record?.id }
@@ -152,6 +153,21 @@ export const ParentShow: React.FC = () => {
   const spouse = spouseLink?.parents;
   const linkedChildrenCount = childrenData?.data?.length || 0;
   const quality = getParentQualitySummary(record || {}, linkedChildrenCount);
+  const portalChildrenCount = childrenData?.data?.filter((link: any) => link.can_access_parent_portal !== false).length || 0;
+
+  const togglePortalAccess = async (linkId: string, currentlyEnabled: boolean) => {
+    const { error } = await supabaseClient
+      .from("student_parent_links")
+      .update({ can_access_parent_portal: !currentlyEnabled })
+      .eq("id", linkId);
+    if (error) {
+      console.error("Parent portal access update error:", error);
+      toast.error("Akses portal belum berhasil diperbarui.");
+      return;
+    }
+    toast.success(currentlyEnabled ? "Akses portal untuk siswa dinonaktifkan." : "Akses portal untuk siswa diaktifkan.");
+    refetchChildren();
+  };
 
   const { data: invoicesData, isLoading: invoicesLoading } = useList({
     resource: "student_invoices",
@@ -430,6 +446,7 @@ export const ParentShow: React.FC = () => {
               { label: "Nomor WhatsApp aktif", ok: quality.hasPhone },
               { label: "Email alternatif", ok: quality.hasEmail, optional: true },
               { label: "Terhubung ke siswa", ok: linkedChildrenCount > 0 },
+              { label: "Akses portal anak", ok: portalChildrenCount > 0 },
               { label: "Status wali aktif", ok: Boolean(record.is_active) },
             ].map((item) => (
               <div key={item.label} className="flex items-center justify-between gap-3">
@@ -580,6 +597,9 @@ export const ParentShow: React.FC = () => {
                               <Star className="w-3 h-3 fill-amber-500" /> Utama
                             </span>
                           )}
+                          <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded border ${link.can_access_parent_portal !== false ? "bg-blue-50 text-blue-700 border-blue-200" : "bg-gray-50 text-gray-500 border-gray-200"}`}>
+                            Portal {link.can_access_parent_portal !== false ? "aktif" : "nonaktif"}
+                          </span>
                         </div>
                         <div className="flex flex-wrap gap-2 mt-3">
                           <button
@@ -599,6 +619,16 @@ export const ParentShow: React.FC = () => {
                           >
                             Tagihan
                           </Link>
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              void togglePortalAccess(link.id, link.can_access_parent_portal !== false);
+                            }}
+                            className={`text-[11px] font-medium hover:underline ${link.can_access_parent_portal !== false ? "text-red-600" : "text-emerald-700"}`}
+                          >
+                            {link.can_access_parent_portal !== false ? "Nonaktifkan portal" : "Aktifkan portal"}
+                          </button>
                         </div>
                       </div>
                     </div>

@@ -1,10 +1,19 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState } from "react";
 import { useTable, useList, useUpdate, useCreate } from "@refinedev/core";
-import { Plus, Check, X, ShoppingCart, DollarSign, X as XIcon } from "lucide-react";
+import { Plus, Check, X, DollarSign, PackageCheck, X as XIcon } from "lucide-react";
+import { toast } from "sonner";
+import { PageHeader } from "../../../components/layout/PageHeader";
+import { useCurrentUnit } from "../../../app/providers/UnitProvider";
+import { SarprasSectionNav } from "../components/SarprasSectionNav";
+import { supabaseClient } from "../../../lib/supabase/client";
 
 export const ProcurementsList: React.FC<{ isTabMode?: boolean }> = ({ isTabMode }) => {
+  const { activeUnitId } = useCurrentUnit();
   const { tableQueryResult } = useTable({
     resource: "procurements",
+    filters: { permanent: activeUnitId ? [{ field: "unit_id", operator: "eq", value: activeUnitId }] : [] },
+    pagination: { current: 1, pageSize: 15 },
     meta: { select: "*, employees!requester_id(full_name), units(name)" },
     sorters: { initial: [{ field: "created_at", order: "desc" }] },
   });
@@ -22,16 +31,16 @@ export const ProcurementsList: React.FC<{ isTabMode?: boolean }> = ({ isTabMode 
   const [isModalOpen, setIsModalOpen] = useState(false);
   
   const [formData, setFormData] = useState({
-    unit_id: "", requester_id: "", item_name: "", quantity: 1, estimated_price: 0, purpose: ""
+    unit_id: activeUnitId || "", requester_id: "", item_name: "", quantity: 1, estimated_price: 0, purpose: "", priority: "normal", needed_by: "", budget_source: ""
   });
 
   const handleStatusChange = async (id: string, newStatus: string) => {
     await updateProcurement({
       resource: "procurements",
       id,
-      values: { status: newStatus },
+      values: { status: newStatus, approved_at: newStatus === "Disetujui" ? new Date().toISOString() : null },
     }, {
-      onSuccess: () => tableQueryResult.refetch()
+      onSuccess: () => { tableQueryResult.refetch(); toast.success(`Pengadaan ${newStatus.toLowerCase()}.`); }
     });
   };
 
@@ -62,18 +71,31 @@ export const ProcurementsList: React.FC<{ isTabMode?: boolean }> = ({ isTabMode 
         resource: "procurements",
         id: procurement.id,
         values: { 
-          status: "Selesai",
-          expense_id: expenseId 
+          status: "Dipesan",
+          expense_id: expenseId,
+          ordered_at: new Date().toISOString(),
         },
       });
 
       tableQueryResult.refetch();
+      toast.success("Dana dicatat dan pengadaan masuk tahap pemesanan.");
     } catch (error) {
       console.error(error);
       alert("Terjadi kesalahan saat memproses pencairan dana.");
     } finally {
       setIsProcessing(false);
     }
+  };
+
+  const handleReceive = async (procurement: any) => {
+    if (!confirm(`Konfirmasi ${procurement.quantity} ${procurement.item_name} sudah diterima dan layak dicatat sebagai aset?`)) return;
+    setIsProcessing(true);
+    try {
+      const { error } = await supabaseClient.rpc("receive_procurement_as_assets", { target_procurement_id: procurement.id });
+      if (error) throw error;
+      toast.success("Barang diterima dan register aset berhasil dibuat."); tableQueryResult.refetch();
+    } catch (error) { toast.error("Penerimaan barang gagal diproses", { description: error instanceof Error ? error.message : "Kesalahan tidak diketahui" }); }
+    finally { setIsProcessing(false); }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -87,19 +109,14 @@ export const ProcurementsList: React.FC<{ isTabMode?: boolean }> = ({ isTabMode 
   };
 
   return (
-    <div className={isTabMode ? "space-y-6" : "p-6 max-w-7xl mx-auto space-y-6 animate-in fade-in duration-500"}>
+    <div className="space-y-6">
       {!isTabMode && (
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-              <ShoppingCart className="w-6 h-6" /> Pengajuan Pengadaan (Procurement)
-            </h1>
-            <p className="text-muted-foreground text-sm mt-1">Kelola permohonan pembelian barang sarpras dari berbagai unit</p>
-          </div>
-          <button onClick={() => setIsModalOpen(true)} className="flex items-center gap-2 bg-primary text-primary-foreground px-5 py-2.5 rounded-lg hover:bg-primary/90 transition-all shadow-md hover:shadow-lg font-semibold text-sm active:scale-95">
+        <>
+          <PageHeader title="Pengadaan Sarpras" description="Kendalikan kebutuhan per unit dari usulan, persetujuan anggaran, pemesanan, penerimaan, hingga register aset." action={<button onClick={() => { setFormData((current) => ({ ...current, unit_id: activeUnitId || current.unit_id })); setIsModalOpen(true); }} className="flex items-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground">
             <Plus className="w-5 h-5" /> Buat Pengajuan
-          </button>
-        </div>
+          </button>} />
+          <SarprasSectionNav />
+        </>
       )}
 
       {isTabMode && (
@@ -139,7 +156,8 @@ export const ProcurementsList: React.FC<{ isTabMode?: boolean }> = ({ isTabMode 
                   <td className="px-6 py-4">
                     <span className={`px-2 py-1 rounded-md text-xs font-semibold ${
                       proc.status === 'Disetujui' ? 'bg-blue-100 text-blue-700' :
-                      proc.status === 'Selesai' ? 'bg-emerald-100 text-emerald-700' :
+                      ['Diterima', 'Selesai'].includes(proc.status) ? 'bg-emerald-100 text-emerald-700' :
+                      proc.status === 'Dipesan' ? 'bg-cyan-100 text-cyan-700' :
                       proc.status === 'Ditolak' ? 'bg-red-100 text-red-700' :
                       'bg-amber-100 text-amber-700'
                     }`}>
@@ -163,9 +181,10 @@ export const ProcurementsList: React.FC<{ isTabMode?: boolean }> = ({ isTabMode 
                         onClick={() => handleDisburseFunds(proc)}
                         disabled={isProcessing}
                       >
-                        <DollarSign className="w-3 h-3 mr-1" /> Cairkan Dana
+                        <DollarSign className="w-3 h-3 mr-1" /> Catat & Pesan
                       </button>
                     )}
+                    {proc.status === 'Dipesan' && <button className="inline-flex items-center rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground" onClick={() => void handleReceive(proc)} disabled={isProcessing}><PackageCheck className="mr-1 h-3 w-3" />Terima Barang</button>}
                   </td>
                 </tr>
               ))}
@@ -208,6 +227,7 @@ export const ProcurementsList: React.FC<{ isTabMode?: boolean }> = ({ isTabMode 
                   </select>
                 </div>
               </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3"><div className="space-y-2"><label className="text-sm font-medium">Prioritas</label><select value={formData.priority} onChange={e => setFormData({...formData, priority: e.target.value})} className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"><option value="low">Rendah</option><option value="normal">Normal</option><option value="high">Tinggi</option><option value="urgent">Darurat</option></select></div><div className="space-y-2"><label className="text-sm font-medium">Dibutuhkan sebelum</label><input type="date" value={formData.needed_by} onChange={e => setFormData({...formData, needed_by: e.target.value})} className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm" /></div><div className="space-y-2"><label className="text-sm font-medium">Sumber anggaran</label><input value={formData.budget_source} onChange={e => setFormData({...formData, budget_source: e.target.value})} className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm" placeholder="RKAS / Yayasan" /></div></div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Nama Barang</label>
                 <input required value={formData.item_name} onChange={e => setFormData({...formData, item_name: e.target.value})} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" placeholder="Proyektor Epson..." />

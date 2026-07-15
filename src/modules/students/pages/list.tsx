@@ -382,7 +382,8 @@ export const StudentsList: React.FC = () => {
                    student_id: map.studentId,
                    parent_id: parentIdMap.get(map.fatherName),
                    relationship: 'father',
-                   is_primary: true
+                   is_primary: true,
+                   can_access_parent_portal: true
                 });
              }
              if (map.motherName && parentIdMap.has(map.motherName)) {
@@ -390,7 +391,8 @@ export const StudentsList: React.FC = () => {
                    student_id: map.studentId,
                    parent_id: parentIdMap.get(map.motherName),
                    relationship: 'mother',
-                   is_primary: false
+                   is_primary: false,
+                   can_access_parent_portal: true
                 });
              }
           });

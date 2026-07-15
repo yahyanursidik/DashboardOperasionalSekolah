@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { useForm, useSelect } from "@refinedev/core";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Save, ArrowLeft, User, Building2, Phone, Mail, MapPin, GraduationCap, Award, Calendar, Briefcase } from "lucide-react";
+import { Save, ArrowLeft, User, GraduationCap, Briefcase, Info } from "lucide-react";
+import { employeePositions, getEmployeePosition } from "../employee-role-config";
 
 function FormSection({ title, icon: Icon, children }: { title: string; icon: React.ElementType; children: React.ReactNode }) {
   return (
@@ -51,8 +52,8 @@ export const EmployeeCreate: React.FC = () => {
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    const data = Object.fromEntries(formData.entries()) as Record<string, any>;
-    data.teacher_roles = formData.getAll("teacher_roles");
+    const data = Object.fromEntries(formData.entries()) as Record<string, unknown>;
+    data.teacher_roles = [];
     if (!data.unit_id) data.unit_id = null;
     if (!data.birth_date) delete data.birth_date;
     if (!data.join_date) delete data.join_date;
@@ -112,7 +113,7 @@ export const EmployeeCreate: React.FC = () => {
         {/* ── Kepegawaian ── */}
         <FormSection title="Data Kepegawaian" icon={Briefcase}>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Field label="Posisi / Jabatan" required>
+            <Field label="Jabatan Utama" required>
               <select
                 name="position"
                 required
@@ -120,25 +121,8 @@ export const EmployeeCreate: React.FC = () => {
                 onChange={(e) => setPosition(e.target.value)}
                 className={selectCls}
               >
-                <option value="">— Pilih Jabatan —</option>
-                <option value="kepala_sekolah">Kepala Sekolah</option>
-                <option value="wakasek_umum">Wakil Kepala Sekolah (Umum)</option>
-                <option value="wakasek_kurikulum">Wakil Kepala Sekolah Bidang Kurikulum</option>
-                <option value="wakasek_kesiswaan">Wakil Kepala Sekolah Bidang Kesiswaan</option>
-                <option value="kepala_unit">Kepala Unit (Lintas Jenjang / &gt;1 Unit)</option>
-                <option value="guru">Guru / Pengajar</option>
-                <option value="guru_quran">Guru Al Qur'an</option>
-                <option value="school_center">School Center</option>
-                <option value="bendahara">Bendahara / Keuangan</option>
-                <option value="penanggung_jawab">Penanggung Jawab</option>
-                <option value="bk">Bimbingan Konseling</option>
-                <option value="pustakawan">Pustakawan</option>
-                <option value="laboran">Laboran</option>
-                <option value="tu">Tata Usaha</option>
-                <option value="sarpras">Sarana Prasarana</option>
-                <option value="satpam">Satpam</option>
-                <option value="cleaning_service">Cleaning Service</option>
-                <option value="lainnya">Lainnya</option>
+                <option value="">-- Pilih Jabatan Utama --</option>
+                {employeePositions.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
               </select>
             </Field>
             <Field label="Status Kepegawaian" required>
@@ -151,15 +135,22 @@ export const EmployeeCreate: React.FC = () => {
             </Field>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Field label="Unit Penempatan">
+            <Field label="Unit Induk">
               <select name="unit_id" className={selectCls}>
-                <option value="">Lintas Unit / Pusat</option>
+                <option value="">Pusat / Lintas Unit</option>
                 {unitOptions?.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             </Field>
             <Field label="Tanggal Bergabung">
               <input name="join_date" type="date" className={inputCls} />
             </Field>
+          </div>
+          <div className="flex items-start gap-3 rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
+            <Info className="mt-0.5 h-4 w-4 shrink-0" />
+            <div>
+              <p className="font-semibold">Jabatan utama menentukan struktur kerja dan portal dasar.</p>
+              <p className="mt-1 text-xs">{getEmployeePosition(position).description} Penugasan kelas/mapel dan jadwal diatur setelah profil tersimpan.</p>
+            </div>
           </div>
         </FormSection>
 
@@ -176,43 +167,11 @@ export const EmployeeCreate: React.FC = () => {
                 <option value="S3">Doktor (S3)</option>
               </select>
             </Field>
-            <Field label="Sertifikasi Guru">
-              <input name="certification" type="text" className={inputCls} placeholder="Contoh: Sertifikasi Guru 2023" />
+            <Field label="Sertifikasi / Kompetensi">
+              <input name="certification" type="text" className={inputCls} placeholder="Contoh: Sertifikasi Guru, K3, satpam, atau kompetensi teknis" />
             </Field>
           </div>
         </FormSection>
-
-        {/* ── Tupoksi (hanya untuk guru) ── */}
-        {["guru", "guru_quran", "kepala_sekolah", "wakasek_umum", "wakasek_kurikulum", "wakasek_kesiswaan", "kepala_unit"].includes(position) && (
-          <FormSection title="Tupoksi / Peran Mengajar" icon={Award}>
-            <div>
-              <label className="block text-sm font-medium mb-2">
-                Pilih semua peran yang berlaku{" "}
-                <span className="text-muted-foreground font-normal">(tahan Ctrl / Cmd untuk multi-pilih)</span>
-              </label>
-              <select name="teacher_roles" multiple className={`${inputCls} h-36`}>
-                <option value="Kepala Sekolah">Kepala Sekolah</option>
-                <option value="Wakil Kepala Sekolah (Umum)">Wakil Kepala Sekolah (Umum)</option>
-                <option value="Wakil Kepala Sekolah Bidang Kurikulum">Wakil Kepala Sekolah Bidang Kurikulum</option>
-                <option value="Wakil Kepala Sekolah Bidang Kesiswaan">Wakil Kepala Sekolah Bidang Kesiswaan</option>
-                <option value="Kepala Unit (Lintas Jenjang / >1 Unit)">Kepala Unit (Lintas Jenjang / &gt;1 Unit)</option>
-                <option value="Wali Kelas">Wali Kelas</option>
-                <option value="Guru Tahsin & Tahfidz">Guru Tahsin &amp; Tahfidz</option>
-                <option value="Guru Mata Pelajaran">Guru Mata Pelajaran</option>
-                <option value="Guru Kelas">Guru Kelas</option>
-                <option value="Guru Mapel Pendukung/Pilihan">Guru Mapel Pendukung/Pilihan</option>
-                <option value="Guru Bimbingan dan Konseling">Guru BK</option>
-                <option value="Guru Pendamping Khusus">Guru Pendamping Khusus (GPK)</option>
-                <option value="Guru Piket">Guru Piket</option>
-                <option value="Guru Ekstrakurikuler">Guru Ekstrakurikuler / Pelatih</option>
-                <option value="Guru PAUD">Guru PAUD</option>
-                <option value="Guru SD">Guru SD</option>
-                <option value="Pembina OSIS">Pembina OSIS</option>
-                <option value="Kepala Laboratorium / Perpustakaan">Kepala Lab / Perpustakaan</option>
-              </select>
-            </div>
-          </FormSection>
-        )}
 
         {/* ── Actions ── */}
         <div className="flex justify-end gap-3 pt-2">

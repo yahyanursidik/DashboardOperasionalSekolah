@@ -599,6 +599,7 @@ export const ParentsList: React.FC = () => {
           </div>
           <div className="flex flex-wrap gap-2">
             <Link to="/students" className="px-3 py-2 text-sm border rounded-md hover:bg-muted transition-colors">Cek Siswa</Link>
+            <Link to="/parents/requests" className="px-3 py-2 text-sm border rounded-md hover:bg-muted transition-colors">Layanan Orang Tua</Link>
             <Link to="/announcements" className="px-3 py-2 text-sm border rounded-md hover:bg-muted transition-colors">Pengumuman</Link>
             <Link to="/finance/invoices" className="px-3 py-2 text-sm border rounded-md hover:bg-muted transition-colors">Tagihan</Link>
           </div>

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useTable } from "@refinedev/react-table";
 import { flexRender } from "@tanstack/react-table";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -148,15 +148,30 @@ const getClassReadiness = (
 
 export const ClassesList: React.FC = () => {
   const navigate = useNavigate();
-  const { activeYearId } = useAcademicYear();
+  const { activeYearId, activeSemesterId } = useAcademicYear();
 
   const [q, setQ] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [filterUnit, setFilterUnit] = useState("");
   const [filterYear, setFilterYear] = useState(activeYearId || "");
+  const [filterSemester, setFilterSemester] = useState(activeSemesterId || "");
+
+  useEffect(() => {
+    if (activeYearId) setFilterYear((current) => current || activeYearId);
+  }, [activeYearId]);
+
+  useEffect(() => {
+    if (activeSemesterId) setFilterSemester((current) => current || activeSemesterId);
+  }, [activeSemesterId]);
 
   const { options: unitOptions } = useSelect({ resource: "units", optionLabel: "name", optionValue: "id" });
   const { options: yearOptions } = useSelect({ resource: "academic_years", optionLabel: "name", optionValue: "id" });
+  const { options: semesterOptions } = useSelect({
+    resource: "semesters",
+    optionLabel: "name",
+    optionValue: "id",
+    filters: filterYear ? [{ field: "academic_year_id", operator: "eq", value: filterYear }] : [],
+  });
   const { data: studentsData } = useList({
     resource: "students",
     filters: filterUnit ? [{ field: "unit_id", operator: "eq", value: filterUnit }] : [],
@@ -166,6 +181,7 @@ export const ClassesList: React.FC = () => {
     resource: "employee_schedules",
     filters: [
       ...(filterYear ? [{ field: "academic_year_id", operator: "eq", value: filterYear }] : []),
+      ...(filterSemester ? [{ field: "semester_id", operator: "eq", value: filterSemester }] : []),
       ...(filterUnit ? [{ field: "unit_id", operator: "eq", value: filterUnit }] : []),
       { field: "schedule_type", operator: "eq", value: "mengajar" },
     ] as any,
@@ -528,12 +544,26 @@ export const ClassesList: React.FC = () => {
           </div>
           <select 
             value={filterYear} 
-            onChange={(e) => setFilterYear(e.target.value)}
+            onChange={(e) => {
+              const nextYear = e.target.value;
+              setFilterYear(nextYear);
+              setFilterSemester(nextYear === activeYearId ? activeSemesterId || "" : "");
+            }}
             className="border rounded-md px-3 py-1.5 text-sm bg-background"
           >
             <option value="">Semua Tahun Ajaran</option>
             {yearOptions?.map((o) => (
               <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+          <select
+            value={filterSemester}
+            onChange={(e) => setFilterSemester(e.target.value)}
+            className="border rounded-md px-3 py-1.5 text-sm bg-background"
+          >
+            <option value="">Semua Semester</option>
+            {semesterOptions?.map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
             ))}
           </select>
           <select 

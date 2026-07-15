@@ -1,0 +1,28 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import React, { useState } from "react";
+import { useTable } from "@refinedev/core";
+import { FileClock, FilterX, Loader2, ShieldCheck } from "lucide-react";
+import { PageHeader } from "../../../components/layout/PageHeader";
+import { useCurrentUnit } from "../../../app/providers/UnitProvider";
+import { ReportsSectionNav } from "../components/ReportsSectionNav";
+
+export const ReportExportHistory: React.FC = () => {
+  const { activeUnitId } = useCurrentUnit();
+  const [format, setFormat] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const filters: any[] = [];
+  if (activeUnitId) filters.push({ field: "unit_id", operator: "eq", value: activeUnitId });
+  if (format) filters.push({ field: "export_format", operator: "eq", value: format });
+  if (dateFrom) filters.push({ field: "created_at", operator: "gte", value: `${dateFrom}T00:00:00` });
+  if (dateTo) filters.push({ field: "created_at", operator: "lte", value: `${dateTo}T23:59:59` });
+  const { tableQueryResult, current, setCurrent, pageCount } = useTable({ resource: "report_export_logs", filters: { permanent: filters }, pagination: { current: 1, pageSize: 20 }, sorters: { initial: [{ field: "created_at", order: "desc" }] }, meta: { select: "*,units(name),academic_years(name),semesters(name)" } });
+  const rows = tableQueryResult.data?.data || [];
+
+  return <div className="space-y-6">
+    <PageHeader title="Riwayat Ekspor Laporan" description="Jejak audit untuk penggunaan, pencetakan, dan pengunduhan data sekolah yang bersifat sensitif." />
+    <ReportsSectionNav />
+    <section className="flex flex-col gap-3 rounded-lg border bg-card p-3 lg:flex-row lg:items-end"><label className="text-xs font-bold text-muted-foreground">Format<select value={format} onChange={(event) => { setFormat(event.target.value); setCurrent(1); }} className="mt-1.5 h-10 w-full min-w-44 rounded-md border bg-background px-3 text-sm font-semibold"><option value="">Semua format</option><option value="csv">CSV</option><option value="xlsx">Excel</option><option value="pdf">PDF</option><option value="print">Cetak</option></select></label><label className="text-xs font-bold text-muted-foreground">Dari tanggal<input type="date" value={dateFrom} onChange={(event) => { setDateFrom(event.target.value); setCurrent(1); }} className="mt-1.5 h-10 w-full rounded-md border bg-background px-3 text-sm" /></label><label className="text-xs font-bold text-muted-foreground">Sampai tanggal<input type="date" value={dateTo} onChange={(event) => { setDateTo(event.target.value); setCurrent(1); }} className="mt-1.5 h-10 w-full rounded-md border bg-background px-3 text-sm" /></label><button onClick={() => { setFormat(""); setDateFrom(""); setDateTo(""); setCurrent(1); }} className="flex h-10 items-center justify-center gap-2 rounded-md border px-3 text-sm font-bold text-muted-foreground"><FilterX className="h-4 w-4" />Reset</button></section>
+    <section className="overflow-hidden rounded-lg border bg-card">{tableQueryResult.isLoading ? <div className="flex h-64 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin" /></div> : rows.length === 0 ? <div className="flex h-64 flex-col items-center justify-center text-center"><FileClock className="h-10 w-10 text-muted-foreground/30" /><p className="mt-3 font-bold">Belum ada riwayat pada filter ini</p><p className="mt-1 text-sm text-muted-foreground">Aktivitas ekspor akan tercatat otomatis.</p></div> : <div className="overflow-x-auto"><table className="w-full min-w-[900px] text-left text-sm"><thead className="border-b bg-muted/40 text-xs uppercase text-muted-foreground"><tr><th className="px-4 py-3">Waktu / pengguna</th><th className="px-4 py-3">Laporan</th><th className="px-4 py-3">Lingkup</th><th className="px-4 py-3">Periode</th><th className="px-4 py-3">Format</th><th className="px-4 py-3 text-right">Baris</th></tr></thead><tbody className="divide-y">{rows.map((row: any) => <tr key={row.id} className="hover:bg-muted/20"><td className="px-4 py-3"><p className="font-semibold">{new Date(row.created_at).toLocaleString("id-ID")}</p><p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground"><ShieldCheck className="h-3.5 w-3.5" />{row.exported_by_name || "Pengguna terautentikasi"}</p></td><td className="px-4 py-3"><p className="font-semibold">{row.report_label}</p><p className="mt-1 font-mono text-xs text-muted-foreground">{row.report_key}</p></td><td className="px-4 py-3">{row.units?.name || "Konsolidasi"}</td><td className="px-4 py-3"><p>{row.academic_years?.name || "Semua tahun"}</p><p className="mt-1 text-xs text-muted-foreground">{row.semesters?.name || "Semua semester"}{row.date_from ? ` - ${new Date(`${row.date_from}T00:00:00`).toLocaleDateString("id-ID")}` : ""}</p></td><td className="px-4 py-3"><span className="rounded bg-muted px-2 py-1 text-xs font-bold uppercase">{row.export_format}</span></td><td className="px-4 py-3 text-right font-bold">{row.row_count}</td></tr>)}</tbody></table></div>}{pageCount > 1 && <div className="flex items-center justify-between border-t px-4 py-3 text-sm"><span>Halaman {current} dari {pageCount}</span><div className="flex gap-2"><button disabled={current === 1} onClick={() => setCurrent(current - 1)} className="rounded-md border px-3 py-1.5 disabled:opacity-40">Sebelumnya</button><button disabled={current === pageCount} onClick={() => setCurrent(current + 1)} className="rounded-md border px-3 py-1.5 disabled:opacity-40">Berikutnya</button></div></div>}</section>
+  </div>;
+};

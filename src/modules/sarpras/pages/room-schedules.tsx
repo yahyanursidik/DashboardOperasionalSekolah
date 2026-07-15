@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect } from "react";
 import { useTable, useCreate, useUpdate, useDelete, useList } from "@refinedev/core";
 import { 
@@ -5,8 +6,11 @@ import {
   Search, ChevronLeft, ChevronRight, AlertCircle, Clock, Building, Repeat
 } from "lucide-react";
 import { toast } from "sonner";
+import { useCurrentUnit } from "../../../app/providers/UnitProvider";
+import { SarprasSectionNav } from "../components/SarprasSectionNav";
 
 export const RoomSchedulesList: React.FC = () => {
+  const { activeUnitId } = useCurrentUnit();
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
@@ -28,12 +32,14 @@ export const RoomSchedulesList: React.FC = () => {
 
   const { data: allSchedulesData } = useList({
     resource: "room_schedules",
+    filters: activeUnitId ? [{ field: "unit_id", operator: "eq", value: activeUnitId }] : [],
     pagination: { mode: "off" },
   });
   const allSchedules = allSchedulesData?.data || [];
 
   const { data: roomsData } = useList({
     resource: "rooms",
+    filters: activeUnitId ? [{ field: "unit_id", operator: "eq", value: activeUnitId }] : [],
     pagination: { mode: "off" },
   });
   const roomsOptions = roomsData?.data || [];
@@ -54,9 +60,10 @@ export const RoomSchedulesList: React.FC = () => {
     if (typeFilter) {
       newFilters.push({ field: "recurrence_type", operator: "eq", value: typeFilter });
     }
+    if (activeUnitId) newFilters.push({ field: "unit_id", operator: "eq", value: activeUnitId });
     setFilters(newFilters, "replace");
     setCurrent(1);
-  }, [debouncedSearch, typeFilter, setFilters, setCurrent]);
+  }, [activeUnitId, debouncedSearch, typeFilter, setFilters, setCurrent]);
 
   const schedules = tableQueryResult?.data?.data || [];
   const totalSchedules = schedules.length;
@@ -71,6 +78,7 @@ export const RoomSchedulesList: React.FC = () => {
   const [currentSchedule, setCurrentSchedule] = useState<any>(null);
   
   const [formData, setFormData] = useState({
+    unit_id: activeUnitId || "",
     room_id: "", 
     recurrence_type: "Pekanan",
     day_of_week: "Senin", 
@@ -85,6 +93,7 @@ export const RoomSchedulesList: React.FC = () => {
 
   const handleOpenCreate = () => {
     setFormData({ 
+      unit_id: activeUnitId || "",
       room_id: "", 
       recurrence_type: "Pekanan",
       day_of_week: "Senin", 
@@ -102,6 +111,7 @@ export const RoomSchedulesList: React.FC = () => {
   const handleOpenEdit = (schedule: any) => {
     setCurrentSchedule(schedule);
     setFormData({
+      unit_id: schedule.unit_id || activeUnitId || "",
       room_id: schedule.room_id || "", 
       recurrence_type: schedule.recurrence_type || "Pekanan",
       day_of_week: schedule.day_of_week || "Senin", 
@@ -292,6 +302,8 @@ export const RoomSchedulesList: React.FC = () => {
           <Plus className="w-5 h-5" /> Tambah Jadwal
         </button>
       </div>
+
+      <SarprasSectionNav />
 
       {/* Filters & Search */}
       <div className="bg-white p-4 rounded-2xl border shadow-sm flex flex-col sm:flex-row justify-between items-center gap-4">

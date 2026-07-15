@@ -3,8 +3,10 @@ import { useShow, useList, useUpdate } from "@refinedev/core";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { AlertTriangle, ArrowLeft, BarChart3, BookOpen, CalendarCheck, CheckCircle2, ClipboardCheck, Edit, GraduationCap, Plus, ShieldCheck, UserCheck, UserMinus, Users, X } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
+import { useAcademicYear } from "../../../app/providers/AcademicYearProvider";
 
 export const ClassShow: React.FC = () => {
+  const { activeSemesterId } = useAcademicYear();
   const { queryResult } = useShow({
     meta: { select: "*, units(name), academic_years(name)" }
   });
@@ -36,7 +38,8 @@ export const ClassShow: React.FC = () => {
     filters: [
       { field: "class_id", operator: "eq", value: record?.id },
       { field: "schedule_type", operator: "eq", value: "mengajar" },
-    ],
+      ...(activeSemesterId ? [{ field: "semester_id", operator: "eq", value: activeSemesterId }] : []),
+    ] as any,
     queryOptions: { enabled: !!record?.id },
   });
 

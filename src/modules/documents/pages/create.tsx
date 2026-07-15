@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState } from "react";
 import { useCreate, useSelect, useGetIdentity } from "@refinedev/core";
 import { useNavigate } from "react-router-dom";
@@ -5,10 +6,13 @@ import { PageHeader } from "../../../components/layout/PageHeader";
 import { ArrowLeft, UploadCloud, FileType, CheckSquare } from "lucide-react";
 import { toast } from "sonner";
 import { uploadDocument } from "../../../lib/supabase/storage";
+import { useCurrentUnit } from "../../../app/providers/UnitProvider";
+import { OfficeSectionNav } from "../../mail/components/OfficeSectionNav";
 
 export const DocumentCreate: React.FC = () => {
   const navigate = useNavigate();
   const { data: identity } = useGetIdentity<any>();
+  const { activeUnitId } = useCurrentUnit();
   const { mutate: createDocument } = useCreate();
 
   const [file, setFile] = useState<File | null>(null);
@@ -18,12 +22,16 @@ export const DocumentCreate: React.FC = () => {
   const [documentNumber, setDocumentNumber] = useState("");
   const [documentDate, setDocumentDate] = useState("");
   const [isUploading, setIsUploading] = useState(false);
+  const [confidentiality, setConfidentiality] = useState("internal");
+  const [effectiveDate, setEffectiveDate] = useState("");
+  const [expiryDate, setExpiryDate] = useState("");
+  const [physicalLocation, setPhysicalLocation] = useState("");
 
   const { options: docTypes } = useSelect({ 
     resource: "document_types", 
     optionLabel: "name", 
     optionValue: "id",
-    filters: [{ field: "is_active", operator: "eq", value: true }] 
+    filters: [{ field: "is_active", operator: "eq", value: true }, ...(activeUnitId ? [{ field: "unit_id", operator: "eq" as const, value: activeUnitId }] : [])]
   });
 
   // Basic mock list for owner id - in reality, we'd have async search inputs based on ownerType
@@ -32,6 +40,7 @@ export const DocumentCreate: React.FC = () => {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
+      if (e.target.files[0].size > 5 * 1024 * 1024) { toast.error("Ukuran file maksimal 5 MB."); e.target.value = ""; return; }
       setFile(e.target.files[0]);
     }
   };
@@ -55,6 +64,7 @@ export const DocumentCreate: React.FC = () => {
         values: {
           owner_type: ownerType,
           owner_id: ownerId,
+          unit_id: activeUnitId || null,
           document_type_id: documentTypeId,
           file_name: fileMeta.fileName,
           file_path: fileMeta.filePath,
@@ -64,6 +74,10 @@ export const DocumentCreate: React.FC = () => {
           uploaded_by: identity?.id,
           document_number: documentNumber || null,
           document_date: documentDate || null,
+          confidentiality,
+          effective_date: effectiveDate || null,
+          expiry_date: expiryDate || null,
+          physical_location: physicalLocation || null,
         },
         successNotification: () => ({ message: "Dokumen berhasil diunggah", type: "success" })
       }, {
@@ -82,6 +96,8 @@ export const DocumentCreate: React.FC = () => {
         title="Upload Dokumen Baru"
         description="Unggah file digital ke dalam Document Vault yang aman."
       />
+
+      <OfficeSectionNav />
 
       <div className="bg-card rounded-xl border shadow-sm p-6">
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -127,6 +143,11 @@ export const DocumentCreate: React.FC = () => {
                 {docTypes?.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             </div>
+
+            <div className="space-y-2"><label className="text-sm font-medium">Tingkat kerahasiaan</label><select value={confidentiality} onChange={(event) => setConfidentiality(event.target.value)} className="w-full rounded-md border bg-background px-3 py-2 text-sm"><option value="public">Publik</option><option value="internal">Internal</option><option value="confidential">Rahasia</option><option value="restricted">Sangat terbatas</option></select></div>
+            <div className="space-y-2"><label className="text-sm font-medium">Lokasi arsip fisik</label><input value={physicalLocation} onChange={(event) => setPhysicalLocation(event.target.value)} placeholder="Lemari/Rak/Ordner" className="w-full rounded-md border bg-background px-3 py-2 text-sm" /></div>
+            <div className="space-y-2"><label className="text-sm font-medium">Mulai berlaku</label><input type="date" value={effectiveDate} onChange={(event) => setEffectiveDate(event.target.value)} className="w-full rounded-md border bg-background px-3 py-2 text-sm" /></div>
+            <div className="space-y-2"><label className="text-sm font-medium">Berlaku sampai</label><input type="date" min={effectiveDate || undefined} value={expiryDate} onChange={(event) => setExpiryDate(event.target.value)} className="w-full rounded-md border bg-background px-3 py-2 text-sm" /></div>
 
             <div className="space-y-2">
               <label className="text-sm font-medium">Nomor Surat (Opsional)</label>

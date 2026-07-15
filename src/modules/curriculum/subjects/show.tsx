@@ -1,10 +1,19 @@
 import React from "react";
 import { useDelete, useList, useShow } from "@refinedev/core";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { ArrowLeft, BookOpen, CalendarDays, CheckCircle2, Circle, Edit, FileText, Layers3, Plus, Trash2 } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
-import { SD_PHASES, getRppmRows, getRpphRows, getSdPhaseCompletion, hasRows } from "../subject-curriculums/sdCurriculumStructure";
+import { useAcademicYear } from "../../../app/providers/AcademicYearProvider";
+import { CurriculumSectionNav } from "../components/CurriculumSectionNav";
+import { SD_PHASES, getSdPhaseCompletion, hasRows } from "../subject-curriculums/sdCurriculumStructure";
+import {
+  getCurriculumCompletion,
+  getSemesterLearningPlanRows,
+  getSemesterPlan,
+  getSemesterRppmRows,
+} from "../curriculum-utils";
+import { getAssessmentWeightTotal, getFinalAssessmentType } from "../assessment-policy";
 
 const StatusPill: React.FC<{ done: boolean; label: string; detail?: string }> = ({ done, label, detail }) => (
   <span
@@ -23,8 +32,8 @@ const StatusPill: React.FC<{ done: boolean; label: string; detail?: string }> = 
 export const SubjectShow: React.FC = () => {
   const { id } = useParams();
   const subjectId = id || "";
-  const navigate = useNavigate();
   const { mutate: deleteCurriculum } = useDelete();
+  const { activeYearId, activeSemesterId } = useAcademicYear();
 
   const { queryResult } = useShow({
     resource: "subjects",
@@ -35,9 +44,12 @@ export const SubjectShow: React.FC = () => {
 
   const { data: curriculumsData, isLoading: curriculumsLoading } = useList({
     resource: "subject_curriculums",
-    filters: [{ field: "subject_id", operator: "eq", value: subjectId }],
+    filters: [
+      { field: "subject_id", operator: "eq", value: subjectId },
+      ...(activeYearId ? [{ field: "academic_year_id", operator: "eq", value: activeYearId }] : []),
+    ] as any,
     sorters: [{ field: "grade_level", order: "asc" }],
-    meta: { select: "*, academic_years(name)" },
+    meta: { select: "*, academic_years(name), subject_curriculum_semesters(*)" },
   });
 
   if (queryResult.isLoading) return <div className="p-8 text-center text-muted-foreground">Memuat data...</div>;
@@ -46,6 +58,12 @@ export const SubjectShow: React.FC = () => {
   const records = curriculumsData?.data || [];
   const allowedGrades = Array.isArray(subject.grade_levels) && subject.grade_levels.length > 0 ? subject.grade_levels.map(Number) : [1, 2, 3, 4, 5, 6];
   const activePhases = SD_PHASES.filter((phase) => phase.grades.some((grade) => allowedGrades.includes(grade)));
+  const firstMissingGrade = allowedGrades.find((grade: number) => !records.some((record) => Number(record.grade_level) === grade)) || allowedGrades[0];
+  const createUrl = (grade: number) => {
+    const params = new URLSearchParams({ subject_id: subjectId, grade_level: String(grade) });
+    if (activeYearId) params.set("academic_year_id", activeYearId);
+    return `/curriculum/subject-curriculums/create?${params.toString()}`;
+  };
 
   return (
     <div className="space-y-6">
@@ -59,11 +77,11 @@ export const SubjectShow: React.FC = () => {
           action={
             <div className="flex flex-wrap gap-2">
               <Link
-                to={`/curriculum/subject-curriculums/create?subject_id=${subjectId}`}
+                to={createUrl(firstMissingGrade)}
                 className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition-colors shadow-sm font-medium text-sm"
               >
                 <Plus className="w-4 h-4" />
-                Tambah Kurikulum
+                Buat Kelas {firstMissingGrade}
               </Link>
               <Link
                 to={`/curriculum/subjects/edit/${subjectId}`}
@@ -76,6 +94,13 @@ export const SubjectShow: React.FC = () => {
           }
         />
       </div>
+      <CurriculumSectionNav />
+
+      {!activeYearId ? (
+        <div className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+          Tahun ajaran belum aktif. Pilih tahun ajaran agar dokumen kelas tidak tercampur dengan periode lain.
+        </div>
+      ) : null}
 
       <section className="rounded-xl border bg-card p-5 shadow-sm">
         <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
@@ -151,7 +176,7 @@ export const SubjectShow: React.FC = () => {
                       </div>
                     </div>
                     <Link
-                      to={cpAtpRecord ? `/curriculum/subject-curriculums/edit/${cpAtpRecord.id}` : `/curriculum/subject-curriculums/create?subject_id=${subjectId}`}
+                      to={cpAtpRecord ? `/curriculum/subject-curriculums/edit/${cpAtpRecord.id}` : createUrl(phase.grades.find((grade) => allowedGrades.includes(grade)) || firstMissingGrade)}
                       className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-md border bg-background px-3 py-2 text-sm font-semibold hover:bg-muted"
                     >
                       <FileText className="h-4 w-4" />
@@ -163,9 +188,13 @@ export const SubjectShow: React.FC = () => {
                     {phase.grades.filter((grade) => allowedGrades.includes(grade)).map((grade) => {
                       const record = records.find((item) => Number(item.grade_level) === grade);
                       const protaCount = Array.isArray(record?.prota_data) ? record.prota_data.length : 0;
-                      const prosemCount = Array.isArray(record?.prosem_data?.rows) ? record.prosem_data.rows.length : 0;
-                      const rppmCount = getRppmRows(record).length;
-                      const rpphCount = getRpphRows(record).length;
+                      const semesterPlan = getSemesterPlan(record, activeSemesterId);
+                      const prosemCount = Array.isArray(semesterPlan?.prosem_data?.rows) ? semesterPlan.prosem_data.rows.length : 0;
+                      const rppmCount = getSemesterRppmRows(record, activeSemesterId).length;
+                      const rpphCount = getSemesterLearningPlanRows(record, activeSemesterId).length;
+                      const semesterReady = getCurriculumCompletion(record, cpAtpRecord, activeSemesterId).ready;
+                      const finalAssessment = getFinalAssessmentType(semesterPlan, semesterPlan?.semester_name);
+                      const assessmentWeightTotal = getAssessmentWeightTotal(semesterPlan);
 
                       return (
                         <article key={grade} className="rounded-lg border bg-background p-4">
@@ -176,7 +205,7 @@ export const SubjectShow: React.FC = () => {
                             </div>
                             <div className="flex gap-1">
                               <Link
-                                to={record ? `/curriculum/subject-curriculums/edit/${record.id}` : `/curriculum/subject-curriculums/create?subject_id=${subjectId}`}
+                                to={record ? `/curriculum/subject-curriculums/edit/${record.id}` : createUrl(grade)}
                                 className="rounded-md p-2 text-muted-foreground hover:bg-blue-50 hover:text-blue-600"
                                 title={record ? "Edit perangkat ajar" : "Buat perangkat ajar"}
                               >
@@ -206,6 +235,10 @@ export const SubjectShow: React.FC = () => {
                           </div>
 
                           <div className="mt-4 flex flex-wrap gap-2">
+                            <StatusPill done={semesterReady} label={semesterPlan?.semester_name ? `Semester ${semesterPlan.semester_name}` : "Semester Aktif"} />
+                            <StatusPill done={Boolean(semesterPlan)} label={finalAssessment === "none" ? "Tanpa SAS/ASAT" : finalAssessment.toUpperCase()} />
+                            <StatusPill done={Boolean(semesterPlan) && semesterPlan?.include_in_report !== false} label={semesterPlan?.include_in_report === false ? "Laporan Terpisah" : "Masuk Rapor"} />
+                            <StatusPill done={assessmentWeightTotal === 100} label="Bobot Nilai" detail={`${assessmentWeightTotal}%`} />
                             <StatusPill done={hasRows(record?.prota_data)} label="Prota" detail={`${protaCount} baris`} />
                             <StatusPill done={prosemCount > 0} label="Promes" detail={`${prosemCount} pekan`} />
                             <StatusPill done={rppmCount > 0} label="RPPM" detail={`${rppmCount} pekan`} />

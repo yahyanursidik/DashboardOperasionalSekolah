@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { supabaseClient } from "../../../lib/supabase/client";
 import { Printer } from "lucide-react";
+import { calculateFinalScore, getFinalAssessmentType } from "../../curriculum/assessment-policy";
 
 export const ReportPrint: React.FC = () => {
   const location = useLocation();
@@ -22,11 +23,19 @@ export const ReportPrint: React.FC = () => {
         const { data: student } = await supabaseClient.from("students").select("*").eq("id", studentId).single();
         
         // Fetch Class & Unit
-        const { data: classObj } = await supabaseClient.from("classes").select("*, units(name)").eq("id", classId).single();
+        const { data: classObj } = await supabaseClient.from("classes").select("*, units(name), academic_years(name)").eq("id", classId).single();
+        const classRecord = classObj as any;
         
         // Fetch Semester
         const semesterResponse = await supabaseClient.from("semesters").select("*").eq("id", semesterId).single();
         const semester = semesterResponse.data as any;
+
+        const { data: curriculumRows, error: curriculumError } = await supabaseClient
+          .from("subject_curriculums")
+          .select("id, subject_id, grade_level, subjects(id, name), subject_curriculum_semesters(id, semester_id, include_in_report, final_assessment_type, assessment_weights)")
+          .eq("academic_year_id", classRecord.academic_year_id)
+          .eq("grade_level", Number(classRecord.grade_level || classRecord.level));
+        if (curriculumError) throw curriculumError;
 
         // Fetch Grades
         const { data: grades } = await supabaseClient.from("academic_grades").select("*, subjects(name)").eq("student_id", studentId).eq("semester_id", semesterId).eq("class_id", classId);
@@ -38,37 +47,75 @@ export const ReportPrint: React.FC = () => {
         const responseAtt = await supabaseClient.from("attendance_records")
           .select("status")
           .eq("student_id", studentId)
-          .gte("date", semester?.start_date || "2000-01-01")
-          .lte("date", semester?.end_date || "2100-01-01");
+          .gte("attendance_date", semester?.start_date || "2000-01-01")
+          .lte("attendance_date", semester?.end_date || "2100-01-01");
 
         const attendance = responseAtt.data as any[];
         const attendanceCounts = { S: 0, I: 0, A: 0 };
         attendance?.forEach(a => {
-          if (a.status === "S") attendanceCounts.S++;
-          if (a.status === "I") attendanceCounts.I++;
-          if (a.status === "A") attendanceCounts.A++;
+          if (["S", "sakit"].includes(a.status)) attendanceCounts.S++;
+          if (["I", "izin"].includes(a.status)) attendanceCounts.I++;
+          if (["A", "alpa"].includes(a.status)) attendanceCounts.A++;
         });
 
-        // Group grades by subject
         const gradesArr = grades as any[];
-        const subjectsMap: Record<string, any> = {};
+        const gradeMap: Record<string, Record<string, string>> = {};
         gradesArr?.forEach(g => {
-          if (!subjectsMap[g.subject_id]) {
-            subjectsMap[g.subject_id] = {
-              name: g.subjects?.name,
-              tugas_1: "-", tugas_2: "-", uts: "-", uas: "-"
-            };
-          }
-          subjectsMap[g.subject_id][g.grade_type] = g.score || "-";
+          if (!gradeMap[g.subject_id]) gradeMap[g.subject_id] = {};
+          gradeMap[g.subject_id][g.grade_type] = g.score || "";
         });
+
+        let reportSubjects = ((curriculumRows || []) as any[]).flatMap((curriculum) => {
+          const plan = curriculum.subject_curriculum_semesters?.find((item: any) => String(item.semester_id) === String(semesterId));
+          if (!plan || plan.include_in_report === false || !curriculum.subjects?.id) return [];
+          const subjectGrades = gradeMap[curriculum.subjects.id] || {};
+          const finalType = getFinalAssessmentType(plan, semester?.name);
+          const normalizedGrades = {
+            formatif: subjectGrades.formatif || subjectGrades.tugas_1,
+            sumatif_lingkup: subjectGrades.sumatif_lingkup || subjectGrades.tugas_2,
+            sts: subjectGrades.sts || subjectGrades.uts,
+            sas: subjectGrades.sas || subjectGrades.uas,
+            asat: subjectGrades.asat || subjectGrades.uas,
+          };
+          return [{
+            id: curriculum.subjects.id,
+            name: curriculum.subjects.name,
+            ...normalizedGrades,
+            finalType,
+            finalScore: calculateFinalScore(normalizedGrades, plan, semester?.name),
+          }];
+        }).sort((a, b) => a.name.localeCompare(b.name));
+
+        const unitName = String(classRecord.units?.name || "").toLowerCase();
+        const isPaudClass = ["paud", "tk", "kb", "preschool"].some((name) => unitName.includes(name));
+        if (reportSubjects.length === 0 && isPaudClass) {
+          reportSubjects = Object.entries(gradeMap).map(([subjectId, subjectGrades]) => {
+            const sourceGrade = gradesArr?.find((grade) => String(grade.subject_id) === String(subjectId));
+            const finalType = getFinalAssessmentType(undefined, semester?.name);
+            return {
+              id: subjectId,
+              name: sourceGrade?.subjects?.name || "Mata Pelajaran",
+              formatif: subjectGrades.formatif || subjectGrades.tugas_1,
+              sumatif_lingkup: subjectGrades.sumatif_lingkup || subjectGrades.tugas_2,
+              sts: subjectGrades.sts || subjectGrades.uts,
+              sas: subjectGrades.sas || subjectGrades.uas,
+              asat: subjectGrades.asat || subjectGrades.uas,
+              finalType,
+              finalScore: null,
+            };
+          }).sort((a, b) => a.name.localeCompare(b.name));
+        }
+
+        const assessmentTypes = [...new Set(reportSubjects.map((subject: any) => subject.finalType).filter((type: string) => type && type !== "none"))];
 
         setData({
           student,
           classObj,
           semester,
-          subjects: Object.values(subjectsMap),
+          subjects: reportSubjects,
           reportCard: reportCard || {},
-          attendance: attendanceCounts
+          attendance: attendanceCounts,
+          assessmentBasis: assessmentTypes.length > 0 ? assessmentTypes.join(" / ").toUpperCase() : "Tanpa asesmen akhir",
         });
       } catch (error) {
         console.error(error);
@@ -125,6 +172,10 @@ export const ReportPrint: React.FC = () => {
                   <td className="py-1 font-semibold">NIS/NISN</td><td>:</td><td>{data.student.nis || "-"} / {data.student.nisn || "-"}</td>
                   <td className="py-1 font-semibold">Semester</td><td>:</td><td>{data.semester?.name}</td>
                 </tr>
+                <tr>
+                  <td className="py-1 font-semibold">Tahun Ajaran</td><td>:</td><td>{data.classObj?.academic_years?.name || "-"}</td>
+                  <td className="py-1 font-semibold">Asesmen Akhir</td><td>:</td><td>{data.assessmentBasis}</td>
+                </tr>
               </tbody>
             </table>
           </div>
@@ -137,24 +188,26 @@ export const ReportPrint: React.FC = () => {
               <tr className="bg-gray-100 print:bg-gray-100">
                 <th className="border border-black p-2 w-12 text-center">No</th>
                 <th className="border border-black p-2 text-left">Mata Pelajaran</th>
-                <th className="border border-black p-2 text-center">Tugas 1</th>
-                <th className="border border-black p-2 text-center">Tugas 2</th>
-                <th className="border border-black p-2 text-center">UTS</th>
-                <th className="border border-black p-2 text-center">UAS</th>
+                <th className="border border-black p-2 text-center">Formatif</th>
+                <th className="border border-black p-2 text-center">Sumatif Lingkup</th>
+                <th className="border border-black p-2 text-center">STS</th>
+                <th className="border border-black p-2 text-center">SAS / ASAT</th>
+                <th className="border border-black p-2 text-center">Nilai Akhir</th>
               </tr>
             </thead>
             <tbody>
               {data.subjects.length === 0 ? (
-                <tr><td colSpan={6} className="border border-black p-2 text-center text-gray-500">Belum ada nilai akademik diisi.</td></tr>
+                <tr><td colSpan={7} className="border border-black p-2 text-center text-gray-500">Belum ada mata pelajaran yang ditetapkan masuk rapor pada semester ini.</td></tr>
               ) : (
                 data.subjects.map((sub: any, idx: number) => (
                   <tr key={idx}>
                     <td className="border border-black p-2 text-center">{idx + 1}</td>
                     <td className="border border-black p-2">{sub.name}</td>
-                    <td className="border border-black p-2 text-center">{sub.tugas_1}</td>
-                    <td className="border border-black p-2 text-center">{sub.tugas_2}</td>
-                    <td className="border border-black p-2 text-center">{sub.uts}</td>
-                    <td className="border border-black p-2 text-center">{sub.uas}</td>
+                    <td className="border border-black p-2 text-center">{sub.formatif || "-"}</td>
+                    <td className="border border-black p-2 text-center">{sub.sumatif_lingkup || "-"}</td>
+                    <td className="border border-black p-2 text-center">{sub.sts || "-"}</td>
+                    <td className="border border-black p-2 text-center"><span className="block text-[10px] font-semibold">{sub.finalType === "none" ? "-" : sub.finalType.toUpperCase()}</span>{sub.finalType === "none" ? "-" : sub[sub.finalType] || "-"}</td>
+                    <td className="border border-black p-2 text-center font-bold">{sub.finalScore ?? "-"}</td>
                   </tr>
                 ))
               )}

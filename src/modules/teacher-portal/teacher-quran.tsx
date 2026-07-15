@@ -4,6 +4,7 @@ import { supabaseClient } from "../../lib/supabase/client";
 import { Award, BookOpen, CheckCircle, ClipboardCheck, Info, ShieldCheck, Target, Users } from "lucide-react";
 import { useAcademicYear } from "../../app/providers/AcademicYearProvider";
 import { toast } from "sonner";
+import { toDateInputValue } from "../leaves/leave-utils";
 
 const getPredicate = (score: number) => {
   if (score >= 90) return "Mumtaz (Istimewa)";
@@ -59,6 +60,7 @@ export const TeacherQuran: React.FC = () => {
         .eq("employee_id", employee.id)
         .not("class_id", "is", null);
       if (activeYearId) scheduleQuery = scheduleQuery.eq("academic_year_id", activeYearId);
+      if (activeSemesterId) scheduleQuery = scheduleQuery.eq("semester_id", activeSemesterId);
       const { data: scheduleClasses } = await scheduleQuery;
 
       const { data: homeroomClasses } = await supabaseClient
@@ -210,7 +212,7 @@ export const TeacherQuran: React.FC = () => {
       academic_year_id: activeYearId,
       semester_id: activeSemesterId,
       record_type: programType,
-      date: new Date().toISOString().split("T")[0],
+      date: toDateInputValue(new Date()),
       surah_or_jilid: formData.surah_or_jilid,
       ayat_or_page: formData.ayat_or_page,
       fluency_score: formData.fluency_score,
@@ -235,7 +237,7 @@ export const TeacherQuran: React.FC = () => {
       student_id: formData.student_id,
       class_id: selectedStudent?.class_id || selectedClassId || null,
       employee_id: employee.id,
-      date: new Date().toISOString().split("T")[0],
+      date: toDateInputValue(new Date()),
       assessment_type: programType === "tahsin" ? "tahsin_jilid" : "tahfidz_juz",
       title: formData.title,
       score,

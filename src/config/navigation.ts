@@ -20,8 +20,6 @@ import {
   GraduationCap,
   FileBadge,
   Package,
-  Truck,
-  ShoppingCart,
   Target,
   Award,
   Camera,
@@ -29,19 +27,25 @@ import {
   TrendingUp,
   ClipboardCheck,
   Building,
+  Truck,
+  Wrench,
+  ShoppingCart,
   ShieldCheck,
   Send,
   BarChart3,
   FileDown
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import type { RoleName } from "../lib/permissions";
 
 export interface NavigationItem {
   title: string;
   href: string;
-  icon: any;
-  resource?: string; // Resource required to access
-  roles?: RoleName[]; // Alternative explicit roles
+  icon: LucideIcon;
+  resource?: string;
+  roles?: RoleName[];
+  keywords?: string[];
+  mobilePriority?: number;
 }
 
 export interface NavigationGroup {
@@ -51,12 +55,13 @@ export interface NavigationGroup {
 
 export const navigationConfig: NavigationGroup[] = [
   {
-    name: "Dashboard & Beranda",
+    name: "Operasional Harian",
     items: [
       {
         title: "Beranda",
         href: "/",
         icon: Home,
+        mobilePriority: 1,
       },
       {
         title: "Kalender Akademik",
@@ -68,12 +73,14 @@ export const navigationConfig: NavigationGroup[] = [
         href: "/announcements",
         icon: Megaphone,
         resource: "announcements",
+        mobilePriority: 5,
       },
       {
-        title: "Task Admin",
+        title: "Tugas & Tindak Lanjut",
         href: "/tasks",
         icon: ClipboardList,
         resource: "admin_tasks",
+        keywords: ["task", "pekerjaan", "follow up"],
       },
     ],
   },
@@ -85,11 +92,20 @@ export const navigationConfig: NavigationGroup[] = [
         href: "/students",
         icon: Users,
         resource: "students",
+        mobilePriority: 2,
+        keywords: ["murid", "peserta didik", "nis", "nisn"],
       },
       {
         title: "Orang Tua / Wali",
         href: "/parents",
         icon: Users,
+        resource: "students",
+        keywords: ["wali siswa", "keluarga", "portal orang tua"],
+      },
+      {
+        title: "Layanan Orang Tua",
+        href: "/parents/requests",
+        icon: MessageSquare,
         resource: "students",
       },
       {
@@ -103,21 +119,26 @@ export const navigationConfig: NavigationGroup[] = [
         href: "/curriculum",
         icon: BookOpen,
         resource: "subjects",
+        mobilePriority: 3,
+        keywords: ["mata pelajaran", "mapel", "cp", "atp", "prota", "promes"],
       },
       {
         title: "Absensi Siswa",
         href: "/attendance",
         icon: CalendarCheck,
         resource: "attendance_records",
+        mobilePriority: 4,
+        keywords: ["kehadiran", "presensi siswa"],
       },
       {
-        title: "Gradebook (Nilai)",
+        title: "Nilai Akademik",
         href: "/academic/gradebook",
         icon: BookOpen,
         resource: "academic_grades",
+        keywords: ["gradebook", "sas", "asat", "sts"],
       },
       {
-        title: "Master Rapor Siswa",
+        title: "Kelengkapan Rapor",
         href: "/academic/reports",
         icon: FileBadge,
         resource: "academic_report_cards",
@@ -181,13 +202,13 @@ export const navigationConfig: NavigationGroup[] = [
         resource: "report_templates",
       },
       {
-        title: "Generate Rapor",
+        title: "Siapkan Rapor Siswa",
         href: "/reports/generate",
         icon: Target,
         resource: "report_periods",
       },
       {
-        title: "Input Guru",
+        title: "Input Rapor oleh Guru",
         href: "/reports/teacher-input",
         icon: ClipboardCheck,
         resource: "academic_grades",
@@ -324,7 +345,7 @@ export const navigationConfig: NavigationGroup[] = [
     ],
   },
   {
-    name: "SDM & Kepegawaian (HRD)",
+    name: "SDM & Kepegawaian",
     items: [
       {
         title: "Data Pegawai",
@@ -345,16 +366,35 @@ export const navigationConfig: NavigationGroup[] = [
         resource: "employee_attendance",
       },
       {
+        title: "Tinjauan Absensi",
+        href: "/attendance/reviews",
+        icon: ShieldCheck,
+        resource: "employee_attendance",
+      },
+      {
+        title: "Aturan & Lokasi Absensi",
+        href: "/attendance/settings",
+        icon: Settings,
+        resource: "employee_attendance",
+      },
+      {
         title: "Pengajuan Izin",
         href: "/leaves",
         icon: ClipboardList,
         resource: "leave_requests",
       },
       {
-        title: "Guru Inval",
+        title: "Laporan Operasional Staf",
+        href: "/operations/reports",
+        icon: FileText,
+        resource: "staff_operational_reports",
+      },
+      {
+        title: "Guru Pengganti",
         href: "/substitutes",
         icon: Users,
         resource: "substitute_assignments",
+        keywords: ["inval", "substitusi", "pengganti"],
       },
       {
         title: "Rekrutmen Pegawai",
@@ -380,37 +420,73 @@ export const navigationConfig: NavigationGroup[] = [
     name: "Keuangan & Bendahara",
     items: [
       {
-        title: "Dashboard Keuangan",
+        title: "Pusat Keuangan",
         href: "/finance",
         icon: Wallet,
         resource: "student_invoices",
       },
       {
-        title: "Tagihan & Pembayaran",
+        title: "Tagihan Siswa",
         href: "/finance/invoices",
         icon: Receipt,
         resource: "student_invoices",
       },
       {
-        title: "Verifikasi Transfer",
+        title: "Verifikasi Pembayaran",
         href: "/finance/verifications",
         icon: CheckCircle,
         resource: "payment_transactions",
       },
       {
-        title: "Buku Kas (Pengeluaran)",
+        title: "Pengeluaran & Persetujuan",
         href: "/finance/expenses",
         icon: CreditCard,
         resource: "school_expenses",
       },
       {
-        title: "Kategori Biaya",
+        title: "Penerimaan Lain",
+        href: "/finance/receipts",
+        icon: Receipt,
+        resource: "finance_receipts",
+      },
+      {
+        title: "Kas & Bank",
+        href: "/finance/cashbook",
+        icon: Wallet,
+        resource: "finance_cash_accounts",
+      },
+      {
+        title: "RKAS & Anggaran",
+        href: "/finance/budgets",
+        icon: ClipboardList,
+        resource: "finance_budgets",
+      },
+      {
+        title: "Master Tarif & Program",
+        href: "/finance/tariffs",
+        icon: Settings,
+        resource: "finance_fee_rates",
+      },
+      {
+        title: "Akuntansi",
+        href: "/finance/accounting",
+        icon: BookOpen,
+        resource: "finance_accounts",
+      },
+      {
+        title: "Laporan Keuangan",
+        href: "/finance/reports",
+        icon: BarChart,
+        resource: "financials",
+      },
+      {
+        title: "Akun & Kategori Biaya",
         href: "/finance/categories",
         icon: Tag,
         resource: "finance_categories",
       },
       {
-        title: "Pengaturan Biaya SPMB",
+        title: "Biaya SPMB",
         href: "/finance/spmb-fees",
         icon: Settings,
         resource: "student_invoices",
@@ -427,10 +503,42 @@ export const navigationConfig: NavigationGroup[] = [
     name: "Sarana & Prasarana",
     items: [
       {
-        title: "Manajemen Aset",
+        title: "Pusat Sarpras",
+        href: "/sarpras",
+        icon: BarChart3,
+        resource: "assets",
+        keywords: ["ringkasan", "fasilitas", "inventaris"],
+      },
+      {
+        title: "Aset & Inventaris",
         href: "/sarpras/assets",
         icon: Package,
         resource: "assets",
+      },
+      {
+        title: "Peminjaman Aset",
+        href: "/sarpras/asset-loans",
+        icon: Truck,
+        resource: "asset_loans",
+      },
+      {
+        title: "Pemeliharaan",
+        href: "/sarpras/maintenance",
+        icon: Wrench,
+        resource: "asset_maintenance_requests",
+        keywords: ["kerusakan", "perbaikan", "tiket"],
+      },
+      {
+        title: "Pengadaan Barang",
+        href: "/sarpras/procurements",
+        icon: ShoppingCart,
+        resource: "procurements",
+      },
+      {
+        title: "Stok Opname",
+        href: "/sarpras/stocktakes",
+        icon: ClipboardCheck,
+        resource: "asset_stocktakes",
       },
       {
         title: "Data Ruangan",
@@ -450,16 +558,41 @@ export const navigationConfig: NavigationGroup[] = [
     name: "Tata Usaha & Dokumen",
     items: [
       {
-        title: "Tata Usaha (Surat)",
+        title: "Pusat Administrasi",
         href: "/mail",
+        icon: Inbox,
+        resource: "mail_records",
+        keywords: ["tata usaha", "agenda", "persuratan", "dokumen"],
+      },
+      {
+        title: "Surat Masuk",
+        href: "/mail/incoming",
         icon: Inbox,
         resource: "mail_records",
       },
       {
-        title: "Dokumen & Surat",
+        title: "Surat Keluar",
+        href: "/mail/outgoing",
+        icon: Send,
+        resource: "mail_records",
+      },
+      {
+        title: "Disposisi Surat",
+        href: "/mail/dispositions",
+        icon: CheckSquare,
+        resource: "mail_dispositions",
+      },
+      {
+        title: "Arsip Dokumen Sekolah",
         href: "/documents",
         icon: FileText,
         resource: "documents",
+      },
+      {
+        title: "Retensi & Kepatuhan",
+        href: "/documents/governance",
+        icon: ClipboardCheck,
+        resource: "document_governance_actions",
       },
       {
         title: "Perpustakaan Digital",
@@ -491,7 +624,7 @@ export const navigationConfig: NavigationGroup[] = [
         resource: "students",
       },
       {
-        title: "Laporan",
+        title: "Laporan Manajemen",
         href: "/reports",
         icon: BarChart,
         resource: "reports",

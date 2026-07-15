@@ -1,165 +1,105 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabaseClient } from "../../lib/supabase/client";
+import { ArrowRight, KeyRound, LockKeyhole, Mail, User, Wallet } from "lucide-react";
 import { toast } from "sonner";
-import { Wallet, ArrowRight } from "lucide-react";
+import { supabaseClient } from "../../lib/supabase/client";
 import { useSystemSettings } from "../../app/providers/SettingsProvider";
 
+type FinanceEmployee = { id?: string; full_name?: string | null; position?: string | null; status?: string | null };
+type RoleRow = { roles?: { name?: string | null } | null };
+
 export const BendaharaLogin: React.FC = () => {
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { appName, logoUrl, loginCoverUrl } = useSystemSettings();
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleLogin = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const value = identifier.trim();
+    if (!value) return;
+    if (!navigator.onLine) {
+      toast.error("Tidak ada koneksi internet. Periksa jaringan Anda.");
+      return;
+    }
+
     setIsLoading(true);
-
     try {
-      let { data: authData, error: authError } = await supabaseClient.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      // Auto-signup fallback for demo users
-      if (authError && authError.message.includes("Invalid login credentials")) {
-        const signup = await supabaseClient.auth.signUp({
-          email,
-          password,
-          options: {
-            data: { full_name: "Staf Bendahara", role: "finance" }
-          }
-        });
-        authData = signup.data as any;
-        authError = signup.error as any;
-        
-        if (signup.data?.session) {
-           await supabaseClient.rpc('link_my_account');
-        }
+      const { data: resolvedEmail, error: resolveError } = await supabaseClient.rpc("get_finance_login_email_by_identifier", { p_identifier: value });
+      if (resolveError || !resolvedEmail) {
+        toast.error("Akun tidak ditemukan. Pastikan NIK atau email benar.");
+        return;
       }
 
-      if (authError || !authData?.session) {
-        throw new Error((authError as any)?.message || "Gagal memverifikasi akses.");
+      const email = String(resolvedEmail).trim();
+      const { data: authData, error: authError } = await supabaseClient.auth.signInWithPassword({ email, password });
+      if (authError || !authData.session) {
+        toast.error("Kata sandi tidak sesuai atau akun belum aktif. Hubungi administrator sekolah bila akses belum dibuat.");
+        return;
       }
 
-      // Pastikan pengguna memiliki role finance/bendahara atau admin
-      const { data: userData } = await supabaseClient
-        .from('users')
-        .select('role')
-        .eq('id', authData.user?.id)
-        .single();
-        
-      const dbRole = (userData as any)?.role;
-      const metaRole = authData.user?.user_metadata?.role;
-      const role = dbRole || metaRole;
-
-      if (role !== 'finance' && role !== 'superadmin' && role !== 'admin') {
-         toast.warning("Anda tidak memiliki akses ke portal bendahara.");
-         await supabaseClient.auth.signOut();
-         return;
+      await supabaseClient.rpc("link_my_account");
+      const [employeeResult, rolesResult] = await Promise.all([
+        supabaseClient.from("employees").select("id, full_name, position, status").eq("user_id", authData.user.id).maybeSingle(),
+        supabaseClient.from("user_roles").select("roles(name)").eq("user_id", authData.user.id),
+      ]);
+      const employee = employeeResult.data as FinanceEmployee | null;
+      const position = String(employee?.position || "").toLowerCase();
+      const roleNames = ((rolesResult.data || []) as RoleRow[]).map((item) => item.roles?.name).filter((name): name is string => Boolean(name));
+      const allowed = position.includes("bendahara") || position.includes("keuangan") || roleNames.some((role: string) => ["super_admin", "ketua_yayasan", "kepala_tu", "admin_keuangan"].includes(role));
+      if (!allowed || employee?.status === "inactive") {
+        await supabaseClient.auth.signOut();
+        toast.error("Akun ini tidak memiliki penugasan aktif sebagai bendahara/keuangan.");
+        return;
       }
 
-      // Pastikan akun tertaut
-      await supabaseClient.rpc('link_my_account');
-
-      toast.success(`Selamat datang di Portal Bendahara!`);
+      toast.success("Selamat datang di Portal Bendahara.");
       navigate("/bendahara");
-    } catch (err: any) {
-      console.error("Login Error Catch:", err);
-      toast.error(err.message || "Terjadi kesalahan sistem saat login.");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Terjadi kesalahan saat memverifikasi akun.");
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div 
-      className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-emerald-50 via-green-100/60 to-emerald-200 relative overflow-hidden font-sans"
-      style={loginCoverUrl ? {
-        backgroundImage: `url(${loginCoverUrl})`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat'
-      } : {}}
-    >
-      {/* Dark overlay if using cover image to ensure form readability */}
-      {loginCoverUrl && <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] z-0"></div>}
-
-      {/* Decorative background blobs */}
-      {!loginCoverUrl && (
-        <>
-          <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-emerald-300 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob"></div>
-          <div className="absolute top-[20%] right-[-10%] w-72 h-72 bg-teal-300 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000"></div>
-          <div className="absolute bottom-[-20%] left-[20%] w-80 h-80 bg-green-300 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-4000"></div>
-        </>
-      )}
-      
-      <div className="relative z-10 w-full max-w-md bg-white/60 backdrop-blur-xl rounded-3xl shadow-2xl overflow-hidden border border-white/50">
-        
-        {/* Header Area */}
-        <div className="bg-emerald-700/90 p-8 text-center relative overflow-hidden border-b border-white/20">
-          <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 rounded-full bg-white/10 blur-2xl"></div>
-          <div className="absolute bottom-0 left-0 -ml-8 -mb-8 w-24 h-24 rounded-full bg-black/10 blur-xl"></div>
-          
-          <div className="relative z-10 flex flex-col items-center">
-            {logoUrl ? (
-              <img src={logoUrl} alt="Logo" className="w-20 h-20 object-contain bg-white rounded-2xl p-2 mb-4 shadow-lg" />
-            ) : (
-              <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mb-4 shadow-lg">
-                <Wallet className="w-8 h-8 text-emerald-700" />
-              </div>
-            )}
-            <h1 className="text-2xl font-bold text-white tracking-tight">Portal Bendahara</h1>
-            <p className="text-emerald-100/90 mt-2 text-sm font-medium">{appName || "Sistem Manajemen Keuangan"}</p>
+    <div className="min-h-screen bg-slate-100 p-4 flex items-center justify-center" style={loginCoverUrl ? { backgroundImage: `url(${loginCoverUrl})`, backgroundPosition: "center", backgroundSize: "cover" } : {}}>
+      {loginCoverUrl && <div className="fixed inset-0 bg-slate-950/55" />}
+      <div className="relative z-10 grid w-full max-w-4xl overflow-hidden rounded-lg border bg-white shadow-xl md:grid-cols-[0.9fr_1.1fr]">
+        <div className="flex flex-col justify-between bg-emerald-800 p-8 text-white md:p-10">
+          <div>
+            {logoUrl ? <img src={logoUrl} alt="Logo sekolah" className="mb-8 h-16 w-16 rounded-lg bg-white object-contain p-2" /> : <div className="mb-8 flex h-14 w-14 items-center justify-center rounded-lg bg-white text-emerald-800"><Wallet className="h-7 w-7" /></div>}
+            <h1 className="text-2xl font-bold">Portal Bendahara</h1>
+            <p className="mt-3 text-sm leading-6 text-emerald-100">Kelola penagihan, kas, anggaran, dan laporan keuangan sekolah dari satu ruang kerja.</p>
           </div>
+          <p className="mt-10 text-xs text-emerald-200">{appName || "Sistem Informasi Sekolah"}</p>
         </div>
-        
-        {/* Form Area */}
-        <div className="p-8">
-          <form onSubmit={handleLogin} className="space-y-5">
-            <div className="space-y-1">
-              <label className="text-sm font-semibold text-slate-700">Email Bendahara</label>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="nama@sekolah.edu"
-                className="w-full px-4 py-3 rounded-xl border border-white/50 bg-white/50 focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all placeholder:text-slate-400 shadow-inner"
-              />
-            </div>
-            
-            <div className="space-y-1">
-              <label className="text-sm font-semibold text-slate-700">Password</label>
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full px-4 py-3 rounded-xl border border-white/50 bg-white/50 focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all placeholder:text-slate-400 shadow-inner"
-              />
-              <p className="text-xs text-emerald-800/80 mt-2 font-medium">
-                Untuk Demo: Gunakan email <strong>bendahara@demo.com</strong> dan sandi <strong>bendahara123</strong>
-              </p>
-            </div>
 
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full py-3.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-2 mt-6 shadow-lg shadow-emerald-600/30 disabled:opacity-70 disabled:shadow-none hover:-translate-y-0.5 active:translate-y-0"
-            >
-              {isLoading ? "Mengautentikasi..." : "Masuk"}
-              {!isLoading && <ArrowRight className="w-5 h-5" />}
-            </button>
-          </form>
-          
-          <div className="mt-8 text-center border-t border-slate-200/50 pt-6">
-            <p className="text-xs text-slate-500 font-medium">
-              Akses terbatas hanya untuk staf keuangan sekolah.
-            </p>
+        <div className="p-8 md:p-10">
+          <div className="mb-8">
+            <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-md bg-amber-50 text-amber-700"><KeyRound className="h-5 w-5" /></div>
+            <h2 className="text-xl font-bold">Masuk ke ruang kerja</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Gunakan NIK atau email resmi pegawai.</p>
           </div>
+          <form onSubmit={handleLogin} className="space-y-5">
+            <label className="block">
+              <span className="mb-1 block text-sm font-semibold">NIK / Email</span>
+              <div className="relative">
+                <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">{identifier.includes("@") ? <Mail className="h-5 w-5" /> : <User className="h-5 w-5" />}</span>
+                <input required value={identifier} onChange={(event) => setIdentifier(event.target.value)} placeholder="Masukkan NIK atau email resmi" className="w-full rounded-md border py-3 pl-10 pr-3 text-sm outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20" />
+              </div>
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-sm font-semibold">Kata Sandi</span>
+              <div className="relative">
+                <LockKeyhole className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+                <input required type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Masukkan kata sandi akun" className="w-full rounded-md border py-3 pl-10 pr-3 text-sm outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20" />
+              </div>
+            </label>
+            <button disabled={isLoading || !identifier.trim() || !password} className="flex w-full items-center justify-center gap-2 rounded-md bg-emerald-700 px-4 py-3 text-sm font-bold text-white hover:bg-emerald-800 disabled:opacity-50">{isLoading ? "Memeriksa akun..." : "Masuk ke Portal"}{!isLoading && <ArrowRight className="h-5 w-5" />}</button>
+          </form>
+          <p className="mt-8 border-t pt-5 text-xs text-muted-foreground">Akses hanya diberikan kepada pegawai dengan penugasan bendahara atau peran keuangan aktif.</p>
         </div>
       </div>
     </div>

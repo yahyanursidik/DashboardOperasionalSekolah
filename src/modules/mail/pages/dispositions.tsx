@@ -1,143 +1,42 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState } from "react";
-import { useTable, useGetIdentity, useUpdate } from "@refinedev/core";
+import { useList, useTable, useUpdate } from "@refinedev/core";
 import { Link } from "react-router-dom";
+import { CalendarClock, CheckCircle2, Clock3, FileSignature, Loader2, MessageSquareText, Workflow } from "lucide-react";
+import { toast } from "sonner";
 import { PageHeader } from "../../../components/layout/PageHeader";
-import { FileSignature, CheckCircle2, Clock, AlertCircle } from "lucide-react";
+import { useCurrentUser } from "../../../hooks/useAuth";
+import { OfficeSectionNav } from "../components/OfficeSectionNav";
+
+const labels: Record<string, string> = { pending: "Belum diterima", accepted: "Diterima", in_progress: "Diproses", waiting: "Menunggu pihak lain", completed: "Selesai", returned: "Dikembalikan" };
 
 export const DispositionsList: React.FC = () => {
-  const { data: user } = useGetIdentity<any>();
-  const currentUserId = user?.profile?.id;
+  const { user } = useCurrentUser();
+  const { data: employeeData } = useList({ resource: "employees", filters: user?.id ? [{ field: "user_id", operator: "eq", value: user.id }] : [], pagination: { mode: "off" }, queryOptions: { enabled: Boolean(user?.id) } });
+  const currentEmployee: any = employeeData?.data?.[0];
+  const [filter, setFilter] = useState("open");
+  const [selected, setSelected] = useState<any>(null);
+  const [response, setResponse] = useState("");
+  const filters: any[] = [];
+  if (currentEmployee?.id) filters.push({ field: "to_employee_id", operator: "eq", value: currentEmployee.id });
+  if (filter === "open") filters.push({ field: "status", operator: "in", value: ["pending", "accepted", "in_progress", "waiting"] });
+  if (filter === "done") filters.push({ field: "status", operator: "in", value: ["completed", "returned"] });
+  const { tableQueryResult, current, setCurrent, pageCount } = useTable({ resource: "mail_dispositions", filters: { permanent: filters }, pagination: { current: 1, pageSize: 15 }, sorters: { initial: [{ field: "created_at", order: "desc" }] }, meta: { select: "*,mail_records(id,agenda_number,mail_number,title,sender,recipient,mail_date,priority,unit_id),from_employee:employees!mail_dispositions_from_employee_id_fkey(full_name),to_employee:employees!mail_dispositions_to_employee_id_fkey(full_name)" } });
+  const rows = tableQueryResult.data?.data || [];
+  const { mutate: update, isLoading: isUpdating } = useUpdate();
 
-  const { tableQueryResult } = useTable({
-    resource: "mail_dispositions",
-    filters: { permanent: [{ field: "to_user_id", operator: "eq", value: currentUserId }] },
-    meta: { select: "*, mail_records(*), from:profiles!from_user_id(full_name)" },
-    sorters: { initial: [{ field: "created_at", order: "desc" }] },
-    queryOptions: { enabled: !!currentUserId }
-  });
-
-  const { mutate: updateDisposition } = useUpdate();
-  const [updatingId, setUpdatingId] = useState<string | null>(null);
-
-  const dispositions = tableQueryResult?.data?.data || [];
-  const isLoading = tableQueryResult.isLoading;
-
-  const formatDate = (dateStr: string) => {
-    if (!dateStr) return "-";
-    return new Date(dateStr).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+  const save = (status: string) => {
+    if (!selected) return;
+    if (status === "completed" && response.trim().length < 5) return toast.error("Tuliskan hasil tindak lanjut minimal 5 karakter.");
+    const now = new Date().toISOString();
+    update({ resource: "mail_dispositions", id: selected.id, values: { status, response_note: response.trim() || selected.response_note || null, started_at: ["accepted", "in_progress"].includes(status) && !selected.started_at ? now : selected.started_at, completed_at: status === "completed" ? now : null } }, { onSuccess: () => { toast.success(`Disposisi ${labels[status].toLowerCase()}.`); setSelected(null); setResponse(""); tableQueryResult.refetch(); } });
   };
 
-  const handleMarkComplete = (id: string) => {
-    if (confirm("Tandai tugas disposisi ini sebagai selesai?")) {
-      setUpdatingId(id);
-      updateDisposition({
-        resource: "mail_dispositions",
-        id,
-        values: { status: "completed" }
-      }, {
-        onSettled: () => setUpdatingId(null)
-      });
-    }
-  };
-
-  return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Tugas Disposisi Saya"
-        description="Daftar surat yang diteruskan kepada Anda beserta instruksi tindak lanjutnya."
-        action={
-          <Link
-            to="/mail"
-            className="px-4 py-2 text-sm font-medium border rounded-md hover:bg-muted transition-colors"
-          >
-            Kembali
-          </Link>
-        }
-      />
-
-      <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
-        {isLoading ? (
-          <div className="p-12 text-center text-muted-foreground">Memuat data disposisi...</div>
-        ) : (
-          <div className="divide-y divide-border">
-            {dispositions.map((disp) => {
-              const mail = disp.mail_records;
-              const isCompleted = disp.status === 'completed';
-              
-              return (
-                <div key={disp.id} className={`p-6 transition-colors ${isCompleted ? 'bg-muted/30' : 'hover:bg-muted/10'}`}>
-                  <div className="flex flex-col lg:flex-row gap-6">
-                    {/* Info Surat */}
-                    <div className="flex-1 space-y-4">
-                      <div className="flex items-start gap-3">
-                        <div className={`p-2 rounded-lg shrink-0 ${isCompleted ? 'bg-gray-100 text-gray-500' : 'bg-amber-100 text-amber-600'}`}>
-                          <FileSignature className="w-5 h-5" />
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="font-semibold text-sm">Surat Masuk: {mail?.mail_number || "Tanpa Nomor"}</span>
-                            <span className="text-xs text-muted-foreground px-2 py-0.5 border rounded-full">
-                              Tgl: {formatDate(mail?.mail_date)}
-                            </span>
-                          </div>
-                          <h3 className="font-bold text-lg leading-tight">{mail?.title}</h3>
-                          <p className="text-sm text-muted-foreground mt-1">
-                            <span className="font-medium text-foreground">Pengirim:</span> {mail?.sender || "-"}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Instruksi Disposisi */}
-                    <div className="flex-1 bg-background border rounded-lg p-4 relative">
-                      {isCompleted && (
-                        <div className="absolute top-4 right-4 text-emerald-600 flex items-center gap-1 text-sm font-bold bg-emerald-50 px-2 py-1 rounded-md">
-                          <CheckCircle2 className="w-4 h-4" /> Selesai
-                        </div>
-                      )}
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-2">
-                        Instruksi dari: <span className="text-primary">{disp.from?.full_name}</span>
-                      </p>
-                      <p className={`font-medium ${isCompleted ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
-                        "{disp.instruction}"
-                      </p>
-                      
-                      <div className="mt-4 pt-4 border-t flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-sm">
-                          <Clock className="w-4 h-4 text-muted-foreground" />
-                          <span className={disp.due_date && new Date(disp.due_date) < new Date() && !isCompleted ? 'text-red-600 font-bold' : 'text-muted-foreground'}>
-                            Tenggat Waktu: {formatDate(disp.due_date)}
-                          </span>
-                        </div>
-
-                        {!isCompleted && (
-                          <button
-                            onClick={() => handleMarkComplete(disp.id as string)}
-                            disabled={updatingId === disp.id}
-                            className="bg-emerald-600 text-white px-4 py-1.5 rounded-md text-sm font-medium hover:bg-emerald-700 transition-colors disabled:opacity-50"
-                          >
-                            {updatingId === disp.id ? "Memproses..." : "Tandai Selesai"}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-
-            {dispositions.length === 0 && (
-              <div className="p-16 flex flex-col items-center justify-center text-center">
-                <div className="w-16 h-16 bg-primary/5 text-primary rounded-full flex items-center justify-center mb-4">
-                  <CheckCircle2 className="w-8 h-8" />
-                </div>
-                <h3 className="text-lg font-bold">Semua Bersih!</h3>
-                <p className="text-muted-foreground mt-1">Anda tidak memiliki tugas disposisi yang perlu ditindaklanjuti.</p>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
-  );
+  const overdue = rows.filter((row: any) => row.due_date && new Date(row.due_date) < new Date() && row.status !== "completed").length;
+  return <div className="space-y-6"><PageHeader title="Disposisi & Tindak Lanjut" description="Kelola instruksi surat, penerima, tenggat, progres, dan bukti penyelesaian secara akuntabel." /><OfficeSectionNav />
+    <section className="grid gap-3 sm:grid-cols-3">{[{ label: "Tugas terbuka", value: rows.filter((row: any) => !["completed", "returned"].includes(row.status)).length, icon: Workflow, tone: "bg-blue-50 text-blue-700" }, { label: "Melewati tenggat", value: overdue, icon: Clock3, tone: "bg-red-50 text-red-700" }, { label: "Selesai pada daftar", value: rows.filter((row: any) => row.status === "completed").length, icon: CheckCircle2, tone: "bg-emerald-50 text-emerald-700" }].map((item) => <div key={item.label} className="rounded-lg border bg-card p-4"><div className={`mb-3 flex h-9 w-9 items-center justify-center rounded-md ${item.tone}`}><item.icon className="h-5 w-5" /></div><p className="text-2xl font-bold">{item.value}</p><p className="text-xs font-semibold text-muted-foreground">{item.label}</p></div>)}</section>
+    <div className="flex gap-1 rounded-lg border bg-card p-1">{[{ value: "open", label: "Perlu Ditindaklanjuti" }, { value: "done", label: "Selesai" }, { value: "all", label: "Semua" }].map((item) => <button key={item.value} onClick={() => { setFilter(item.value); setSelected(null); }} className={`flex-1 rounded-md px-3 py-2 text-sm font-semibold ${filter === item.value ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>{item.label}</button>)}</div>
+    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]"><section className="overflow-hidden rounded-lg border bg-card">{tableQueryResult.isLoading ? <div className="flex h-64 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin" /></div> : rows.length === 0 ? <div className="flex h-64 flex-col items-center justify-center text-center"><CheckCircle2 className="mb-3 h-10 w-10 text-emerald-500" /><p className="font-semibold">Tidak ada disposisi pada status ini.</p></div> : <div className="divide-y">{rows.map((row: any) => <button key={row.id} onClick={() => { setSelected(row); setResponse(row.response_note || ""); }} className={`w-full p-4 text-left hover:bg-muted/30 ${selected?.id === row.id ? "bg-primary/5" : ""}`}><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="truncate font-bold">{row.mail_records?.title}</p><p className="mt-1 text-xs text-muted-foreground">{row.mail_records?.agenda_number || row.mail_records?.mail_number} - dari {row.from_employee?.full_name || "Tata Usaha"}</p><p className="mt-2 line-clamp-2 text-sm">{row.instruction}</p><p className={`mt-2 flex items-center gap-1 text-xs ${row.due_date && new Date(row.due_date) < new Date() && row.status !== "completed" ? "font-bold text-red-600" : "text-muted-foreground"}`}><CalendarClock className="h-3.5 w-3.5" />{row.due_date ? `Tenggat ${new Date(row.due_date).toLocaleDateString("id-ID")}` : "Tanpa tenggat"}</p></div><span className="shrink-0 rounded bg-muted px-2 py-1 text-xs font-semibold">{labels[row.status] || row.status}</span></div></button>)}</div>}{pageCount > 1 && <div className="flex items-center justify-between border-t px-4 py-3 text-sm"><span>Halaman {current} dari {pageCount}</span><div className="flex gap-2"><button disabled={current === 1} onClick={() => setCurrent(current - 1)} className="rounded border px-3 py-1.5 disabled:opacity-40">Sebelumnya</button><button disabled={current === pageCount} onClick={() => setCurrent(current + 1)} className="rounded border px-3 py-1.5 disabled:opacity-40">Berikutnya</button></div></div>}</section>
+      <aside className="self-start rounded-lg border bg-card p-5 xl:sticky xl:top-20">{!selected ? <div className="py-16 text-center"><FileSignature className="mx-auto mb-3 h-9 w-9 text-muted-foreground/40" /><p className="font-semibold">Pilih disposisi</p><p className="mt-1 text-xs text-muted-foreground">Instruksi dan tindakan akan tampil di sini.</p></div> : <div className="space-y-4"><div className="border-b pb-4"><p className="text-xs font-semibold text-muted-foreground">{selected.mail_records?.agenda_number}</p><h2 className="mt-1 font-bold">{selected.mail_records?.title}</h2><p className="mt-1 text-xs text-muted-foreground">Kepada {selected.to_employee?.full_name}</p></div><div className="rounded-md bg-muted/40 p-3 text-sm leading-6">{selected.instruction}</div><label className="block text-sm font-semibold"><span className="flex items-center gap-1"><MessageSquareText className="h-4 w-4" />Hasil / catatan tindak lanjut</span><textarea rows={5} value={response} onChange={(event) => setResponse(event.target.value)} className="mt-1.5 w-full rounded-md border bg-background p-3 font-normal" /></label><div className="grid grid-cols-2 gap-2"><button onClick={() => save("in_progress")} disabled={isUpdating} className="rounded-md border px-3 py-2 text-sm font-bold">Mulai Proses</button><button onClick={() => save("waiting")} disabled={isUpdating} className="rounded-md border px-3 py-2 text-sm font-bold">Menunggu</button><button onClick={() => save("completed")} disabled={isUpdating} className="col-span-2 rounded-md bg-primary px-3 py-2.5 text-sm font-bold text-primary-foreground">Selesaikan Disposisi</button></div><Link to={`/mail/show/${selected.mail_id}`} className="block text-center text-sm font-semibold text-primary hover:underline">Buka detail surat</Link></div>}</aside></div>
+  </div>;
 };

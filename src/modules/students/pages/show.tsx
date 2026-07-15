@@ -193,6 +193,7 @@ export const StudentShow: React.FC = () => {
         parent_id: selectedParentId,
         relationship: relationship,
         is_primary: isPrimary,
+        can_access_parent_portal: true,
       },
       successNotification: () => ({ message: "Orang Tua Berhasil Ditautkan", type: "success" })
     }, {

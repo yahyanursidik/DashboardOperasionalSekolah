@@ -5,6 +5,7 @@ import { ArrowLeft, Save, Calendar, FileText, Settings, Building2, Clock } from 
 import { useSelect, useGetIdentity } from "@refinedev/core";
 import { useCurrentUnit } from "../../../../app/providers/UnitProvider";
 import { logAudit } from "../../../../lib/audit";
+import { ASSESSMENT_BASIS_OPTIONS } from "../../report-period-utils";
 
 export const ReportPeriodCreate: React.FC = () => {
   const navigate = useNavigate();
@@ -106,12 +107,25 @@ export const ReportPeriodCreate: React.FC = () => {
                 className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 bg-background"
               >
                 <option value="">-- Pilih Jenis Rapor --</option>
-                <option value="progress_awal">Progress Awal (PTS 1 / PTS 2)</option>
+                <option value="progress_awal">Laporan Progres Awal</option>
                 <option value="progress_tengah">Progress Tengah Semester</option>
-                <option value="rapor_semester">Rapor Akhir Semester (PAS / PAT)</option>
+                <option value="rapor_semester">Rapor Semester / Akhir Tahun</option>
                 <option value="rapor_program_khusus">Rapor Program Khusus (Tahfidz, dll)</option>
               </select>
               {errors.report_type && <span className="text-xs text-destructive">{errors.report_type.message as string}</span>}
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Basis Asesmen <span className="text-destructive">*</span></label>
+              <select
+                {...register("assessment_basis", { required: "Basis asesmen wajib dipilih" })}
+                className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 bg-background"
+              >
+                <option value="">-- Pilih Basis Asesmen --</option>
+                {ASSESSMENT_BASIS_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+              </select>
+              <p className="text-xs text-muted-foreground">Gunakan SAS untuk akhir semester ganjil dan ASAT untuk akhir tahun pada semester genap.</p>
+              {errors.assessment_basis && <span className="text-xs text-destructive">{errors.assessment_basis.message as string}</span>}
             </div>
 
             {!activeUnitId && (

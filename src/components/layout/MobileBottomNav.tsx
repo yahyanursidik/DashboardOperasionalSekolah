@@ -1,57 +1,43 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { useCurrentRoles } from "../../hooks/useAuth";
-import { canAccessResource } from "../../lib/permissions";
-import { navigationConfig } from "../../config/navigation";
-import { useCurrentUnit } from "../../app/providers/UnitProvider";
 import { useOne } from "@refinedev/core";
+import { navigationConfig } from "../../config/navigation";
+import {
+  getActiveNavigationHref,
+  getMobileNavigationItems,
+  getVisibleNavigationGroups,
+} from "../../config/navigation-utils";
+import { useCurrentRoles } from "../../hooks/useAuth";
+import { useCurrentUnit } from "../../app/providers/UnitProvider";
 
 export const MobileBottomNav: React.FC = () => {
   const { roles } = useCurrentRoles();
   const location = useLocation();
   const { activeUnitId } = useCurrentUnit();
-
   const { data: unitData } = useOne({
     resource: "units",
     id: activeUnitId || "",
-    queryOptions: { enabled: !!activeUnitId }
+    queryOptions: { enabled: Boolean(activeUnitId) },
   });
 
-  const unitName = unitData?.data?.name?.toLowerCase() || "";
-  const isPaudUnit = unitName.includes("paud") || unitName.includes("tk") || unitName.includes("kb");
+  const unitName = String(unitData?.data?.name || "").toLowerCase();
+  const isPaudUnit = ["paud", "tk", "kb", "preschool"].some((term) => unitName.includes(term));
+  const groups = getVisibleNavigationGroups(navigationConfig, roles, { activeUnitId, isPaudUnit });
+  const visibleItems = getMobileNavigationItems(groups);
+  const activeHref = getActiveNavigationHref(location.pathname, groups);
 
-  const isActive = (path: string) => location.pathname === path;
-
-  // Flatten and filter items, taking only the first 4 for the bottom nav
-  const flatItems = navigationConfig.filter(group => {
-    if (group.name === "Modul PAUD (KB/TK)" && !isPaudUnit && activeUnitId) {
-      return false;
-    }
-    return true;
-  }).flatMap(group => group.items);
-  const visibleItems = flatItems.filter(item => 
-    !item.resource || canAccessResource(roles, item.resource)
-  ).slice(0, 4); // Only top 4 to fit comfortably
-
-  if (visibleItems.length === 0) return null;
+  if (!visibleItems.length) return null;
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-background border-t shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-50 px-2 pb-safe">
-      <div className="flex items-center justify-around h-16">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background px-2 pb-safe shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] md:hidden" aria-label="Navigasi cepat">
+      <div className="flex h-16 items-center justify-around">
         {visibleItems.map((item) => {
           const Icon = item.icon;
-          const active = isActive(item.href);
-          
+          const active = activeHref === item.href;
           return (
-            <Link
-              key={item.title}
-              to={item.href}
-              className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors ${
-                active ? "text-primary" : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <Icon className={`w-5 h-5 ${active ? "fill-primary/20" : ""}`} />
-              <span className="text-[10px] font-medium leading-none">{item.title}</span>
+            <Link key={item.href} to={item.href} aria-current={active ? "page" : undefined} className={`flex h-full min-w-0 flex-1 flex-col items-center justify-center gap-1 px-1 ${active ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}>
+              <Icon className="h-5 w-5" />
+              <span className="w-full truncate text-center text-[10px] font-semibold leading-none">{item.title}</span>
             </Link>
           );
         })}

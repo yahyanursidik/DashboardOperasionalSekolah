@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link, useOutletContext } from "react-router-dom";
-import { ArrowLeft, Award, Building2, Calendar, CheckCircle2, Clock, Mail, MapPin, Phone, ShieldCheck, User, XCircle } from "lucide-react";
+import { ArrowLeft, Award, Building2, Calendar, CheckCircle2, Clock, LockKeyhole, Mail, MapPin, Phone, ShieldCheck, User, XCircle } from "lucide-react";
+import { toast } from "sonner";
 import { supabaseClient } from "../../lib/supabase/client";
 import { useAcademicYear } from "../../app/providers/AcademicYearProvider";
 import { LessonSchedulePanel } from "../schedules/components/LessonSchedulePanel";
@@ -22,11 +23,26 @@ function InfoRow({ icon: Icon, label, value }: { icon: React.ElementType; label:
 
 export const StaffProfile: React.FC = () => {
   const { employee } = useOutletContext<any>();
-  const { activeYearId } = useAcademicYear();
+  const { activeYearId, activeSemesterId } = useAcademicYear();
   const [profile, setProfile] = useState<any>(employee);
   const [schedules, setSchedules] = useState<any[]>([]);
   const [attendanceRows, setAttendanceRows] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+
+  const updatePassword = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (password.length < 8) return toast.error("Kata sandi minimal 8 karakter.");
+    if (password !== confirmPassword) return toast.error("Konfirmasi kata sandi belum sama.");
+    setIsUpdatingPassword(true);
+    const { error } = await supabaseClient.auth.updateUser({ password });
+    setIsUpdatingPassword(false);
+    if (error) return toast.error("Kata sandi gagal diperbarui", { description: error.message });
+    setPassword(""); setConfirmPassword("");
+    toast.success("Kata sandi berhasil diperbarui.");
+  };
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -38,7 +54,8 @@ export const StaffProfile: React.FC = () => {
           .eq("employee_id", employee.id)
           .order("day_of_week")
           .order("start_time");
-        if (activeYearId) scheduleQuery = scheduleQuery.eq("academic_year_id", activeYearId);
+        if (activeYearId) scheduleQuery = scheduleQuery.or(`academic_year_id.eq.${activeYearId},academic_year_id.is.null`);
+        if (activeSemesterId) scheduleQuery = scheduleQuery.or(`semester_id.eq.${activeSemesterId},semester_id.is.null`);
 
         const [{ data: employeeData }, { data: scheduleData }, { data: attendanceData }] = await Promise.all([
           supabaseClient.from("employees").select("*, units(name)").eq("id", employee.id).single(),
@@ -55,7 +72,7 @@ export const StaffProfile: React.FC = () => {
     };
 
     fetchProfile();
-  }, [activeYearId, employee.id]);
+  }, [activeSemesterId, activeYearId, employee.id]);
 
   const presentCount = attendanceRows.filter((item) => item.status === "present" || item.status === "late").length;
   const attendanceValue = attendanceRows.length > 0 ? `${presentCount}/${attendanceRows.length}` : "-";
@@ -81,12 +98,12 @@ export const StaffProfile: React.FC = () => {
         </div>
       </div>
 
-      <section className="overflow-hidden rounded-3xl border bg-white shadow-sm">
-        <div className="h-20 bg-gradient-to-br from-slate-900 to-emerald-800" />
+      <section className="overflow-hidden rounded-md border bg-white shadow-sm">
+        <div className="h-20 bg-gray-900" />
         <div className="px-5 pb-5">
           <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start">
-              <div className="-mt-8 flex h-20 w-20 shrink-0 items-center justify-center rounded-3xl border-4 border-white bg-slate-900 text-2xl font-black text-white shadow-lg">
+              <div className="-mt-8 flex h-20 w-20 shrink-0 items-center justify-center rounded-md border-4 border-white bg-gray-900 text-2xl font-black text-white shadow-lg">
                 {getInitials(profile?.full_name)}
               </div>
               <div className="min-w-0 pt-3">
@@ -162,6 +179,11 @@ export const StaffProfile: React.FC = () => {
         mode="work"
         compact
       />
+
+      <section className="rounded-md border bg-white p-5 shadow-sm">
+        <div className="mb-4 flex items-center gap-2"><LockKeyhole className="h-5 w-5 text-emerald-700" /><div><h3 className="font-bold text-gray-900">Keamanan Akun</h3><p className="text-xs text-gray-500">Gunakan kata sandi pribadi yang tidak dipakai di layanan lain.</p></div></div>
+        <form onSubmit={updatePassword} className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end"><label className="text-xs font-bold text-gray-700">Kata sandi baru<input type="password" autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Minimal 8 karakter" className="mt-1 h-10 w-full rounded-md border px-3 text-sm font-normal" /></label><label className="text-xs font-bold text-gray-700">Ulangi kata sandi<input type="password" autoComplete="new-password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} placeholder="Ketik sekali lagi" className="mt-1 h-10 w-full rounded-md border px-3 text-sm font-normal" /></label><button disabled={isUpdatingPassword || !password || !confirmPassword} className="h-10 rounded-md bg-emerald-700 px-4 text-sm font-bold text-white disabled:opacity-50">{isUpdatingPassword ? "Menyimpan..." : "Perbarui"}</button></form>
+      </section>
     </div>
   );
 };

@@ -1,15 +1,18 @@
 import React, { useEffect, useState } from "react";
 import { Outlet, useNavigate, useLocation, Link } from "react-router-dom";
 import { supabaseClient } from "../../lib/supabase/client";
-import { Wallet, Receipt, CheckCircle, CreditCard, Users, LogOut, LayoutDashboard, Settings } from "lucide-react";
+import { Wallet, Receipt, CheckCircle, CreditCard, Users, LogOut, LayoutDashboard, Settings, Landmark, BookOpenCheck, BarChart3, Tags, BadgeDollarSign } from "lucide-react";
 import { useSystemSettings } from "../../app/providers/SettingsProvider";
 import { BrandLogo } from "../../components/common/BrandLogo";
 
+type FinanceEmployee = { full_name?: string | null; position?: string | null; role?: string | null };
+type RoleRow = { roles?: { name?: string | null } | null };
+
 export const BendaharaLayout: React.FC = () => {
-  const [employee, setEmployee] = useState<any>(null);
+  const [employee, setEmployee] = useState<FinanceEmployee | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
-  const { appName, logoUrl } = useSystemSettings();
+  const { appName } = useSystemSettings();
 
   useEffect(() => {
     const fetchSession = async () => {
@@ -20,20 +23,20 @@ export const BendaharaLayout: React.FC = () => {
         return;
       }
 
-      // Load employee data based on user_id (assume they are employees with bendahara role or just check session)
-      const { data: empData } = await supabaseClient
-        .from("employees")
-        .select("*")
-        .eq("user_id", session.user.id)
-        .eq("status", "active")
-        .single();
+      const [employeeResult, rolesResult] = await Promise.all([
+        supabaseClient.from("employees").select("*").eq("user_id", session.user.id).eq("status", "active").maybeSingle(),
+        supabaseClient.from("user_roles").select("roles(name)").eq("user_id", session.user.id),
+      ]);
+      const position = String((employeeResult.data as FinanceEmployee | null)?.position || "").toLowerCase();
+      const roleNames = ((rolesResult.data || []) as RoleRow[]).map((item) => item.roles?.name).filter((name): name is string => Boolean(name));
+      const allowed = position.includes("bendahara") || position.includes("keuangan") || roleNames.some((role: string) => ["super_admin", "ketua_yayasan", "kepala_tu", "admin_keuangan"].includes(role));
 
-      if (empData) {
-        setEmployee(empData);
-      } else {
-        // Fallback for demo or superadmin
-        setEmployee({ full_name: session.user.user_metadata?.full_name || "Bendahara", role: "bendahara" });
+      if (!allowed) {
+        await supabaseClient.auth.signOut();
+        navigate("/bendahara/login");
+        return;
       }
+      setEmployee((employeeResult.data as unknown as FinanceEmployee | null) || { full_name: session.user.user_metadata?.full_name || "Bendahara", role: roleNames[0] || "admin_keuangan" });
     };
 
     fetchSession();
@@ -44,14 +47,28 @@ export const BendaharaLayout: React.FC = () => {
     navigate("/bendahara/login");
   };
 
-  const navItems = [
-    { name: "Dashboard", path: "/bendahara", icon: LayoutDashboard },
-    { name: "Tagihan SPP", path: "/bendahara/invoices", icon: Receipt },
-    { name: "Verifikasi", path: "/bendahara/verifications", icon: CheckCircle },
-    { name: "Pengeluaran", path: "/bendahara/expenses", icon: CreditCard },
-    { name: "Data Siswa", path: "/bendahara/students", icon: Users },
-    { name: "Pengaturan", path: "/bendahara/categories", icon: Settings },
+  const navSections = [
+    { label: "Ringkasan", items: [{ name: "Pusat Keuangan", path: "/bendahara", icon: LayoutDashboard }] },
+    { label: "Penagihan", items: [
+      { name: "Tagihan Siswa", path: "/bendahara/invoices", icon: Receipt },
+      { name: "Penerimaan Lain", path: "/bendahara/receipts", icon: BadgeDollarSign },
+      { name: "Verifikasi Pembayaran", path: "/bendahara/verifications", icon: CheckCircle },
+      { name: "Data Siswa", path: "/bendahara/students", icon: Users },
+    ] },
+    { label: "Kas & Perencanaan", items: [
+      { name: "Pengeluaran", path: "/bendahara/expenses", icon: CreditCard },
+      { name: "Buku Kas & Bank", path: "/bendahara/cashbook", icon: Wallet },
+      { name: "RKAS & Anggaran", path: "/bendahara/budgets", icon: Landmark },
+      { name: "Tarif & Program", path: "/bendahara/tariffs", icon: Settings },
+    ] },
+    { label: "Akuntansi & Kontrol", items: [
+      { name: "Akuntansi", path: "/bendahara/accounting", icon: BookOpenCheck },
+      { name: "Laporan Keuangan", path: "/bendahara/reports", icon: BarChart3 },
+      { name: "Akun & Kategori", path: "/bendahara/categories", icon: Tags },
+      { name: "Pengaturan", path: "/bendahara/settings", icon: Settings },
+    ] },
   ];
+  const mobileItems = [navSections[0].items[0], navSections[1].items[0], navSections[2].items[1], navSections[2].items[0], navSections[3].items[1]];
 
   return (
     <div className="flex h-screen bg-slate-50 font-sans overflow-hidden">
@@ -73,15 +90,17 @@ export const BendaharaLayout: React.FC = () => {
           </div>
         </div>
 
-        <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
-          {navItems.map((item) => {
+        <nav className="flex-1 px-3 py-5 space-y-5 overflow-y-auto">
+          {navSections.map((section) => <div key={section.label}>
+            <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-200/80">{section.label}</p>
+            <div className="space-y-1">{section.items.map((item) => {
             const isActive = location.pathname === item.path || (item.path !== '/bendahara' && location.pathname.startsWith(item.path));
             const Icon = item.icon;
             return (
               <Link
                 key={item.path}
                 to={item.path}
-                className={`flex items-center gap-3 px-3 py-3 rounded-xl transition-all text-sm font-medium ${
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all text-sm font-medium ${
                   isActive 
                     ? "bg-white text-emerald-700 shadow-md" 
                     : "text-emerald-50 hover:bg-emerald-600/50 hover:text-white"
@@ -91,7 +110,7 @@ export const BendaharaLayout: React.FC = () => {
                 {item.name}
               </Link>
             );
-          })}
+          })}</div></div>)}
         </nav>
 
         <div className="p-4 bg-emerald-800/30 shrink-0">
@@ -128,7 +147,7 @@ export const BendaharaLayout: React.FC = () => {
         {/* Mobile Bottom Nav */}
         <nav className="md:hidden fixed bottom-0 left-0 w-full bg-white border-t z-50 pb-safe shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
           <div className="flex justify-around px-2">
-            {navItems.map((item) => {
+            {mobileItems.map((item) => {
               const isActive = location.pathname === item.path || (item.path !== '/bendahara' && location.pathname.startsWith(item.path));
               return (
                 <Link

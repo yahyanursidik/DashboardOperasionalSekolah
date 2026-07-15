@@ -1,352 +1,119 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useOutletContext } from "react-router-dom";
-import { supabaseClient } from "../../lib/supabase/client";
-import { BookOpen, Search, User, CheckCircle, Activity, Award, AlertTriangle, HeartPulse } from "lucide-react";
+import { Activity, AlertTriangle, Award, BookOpen, CheckCircle2, ChevronRight, HeartPulse, Loader2, Search, User } from "lucide-react";
 import { toast } from "sonner";
 import { useAcademicYear } from "../../app/providers/AcademicYearProvider";
+import { supabaseClient } from "../../lib/supabase/client";
+import { toDateInputValue } from "../leaves/leave-utils";
+
+const categories = [
+  { value: "akademik", label: "Akademik", icon: BookOpen },
+  { value: "karakter", label: "Karakter", icon: Activity },
+  { value: "kendala", label: "Kendala", icon: AlertTriangle },
+  { value: "ekskul", label: "Prestasi/Ekskul", icon: Award },
+  { value: "kasus", label: "Kasus", icon: AlertTriangle },
+  { value: "kesehatan", label: "Kesehatan", icon: HeartPulse },
+  { value: "anekdot", label: "Anekdot", icon: Activity },
+  { value: "stppa", label: "STPPA", icon: CheckCircle2 },
+];
+
+function CategoryIcon({ category }: { category: string }) {
+  const Icon = categories.find((item) => item.value === category)?.icon || Activity;
+  return <Icon className="h-4 w-4" />;
+}
+
+function categoryLabel(category: string) {
+  return categories.find((item) => item.value === category)?.label || category;
+}
 
 export const TeacherJournals: React.FC = () => {
   const { employee } = useOutletContext<any>();
-  const { activeYearId } = useAcademicYear();
+  const { activeYearId, activeSemesterId } = useAcademicYear();
+  const isBK = employee.position === "bk";
   const [students, setStudents] = useState<any[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [journals, setJournals] = useState<any[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<any>(null);
-  const [recentJournals, setRecentJournals] = useState<any[]>([]);
-  
-  // Form state
-  const [category, setCategory] = useState("Pelanggaran");
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
+  const [view, setView] = useState<"input" | "history">("input");
+  const [query, setQuery] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [form, setForm] = useState({ category: "karakter", title: "", description: "", action_taken: "", date_recorded: toDateInputValue(new Date()), visibility: "internal" });
 
-  // BK Mode
-  const isBK = employee?.teacher_roles?.includes("Guru Bimbingan dan Konseling");
-  const [viewMode, setViewMode] = useState<"input" | "rekap">("input");
-  const [allJournals, setAllJournals] = useState<any[]>([]);
-
-  // Fetch all journals for BK
-  useEffect(() => {
-    if (viewMode === 'rekap' && isBK) {
-      const fetchAll = async () => {
-        const { data } = await supabaseClient
-          .from("student_journals")
-          .select("*, students(full_name, nis), employees(full_name)")
-          .order("created_at", { ascending: false })
-          .limit(50);
-        if (data) setAllJournals(data);
-      };
-      fetchAll();
-    }
-  }, [viewMode, isBK]);
+  const fetchJournals = useCallback(async () => {
+    let request = supabaseClient.from("student_journals").select("id, student_id, category, title, description, action_taken, date_recorded, visibility, created_at, students(full_name, nis, classes(name)), employees(full_name)").order("date_recorded", { ascending: false }).order("created_at", { ascending: false }).limit(100);
+    if (selectedStudent && view === "input") request = request.eq("student_id", selectedStudent.id);
+    const { data, error } = await request;
+    if (error) toast.error("Riwayat jurnal belum dapat dimuat", { description: error.message });
+    setJournals(data || []);
+  }, [selectedStudent, view]);
 
   useEffect(() => {
-    const fetchStudents = async () => {
-      if (isBK) {
-        const { data } = await supabaseClient
-          .from("students")
-          .select("id, full_name, nis, classes(name)")
-          .eq("status", "active")
-          .order("full_name");
-        setStudents(data || []);
-        return;
+    const loadStudents = async () => {
+      setIsLoading(true);
+      let classIds: string[] = [];
+      if (!isBK) {
+        let scheduleQuery = supabaseClient.from("employee_schedules").select("class_id").eq("employee_id", employee.id).not("class_id", "is", null);
+        if (activeYearId) scheduleQuery = scheduleQuery.eq("academic_year_id", activeYearId);
+        if (activeSemesterId) scheduleQuery = scheduleQuery.eq("semester_id", activeSemesterId);
+        let homeroomQuery = supabaseClient.from("classes").select("id").eq("homeroom_teacher_id", employee.id);
+        if (activeYearId) homeroomQuery = homeroomQuery.eq("academic_year_id", activeYearId);
+        const [{ data: schedules }, { data: homerooms }] = await Promise.all([scheduleQuery, homeroomQuery]);
+        classIds = Array.from(new Set([...(schedules || []).map((item: any) => item.class_id), ...(homerooms || []).map((item: any) => item.id)].filter(Boolean)));
       }
-
-      let scheduleQuery = supabaseClient
-        .from("employee_schedules")
-        .select("class_id")
-        .eq("employee_id", employee.id)
-        .not("class_id", "is", null);
-      if (activeYearId) scheduleQuery = scheduleQuery.eq("academic_year_id", activeYearId);
-
-      const { data: schedules } = await scheduleQuery;
-      const { data: homeroomClasses } = await supabaseClient
-        .from("classes")
-        .select("id")
-        .eq("homeroom_teacher_id", employee.id);
-
-      const classIds = Array.from(new Set([
-        ...(schedules || []).map((item: any) => item.class_id).filter(Boolean),
-        ...(homeroomClasses || []).map((item: any) => item.id).filter(Boolean),
-      ]));
-
-      if (classIds.length === 0) {
-        setStudents([]);
-        return;
-      }
-
-      const { data } = await supabaseClient
-        .from("students")
-        .select("id, full_name, nis, classes(name)")
-        .in("class_id", classIds)
-        .eq("status", "active")
-        .order("full_name");
+      let studentQuery = supabaseClient.from("students").select("id, full_name, nis, class_id, unit_id, classes(name)").eq("status", "active").order("full_name");
+      if (isBK && employee.unit_id) studentQuery = studentQuery.eq("unit_id", employee.unit_id);
+      else if (classIds.length) studentQuery = studentQuery.in("class_id", classIds);
+      else { setStudents([]); setIsLoading(false); return; }
+      const { data, error } = await studentQuery;
+      if (error) toast.error("Daftar siswa belum dapat dimuat", { description: error.message });
       setStudents(data || []);
+      setIsLoading(false);
     };
-    fetchStudents();
-  }, [activeYearId, employee.id, isBK]);
+    loadStudents();
+  }, [activeSemesterId, activeYearId, employee.id, employee.unit_id, isBK]);
 
-  useEffect(() => {
+  useEffect(() => { fetchJournals(); }, [fetchJournals]);
+
+  const filteredStudents = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    if (!needle) return [];
+    return students.filter((student) => `${student.full_name} ${student.nis || ""} ${student.classes?.name || ""}`.toLowerCase().includes(needle)).slice(0, 8);
+  }, [query, students]);
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     if (!selectedStudent) return;
-    const fetchRecentJournals = async () => {
-      const { data } = await supabaseClient
-        .from("student_journals")
-        .select("*")
-        .eq("student_id", selectedStudent.id)
-        .order("created_at", { ascending: false })
-        .limit(3);
-      if (data) setRecentJournals(data);
-    };
-    fetchRecentJournals();
-  }, [selectedStudent]);
-
-  const filteredStudents = searchQuery.trim() === "" 
-    ? [] 
-    : students.filter(s => s.full_name.toLowerCase().includes(searchQuery.toLowerCase()) || s.nis.includes(searchQuery)).slice(0, 5);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedStudent || !title || !description) return;
-    
-    if (!navigator.onLine) {
-      toast.error("Gagal mengirim jurnal: Koneksi internet terputus.");
-      return;
-    }
-
     setIsSubmitting(true);
-
-    try {
-      const { error } = await supabaseClient
-        .from("student_journals")
-        .insert([{
-          student_id: selectedStudent.id,
-          teacher_id: employee.id,
-          category,
-          title,
-          description
-        }]);
-
-      if (error) throw error;
-      toast.success("Jurnal siswa berhasil dicatat!");
-      
-      // Reset form
-      setSelectedStudent(null);
-      setTitle("");
-      setDescription("");
-      setSearchQuery("");
-    } catch (err) {
-      console.error(err);
-      toast.error("Gagal menyimpan jurnal. Silakan coba lagi.");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const getIcon = (cat: string) => {
-    switch (cat) {
-      case 'Prestasi': return <Award className="w-4 h-4" />;
-      case 'Pelanggaran': return <AlertTriangle className="w-4 h-4" />;
-      case 'Kesehatan': return <HeartPulse className="w-4 h-4" />;
-      default: return <Activity className="w-4 h-4" />;
-    }
+    const { error } = await supabaseClient.from("student_journals").insert({
+      student_id: selectedStudent.id,
+      employee_id: employee.id,
+      category: form.category,
+      title: form.title.trim(),
+      description: form.description.trim(),
+      action_taken: form.action_taken.trim() || null,
+      date_recorded: form.date_recorded,
+      visibility: form.visibility,
+      academic_year_id: activeYearId || null,
+      unit_id: selectedStudent.unit_id || employee.unit_id || null,
+    });
+    setIsSubmitting(false);
+    if (error) return toast.error("Jurnal gagal disimpan", { description: error.message });
+    toast.success("Jurnal siswa berhasil disimpan.");
+    setForm((current) => ({ ...current, title: "", description: "", action_taken: "", visibility: "internal" }));
+    fetchJournals();
   };
 
   return (
-    <div className="p-4 space-y-4">
-      <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2 mb-4">
-        <BookOpen className="w-6 h-6 text-blue-600" /> Jurnal Siswa
-      </h2>
+    <div className="space-y-5 p-4 md:p-0">
+      <header><div className="flex items-center gap-2"><BookOpen className="h-6 w-6 text-emerald-700" /><h1 className="text-xl font-bold text-gray-950">Jurnal Perkembangan Siswa</h1></div><p className="mt-1 text-sm text-gray-500">Catat perkembangan, kendala, tindak lanjut, dan informasi yang boleh dilihat orang tua.</p></header>
 
-      {isBK && (
-        <div className="flex bg-gray-200 p-1 rounded-xl mb-4">
-          <button 
-            onClick={() => setViewMode("input")}
-            className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${viewMode === "input" ? "bg-white text-blue-600 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
-          >
-            Input Jurnal
-          </button>
-          <button 
-            onClick={() => setViewMode("rekap")}
-            className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${viewMode === "rekap" ? "bg-white text-blue-600 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
-          >
-            Rekap Jurnal (BK)
-          </button>
-        </div>
-      )}
+      <div className="flex rounded-md border bg-white p-1"><button onClick={() => setView("input")} className={`flex-1 rounded px-3 py-2 text-xs font-bold ${view === "input" ? "bg-emerald-700 text-white" : "text-gray-600"}`}>Catat Jurnal</button><button onClick={() => setView("history")} className={`flex-1 rounded px-3 py-2 text-xs font-bold ${view === "history" ? "bg-emerald-700 text-white" : "text-gray-600"}`}>{isBK ? "Rekap Unit" : "Riwayat Kelas"}</button></div>
 
-      {viewMode === "rekap" ? (
-        <div className="space-y-3 pb-8">
-          {allJournals.map(j => (
-            <div key={j.id} className="bg-white p-4 rounded-2xl border shadow-sm">
-              <div className="flex justify-between items-start mb-2">
-                <div className="flex items-center gap-1.5 text-xs font-bold text-gray-700">
-                  {getIcon(j.category)} {j.category}
-                </div>
-                <span className="text-[10px] text-gray-400">
-                  {new Date(j.created_at).toLocaleDateString('id-ID')}
-                </span>
-              </div>
-              <p className="text-sm font-bold text-gray-900">{j.title}</p>
-              <p className="text-xs text-gray-600 mt-1">{j.description}</p>
-              <div className="mt-3 pt-3 border-t flex justify-between items-center text-[10px] text-gray-500">
-                <span>Siswa: <span className="font-bold text-gray-700">{j.students?.full_name}</span></span>
-                <span>Pelapor: {j.employees?.full_name}</span>
-              </div>
-            </div>
-          ))}
-          {allJournals.length === 0 && (
-            <div className="text-center p-8 text-gray-400 text-sm">Belum ada jurnal tercatat.</div>
-          )}
-        </div>
-      ) : !selectedStudent ? (
-        <div className="bg-white p-5 rounded-2xl shadow-sm border">
-          <label className="block text-sm font-bold text-gray-900 mb-2">Cari Siswa</label>
-          <div className="relative">
-            <Search className="w-5 h-5 absolute left-3 top-3 text-gray-400" />
-            <input 
-              type="text" 
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Ketik nama atau NIS siswa..." 
-              className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-            />
-          </div>
+      {view === "input" && !selectedStudent && <section className="rounded-md border bg-white p-4"><label htmlFor="journal-student-search" className="mb-2 block text-sm font-bold text-gray-900">Pilih siswa</label><div className="relative"><Search className="absolute left-3 top-3 h-5 w-5 text-gray-400" /><input id="journal-student-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Cari nama, NIS, atau kelas" className="h-11 w-full rounded-md border pl-10 pr-3 text-sm outline-none focus:border-emerald-600" /></div>{query && <div className="mt-2 max-h-72 divide-y overflow-y-auto rounded-md border">{filteredStudents.map((student) => <button key={student.id} onClick={() => { setSelectedStudent(student); setQuery(""); }} className="flex w-full items-center justify-between p-3 text-left hover:bg-emerald-50"><div><p className="text-sm font-bold text-gray-900">{student.full_name}</p><p className="text-xs text-gray-500">{student.classes?.name || "Tanpa kelas"} - NIS {student.nis || "-"}</p></div><ChevronRight className="h-4 w-4 text-gray-400" /></button>)}{!filteredStudents.length && <p className="p-4 text-center text-sm text-gray-500">Siswa tidak ditemukan dalam penugasan Anda.</p>}</div>}{!isLoading && !students.length && <p className="mt-3 text-sm text-amber-700">Belum ada siswa yang terkait dengan penugasan aktif Anda.</p>}</section>}
 
-          {searchQuery && (
-            <div className="mt-3 border rounded-xl overflow-hidden divide-y max-h-60 overflow-y-auto">
-              {filteredStudents.length > 0 ? (
-                filteredStudents.map(student => (
-                  <button
-                    key={student.id}
-                    onClick={() => {
-                      setSelectedStudent(student);
-                      setSearchQuery("");
-                    }}
-                    className="w-full p-3 text-left hover:bg-blue-50 transition flex items-center justify-between"
-                  >
-                    <div>
-                      <p className="font-bold text-sm text-gray-900">{student.full_name}</p>
-                      <p className="text-[10px] text-gray-500">{student.classes?.name} - NIS: {student.nis}</p>
-                    </div>
-                    <ChevronRight className="w-4 h-4 text-gray-400" />
-                  </button>
-                ))
-              ) : (
-                <div className="p-4 text-center text-sm text-gray-500">
-                  Siswa tidak ditemukan dalam penugasan Anda.
-                </div>
-              )}
-            </div>
-          )}
-          {!isBK && students.length === 0 && (
-            <p className="mt-3 text-xs text-amber-600">Belum ada kelas/siswa yang tertaut ke penugasan Anda.</p>
-          )}
-        </div>
-      ) : (
-        <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
-          <div className="p-4 border-b bg-blue-50/50 flex justify-between items-start">
-            <div className="flex gap-3 items-center">
-              <div className="w-10 h-10 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center">
-                <User className="w-5 h-5" />
-              </div>
-              <div>
-                <p className="text-[10px] text-blue-600 font-bold uppercase tracking-wide">Input Jurnal Untuk</p>
-                <h3 className="font-bold text-gray-900">{selectedStudent.full_name}</h3>
-                <p className="text-xs text-muted-foreground">{selectedStudent.classes?.name}</p>
-              </div>
-            </div>
-            <button 
-              onClick={() => setSelectedStudent(null)}
-              className="text-xs font-bold text-gray-500 hover:text-gray-900 bg-white border px-2 py-1 rounded"
-            >
-              GANTI
-            </button>
-          </div>
+      {view === "input" && selectedStudent && <section className="overflow-hidden rounded-md border bg-white"><div className="flex items-center justify-between border-b bg-emerald-50 p-4"><div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-md bg-emerald-100 text-emerald-700"><User className="h-5 w-5" /></div><div><p className="text-xs font-bold text-emerald-700">Siswa terpilih</p><h2 className="font-bold text-gray-950">{selectedStudent.full_name}</h2><p className="text-xs text-gray-500">{selectedStudent.classes?.name} - NIS {selectedStudent.nis || "-"}</p></div></div><button onClick={() => setSelectedStudent(null)} className="rounded-md border bg-white px-3 py-2 text-xs font-bold text-gray-700">Ganti</button></div><form onSubmit={handleSubmit} className="grid gap-4 p-4 md:grid-cols-2"><div><label className="mb-1 block text-xs font-bold text-gray-700">Tanggal catatan</label><input type="date" required max={toDateInputValue(new Date())} value={form.date_recorded} onChange={(event) => setForm({ ...form, date_recorded: event.target.value })} className="h-11 w-full rounded-md border px-3 text-sm" /></div><div><label className="mb-1 block text-xs font-bold text-gray-700">Akses orang tua</label><select value={form.visibility} onChange={(event) => setForm({ ...form, visibility: event.target.value })} className="h-11 w-full rounded-md border px-3 text-sm"><option value="internal">Internal sekolah</option><option value="parents">Dapat dilihat orang tua</option></select></div><div className="md:col-span-2"><label className="mb-2 block text-xs font-bold text-gray-700">Kategori</label><div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{categories.map((item) => <button key={item.value} type="button" onClick={() => setForm({ ...form, category: item.value })} className={`flex min-h-10 items-center justify-center gap-1.5 rounded-md border px-2 text-xs font-bold ${form.category === item.value ? "border-emerald-700 bg-emerald-700 text-white" : "text-gray-600 hover:bg-gray-50"}`}><item.icon className="h-4 w-4" />{item.label}</button>)}</div></div><div className="md:col-span-2"><label className="mb-1 block text-xs font-bold text-gray-700">Judul catatan</label><input required maxLength={150} value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} placeholder="Ringkasan kejadian atau perkembangan" className="h-11 w-full rounded-md border px-3 text-sm" /></div><div className="md:col-span-2"><label className="mb-1 block text-xs font-bold text-gray-700">Uraian faktual</label><textarea required rows={4} value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} placeholder="Tuliskan fakta yang diamati, hindari label atau asumsi terhadap siswa." className="w-full rounded-md border p-3 text-sm" /></div><div className="md:col-span-2"><label className="mb-1 block text-xs font-bold text-gray-700">Tindak lanjut</label><textarea rows={2} value={form.action_taken} onChange={(event) => setForm({ ...form, action_taken: event.target.value })} placeholder="Pendampingan, komunikasi orang tua, atau rencana tindak lanjut" className="w-full rounded-md border p-3 text-sm" /></div><div className="md:col-span-2 flex justify-end"><button disabled={isSubmitting} className="flex items-center gap-2 rounded-md bg-emerald-700 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-60">{isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}Simpan Jurnal</button></div></form></section>}
 
-          <form onSubmit={handleSubmit} className="p-4 space-y-4">
-            <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">Kategori Jurnal</label>
-              <div className="grid grid-cols-2 gap-2">
-                {['Pelanggaran', 'Prestasi', 'Kesehatan', 'Lainnya'].map((cat) => (
-                  <button
-                    key={cat}
-                    type="button"
-                    onClick={() => setCategory(cat)}
-                    className={`p-2 border rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all
-                      ${category === cat ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}
-                    `}
-                  >
-                    {getIcon(cat)}
-                    {cat}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">Judul / Kasus</label>
-              <input 
-                required
-                type="text" 
-                value={title}
-                onChange={e => setTitle(e.target.value)}
-                placeholder="Contoh: Terlambat masuk kelas"
-                className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:border-blue-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">Deskripsi / Catatan Tambahan</label>
-              <textarea 
-                required
-                rows={3}
-                value={description}
-                onChange={e => setDescription(e.target.value)}
-                placeholder="Tulis kronologi atau catatan selengkapnya..."
-                className="w-full border rounded-xl px-3 py-2 text-sm outline-none focus:border-blue-500 resize-none"
-              ></textarea>
-            </div>
-
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 disabled:opacity-50"
-            >
-              {isSubmitting ? "Menyimpan..." : "Simpan Jurnal"}
-            </button>
-          </form>
-
-          {/* Recent Journals of this student */}
-          {recentJournals.length > 0 && (
-            <div className="border-t p-4 bg-gray-50">
-              <h4 className="text-xs font-bold text-gray-500 uppercase mb-3">Catatan Terakhir Siswa Ini</h4>
-              <div className="space-y-3">
-                {recentJournals.map(j => (
-                  <div key={j.id} className="bg-white p-3 rounded-xl border shadow-sm">
-                    <div className="flex justify-between items-start mb-1">
-                      <div className="flex items-center gap-1.5 text-xs font-bold text-gray-700">
-                        {getIcon(j.category)} {j.category}
-                      </div>
-                      <span className="text-[10px] text-gray-400">
-                        {new Date(j.created_at).toLocaleDateString('id-ID')}
-                      </span>
-                    </div>
-                    <p className="text-sm font-bold text-gray-900">{j.title}</p>
-                    <p className="text-xs text-gray-600 mt-1 line-clamp-2">{j.description}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
+      {(view === "history" || selectedStudent) && <section className="space-y-3"><h2 className="text-sm font-bold text-gray-900">{view === "history" ? "Riwayat jurnal" : "Catatan terakhir siswa"}</h2>{journals.length === 0 ? <div className="rounded-md border border-dashed bg-white p-8 text-center text-sm text-gray-500">Belum ada jurnal dalam cakupan ini.</div> : journals.map((journal) => <article key={journal.id} className="rounded-md border bg-white p-4"><div className="flex flex-wrap items-start justify-between gap-2"><div className="flex items-center gap-2"><span className="flex items-center gap-1 rounded bg-gray-100 px-2 py-1 text-[10px] font-bold uppercase text-gray-700"><CategoryIcon category={journal.category} />{categoryLabel(journal.category)}</span>{journal.visibility === "parents" && <span className="rounded bg-blue-50 px-2 py-1 text-[10px] font-bold text-blue-700">Orang tua</span>}</div><span className="text-xs text-gray-500">{new Date(`${journal.date_recorded}T00:00:00`).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })}</span></div><h3 className="mt-3 font-bold text-gray-950">{journal.title}</h3><p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-gray-600">{journal.description}</p>{journal.action_taken && <div className="mt-3 rounded-md bg-emerald-50 p-3"><p className="text-[10px] font-bold uppercase text-emerald-700">Tindak lanjut</p><p className="mt-1 text-sm text-emerald-900">{journal.action_taken}</p></div>}<div className="mt-3 flex flex-wrap justify-between gap-2 border-t pt-3 text-xs text-gray-500"><span>{journal.students?.full_name}{journal.students?.classes?.name ? ` - ${journal.students.classes.name}` : ""}</span><span>Dicatat oleh {journal.employees?.full_name || "Pengajar"}</span></div></article>)}</section>}
     </div>
   );
 };
-
-// Simple ChevronRight icon component
-const ChevronRight = ({ className }: { className?: string }) => (
-  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-  </svg>
-);

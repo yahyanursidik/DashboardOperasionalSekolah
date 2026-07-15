@@ -20,7 +20,7 @@ import {
 
 export const SchedulesList: React.FC = () => {
   const navigate = useNavigate();
-  const { activeYearId } = useAcademicYear();
+  const { activeYearId, activeSemesterId } = useAcademicYear();
   const { activeUnitId } = useCurrentUnit();
   const { mutate: deleteSchedule } = useDelete();
   
@@ -36,6 +36,7 @@ export const SchedulesList: React.FC = () => {
   if (filterEmployee) filters.push({ field: "employee_id", operator: "eq", value: filterEmployee });
   if (activeUnitId) filters.push({ field: "unit_id", operator: "eq", value: activeUnitId });
   if (activeYearId) filters.push({ field: "academic_year_id", operator: "eq", value: activeYearId });
+  if (activeSemesterId) filters.push({ field: "semester_id", operator: "eq", value: activeSemesterId });
 
   const { data, isLoading } = useList({
     resource: "employee_schedules",

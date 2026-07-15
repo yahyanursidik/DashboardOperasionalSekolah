@@ -11,11 +11,13 @@ import {
   Clock,
   Mail,
   MapPin,
+  LockKeyhole,
   Phone,
   ShieldCheck,
   User,
   XCircle,
 } from "lucide-react";
+import { toast } from "sonner";
 import { supabaseClient } from "../../lib/supabase/client";
 import { useAcademicYear } from "../../app/providers/AcademicYearProvider";
 import { getScheduleSubjectName } from "../schedules/schedule-utils";
@@ -70,6 +72,22 @@ export const TeacherProfile: React.FC = () => {
   const [halaqohs, setHalaqohs] = useState<any[]>([]);
   const [attendanceRows, setAttendanceRows] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+
+  const updatePassword = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (password.length < 8) return toast.error("Kata sandi minimal 8 karakter.");
+    if (password !== confirmPassword) return toast.error("Konfirmasi kata sandi belum sama.");
+    setIsUpdatingPassword(true);
+    const { error } = await supabaseClient.auth.updateUser({ password });
+    setIsUpdatingPassword(false);
+    if (error) return toast.error("Kata sandi gagal diperbarui", { description: error.message });
+    setPassword("");
+    setConfirmPassword("");
+    toast.success("Kata sandi berhasil diperbarui.");
+  };
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -81,7 +99,8 @@ export const TeacherProfile: React.FC = () => {
           .eq("employee_id", employee.id)
           .order("day_of_week")
           .order("start_time");
-        if (activeYearId) scheduleQuery = scheduleQuery.eq("academic_year_id", activeYearId);
+        if (activeYearId) scheduleQuery = scheduleQuery.or(`academic_year_id.eq.${activeYearId},academic_year_id.is.null`);
+        if (activeSemesterId) scheduleQuery = scheduleQuery.or(`semester_id.eq.${activeSemesterId},semester_id.is.null`);
 
         let homeroomQuery = supabaseClient
           .from("classes")
@@ -121,7 +140,6 @@ export const TeacherProfile: React.FC = () => {
     fetchProfile();
   }, [activeSemesterId, activeYearId, employee.id]);
 
-  const teacherRoles = Array.isArray(profile?.teacher_roles) ? profile.teacher_roles : [];
   const teachingSchedules = useMemo(() => schedules.filter((schedule) => schedule.schedule_type === "mengajar"), [schedules]);
   const supportSchedules = useMemo(() => schedules.filter((schedule) => schedule.schedule_type !== "mengajar"), [schedules]);
   const subjects = useMemo(() => {
@@ -148,7 +166,7 @@ export const TeacherProfile: React.FC = () => {
     { label: "NIK dan nama lengkap", done: Boolean(profile?.nik && profile?.full_name) },
     { label: "Kontak aktif", done: Boolean(profile?.phone || profile?.email) },
     { label: "Unit dan jabatan", done: Boolean(profile?.unit_id && profile?.position) },
-    { label: "Role pengajar", done: teacherRoles.length > 0 || String(profile?.position || "").includes("guru") },
+    { label: "Jabatan utama", done: Boolean(profile?.position) },
     { label: "Penugasan periode aktif", done: teachingSchedules.length > 0 || homeroomClasses.length > 0 || halaqohs.length > 0 },
   ];
   const completed = checklist.filter((item) => item.done).length;
@@ -183,11 +201,11 @@ export const TeacherProfile: React.FC = () => {
             </span>
           </div>
 
-          {teacherRoles.length > 0 && (
+          {assignedClassNames.length > 0 && (
             <div className="mt-4 flex flex-wrap gap-2">
-              {teacherRoles.map((role: string) => (
-                <span key={role} className="rounded-lg bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700">
-                  {role}
+              {assignedClassNames.map((className) => (
+                <span key={className} className="rounded-lg bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700">
+                  {className}
                 </span>
               ))}
             </div>
@@ -314,6 +332,11 @@ export const TeacherProfile: React.FC = () => {
             ))}
           </div>
         )}
+      </section>
+
+      <section className="rounded-md border bg-white p-5 shadow-sm">
+        <div className="mb-4 flex items-center gap-2"><LockKeyhole className="h-5 w-5 text-emerald-700" /><div><h3 className="font-bold text-gray-900">Keamanan Akun</h3><p className="text-xs text-gray-500">Gunakan kata sandi pribadi yang tidak dipakai di layanan lain.</p></div></div>
+        <form onSubmit={updatePassword} className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end"><label className="text-xs font-bold text-gray-700">Kata sandi baru<input type="password" autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Minimal 8 karakter" className="mt-1 h-10 w-full rounded-md border px-3 text-sm font-normal" /></label><label className="text-xs font-bold text-gray-700">Ulangi kata sandi<input type="password" autoComplete="new-password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} placeholder="Ketik sekali lagi" className="mt-1 h-10 w-full rounded-md border px-3 text-sm font-normal" /></label><button disabled={isUpdatingPassword || !password || !confirmPassword} className="h-10 rounded-md bg-emerald-700 px-4 text-sm font-bold text-white disabled:opacity-50">{isUpdatingPassword ? "Menyimpan..." : "Perbarui"}</button></form>
       </section>
     </div>
   );

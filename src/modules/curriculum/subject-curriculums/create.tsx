@@ -1,12 +1,20 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useForm } from "@refinedev/react-hook-form";
 import { useWatch } from "react-hook-form";
 import { useList, useOne } from "@refinedev/core";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
-import { ArrowLeft, Save, FileText, CalendarDays, BookOpen, LayoutList, Layers3 } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Save, FileText, CalendarDays, BookOpen, LayoutList, Layers3, ClipboardCheck } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { CurriculumFormFields } from "./components/CurriculumFormFields";
 import { getSdPhaseByGrade, getSdPhaseLabelByGrade } from "./sdCurriculumStructure";
+import { useAcademicYear } from "../../../app/providers/AcademicYearProvider";
+import { supabaseClient } from "../../../lib/supabase/client";
+import { toast } from "sonner";
+import {
+  createEmptySemesterPlans,
+  type CurriculumSemesterName,
+} from "../curriculum-utils";
+import { getEnabledSubjectSemesters, saveCurriculumSemesterPlans } from "../semester-plan-persistence";
 
 export const SubjectCurriculumCreate: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -14,7 +22,9 @@ export const SubjectCurriculumCreate: React.FC = () => {
   const gradeLevelParam = searchParams.get("grade_level");
   const academicYearParam = searchParams.get("academic_year_id");
   const [activeTab, setActiveTab] = useState("identitas");
+  const [selectedSemester, setSelectedSemester] = useState<CurriculumSemesterName>("Ganjil");
   const navigate = useNavigate();
+  const { activeSemesterId } = useAcademicYear();
 
   const { data: subjectData } = useOne({
     resource: "subjects",
@@ -30,23 +40,16 @@ export const SubjectCurriculumCreate: React.FC = () => {
   const {
     register,
     control,
+    getValues,
+    setValue,
     handleSubmit,
-    formState: { errors },
-    refineCore: { onFinish, formLoading },
+    formState: { errors, isSubmitting },
   } = useForm<any>({
     defaultValues: {
       grade_level: gradeLevelParam ? Number(gradeLevelParam) : undefined,
       academic_year_id: academicYearParam || undefined,
       prota_data: [],
-      prosem_data: { semester: "Ganjil", rows: [], rppm: [] },
-      learning_plan_data: [],
-    },
-    refineCoreProps: {
-      resource: "subject_curriculums",
-      redirect: false,
-      onMutationSuccess: () => {
-        navigate(gradeLevelParam ? `/curriculum/subjects?grade_level=${gradeLevelParam}` : `/curriculum/subjects/show/${subjectId}`);
-      }
+      semester_plans: createEmptySemesterPlans(),
     }
   });
 
@@ -55,15 +58,81 @@ export const SubjectCurriculumCreate: React.FC = () => {
   const selectedPhase = getSdPhaseByGrade(Number(selectedGrade));
   const phaseLabel = getSdPhaseLabelByGrade(Number(selectedGrade));
   const subject = subjectData?.data;
+  const enabledSemesters = useMemo(() => getEnabledSubjectSemesters(subject), [subject]);
+  const { data: activeSemesterData } = useOne({
+    resource: "semesters",
+    id: activeSemesterId || "",
+    queryOptions: { enabled: Boolean(activeSemesterId) },
+  });
   const selectedAcademicYearName = academicYears?.data?.find((year: any) => String(year.id) === String(selectedAcademicYearId))?.name;
   const contextTitle = selectedGrade
     ? `Buat Kurikulum ${subject?.name || "Mapel"} Kelas ${selectedGrade}`
     : `Buat Kurikulum ${subject?.name || "Mapel"}`;
 
+  const existingFilters = useMemo(() => {
+    const filters: any[] = [{ field: "subject_id", operator: "eq", value: subjectId }];
+    if (selectedAcademicYearId) filters.push({ field: "academic_year_id", operator: "eq", value: selectedAcademicYearId });
+    return filters;
+  }, [selectedAcademicYearId, subjectId]);
+  const { data: existingData } = useList({
+    resource: "subject_curriculums",
+    filters: existingFilters,
+    pagination: { pageSize: 20 },
+    queryOptions: { enabled: Boolean(subjectId && selectedAcademicYearId) },
+  });
+  const existingRecord = existingData?.data?.find((record: any) => Number(record.grade_level) === Number(selectedGrade));
+  const phaseSource = existingData?.data?.find((record: any) =>
+    (selectedPhase?.grades as readonly number[] | undefined)?.includes(Number(record.grade_level)) && Boolean(record.cp_text || record.atp_text),
+  );
+
+  useEffect(() => {
+    if (!phaseSource || existingRecord) return;
+    if (!getValues("cp_text") && phaseSource.cp_text) setValue("cp_text", phaseSource.cp_text);
+    if (!getValues("atp_text") && phaseSource.atp_text) setValue("atp_text", phaseSource.atp_text);
+    if (!getValues("kktp_text") && phaseSource.kktp_text) setValue("kktp_text", phaseSource.kktp_text);
+  }, [existingRecord, getValues, phaseSource, setValue]);
+
+  useEffect(() => {
+    const activeName = activeSemesterData?.data?.name as CurriculumSemesterName | undefined;
+    if (activeName && enabledSemesters.includes(activeName)) {
+      setSelectedSemester(activeName);
+    } else if (!enabledSemesters.includes(selectedSemester)) {
+      setSelectedSemester(enabledSemesters[0] || "Ganjil");
+    }
+  }, [activeSemesterData?.data?.name, enabledSemesters, selectedSemester]);
+
+  const handleSave = async (data: any) => {
+    if (existingRecord) return;
+    const { semester_plans: semesterPlans, ...annualValues } = data;
+    let createdId: string | null = null;
+    try {
+      const { data: created, error } = await supabaseClient
+        .from("subject_curriculums")
+        .insert({ ...annualValues, subject_id: subjectId })
+        .select("id")
+        .single();
+      if (error) throw error;
+      const createdRecord = created as any;
+      createdId = createdRecord.id;
+      await saveCurriculumSemesterPlans({
+        subjectCurriculumId: createdRecord.id,
+        academicYearId: data.academic_year_id,
+        plans: semesterPlans,
+        enabledSemesters,
+      });
+      toast.success("Kurikulum tahunan dan rencana semester berhasil disimpan");
+      navigate(gradeLevelParam ? `/curriculum/subjects?grade_level=${gradeLevelParam}` : `/curriculum/subjects/show/${subjectId}`);
+    } catch (error: any) {
+      if (createdId) await supabaseClient.from("subject_curriculums").delete().eq("id", createdId);
+      toast.error("Gagal menyimpan kurikulum", { description: error.message });
+    }
+  };
+
   const tabs = [
     { id: "identitas", label: "CP & ATP Fase", icon: FileText },
     { id: "prota", label: "Prota Kelas", icon: LayoutList },
     { id: "promes", label: "Promes Kelas", icon: CalendarDays },
+    { id: "assessment", label: "Asesmen & Rapor", icon: ClipboardCheck },
     { id: "rppm", label: "RPPM", icon: Layers3 },
     { id: "rpph", label: "RPPH / Modul", icon: BookOpen },
   ];
@@ -83,7 +152,7 @@ export const SubjectCurriculumCreate: React.FC = () => {
       </div>
 
       <form
-        onSubmit={handleSubmit((data) => onFinish({ ...data, subject_id: subjectId }))}
+        onSubmit={handleSubmit(handleSave, () => setActiveTab("identitas"))}
         className="bg-card rounded-xl border shadow-sm p-6 space-y-6"
       >
         <section className="grid gap-3 rounded-xl border bg-muted/20 p-4 md:grid-cols-4">
@@ -105,9 +174,23 @@ export const SubjectCurriculumCreate: React.FC = () => {
           <div className="rounded-lg bg-background p-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Ruang Lingkup</p>
             <p className="mt-1 font-bold">Per Mapel per Kelas</p>
-            <p className="text-xs text-muted-foreground">CP/ATP fase, perangkat ajar kelas.</p>
+            <p className="text-xs text-muted-foreground">Fondasi tahunan dan pelaksanaan per semester.</p>
           </div>
         </section>
+
+        {existingRecord ? (
+          <div className="flex flex-col gap-3 rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+              <div><p className="font-semibold">Kurikulum untuk kombinasi ini sudah tersedia</p><p className="mt-0.5">Satu mapel, kelas, dan tahun ajaran hanya boleh memiliki satu dokumen. Buka dokumen yang ada untuk melanjutkan.</p></div>
+            </div>
+            <Link to={`/curriculum/subject-curriculums/edit/${existingRecord.id}`} className="shrink-0 rounded-md border border-amber-300 bg-background px-3 py-2 font-semibold hover:bg-amber-100">Buka Dokumen</Link>
+          </div>
+        ) : phaseSource ? (
+          <div className="rounded-md border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
+            CP, ATP, dan KKTP diambil dari kelas lain dalam {selectedPhase?.label} agar arah fase tetap konsisten. Anda tetap dapat meninjaunya sebelum menyimpan.
+          </div>
+        ) : null}
 
         <div className="rounded-xl border bg-muted/20 p-4">
           <div className="grid gap-3 md:grid-cols-5">
@@ -137,6 +220,24 @@ export const SubjectCurriculumCreate: React.FC = () => {
           </div>
         </div>
 
+        {activeTab !== "identitas" && activeTab !== "prota" ? (
+          <section className="rounded-md border bg-muted/20 p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-bold">Rencana pelaksanaan semester</p>
+                <p className="text-xs text-muted-foreground">Promes, RPPM, RPPH/Modul Ajar, dan JP disimpan terpisah untuk Ganjil dan Genap.</p>
+              </div>
+              <div className="inline-flex rounded-md border bg-background p-1">
+                {enabledSemesters.map((semester) => (
+                  <button key={semester} type="button" onClick={() => setSelectedSemester(semester)} className={`rounded px-4 py-2 text-sm font-semibold ${selectedSemester === semester ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}>
+                    {semester}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </section>
+        ) : null}
+
         <div className={activeTab === "identitas" ? "space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300" : "hidden"}>
           <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
             <div className="space-y-6">
@@ -150,7 +251,7 @@ export const SubjectCurriculumCreate: React.FC = () => {
                       className="w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-primary/50"
                     >
                       <option value="">-- Pilih Kelas --</option>
-                      {[1, 2, 3, 4, 5, 6].filter(g => !subjectData?.data?.grade_levels || subjectData.data.grade_levels.includes(g)).map(g => <option key={g} value={g}>Kelas {g}</option>)}
+                      {[1, 2, 3, 4, 5, 6].filter(g => !subjectData?.data?.grade_levels || subjectData.data.grade_levels.map(Number).includes(g)).map(g => <option key={g} value={g}>Kelas {g}</option>)}
                     </select>
                     <p className="mt-1 text-xs text-muted-foreground">Kurikulum ini hanya berlaku untuk mapel ini di kelas yang dipilih.</p>
                     {errors.grade_level && <span className="text-xs text-rose-500 mt-1">{errors.grade_level.message as string}</span>}
@@ -235,7 +336,7 @@ export const SubjectCurriculumCreate: React.FC = () => {
           </div>
         </div>
 
-        <CurriculumFormFields register={register} control={control} errors={errors} activeTab={activeTab} />
+        <CurriculumFormFields key={selectedSemester} register={register} control={control} errors={errors} activeTab={activeTab} selectedSemester={selectedSemester} />
 
         <div className="pt-4 border-t flex justify-end gap-3">
           <button
@@ -247,11 +348,11 @@ export const SubjectCurriculumCreate: React.FC = () => {
           </button>
           <button
             type="submit"
-            disabled={formLoading}
+            disabled={isSubmitting || Boolean(existingRecord)}
             className="flex items-center gap-2 bg-primary text-primary-foreground px-6 py-2 rounded-md font-medium text-sm hover:bg-primary/90 transition-colors disabled:opacity-50"
           >
             <Save className="w-4 h-4" />
-            {formLoading ? "Menyimpan..." : "Simpan Kurikulum Mapel"}
+            {isSubmitting ? "Menyimpan..." : "Simpan Kurikulum Mapel"}
           </button>
         </div>
       </form>

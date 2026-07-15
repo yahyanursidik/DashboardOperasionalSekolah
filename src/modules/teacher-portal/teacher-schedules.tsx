@@ -7,7 +7,7 @@ import { LessonSchedulePanel } from "../schedules/components/LessonSchedulePanel
 
 export const TeacherSchedules: React.FC = () => {
   const { employee } = useOutletContext<any>();
-  const { activeYearId } = useAcademicYear();
+  const { activeYearId, activeSemesterId } = useAcademicYear();
   const [schedules, setSchedules] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -16,11 +16,12 @@ export const TeacherSchedules: React.FC = () => {
       try {
         let query = supabaseClient
           .from("employee_schedules")
-          .select("*, classes(name, unit_id, units(name)), units(name), subjects(name)")
+          .select("*, classes(name, unit_id, units(name)), units(name), subjects(name), attendance_shifts(name,check_in_open,check_in_close)")
           .eq("employee_id", employee.id)
           .order("start_time");
 
-        if (activeYearId) query = query.eq("academic_year_id", activeYearId);
+        if (activeYearId) query = query.or(`academic_year_id.eq.${activeYearId},academic_year_id.is.null`);
+        if (activeSemesterId) query = query.or(`semester_id.eq.${activeSemesterId},semester_id.is.null`);
         const { data } = await query;
 
         setSchedules(data || []);
@@ -32,7 +33,7 @@ export const TeacherSchedules: React.FC = () => {
     };
 
     fetchSchedules();
-  }, [employee.id, activeYearId]);
+  }, [employee.id, activeSemesterId, activeYearId]);
 
   return (
     <div className="p-4 space-y-6">

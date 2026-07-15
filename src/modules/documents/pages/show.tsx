@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useState } from "react";
 import { useShow, useUpdate, useGetIdentity } from "@refinedev/core";
 import { PageHeader } from "../../../components/layout/PageHeader";
@@ -5,13 +6,14 @@ import { ArrowLeft, CheckCircle2, AlertTriangle, Download, ExternalLink, ShieldC
 import { useNavigate } from "react-router-dom";
 import { getDocumentSignedUrl } from "../../../lib/supabase/storage";
 import { AuditHistory } from "../../../components/common/AuditHistory";
+import { OfficeSectionNav } from "../../mail/components/OfficeSectionNav";
 
 export const DocumentShow: React.FC = () => {
   const navigate = useNavigate();
   const { data: identity } = useGetIdentity<any>();
   const { queryResult } = useShow({
     resource: "documents",
-    meta: { select: "*, document_types(name, category), uploaded:profiles!uploaded_by(full_name), verifier:profiles!verified_by(full_name)" }
+    meta: { select: "*, document_types(name,category,classification_code,retention_years),units(name),uploaded:profiles!uploaded_by(full_name),verifier:profiles!verified_by(full_name)" }
   });
   
   const { data, isLoading } = queryResult;
@@ -62,6 +64,8 @@ export const DocumentShow: React.FC = () => {
           </button>
         }
       />
+
+      <OfficeSectionNav />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Document Viewer Column */}
@@ -129,6 +133,13 @@ export const DocumentShow: React.FC = () => {
               <div>
                 <p className="text-xs text-muted-foreground">Diunggah Oleh</p>
                 <p className="font-medium text-sm">{doc.uploaded?.full_name} pada {new Date(doc.created_at).toLocaleString('id-ID')}</p>
+              </div>
+              <div className="grid grid-cols-2 gap-3 rounded-md bg-muted/40 p-3">
+                <div><p className="text-xs text-muted-foreground">Unit pemilik</p><p className="text-sm font-semibold">{doc.units?.name || "Lintas unit"}</p></div>
+                <div><p className="text-xs text-muted-foreground">Kerahasiaan</p><p className="text-sm font-semibold capitalize">{doc.confidentiality || "internal"}</p></div>
+                <div><p className="text-xs text-muted-foreground">Masa berlaku</p><p className="text-sm font-semibold">{doc.expiry_date ? new Date(doc.expiry_date).toLocaleDateString("id-ID") : "Tanpa batas"}</p></div>
+                <div><p className="text-xs text-muted-foreground">Retensi sampai</p><p className="text-sm font-semibold">{doc.retention_until ? new Date(doc.retention_until).toLocaleDateString("id-ID") : "Belum diatur"}</p></div>
+                <div className="col-span-2"><p className="text-xs text-muted-foreground">Lokasi arsip fisik</p><p className="text-sm font-semibold">{doc.physical_location || "Belum diisi"}</p></div>
               </div>
             </div>
           </div>

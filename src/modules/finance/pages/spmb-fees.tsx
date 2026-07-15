@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { Wallet, Plus, Trash2, Check, X, Upload, Image as ImageIcon, Save, Info } from "lucide-react";
 import { getSpmbFinanceSettings, updateSpmbFinanceSettings } from "../../admissions/mock";
-import type { SpmbFinanceSettings, SpmbUnitFee, BankAccount, PostAdmissionFee } from "../../admissions/mock";
+import type { SpmbFinanceSettings, BankAccount, PostAdmissionFee } from "../../admissions/mock";
+import { FinanceSectionNav } from "../components/FinanceSectionNav";
 
 export const SpmbFeesConfig: React.FC = () => {
-  const [settings, setSettings] = useState<SpmbFinanceSettings | null>(null);
+  const [settings, setSettings] = useState<SpmbFinanceSettings>(() => getSpmbFinanceSettings());
   const [activeTab, setActiveTab] = useState<string>('PAUD/TK');
   const [newDetail, setNewDetail] = useState("");
   const [isAddingDetail, setIsAddingDetail] = useState(false);
@@ -16,22 +17,16 @@ export const SpmbFeesConfig: React.FC = () => {
   const [newPostFeeAmount, setNewPostFeeAmount] = useState("");
   const [newPostFeeType, setNewPostFeeType] = useState<'umum' | 'ikhwan' | 'akhwat'>('umum');
 
-  useEffect(() => {
-    setSettings(getSpmbFinanceSettings());
-  }, []);
-
   const handleSave = () => {
     if (settings) {
       try {
         updateSpmbFinanceSettings(settings);
         alert("Pengaturan Biaya SPMB berhasil disimpan!");
-      } catch (e) {
+      } catch {
         // Error is handled in mock
       }
     }
   };
-
-  if (!settings) return null;
 
   const currentFeeIndex = settings.unitFees.findIndex(f => f.unit === activeTab);
   const currentFee = currentFeeIndex !== -1 ? settings.unitFees[currentFeeIndex] : null;
@@ -145,6 +140,7 @@ export const SpmbFeesConfig: React.FC = () => {
         title="Pengaturan Biaya SPMB" 
         description="Konfigurasi nominal pendaftaran, daftar ulang, rincian fasilitas, dan rekening pembayaran."
       />
+      <FinanceSectionNav />
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-24">
         

@@ -1,5 +1,6 @@
 -- Allow active employee portal users to manage only their own attendance rows.
 
+DROP POLICY IF EXISTS "Active employees insert own attendance" ON public.employee_attendance;
 CREATE POLICY "Active employees insert own attendance"
 ON public.employee_attendance
 FOR INSERT TO authenticated
@@ -13,6 +14,7 @@ WITH CHECK (
   )
 );
 
+DROP POLICY IF EXISTS "Active employees update own attendance" ON public.employee_attendance;
 CREATE POLICY "Active employees update own attendance"
 ON public.employee_attendance
 FOR UPDATE TO authenticated

@@ -5,6 +5,7 @@ import { ArrowLeft, Loader2, CheckCircle, Heart, FileText, Download, Award, User
 import { supabaseClient } from "../../../../lib/supabase/client";
 import { toast } from "sonner";
 import { logAudit } from "../../../../lib/audit";
+import { getAssessmentBasisLabel } from "../../report-period-utils";
 
 export const ParentReportShow: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -16,7 +17,7 @@ export const ParentReportShow: React.FC = () => {
     resource: "student_reports",
     id,
     meta: {
-      select: "*, students(full_name, nisn), classes(name), report_periods(name, academic_year_id, semester_id, report_type), report_templates(*, sections:report_template_sections(*, items:report_template_items(*))), report_pdf_exports(file_url)"
+      select: "*, students(full_name, nisn), classes(name), report_periods(name, academic_year_id, semester_id, report_type, assessment_basis), report_templates(*, sections:report_template_sections(*, items:report_template_items(*))), report_pdf_exports(file_url)"
     }
   });
   const reportQuery = queryResult;
@@ -208,7 +209,7 @@ export const ParentReportShow: React.FC = () => {
             
             <div className="mt-6 inline-flex flex-wrap justify-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               <span className="bg-background px-3 py-1.5 rounded-full border">{period?.name}</span>
-              <span className="bg-background px-3 py-1.5 rounded-full border">{period?.report_type === 'pts' ? 'Tengah Semester' : period?.report_type === 'pas' ? 'Akhir Semester' : period?.report_type}</span>
+              <span className="bg-background px-3 py-1.5 rounded-full border">{getAssessmentBasisLabel(period?.assessment_basis)}</span>
             </div>
           </div>
         </div>

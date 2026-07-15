@@ -1,17 +1,25 @@
 import React, { useState } from "react";
 import {
-  useShow, useList, useCreate, useDelete, useSelect, useUpdate
+  useShow, useList, useCreate, useSelect, useUpdate
 } from "@refinedev/core";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useAcademicYear } from "../../../app/providers/AcademicYearProvider";
 import {
-  User, Edit, ArrowLeft, Briefcase, GraduationCap, Building2,
+  User, Edit, ArrowLeft, GraduationCap, Building2,
   Phone, Mail, MapPin, X, Plus, Trash2, FolderOpen, History,
-  BookOpen, Calendar, Clock, CheckCircle2, XCircle, ChevronRight,
+  BookOpen, Calendar, Clock, CheckCircle2, XCircle,
   Award, ClipboardList, UserCheck, Star, AlertCircle
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { PageHeader } from "../../../components/layout/PageHeader";
+import {
+  academicAssignmentTypes,
+  canReceiveAcademicAssignment,
+  getEmployeePosition,
+} from "../employee-role-config";
+import { formatScheduleType, formatTime } from "../../schedules/schedule-utils";
+import { validateTeachingScheduleCurriculum } from "../../schedules/curriculum-schedule-validation";
+import { toast } from "sonner";
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 const POSITION_MAP: Record<string, { label: string; color: string; icon: React.ElementType }> = {
@@ -43,6 +51,10 @@ const STATUS_MAP: Record<string, { label: string; color: string; bg: string }> =
 };
 
 const ROLE_TYPE_MAP: Record<string, { label: string; color: string }> = {
+  homeroom:      { label: "Wali Kelas",          color: "bg-emerald-100 text-emerald-800" },
+  subject:       { label: "Guru Mata Pelajaran", color: "bg-blue-100 text-blue-800" },
+  subject_teacher:{ label: "Guru Mata Pelajaran", color: "bg-blue-100 text-blue-800" },
+  coordinator:   { label: "Koordinator Akademik", color: "bg-purple-100 text-purple-800" },
   wali_kelas:   { label: "Wali Kelas",          color: "bg-emerald-100 text-emerald-800" },
   guru_mapel:   { label: "Guru Mata Pelajaran",  color: "bg-blue-100 text-blue-800" },
   guru_quran:   { label: "Guru Al-Qur'an / Tahfizh", color: "bg-amber-100 text-amber-800" },
@@ -85,45 +97,57 @@ function InfoRow({ icon: Icon, label, value }: { icon: React.ElementType; label:
 
 // ─── Assignment Modal ──────────────────────────────────────────────────────────
 function AssignmentModal({
-  open, onClose, employeeId, activeYearId, onSuccess,
+  open, onClose, employeeId, employeePosition, defaultUnitId, activeYearId, activeSemesterId, onSuccess,
 }: {
   open: boolean;
   onClose: () => void;
   employeeId: string;
+  employeePosition: string;
+  defaultUnitId?: string | null;
   activeYearId: string | undefined;
+  activeSemesterId: string | undefined;
   onSuccess: () => void;
 }) {
   const [assignmentType, setAssignmentType] = useState("guru_mapel");
-  const [unitId, setUnitId] = useState("");
+  const [unitId, setUnitId] = useState(defaultUnitId || "");
   const [classId, setClassId] = useState("");
-  const [subject, setSubject] = useState("");
-  const [subjectInput, setSubjectInput] = useState("");
-  const [showSubjectSuggestions, setShowSubjectSuggestions] = useState(false);
+  const [subjectId, setSubjectId] = useState("");
+  const selectedAssignmentType = academicAssignmentTypes.find((item) => item.value === assignmentType);
 
   const { options: unitOptions } = useSelect({ resource: "units", optionLabel: "name", optionValue: "id" });
   const { options: classOptions } = useSelect({
     resource: "classes",
     optionLabel: "name",
     optionValue: "id",
-    filters: unitId ? [{ field: "unit_id", operator: "eq", value: unitId }] : [],
+    filters: [
+      ...(unitId ? [{ field: "unit_id", operator: "eq" as const, value: unitId }] : []),
+      ...(activeYearId ? [{ field: "academic_year_id", operator: "eq" as const, value: activeYearId }] : []),
+    ],
     queryOptions: { enabled: !!unitId },
   });
 
-  // Subjects from curriculum
   const { data: subjectsData } = useList({
     resource: "subjects",
     pagination: { pageSize: 200 },
-    meta: { select: "id, name, code" },
+    filters: [{ field: "is_active", operator: "eq", value: true }],
+    meta: { select: "id, name, code, unit_id" },
   });
-
-  const filteredSubjects = (subjectsData?.data ?? []).filter(
-    (s) => s.name.toLowerCase().includes(subjectInput.toLowerCase()) && subjectInput.length > 0
-  );
+  const subjectOptions = (subjectsData?.data ?? []).filter((subject) => !unitId || !subject.unit_id || subject.unit_id === unitId);
+  const selectedSubject = subjectOptions.find((subject) => subject.id === subjectId);
 
   const { mutate: createAssignment, isLoading: isAssigning } = useCreate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!activeYearId || !activeSemesterId) return toast.error("Pilih tahun ajaran dan semester aktif.");
+    if (selectedAssignmentType?.requiresSubject && classId && subjectId) {
+      try {
+        const validation = await validateTeachingScheduleCurriculum({ classId, subjectId, academicYearId: activeYearId, semesterId: activeSemesterId });
+        if (!validation.valid) return toast.error("Penugasan belum dapat dibuat", { description: validation.message });
+      } catch (error: unknown) {
+        return toast.error(error instanceof Error ? error.message : "Gagal memeriksa kurikulum kelas.");
+      }
+    }
     createAssignment(
       {
         resource: "teacher_assignments",
@@ -132,8 +156,10 @@ function AssignmentModal({
           unit_id: unitId,
           class_id: classId || null,
           role_type: assignmentType,
-          subject: subject || subjectInput || null,
+          subject_id: subjectId || null,
+          subject: selectedSubject?.name || null,
           academic_year_id: activeYearId,
+          semester_id: activeSemesterId,
           is_active: true,
         },
         successNotification: () => ({ message: "Penugasan berhasil ditambahkan!", type: "success" }),
@@ -142,7 +168,7 @@ function AssignmentModal({
         onSuccess: () => {
           onSuccess();
           onClose();
-          setUnitId(""); setClassId(""); setSubject(""); setSubjectInput("");
+          setClassId(""); setSubjectId("");
         },
       }
     );
@@ -152,7 +178,7 @@ function AssignmentModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-background rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-200">
+      <div className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-lg bg-background shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-200">
         {/* Header */}
         <div className="p-5 border-b flex items-center justify-between bg-gradient-to-r from-primary/5 to-transparent">
           <div className="flex items-center gap-3">
@@ -160,8 +186,8 @@ function AssignmentModal({
               <BookOpen className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <h3 className="font-bold text-lg">Tambah Penugasan</h3>
-              <p className="text-xs text-muted-foreground">Tetapkan peran & mata pelajaran pegawai</p>
+              <h3 className="font-bold text-lg">Tambah Penugasan Akademik</h3>
+              <p className="text-xs text-muted-foreground">Tetapkan tanggung jawab untuk satu periode pembelajaran.</p>
             </div>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted transition-colors">
@@ -175,18 +201,18 @@ function AssignmentModal({
           <div className="space-y-1.5">
             <label className="text-sm font-semibold">Jenis / Peran Penugasan <span className="text-destructive">*</span></label>
             <div className="grid grid-cols-2 gap-2">
-              {Object.entries(ROLE_TYPE_MAP).map(([key, val]) => (
+              {academicAssignmentTypes.map((item) => (
                 <button
-                  key={key}
+                  key={item.value}
                   type="button"
-                  onClick={() => setAssignmentType(key)}
+                  onClick={() => { setAssignmentType(item.value); setClassId(""); setSubjectId(""); }}
                   className={`text-left text-xs px-3 py-2.5 rounded-lg border font-medium transition-all ${
-                    assignmentType === key
+                    assignmentType === item.value
                       ? "border-primary bg-primary/5 text-primary shadow-sm"
                       : "border-border hover:border-primary/40 hover:bg-muted/50"
                   }`}
                 >
-                  {val.label}
+                  {item.label}
                 </button>
               ))}
             </div>
@@ -198,7 +224,7 @@ function AssignmentModal({
             <select
               required
               value={unitId}
-              onChange={(e) => { setUnitId(e.target.value); setClassId(""); }}
+              onChange={(e) => { setUnitId(e.target.value); setClassId(""); setSubjectId(""); }}
               className="w-full border rounded-lg px-3 py-2.5 text-sm bg-background outline-none focus:ring-2 focus:ring-primary/30"
             >
               <option value="">-- Pilih Unit --</option>
@@ -207,14 +233,13 @@ function AssignmentModal({
           </div>
 
           {/* Kelas */}
-          {["wali_kelas", "guru_mapel", "guru_quran", "guru_diniyah"].includes(assignmentType) && (
+          {selectedAssignmentType?.requiresClass && (
             <div className="space-y-1.5">
               <label className="text-sm font-semibold">
-                Kelas {assignmentType === "wali_kelas" && <span className="text-destructive">*</span>}
-                <span className="font-normal text-muted-foreground ml-1">(opsional untuk guru mapel)</span>
+                Kelas <span className="text-destructive">*</span>
               </label>
               <select
-                required={assignmentType === "wali_kelas"}
+                required
                 value={classId}
                 onChange={(e) => setClassId(e.target.value)}
                 className="w-full border rounded-lg px-3 py-2.5 text-sm bg-background outline-none focus:ring-2 focus:ring-primary/30"
@@ -227,64 +252,29 @@ function AssignmentModal({
             </div>
           )}
 
-          {/* Mata Pelajaran with autocomplete */}
-          {["guru_mapel", "guru_diniyah"].includes(assignmentType) && (
-            <div className="space-y-1.5 relative">
-              <label className="text-sm font-semibold">Mata Pelajaran <span className="text-destructive">*</span></label>
-              <input
-                required
-                value={subjectInput}
-                onChange={(e) => {
-                  setSubjectInput(e.target.value);
-                  setSubject(e.target.value);
-                  setShowSubjectSuggestions(true);
-                }}
-                onFocus={() => setShowSubjectSuggestions(true)}
-                onBlur={() => setTimeout(() => setShowSubjectSuggestions(false), 200)}
-                placeholder="Ketik nama mata pelajaran..."
-                className="w-full border rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/30 bg-background"
-              />
-              {showSubjectSuggestions && filteredSubjects.length > 0 && (
-                <div className="absolute z-10 w-full mt-1 bg-background border rounded-xl shadow-lg overflow-hidden max-h-48 overflow-y-auto">
-                  {filteredSubjects.map((s) => (
-                    <button
-                      key={s.id}
-                      type="button"
-                      className="w-full text-left px-3 py-2.5 text-sm hover:bg-muted flex items-center gap-2 border-b last:border-0"
-                      onClick={() => { setSubjectInput(s.name); setSubject(s.name); setShowSubjectSuggestions(false); }}
-                    >
-                      <BookOpen className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                      <span className="font-medium">{s.name}</span>
-                      {s.code && <span className="text-muted-foreground text-xs ml-auto">{s.code}</span>}
-                    </button>
-                  ))}
-                </div>
-              )}
-              <p className="text-[11px] text-muted-foreground">Ketik untuk mencari dari kurikulum, atau masukkan nama baru.</p>
-            </div>
-          )}
-
-          {/* Deskripsi tugas untuk staff */}
-          {assignmentType === "staff" && (
+          {selectedAssignmentType?.requiresSubject && (
             <div className="space-y-1.5">
-              <label className="text-sm font-semibold">Deskripsi Tugas</label>
-              <input
-                value={subjectInput}
-                onChange={(e) => { setSubjectInput(e.target.value); setSubject(e.target.value); }}
-                placeholder="Contoh: Administrasi Keuangan"
+              <label className="text-sm font-semibold">Mata Pelajaran <span className="text-destructive">*</span></label>
+              <select
+                required
+                value={subjectId}
+                onChange={(e) => setSubjectId(e.target.value)}
                 className="w-full border rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/30 bg-background"
-              />
+              >
+                <option value="">-- Pilih Mata Pelajaran --</option>
+                {subjectOptions.map((subject) => <option key={subject.id} value={subject.id}>{subject.name}{subject.code ? ` (${subject.code})` : ""}</option>)}
+              </select>
             </div>
           )}
 
-          {activeYearId && (
+          {activeYearId && activeSemesterId ? (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-start gap-2">
               <Calendar className="w-4 h-4 text-blue-600 mt-0.5 shrink-0" />
               <p className="text-xs text-blue-800">
-                Penugasan akan terikat dengan <strong>Tahun Ajaran Aktif</strong> saat ini.
+                Penugasan terikat pada <strong>tahun ajaran dan semester aktif</strong>. Jadwal mengajar dibuat setelah penugasan ini tersimpan.
               </p>
             </div>
-          )}
+          ) : <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">Pilih tahun ajaran dan semester aktif sebelum membuat penugasan.</div>}
 
           <div className="flex justify-end gap-2 pt-2 border-t">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm border rounded-lg hover:bg-muted transition-colors">
@@ -292,7 +282,7 @@ function AssignmentModal({
             </button>
             <button
               type="submit"
-              disabled={isAssigning || !unitId}
+              disabled={isAssigning || !unitId || !activeYearId || !activeSemesterId || !canReceiveAcademicAssignment(employeePosition)}
               className="px-5 py-2 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2 font-medium"
             >
               {isAssigning ? (
@@ -318,7 +308,7 @@ export const EmployeeShow: React.FC = () => {
   const basePath = location.pathname.startsWith("/hrd") ? "/hrd/employees" : "/employees";
   const [activeTab, setActiveTab] = useState<TabType>("assignments");
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const { activeYearId } = useAcademicYear();
+  const { activeYearId, activeSemesterId } = useAcademicYear();
 
   const { queryResult } = useShow({
     resource: "employees",
@@ -340,6 +330,19 @@ export const EmployeeShow: React.FC = () => {
     queryOptions: { enabled: !!record?.id },
   });
 
+  const { data: schedulesData, isLoading: schedulesLoading } = useList({
+    resource: "employee_schedules",
+    filters: [
+      { field: "employee_id", operator: "eq" as const, value: record?.id as string },
+      ...(activeYearId ? [{ field: "academic_year_id", operator: "eq" as const, value: activeYearId }] : []),
+      ...(activeSemesterId ? [{ field: "semester_id", operator: "eq" as const, value: activeSemesterId }] : []),
+      ...(activeSemesterId ? [{ field: "semester_id", operator: "eq" as const, value: activeSemesterId }] : []),
+    ],
+    sorters: [{ field: "day_of_week", order: "asc" }],
+    pagination: { pageSize: 100 },
+    queryOptions: { enabled: Boolean(record?.id) },
+  });
+
   // Leave requests
   const { data: leavesData, isLoading: leavesLoading } = useList({
     resource: "leave_requests",
@@ -349,7 +352,7 @@ export const EmployeeShow: React.FC = () => {
     queryOptions: { enabled: !!record?.id && activeTab === "leaves" },
   });
 
-  const { mutate: deleteAssignment } = useDelete();
+  const { mutate: updateAssignment } = useUpdate();
 
   if (isLoading) {
     return (
@@ -377,19 +380,22 @@ export const EmployeeShow: React.FC = () => {
   const pos = POSITION_MAP[record.position] ?? { label: record.position, color: "bg-gray-100 text-gray-800", icon: UserCheck };
   const sts = STATUS_MAP[record.status] ?? { label: record.status, color: "text-gray-700", bg: "bg-gray-50 border-gray-200" };
   const assignments = assignmentsData?.data ?? [];
-  const teacherRoles: string[] = Array.isArray(record.teacher_roles) ? record.teacher_roles : [];
-  const isTeacher = ["guru", "guru_quran"].includes(record.position);
+  const positionDefinition = getEmployeePosition(record.position);
+  const academicEligible = canReceiveAcademicAssignment(record.position);
+  const activeAssignments = assignments.filter((assignment) => assignment.is_active !== false);
+  const schedules = schedulesData?.data ?? [];
+  const portalLabel = positionDefinition.portal === "teacher" ? "Portal Pengajar" : "Portal Staf";
   const profileChecklist = [
     { label: "Identitas inti", done: Boolean(record.full_name && record.nik) },
     { label: "Unit dan jabatan", done: Boolean(record.position && (record.unit_id || record.units?.name)) },
     { label: "Kontak aktif", done: Boolean(record.phone && record.email) },
-    { label: "Role portal", done: !isTeacher || teacherRoles.length > 0 },
-    { label: "Penugasan aktif", done: !isTeacher || assignments.length > 0 },
+    { label: `Akses ${portalLabel}`, done: Boolean(record.email && record.user_id) },
+    { label: academicEligible ? "Penugasan akademik periode aktif" : "Jadwal kerja periode aktif", done: academicEligible ? activeAssignments.length > 0 : schedules.length > 0 },
   ];
   const completedChecklist = profileChecklist.filter((item) => item.done).length;
 
   const TABS = [
-    { key: "assignments" as TabType, label: "Penugasan Akademik", icon: BookOpen, count: assignments.length },
+    { key: "assignments" as TabType, label: "Penugasan & Jadwal", icon: BookOpen, count: activeAssignments.length + schedules.length },
     { key: "attendance" as TabType, label: "Riwayat Presensi", icon: Clock },
     { key: "leaves" as TabType, label: "Riwayat Cuti", icon: Calendar },
     { key: "documents" as TabType, label: "Dokumen", icon: FolderOpen },
@@ -399,7 +405,7 @@ export const EmployeeShow: React.FC = () => {
     <div className="space-y-6">
       <PageHeader
         title="Profil Pegawai"
-        description="Detail informasi kepegawaian, penugasan, dan riwayat."
+        description="Jabatan utama, penugasan periode, jadwal pelaksanaan, dan kesiapan portal pegawai."
         action={
           <div className="flex gap-2">
             <button
@@ -439,19 +445,11 @@ export const EmployeeShow: React.FC = () => {
                 </span>
               </div>
 
-              {teacherRoles.length > 0 && (
-                <div className="mt-3 flex flex-wrap gap-1">
-                  {teacherRoles.map((role, i) => (
-                    <span key={i} className="text-[10px] bg-primary/5 text-primary px-2 py-0.5 rounded-md border border-primary/20 font-medium">
-                      {role}
-                    </span>
-                  ))}
-                </div>
-              )}
+              <p className="mt-3 text-xs leading-relaxed text-muted-foreground">{positionDefinition.description}</p>
             </div>
 
             <div className="border-t px-5 py-4 space-y-0.5">
-              <InfoRow icon={Building2} label="Unit / Divisi"       value={record.units?.name || "Lintas Unit"} />
+              <InfoRow icon={Building2} label="Unit Induk"         value={record.units?.name || "Pusat / Lintas Unit"} />
               <InfoRow icon={Phone}     label="No. HP / WhatsApp"   value={record.phone} />
               <InfoRow icon={Mail}      label="Email"               value={record.email} />
               <InfoRow icon={MapPin}    label="Alamat Domisili"     value={record.address} />
@@ -476,11 +474,15 @@ export const EmployeeShow: React.FC = () => {
             <div className="space-y-3">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground flex items-center gap-2"><BookOpen className="w-3.5 h-3.5" /> Penugasan Aktif</span>
-                <span className="font-bold text-foreground">{assignments.length}</span>
+                <span className="font-bold text-foreground">{activeAssignments.length}</span>
               </div>
               <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground flex items-center gap-2"><BookOpen className="w-3.5 h-3.5" /> Mata Pelajaran</span>
-                <span className="font-bold text-foreground">{assignments.filter((a) => a.subject).length}</span>
+                <span className="text-muted-foreground flex items-center gap-2"><Calendar className="w-3.5 h-3.5" /> Jadwal Periode</span>
+                <span className="font-bold text-foreground">{schedules.length}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground flex items-center gap-2"><UserCheck className="w-3.5 h-3.5" /> Akses Portal</span>
+                <span className="font-semibold text-foreground">{portalLabel}</span>
               </div>
             </div>
           </div>
@@ -503,14 +505,14 @@ export const EmployeeShow: React.FC = () => {
               ))}
             </div>
             <p className="text-xs text-muted-foreground mt-3">
-              Lengkapi semua item agar data pegawai siap untuk jadwal, presensi, PKG, dan portal pengajar.
+              Lengkapi semua item agar data pegawai siap untuk jadwal, presensi, evaluasi kinerja, dan portal kerja.
             </p>
           </div>
 
           <div className="bg-card border rounded-xl shadow-sm p-4">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Aksi Cepat</p>
             <div className="grid grid-cols-2 gap-2">
-              <Link to="/schedules" className="text-xs border rounded-lg px-3 py-2 hover:bg-muted flex items-center gap-2">
+              <Link to={`/schedules?employee_id=${record.id}`} className="text-xs border rounded-lg px-3 py-2 hover:bg-muted flex items-center gap-2">
                 <Calendar className="w-3.5 h-3.5" /> Jadwal
               </Link>
               <Link to="/attendance/employees" className="text-xs border rounded-lg px-3 py-2 hover:bg-muted flex items-center gap-2">
@@ -528,6 +530,23 @@ export const EmployeeShow: React.FC = () => {
 
         {/* ─── RIGHT CONTENT ─── */}
         <div className="lg:col-span-2 space-y-4">
+          <div className="grid gap-3 md:grid-cols-3">
+            <div className="rounded-lg border bg-card p-4">
+              <p className="text-xs font-bold uppercase text-muted-foreground">1. Jabatan Utama</p>
+              <p className="mt-2 text-sm font-semibold">{positionDefinition.label}</p>
+              <p className="mt-1 text-xs text-muted-foreground">Struktur organisasi, portal dasar, dan pilihan shift.</p>
+            </div>
+            <div className="rounded-lg border bg-card p-4">
+              <p className="text-xs font-bold uppercase text-muted-foreground">2. Penugasan Periode</p>
+              <p className="mt-2 text-sm font-semibold">{academicEligible ? `${activeAssignments.length} penugasan akademik` : "Tidak diperlukan"}</p>
+              <p className="mt-1 text-xs text-muted-foreground">Kelas/mapel pada tahun ajaran dan semester aktif.</p>
+            </div>
+            <div className="rounded-lg border bg-card p-4">
+              <p className="text-xs font-bold uppercase text-muted-foreground">3. Jadwal Pelaksanaan</p>
+              <p className="mt-2 text-sm font-semibold">{schedules.length} jadwal mingguan</p>
+              <p className="mt-1 text-xs text-muted-foreground">Hari, jam, unit kerja, atau jam mengajar.</p>
+            </div>
+          </div>
           {/* Tabs */}
           <div className="bg-card border rounded-xl shadow-sm overflow-hidden">
             <div className="flex overflow-x-auto border-b">
@@ -554,23 +573,28 @@ export const EmployeeShow: React.FC = () => {
 
             {/* ── Tab: Penugasan ── */}
             {activeTab === "assignments" && (
-              <div className="p-5">
-                <div className="flex items-center justify-between mb-4">
+              <div className="space-y-6 p-5">
+                <section>
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                   <div>
-                    <h3 className="font-semibold text-base">Penugasan Akademik</h3>
+                    <h3 className="font-semibold text-base">Penugasan Akademik Periode</h3>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {activeYearId ? "Tahun Ajaran Aktif" : "Semua Tahun Ajaran"}
+                      Hanya untuk tanggung jawab kelas/mapel; bukan jabatan dan bukan jam kerja.
                     </p>
                   </div>
-                  <button
-                    onClick={() => setIsModalOpen(true)}
-                    className="flex items-center gap-1.5 text-sm font-medium bg-primary text-primary-foreground px-3 py-2 rounded-lg hover:bg-primary/90 transition-colors shadow-sm"
-                  >
-                    <Plus className="w-4 h-4" /> Tambah Penugasan
-                  </button>
+                  {academicEligible ? (
+                    <button onClick={() => setIsModalOpen(true)} disabled={!activeYearId || !activeSemesterId} className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground shadow-sm hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50">
+                      <Plus className="w-4 h-4" /> Tambah Penugasan Akademik
+                    </button>
+                  ) : null}
                 </div>
 
-                {assignmentsLoading ? (
+                {!academicEligible ? (
+                  <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
+                    <p className="font-semibold">Jabatan ini tidak memerlukan penugasan akademik.</p>
+                    <p className="mt-1 text-xs">Atur rutinitas, shift, area layanan, atau tugas operasional melalui Jadwal Kerja di bawah.</p>
+                  </div>
+                ) : assignmentsLoading ? (
                   <div className="space-y-3">
                     {[1, 2, 3].map((i) => <div key={i} className="h-16 bg-muted animate-pulse rounded-xl" />)}
                   </div>
@@ -578,17 +602,17 @@ export const EmployeeShow: React.FC = () => {
                   <div className="bg-muted/20 border border-dashed rounded-xl p-10 text-center">
                     <BookOpen className="w-10 h-10 text-muted-foreground mx-auto mb-3 opacity-50" />
                     <p className="font-medium text-sm text-foreground mb-1">Belum ada penugasan</p>
-                    <p className="text-xs text-muted-foreground mb-4">Pegawai ini belum memiliki penugasan di tahun ajaran aktif.</p>
+                    <p className="text-xs text-muted-foreground mb-4">Belum ada tanggung jawab kelas atau mata pelajaran untuk periode aktif.</p>
                     <button
                       onClick={() => setIsModalOpen(true)}
                       className="text-sm text-primary hover:underline font-medium inline-flex items-center gap-1"
                     >
-                      <Plus className="w-3.5 h-3.5" /> Tambah penugasan pertama
+                      <Plus className="w-3.5 h-3.5" /> Tambah penugasan akademik
                     </button>
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {assignments.map((assignment: any) => {
+                    {assignments.map((assignment) => {
                       const roleInfo = ROLE_TYPE_MAP[assignment.role_type] ?? { label: assignment.role_type, color: "bg-gray-100 text-gray-800" };
                       return (
                         <div
@@ -604,11 +628,11 @@ export const EmployeeShow: React.FC = () => {
                                 <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${roleInfo.color}`}>
                                   {roleInfo.label}
                                 </span>
-                                {assignment.is_active !== false && (
+                                {assignment.is_active !== false ? (
                                   <span className="text-xs text-emerald-600 flex items-center gap-1">
                                     <CheckCircle2 className="w-3 h-3" /> Aktif
                                   </span>
-                                )}
+                                ) : <span className="text-xs text-muted-foreground">Riwayat selesai</span>}
                               </div>
                               <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                                 {assignment.units?.name && (
@@ -629,25 +653,64 @@ export const EmployeeShow: React.FC = () => {
                               </div>
                             </div>
                           </div>
-                          <button
+                          {assignment.is_active !== false ? <button
                             onClick={() => {
-                              if (confirm(`Hapus penugasan "${roleInfo.label}"?`)) {
-                                deleteAssignment(
-                                  { resource: "teacher_assignments", id: assignment.id, successNotification: () => ({ message: "Penugasan dihapus", type: "success" }) },
+                              if (confirm(`Akhiri penugasan "${roleInfo.label}"? Riwayatnya tetap disimpan.`)) {
+                                updateAssignment(
+                                  { resource: "teacher_assignments", id: assignment.id, values: { is_active: false }, successNotification: () => ({ message: "Penugasan diakhiri", type: "success" }) },
                                   { onSuccess: () => refetchAssignments() }
                                 );
                               }
                             }}
                             className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
-                            title="Hapus Penugasan"
+                            title="Akhiri penugasan"
                           >
                             <Trash2 className="w-4 h-4" />
-                          </button>
+                          </button> : null}
                         </div>
                       );
                     })}
                   </div>
                 )}
+                {record.position === "guru_quran" ? (
+                  <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-900">
+                    Penanggung jawab kelompok Al-Qur'an dikelola langsung melalui <Link to="/tahfidz-halaqohs" className="font-semibold underline">Halaqoh Tahfidz</Link> atau <Link to="/tahsin-halaqohs" className="font-semibold underline">Halaqoh Tahsin</Link>, agar siswa dan targetnya ikut tersambung.
+                  </div>
+                ) : null}
+                </section>
+
+                <section className="border-t pt-5">
+                  <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <h3 className="font-semibold text-base">Jadwal Kerja dan Mengajar</h3>
+                      <p className="mt-0.5 text-xs text-muted-foreground">Hari dan jam pelaksanaan yang muncul pada portal serta dipakai pemeriksaan presensi.</p>
+                    </div>
+                    <Link to={`/schedules/create?employee_id=${record.id}&unit_id=${record.unit_id || "__cross_unit__"}`} className="flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium hover:bg-muted">
+                      <Plus className="h-4 w-4" /> Tambah Jadwal
+                    </Link>
+                  </div>
+                  {schedulesLoading ? <div className="h-20 animate-pulse rounded-lg bg-muted" /> : schedules.length === 0 ? (
+                    <div className="rounded-lg border border-dashed p-7 text-center">
+                      <Calendar className="mx-auto h-8 w-8 text-muted-foreground/50" />
+                      <p className="mt-2 text-sm font-medium">Belum ada jadwal pada periode aktif.</p>
+                    </div>
+                  ) : (
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {schedules.map((schedule) => (
+                        <div key={schedule.id} className="rounded-lg border bg-background p-3">
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <p className="text-sm font-semibold">{schedule.day_of_week}</p>
+                              <p className="mt-0.5 text-xs text-muted-foreground">{formatTime(schedule.start_time)} - {formatTime(schedule.end_time)}</p>
+                            </div>
+                            <span className="rounded-md bg-muted px-2 py-1 text-[10px] font-semibold">{formatScheduleType(schedule.schedule_type)}</span>
+                          </div>
+                          {schedule.subject ? <p className="mt-2 truncate text-xs font-medium text-primary">{schedule.subject}</p> : null}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </section>
               </div>
             )}
 
@@ -691,7 +754,7 @@ export const EmployeeShow: React.FC = () => {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {(leavesData?.data ?? []).map((leave: any) => {
+                    {(leavesData?.data ?? []).map((leave) => {
                       const statusColor =
                         leave.status === "approved" ? "bg-emerald-100 text-emerald-800" :
                         leave.status === "rejected" ? "bg-red-100 text-red-800" :
@@ -751,7 +814,10 @@ export const EmployeeShow: React.FC = () => {
         open={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         employeeId={record?.id as string}
+        employeePosition={record.position}
+        defaultUnitId={record.unit_id}
         activeYearId={activeYearId ?? undefined}
+        activeSemesterId={activeSemesterId ?? undefined}
         onSuccess={() => refetchAssignments()}
       />
     </div>

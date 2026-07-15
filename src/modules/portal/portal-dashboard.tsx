@@ -1,16 +1,17 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useOutletContext, Link } from "react-router-dom";
 import { supabaseClient } from "../../lib/supabase/client";
-import { Wallet, BookOpen, Clock, TrendingUp, Calendar, Megaphone, Target, FileText, Award, AlertTriangle, CheckCircle2, ClipboardCheck } from "lucide-react";
+import { Wallet, BookOpen, Clock, Calendar, Megaphone, Target, FileText, Award, AlertTriangle, CheckCircle2, ClipboardCheck, LifeBuoy } from "lucide-react";
 import { useAcademicYear } from "../../app/providers/AcademicYearProvider";
 
 export const PortalDashboard: React.FC = () => {
-  const { student } = useOutletContext<any>();
+  const { student, parent } = useOutletContext<any>();
   const { activeYearId, activeSemesterId } = useAcademicYear();
   const [invoiceSummary, setInvoiceSummary] = useState({ count: 0, total: 0 });
   const [attendance, setAttendance] = useState({ present: 0, sick: 0, permission: 0, absent: 0 });
   const [recentJournal, setRecentJournal] = useState<any>(null);
   const [recentAnnouncement, setRecentAnnouncement] = useState<any>(null);
+  const [openRequests, setOpenRequests] = useState(0);
   const [quranSummary, setQuranSummary] = useState({
     tahfidzRecords: 0,
     tahsinRecords: 0,
@@ -30,25 +31,28 @@ export const PortalDashboard: React.FC = () => {
 
         const { data: invoices } = await supabaseClient
           .from("student_invoices")
-          .select("amount, paid_amount, status")
+          .select("amount, discount, paid_amount, status")
           .eq("student_id", student.id)
           .in("status", ["unpaid", "partial"]);
         setInvoiceSummary({
           count: invoices?.length || 0,
-          total: (invoices || []).reduce((sum: number, item: any) => sum + Math.max(Number(item.amount || 0) - Number(item.paid_amount || 0), 0), 0),
+          total: (invoices || []).reduce((sum: number, item: any) => sum + Math.max(Number(item.amount || 0) - Number(item.discount || 0) - Number(item.paid_amount || 0), 0), 0),
         });
 
-        const { data: attData } = await supabaseClient
+        let attendanceQuery = supabaseClient
           .from("attendance_records")
           .select("status")
           .eq("student_id", student.id);
+        if (activeYearId) attendanceQuery = attendanceQuery.eq("academic_year_id", activeYearId);
+        const { data: attData } = await attendanceQuery;
         if (attData) {
           const stats = { present: 0, sick: 0, permission: 0, absent: 0 };
           attData.forEach((record: any) => {
-            if (record.status === "Hadir") stats.present++;
-            if (record.status === "Sakit") stats.sick++;
-            if (record.status === "Izin") stats.permission++;
-            if (record.status === "Alpa") stats.absent++;
+            const status = String(record.status || "").toLowerCase();
+            if (["hadir", "terlambat", "pulang_awal"].includes(status)) stats.present++;
+            if (status === "sakit") stats.sick++;
+            if (status === "izin") stats.permission++;
+            if (status === "alpa") stats.absent++;
           });
           setAttendance(stats);
         }
@@ -65,11 +69,19 @@ export const PortalDashboard: React.FC = () => {
           .from("announcements")
           .select("title, content, publish_at, created_at")
           .eq("status", "terkirim")
-          .in("target_type", ["all", "parents"])
+          .in("target_type", ["all", "parents", "unit", "class"])
           .order("publish_at", { ascending: false })
           .order("created_at", { ascending: false })
           .limit(1);
         setRecentAnnouncement(annData?.[0] || null);
+
+        const { count: requestCount } = await supabaseClient
+          .from("parent_portal_requests")
+          .select("id", { count: "exact", head: true })
+          .eq("parent_id", parent.id)
+          .eq("student_id", student.id)
+          .in("status", ["submitted", "in_review"]);
+        setOpenRequests(requestCount || 0);
 
         let recordsQuery = supabaseClient
           .from("quran_records")
@@ -127,7 +139,7 @@ export const PortalDashboard: React.FC = () => {
     };
 
     fetchDashboardData();
-  }, [student.id, activeYearId, activeSemesterId]);
+  }, [student.id, parent.id, activeYearId, activeSemesterId]);
 
   const totalDays = attendance.present + attendance.sick + attendance.permission + attendance.absent;
   const attendancePercentage = totalDays > 0 ? Math.round((attendance.present / totalDays) * 100) : 100;
@@ -143,21 +155,20 @@ export const PortalDashboard: React.FC = () => {
 
   return (
     <div className="p-4 md:p-0 space-y-6 md:space-y-8 mt-2 md:mt-0">
-      <section className="bg-gradient-to-br from-emerald-500 to-emerald-700 rounded-3xl p-6 md:p-8 text-white shadow-lg relative overflow-hidden">
+      <section className="rounded-lg bg-emerald-700 p-6 text-white shadow-sm md:p-8">
         <div className="relative z-10 max-w-xl">
           <h2 className="text-2xl md:text-3xl font-bold mb-2 leading-tight">Assalamu'alaikum, Wali {studentFirstName}</h2>
           <p className="text-emerald-100 text-sm md:text-base opacity-90">
             Pantau perkembangan akademik, Qur'an, kehadiran, catatan sekolah, dan keuangan dalam satu portal.
           </p>
         </div>
-        <TrendingUp className="absolute -right-5 -bottom-6 w-40 h-40 md:w-56 md:h-56 text-white opacity-10" />
       </section>
 
       <section className="grid grid-cols-4 gap-3 md:hidden">
         {[
-          { to: "/portal/quran", label: "Qur'an", icon: BookOpen, className: "bg-emerald-100 text-emerald-600" },
+          { to: "/portal/attendance", label: "Kehadiran", icon: Calendar, className: "bg-emerald-100 text-emerald-600" },
           { to: "/portal/reports", label: "e-Rapor", icon: FileText, className: "bg-blue-100 text-blue-600" },
-          { to: "/portal/journals", label: "Catatan", icon: Clock, className: "bg-purple-100 text-purple-600" },
+          { to: "/portal/requests", label: "Pengajuan", icon: LifeBuoy, className: "bg-violet-100 text-violet-600" },
           { to: "/portal/finance", label: "Keuangan", icon: Wallet, className: "bg-amber-100 text-amber-600" },
         ].map(({ to, label, icon: Icon, className }) => (
           <Link key={to} to={to} className="flex flex-col items-center justify-center p-3 bg-white rounded-2xl shadow-sm border border-gray-100 hover:bg-gray-50 transition-all group">
@@ -183,6 +194,13 @@ export const PortalDashboard: React.FC = () => {
         </Link>
       )}
 
+      {openRequests > 0 && (
+        <Link to="/portal/requests" className="flex items-center gap-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-900 hover:bg-amber-100">
+          <LifeBuoy className="h-6 w-6 shrink-0 text-amber-700" />
+          <div><p className="font-bold">{openRequests} pengajuan sedang diproses</p><p className="text-sm text-amber-700">Pantau status dan respons sekolah pada pusat layanan orang tua.</p></div>
+        </Link>
+      )}
+
       <section className="grid gap-4 md:grid-cols-4">
         {qualityItems.map((item) => (
           <div key={item.label} className="rounded-2xl border bg-white p-4 shadow-sm">
@@ -198,7 +216,7 @@ export const PortalDashboard: React.FC = () => {
 
       <section className="grid grid-cols-1 md:grid-cols-[1fr_1fr] gap-6">
         <div className="space-y-6">
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 md:p-6">
+          <Link to="/portal/attendance" className="block bg-white rounded-2xl shadow-sm border border-gray-100 p-5 md:p-6 hover:border-emerald-200">
             <div className="flex justify-between items-center mb-5">
               <h3 className="font-bold text-gray-900 flex items-center gap-2">
                 <Calendar className="w-5 h-5 text-blue-500" /> Ringkasan Kehadiran
@@ -220,7 +238,7 @@ export const PortalDashboard: React.FC = () => {
                 </div>
               ))}
             </div>
-          </div>
+          </Link>
 
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 md:p-6">
             <div className="flex items-center justify-between mb-4">

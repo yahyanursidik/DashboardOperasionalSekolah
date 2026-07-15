@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Outlet } from "react-router-dom";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
+import { MobileBottomNav } from "./MobileBottomNav";
 import { Toaster } from "sonner";
 
 export const AdminLayout: React.FC = () => {
@@ -29,7 +30,7 @@ export const AdminLayout: React.FC = () => {
       />
       <div className="flex-1 flex flex-col min-w-0">
         <Topbar onMenuClick={() => setIsMobileMenuOpen(true)} />
-        <main className="flex-1 overflow-y-auto flex flex-col">
+        <main className="flex flex-1 flex-col overflow-y-auto pb-16 md:pb-0">
           <div className="p-4 md:p-8 max-w-7xl mx-auto w-full flex-1">
             <Outlet />
           </div>
@@ -38,6 +39,7 @@ export const AdminLayout: React.FC = () => {
           </footer>
         </main>
       </div>
+      <MobileBottomNav />
       <Toaster position="top-right" richColors />
     </div>
   );

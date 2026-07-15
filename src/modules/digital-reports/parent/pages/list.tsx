@@ -2,6 +2,7 @@ import React, { useMemo } from "react";
 import { useList } from "@refinedev/core";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import { FileText, Download, Eye, User, Clock, AlertCircle } from "lucide-react";
+import { getAssessmentBasisLabel } from "../../report-period-utils";
 
 export const ParentReportList: React.FC = () => {
   const { student } = useOutletContext<any>();
@@ -15,7 +16,7 @@ export const ParentReportList: React.FC = () => {
       { field: "student_id", operator: "eq", value: student?.id || "00000000-0000-0000-0000-000000000000" }
     ],
     meta: {
-      select: "*, students(full_name, nisn), classes(name), report_periods(name, academic_year_id, semester_id, publish_date, report_type), report_templates(name)"
+      select: "*, students(full_name, nisn), classes(name), report_periods(name, academic_year_id, semester_id, publish_date, report_type, assessment_basis), report_templates(name)"
     },
     queryOptions: { enabled: !!student?.id }
   });
@@ -68,7 +69,7 @@ export const ParentReportList: React.FC = () => {
                   <div>
                     <h3 className="font-bold text-emerald-900 line-clamp-1">{period?.name}</h3>
                     <div className="text-[10px] font-bold text-emerald-600 uppercase mt-0.5">
-                      {period?.report_type === 'pts' ? 'PTS' : period?.report_type === 'pas' ? 'PAS' : period?.report_type || 'Rapor'}
+                      {getAssessmentBasisLabel(period?.assessment_basis)}
                     </div>
                   </div>
                   {publishDate && (

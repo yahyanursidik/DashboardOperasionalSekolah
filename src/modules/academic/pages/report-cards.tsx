@@ -1,15 +1,16 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useList } from "@refinedev/core";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { Save, FilterX, FileBadge } from "lucide-react";
 import { supabaseClient } from "../../../lib/supabase/client";
 import { Link } from "react-router-dom";
+import { toast } from "sonner";
 
 export const ReportCards: React.FC = () => {
   const [selectedSemester, setSelectedSemester] = useState<string>("");
   const [selectedClass, setSelectedClass] = useState<string>("");
 
-  const { data: semesters } = useList({ resource: "semesters", pagination: { mode: "off" } });
+  const { data: semesters } = useList({ resource: "semesters", meta: { select: "*, academic_years(name)" }, pagination: { mode: "off" } });
   const { data: classes } = useList({ resource: "classes", meta: { select: "*, units(name)" }, pagination: { mode: "off" } });
 
   const { data: students, isLoading: isLoadingStudents } = useList({
@@ -24,6 +25,11 @@ export const ReportCards: React.FC = () => {
 
   const [reportCards, setReportCards] = useState<Record<string, any>>({});
   const [isSaving, setIsSaving] = useState(false);
+  const currentSemester = semesters?.data?.find((semester: any) => String(semester.id) === String(selectedSemester));
+  const availableClasses = useMemo(
+    () => (classes?.data || []).filter((item: any) => !currentSemester?.academic_year_id || item.academic_year_id === currentSemester.academic_year_id),
+    [classes?.data, currentSemester?.academic_year_id],
+  );
 
   useEffect(() => {
     if (semesters?.data) {
@@ -31,6 +37,13 @@ export const ReportCards: React.FC = () => {
       if (active && !selectedSemester) setSelectedSemester(active.id as string);
     }
   }, [semesters]);
+
+  useEffect(() => {
+    if (selectedClass && !availableClasses.some((item: any) => String(item.id) === String(selectedClass))) {
+      setSelectedClass("");
+      setReportCards({});
+    }
+  }, [availableClasses, selectedClass]);
 
   useEffect(() => {
     const fetchReportCards = async () => {
@@ -84,13 +97,13 @@ export const ReportCards: React.FC = () => {
     });
 
     try {
-      await supabaseClient.from("academic_report_cards").upsert(payload, {
+      const { error } = await supabaseClient.from("academic_report_cards").upsert(payload, {
         onConflict: "student_id, class_id, semester_id"
       });
-      alert("Berhasil menyimpan data rapor!");
-    } catch (error) {
-      console.error(error);
-      alert("Gagal menyimpan data rapor.");
+      if (error) throw error;
+      toast.success("Kelengkapan rapor berhasil disimpan.");
+    } catch (error: any) {
+      toast.error("Kelengkapan rapor belum dapat disimpan.", { description: error.message });
     } finally {
       setIsSaving(false);
     }
@@ -109,7 +122,7 @@ export const ReportCards: React.FC = () => {
             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Semester Aktif</label>
             <select value={selectedSemester} onChange={e => setSelectedSemester(e.target.value)} className="w-full border rounded-md px-3 py-2 text-sm bg-background">
               <option value="">Pilih Semester</option>
-              {semesters?.data?.map(s => <option key={s.id} value={s.id}>{s.name} {s.is_active ? "(Aktif)" : ""}</option>)}
+              {semesters?.data?.map((s: any) => <option key={s.id} value={s.id}>{s.academic_years?.name || "Tahun ajaran"} - {s.name} {s.is_active ? "(Aktif)" : ""}</option>)}
             </select>
           </div>
           
@@ -117,7 +130,7 @@ export const ReportCards: React.FC = () => {
             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Kelas</label>
             <select value={selectedClass} onChange={e => setSelectedClass(e.target.value)} className="w-full border rounded-md px-3 py-2 text-sm bg-background">
               <option value="">Pilih Kelas</option>
-              {classes?.data?.map(c => <option key={c.id} value={c.id}>{c.name} - {c.units?.name}</option>)}
+              {availableClasses.map((c: any) => <option key={c.id} value={c.id}>{c.name} - {c.units?.name}</option>)}
             </select>
           </div>
 

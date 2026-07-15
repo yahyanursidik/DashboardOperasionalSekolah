@@ -1,11 +1,17 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { PageHeader } from "../../../components/layout/PageHeader";
-import { Save, Loader2 } from "lucide-react";
+import { Save, Loader2, Plus, WalletCards } from "lucide-react";
+import { useCreate, useList } from "@refinedev/core";
 import { useSystemSettings } from "../../../app/providers/SettingsProvider";
 import { supabaseClient } from "../../../lib/supabase/client";
 import { toast } from "sonner";
+import { FinanceSectionNav } from "../components/FinanceSectionNav";
+import { useCurrentUnit } from "../../../app/providers/UnitProvider";
+
+type CashAccount = { id: string; code: string; name: string; unit_id?: string | null; account_type: string; bank_name?: string | null; account_number?: string | null; is_active?: boolean | null };
 
 export const FinanceSettings: React.FC = () => {
+  const { activeUnitId } = useCurrentUnit();
   const { financeBankName, financeAccountNumber, financeAccountName, financeWaNumber, refreshSettings } = useSystemSettings();
   
   const [formData, setFormData] = useState({
@@ -15,15 +21,23 @@ export const FinanceSettings: React.FC = () => {
     financeWaNumber: financeWaNumber || "",
   });
   const [isSaving, setIsSaving] = useState(false);
+  const [cashForm, setCashForm] = useState({ code: "", name: "", account_type: "bank", bank_name: "", account_number: "", account_holder: "", opening_balance: 0 });
+  const { data: cashAccounts } = useList<CashAccount>({ resource: "finance_cash_accounts", pagination: { mode: "off" }, sorters: [{ field: "code", order: "asc" }] });
+  const { mutate: createCashAccount, isLoading: creatingCashAccount } = useCreate();
 
-  useEffect(() => {
-    setFormData({
-      financeBankName: financeBankName,
-      financeAccountNumber: financeAccountNumber,
-      financeAccountName: financeAccountName,
-      financeWaNumber: financeWaNumber,
+  const handleCreateCashAccount = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!activeUnitId) {
+      toast.error("Pilih satu unit sebelum menambahkan kas atau rekening.");
+      return;
+    }
+    createCashAccount({ resource: "finance_cash_accounts", values: { ...cashForm, unit_id: activeUnitId, is_active: true } }, {
+      onSuccess: () => {
+        toast.success("Kas/rekening berhasil ditambahkan.");
+        setCashForm({ code: "", name: "", account_type: "bank", bank_name: "", account_number: "", account_holder: "", opening_balance: 0 });
+      },
     });
-  }, [financeBankName, financeAccountNumber, financeAccountName, financeWaNumber]);
+  };
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -44,8 +58,8 @@ export const FinanceSettings: React.FC = () => {
       
       toast.success("Pengaturan keuangan berhasil disimpan");
       refreshSettings();
-    } catch (err: any) {
-      toast.error(err.message || "Terjadi kesalahan");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Terjadi kesalahan");
     } finally {
       setIsSaving(false);
     }
@@ -57,6 +71,7 @@ export const FinanceSettings: React.FC = () => {
         title="Pengaturan Keuangan"
         description="Kelola informasi rekening bank dan kontak konfirmasi pembayaran."
       />
+      <FinanceSectionNav />
       <div className="bg-card rounded-xl border shadow-sm p-6 md:p-8">
         <div className="max-w-2xl space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
           <div>
@@ -102,6 +117,22 @@ export const FinanceSettings: React.FC = () => {
                   />
                 </div>
               </div>
+            </div>
+
+            <div className="p-5 border rounded-xl bg-card space-y-4">
+              <div><h4 className="font-semibold text-sm flex items-center gap-2"><WalletCards className="h-4 w-4 text-primary" /> Daftar Kas & Rekening</h4><p className="mt-1 text-xs text-muted-foreground">Dipakai saat penerimaan, pengeluaran, dan buku kas.</p></div>
+              <div className="divide-y rounded-md border">
+                {(cashAccounts?.data || []).filter((account) => !activeUnitId || !account.unit_id || account.unit_id === activeUnitId).map((account) => (
+                  <div key={account.id} className="flex items-center justify-between gap-3 p-3 text-sm"><div><p className="font-semibold">{account.code} - {account.name}</p><p className="mt-1 text-xs text-muted-foreground">{account.account_type === "cash" ? "Kas tunai" : `${account.bank_name || account.account_type} · ${account.account_number || "Nomor belum diisi"}`}</p></div><span className={`rounded-full px-2 py-1 text-[10px] font-bold uppercase ${account.is_active ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-600"}`}>{account.is_active ? "Aktif" : "Nonaktif"}</span></div>
+                ))}
+              </div>
+              <form onSubmit={handleCreateCashAccount} className="space-y-3 rounded-md bg-muted/30 p-4">
+                <p className="text-sm font-semibold">Tambah Kas/Rekening</p>
+                <div className="grid gap-3 sm:grid-cols-[120px_1fr]"><input required value={cashForm.code} onChange={(event) => setCashForm({ ...cashForm, code: event.target.value.toUpperCase() })} placeholder="Kode" className="rounded-md border bg-background px-3 py-2 text-sm font-mono" /><input required value={cashForm.name} onChange={(event) => setCashForm({ ...cashForm, name: event.target.value })} placeholder="Nama kas atau rekening" className="rounded-md border bg-background px-3 py-2 text-sm" /></div>
+                <div className="grid gap-3 sm:grid-cols-2"><select value={cashForm.account_type} onChange={(event) => setCashForm({ ...cashForm, account_type: event.target.value })} className="rounded-md border bg-background px-3 py-2 text-sm"><option value="cash">Kas Tunai</option><option value="bank">Rekening Bank</option><option value="qris">QRIS</option><option value="virtual_account">Virtual Account</option></select><input type="number" min={0} value={cashForm.opening_balance} onChange={(event) => setCashForm({ ...cashForm, opening_balance: Number(event.target.value) })} placeholder="Saldo awal" className="rounded-md border bg-background px-3 py-2 text-sm" /></div>
+                {cashForm.account_type !== "cash" && <div className="grid gap-3 sm:grid-cols-2"><input value={cashForm.bank_name} onChange={(event) => setCashForm({ ...cashForm, bank_name: event.target.value })} placeholder="Nama bank/penyedia" className="rounded-md border bg-background px-3 py-2 text-sm" /><input value={cashForm.account_number} onChange={(event) => setCashForm({ ...cashForm, account_number: event.target.value })} placeholder="Nomor rekening/merchant" className="rounded-md border bg-background px-3 py-2 text-sm" /></div>}
+                <div className="flex justify-end"><button disabled={creatingCashAccount} className="inline-flex items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm font-semibold hover:bg-muted disabled:opacity-50"><Plus className="h-4 w-4" /> Tambahkan</button></div>
+              </form>
             </div>
 
             <div className="p-5 border rounded-xl bg-card space-y-4">

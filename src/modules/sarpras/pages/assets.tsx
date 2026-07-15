@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect } from "react";
 import { useTable, useCreate, useUpdate, useDelete, useList } from "@refinedev/core";
 import { 
@@ -6,8 +7,11 @@ import {
   CheckCircle2, AlertTriangle, AlertCircle, BookmarkIcon,
   Monitor, Car, Armchair, Box, HelpCircle
 } from "lucide-react";
+import { toast } from "sonner";
+import { useCurrentUnit } from "../../../app/providers/UnitProvider";
 
 export const AssetsList: React.FC<{ isTabMode?: boolean }> = ({ isTabMode }) => {
+  const { activeUnitId } = useCurrentUnit();
   const [activeTab, setActiveTab] = useState("Semua");
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -44,16 +48,18 @@ export const AssetsList: React.FC<{ isTabMode?: boolean }> = ({ isTabMode }) => 
     if (categoryFilter) {
       newFilters.push({ field: "category", operator: "eq", value: categoryFilter });
     }
+    if (activeUnitId) newFilters.push({ field: "unit_id", operator: "eq", value: activeUnitId });
 
     setFilters(newFilters, "replace");
     setCurrent(1); // Reset to page 1 on filter change
-  }, [activeTab, debouncedSearch, categoryFilter, setFilters, setCurrent]);
+  }, [activeTab, activeUnitId, debouncedSearch, categoryFilter, setFilters, setCurrent]);
 
   const assets = tableQueryResult?.data?.data || [];
   
   // Fetch all assets for summary cards
   const { data: allAssetsData } = useList({
     resource: "assets",
+    filters: activeUnitId ? [{ field: "unit_id", operator: "eq", value: activeUnitId }] : [],
     pagination: { pageSize: 1000 },
   });
   
@@ -74,8 +80,10 @@ export const AssetsList: React.FC<{ isTabMode?: boolean }> = ({ isTabMode }) => 
   const [currentAsset, setCurrentAsset] = useState<any>(null);
   
   const [formData, setFormData] = useState({
-    code: "", name: "", category: "", condition: "Baik", location: "", purchase_price: 0, status: "Tersedia", notes: ""
+    unit_id: activeUnitId || "", room_id: "", code: "", name: "", category: "", condition: "Baik", location: "", purchase_date: "", purchase_price: 0, funding_source: "", vendor: "", warranty_until: "", useful_life_years: 0, responsible_employee_id: "", next_maintenance_date: "", status: "Tersedia", notes: ""
   });
+  const { data: roomsData } = useList({ resource: "rooms", filters: activeUnitId ? [{ field: "unit_id", operator: "eq", value: activeUnitId }] : [], pagination: { mode: "off" }, sorters: [{ field: "name", order: "asc" }] });
+  const { data: employeesData } = useList({ resource: "employees", filters: [{ field: "status", operator: "eq", value: "active" }], pagination: { mode: "off" }, sorters: [{ field: "full_name", order: "asc" }] });
 
   const CATEGORIES = ['Elektronik', 'Furnitur', 'Kendaraan', 'Ruangan', 'Lainnya'];
   const CONDITIONS = ['Baik', 'Rusak Ringan', 'Rusak Berat'];
@@ -93,16 +101,17 @@ export const AssetsList: React.FC<{ isTabMode?: boolean }> = ({ isTabMode }) => 
   };
 
   const handleOpenCreate = () => {
-    setFormData({ code: "", name: "", category: "", condition: "Baik", location: "", purchase_price: 0, status: "Tersedia", notes: "" });
+    setFormData({ unit_id: activeUnitId || "", room_id: "", code: "", name: "", category: "", condition: "Baik", location: "", purchase_date: "", purchase_price: 0, funding_source: "", vendor: "", warranty_until: "", useful_life_years: 0, responsible_employee_id: "", next_maintenance_date: "", status: "Tersedia", notes: "" });
     setIsCreateOpen(true);
   };
 
   const handleOpenEdit = (asset: any) => {
     setCurrentAsset(asset);
     setFormData({
+      unit_id: asset.unit_id || activeUnitId || "", room_id: asset.room_id || "",
       code: asset.code, name: asset.name, category: asset.category, 
       condition: asset.condition, location: asset.location || "", 
-      purchase_price: asset.purchase_price, status: asset.status, notes: asset.notes || ""
+      purchase_date: asset.purchase_date || "", purchase_price: asset.purchase_price, funding_source: asset.funding_source || "", vendor: asset.vendor || "", warranty_until: asset.warranty_until || "", useful_life_years: asset.useful_life_years || 0, responsible_employee_id: asset.responsible_employee_id || "", next_maintenance_date: asset.next_maintenance_date || "", status: asset.status, notes: asset.notes || ""
     });
     setIsEditOpen(true);
   };
@@ -119,13 +128,15 @@ export const AssetsList: React.FC<{ isTabMode?: boolean }> = ({ isTabMode }) => 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.unit_id) return toast.error("Pilih unit aktif sebelum menyimpan aset.");
+    const values = { ...formData, room_id: formData.room_id || null, responsible_employee_id: formData.responsible_employee_id || null, purchase_date: formData.purchase_date || null, warranty_until: formData.warranty_until || null, next_maintenance_date: formData.next_maintenance_date || null, useful_life_years: formData.useful_life_years || null };
     if (isCreateOpen) {
-      createAsset({ resource: "assets", values: formData }, {
-        onSuccess: () => { setIsCreateOpen(false); tableQueryResult.refetch(); }
+      createAsset({ resource: "assets", values }, {
+        onSuccess: () => { setIsCreateOpen(false); tableQueryResult.refetch(); toast.success("Aset berhasil diregistrasi."); }
       });
     } else if (isEditOpen && currentAsset) {
-      updateAsset({ resource: "assets", id: currentAsset.id, values: formData }, {
-        onSuccess: () => { setIsEditOpen(false); tableQueryResult.refetch(); }
+      updateAsset({ resource: "assets", id: currentAsset.id, values }, {
+        onSuccess: () => { setIsEditOpen(false); tableQueryResult.refetch(); toast.success("Data aset diperbarui."); }
       });
     }
   };
@@ -431,17 +442,22 @@ export const AssetsList: React.FC<{ isTabMode?: boolean }> = ({ isTabMode }) => 
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div className="space-y-1.5">
-                  <label className="text-sm font-semibold text-gray-700">Lokasi / Ruangan</label>
-                  <input value={formData.location} onChange={e => setFormData({...formData, location: e.target.value})} className="flex w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none" placeholder="Mis: Lab Komputer 1" />
+                  <label className="text-sm font-semibold text-gray-700">Ruangan terdaftar</label>
+                  <select value={formData.room_id} onChange={e => { const room: any = roomsData?.data?.find((item: any) => item.id === e.target.value); setFormData({...formData, room_id: e.target.value, location: room?.name || formData.location}); }} className="flex w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-sm outline-none"><option value="">Tidak terikat ruangan</option>{roomsData?.data?.map((room: any) => <option key={room.id} value={room.id}>{room.name}</option>)}</select>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-sm font-semibold text-gray-700">Harga Beli (Rp)</label>
-                  <div className="relative">
-                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500 text-sm font-medium">Rp</span>
-                    <input type="number" min="0" value={formData.purchase_price || ''} onChange={e => setFormData({...formData, purchase_price: Number(e.target.value)})} className="flex w-full rounded-lg border border-gray-300 bg-white pl-10 pr-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none" placeholder="0" />
-                  </div>
+                  <label className="text-sm font-semibold text-gray-700">Lokasi rinci</label>
+                  <input value={formData.location} onChange={e => setFormData({...formData, location: e.target.value})} className="flex w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-sm outline-none" placeholder="Gedung/lantai/area penyimpanan" />
                 </div>
               </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5"><div className="space-y-1.5"><label className="text-sm font-semibold text-gray-700">Penanggung jawab</label><select value={formData.responsible_employee_id} onChange={e => setFormData({...formData, responsible_employee_id: e.target.value})} className="flex w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-sm"><option value="">Belum ditentukan</option>{employeesData?.data?.map((employee: any) => <option key={employee.id} value={employee.id}>{employee.full_name}</option>)}</select></div><div className="space-y-1.5"><label className="text-sm font-semibold text-gray-700">Tanggal perolehan</label><input type="date" value={formData.purchase_date} onChange={e => setFormData({...formData, purchase_date: e.target.value})} className="flex w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-sm" /></div></div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5"><div className="space-y-1.5"><label className="text-sm font-semibold text-gray-700">Harga perolehan (Rp)</label><input type="number" min="0" value={formData.purchase_price || ''} onChange={e => setFormData({...formData, purchase_price: Number(e.target.value)})} className="flex w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-sm" placeholder="0" /></div><div className="space-y-1.5"><label className="text-sm font-semibold text-gray-700">Sumber dana</label><input value={formData.funding_source} onChange={e => setFormData({...formData, funding_source: e.target.value})} className="flex w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-sm" placeholder="RKAS, yayasan, hibah, BOS" /></div></div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5"><div className="space-y-1.5"><label className="text-sm font-semibold text-gray-700">Vendor</label><input value={formData.vendor} onChange={e => setFormData({...formData, vendor: e.target.value})} className="flex w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-sm" /></div><div className="space-y-1.5"><label className="text-sm font-semibold text-gray-700">Garansi sampai</label><input type="date" value={formData.warranty_until} onChange={e => setFormData({...formData, warranty_until: e.target.value})} className="flex w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-sm" /></div><div className="space-y-1.5"><label className="text-sm font-semibold text-gray-700">Masa manfaat</label><input type="number" min="0" value={formData.useful_life_years || ''} onChange={e => setFormData({...formData, useful_life_years: Number(e.target.value)})} className="flex w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-sm" placeholder="Tahun" /></div></div>
+
+              <div className="space-y-1.5"><label className="text-sm font-semibold text-gray-700">Jadwal pemeliharaan berikutnya</label><input type="date" value={formData.next_maintenance_date} onChange={e => setFormData({...formData, next_maintenance_date: e.target.value})} className="flex w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-sm" /></div>
 
               {isEditOpen && (
                 <div className="space-y-1.5">

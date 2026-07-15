@@ -1,13 +1,31 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import { supabaseClient } from "../../lib/supabase/client";
-import { Users, CheckSquare, Award, Loader2, Save } from "lucide-react";
+import { Users, CheckSquare, Award, Loader2, Save, BookOpenCheck, CircleAlert } from "lucide-react";
 import { toast } from "sonner";
 import { useAcademicYear } from "../../app/providers/AcademicYearProvider";
 import { getScheduleSubjectName } from "../schedules/schedule-utils";
+import { getAssessmentGradeTypes } from "../curriculum/assessment-policy";
 
 type AttendanceStatus = "hadir" | "izin" | "sakit" | "alpa" | "terlambat" | "pulang_awal";
-type SubjectOption = { id?: string | null; name: string };
+type SubjectOption = {
+  id?: string | null;
+  name: string;
+  curriculumStatus?: "draft" | "in_progress" | "ready" | "reviewed" | "missing";
+  weeklyHours?: number | null;
+  curriculumSemesterId?: string | null;
+  includeInReport?: boolean;
+  finalAssessmentType?: "sas" | "asat" | "none";
+  assessmentWeights?: Record<string, number>;
+};
+
+const curriculumStatusMeta = {
+  reviewed: { label: "Ditelaah", className: "border-emerald-200 bg-emerald-50 text-emerald-700" },
+  ready: { label: "Siap", className: "border-emerald-200 bg-emerald-50 text-emerald-700" },
+  in_progress: { label: "Sedang disusun", className: "border-amber-200 bg-amber-50 text-amber-700" },
+  draft: { label: "Draf", className: "border-gray-200 bg-gray-50 text-gray-600" },
+  missing: { label: "Belum tersedia", className: "border-red-200 bg-red-50 text-red-700" },
+} as const;
 
 const attendanceOptions: Array<{ value: AttendanceStatus; label: string }> = [
   { value: "hadir", label: "Hadir" },
@@ -15,13 +33,7 @@ const attendanceOptions: Array<{ value: AttendanceStatus; label: string }> = [
   { value: "izin", label: "Izin" },
   { value: "alpa", label: "Alpa" },
   { value: "terlambat", label: "Terlambat" },
-];
-
-const gradeTypes = [
-  { value: "tugas_1", label: "Tugas 1" },
-  { value: "tugas_2", label: "Tugas 2" },
-  { value: "uts", label: "UTS" },
-  { value: "uas", label: "UAS" },
+  { value: "pulang_awal", label: "Pulang Awal" },
 ];
 
 const getLocalDateString = () => {
@@ -46,22 +58,36 @@ export const TeacherClasses: React.FC = () => {
   const [attendanceDate, setAttendanceDate] = useState(getLocalDateString());
   const [attendanceValues, setAttendanceValues] = useState<Record<string, AttendanceStatus>>({});
   const [selectedSubjectId, setSelectedSubjectId] = useState("");
-  const [gradeType, setGradeType] = useState("tugas_1");
+  const [gradeType, setGradeType] = useState("formatif");
   const [gradeValues, setGradeValues] = useState<Record<string, string>>({});
+  const [activeSemesterName, setActiveSemesterName] = useState<string>();
+
+  useEffect(() => {
+    const loadActiveSemester = async () => {
+      if (!activeSemesterId) {
+        setActiveSemesterName(undefined);
+        return;
+      }
+      const { data } = await supabaseClient.from("semesters").select("name").eq("id", activeSemesterId).maybeSingle();
+      setActiveSemesterName((data as any)?.name || undefined);
+    };
+    void loadActiveSemester();
+  }, [activeSemesterId]);
 
   useEffect(() => {
     const fetchClasses = async () => {
       try {
         let scheduleQuery = supabaseClient
           .from("employee_schedules")
-          .select("class_id, subject_id, subject, classes(id, name, level, capacity, homeroom_teacher_id, unit_id), subjects(id, name)")
+          .select("class_id, subject_id, subject, classes(id, name, level, grade_level, capacity, homeroom_teacher_id, unit_id), subjects(id, name)")
           .eq("employee_id", employee.id);
         if (activeYearId) scheduleQuery = scheduleQuery.eq("academic_year_id", activeYearId);
+        if (activeSemesterId) scheduleQuery = scheduleQuery.eq("semester_id", activeSemesterId);
 
         const { data: schedules } = await scheduleQuery;
         const { data: homeroomClasses } = await supabaseClient
           .from("classes")
-          .select("id, name, level, capacity, homeroom_teacher_id, unit_id")
+          .select("id, name, level, grade_level, capacity, homeroom_teacher_id, unit_id")
           .eq("homeroom_teacher_id", employee.id);
 
         const map = new Map<string, any>();
@@ -80,7 +106,45 @@ export const TeacherClasses: React.FC = () => {
           map.set(cls.id, map.get(cls.id) ?? { ...cls, _subjects: [] });
         });
 
-        setClasses(Array.from(map.values()).sort((a, b) => String(a.name).localeCompare(String(b.name))));
+        const classRows = Array.from(map.values());
+        const subjectIds = [...new Set<string>(
+          classRows.flatMap((cls) => (cls._subjects || []).map((subject: SubjectOption) => subject.id).filter(Boolean)),
+        )];
+        if (activeYearId && activeSemesterId && subjectIds.length > 0) {
+          const { data: curriculumRows, error: curriculumError } = await supabaseClient
+            .from("subject_curriculums")
+            .select("id, subject_id, grade_level, subject_curriculum_semesters(id, semester_id, status, weekly_hours, include_in_report, final_assessment_type, assessment_weights)")
+            .eq("academic_year_id", activeYearId)
+            .in("subject_id", subjectIds);
+
+          if (curriculumError) {
+            console.error("Teacher curriculum readiness error:", curriculumError);
+          } else {
+            const availableCurriculums = (curriculumRows || []) as any[];
+            classRows.forEach((cls) => {
+              const gradeLevel = Number(cls.grade_level || cls.level);
+              cls._subjects = (cls._subjects || []).map((subject: SubjectOption) => {
+                const curriculum = availableCurriculums.find(
+                  (row: any) => String(row.subject_id) === String(subject.id) && Number(row.grade_level) === gradeLevel,
+                );
+                const semesterPlan = curriculum?.subject_curriculum_semesters?.find(
+                  (plan: any) => String(plan.semester_id) === String(activeSemesterId),
+                );
+                return {
+                  ...subject,
+                  curriculumStatus: semesterPlan?.status || "missing",
+                  weeklyHours: semesterPlan?.weekly_hours ?? null,
+                  curriculumSemesterId: semesterPlan?.id || null,
+                  includeInReport: semesterPlan?.include_in_report !== false,
+                  finalAssessmentType: semesterPlan?.final_assessment_type,
+                  assessmentWeights: semesterPlan?.assessment_weights,
+                };
+              });
+            });
+          }
+        }
+
+        setClasses(classRows.sort((a, b) => String(a.name).localeCompare(String(b.name))));
       } catch (err) {
         console.error(err);
       } finally {
@@ -88,7 +152,19 @@ export const TeacherClasses: React.FC = () => {
       }
     };
     fetchClasses();
-  }, [activeYearId, employee.id]);
+  }, [activeSemesterId, activeYearId, employee.id]);
+
+  const selectedSubjectOffering = useMemo(
+    () => (selectedClass?._subjects || []).find((subject: SubjectOption) => String(subject.id) === String(selectedSubjectId)),
+    [selectedClass, selectedSubjectId],
+  );
+  const gradeTypes = useMemo(
+    () => getAssessmentGradeTypes({
+      final_assessment_type: selectedSubjectOffering?.finalAssessmentType,
+      assessment_weights: selectedSubjectOffering?.assessmentWeights,
+    }, activeSemesterName),
+    [activeSemesterName, selectedSubjectOffering?.assessmentWeights, selectedSubjectOffering?.finalAssessmentType],
+  );
 
   useEffect(() => {
     const fetchExistingGrades = async () => {
@@ -153,7 +229,7 @@ export const TeacherClasses: React.FC = () => {
     setAttendanceValues({});
     setGradeValues({});
     setSelectedSubjectId("");
-    setGradeType("tugas_1");
+    setGradeType("formatif");
   };
 
   const openClassAction = async (cls: any, type: "attendance" | "grades") => {
@@ -163,9 +239,12 @@ export const TeacherClasses: React.FC = () => {
     setAttendanceDate(getLocalDateString());
     setAttendanceValues({});
     setGradeValues({});
-    setGradeType("tugas_1");
-
     const firstSubject = (cls._subjects || []).find((subject: SubjectOption) => subject.id);
+    const firstGradeTypes = getAssessmentGradeTypes({
+      final_assessment_type: firstSubject?.finalAssessmentType,
+      assessment_weights: firstSubject?.assessmentWeights,
+    }, activeSemesterName);
+    setGradeType(firstGradeTypes[0]?.value || "formatif");
     setSelectedSubjectId(type === "grades" ? (firstSubject?.id || "") : "");
 
     try {
@@ -258,6 +337,7 @@ export const TeacherClasses: React.FC = () => {
         subject_id: selectedSubjectId,
         class_id: selectedClass.id,
         semester_id: activeSemesterId,
+        subject_curriculum_semester_id: selectedSubjectOffering?.curriculumSemesterId || null,
         grade_type: gradeType,
         score: gradeValues[student.id]?.trim(),
       }))
@@ -319,13 +399,45 @@ export const TeacherClasses: React.FC = () => {
                 </h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
                   Tingkat: {cls.level}
-                  {cls._subjects?.length > 0 && ` - ${cls._subjects.map((subject: SubjectOption) => subject.name).join(", ")}`}
                 </p>
               </div>
               <div className="bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-bold shrink-0">
                 {cls.capacity} Siswa
               </div>
             </div>
+
+            {cls._subjects?.length > 0 && (
+              <div className="space-y-2 border-b px-4 py-3">
+                <div className="flex items-center gap-2 text-xs font-bold text-gray-700">
+                  <BookOpenCheck className="h-4 w-4 text-emerald-600" />
+                  Perangkat Semester Aktif
+                </div>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {cls._subjects.map((subject: SubjectOption) => {
+                    const status = curriculumStatusMeta[subject.curriculumStatus || "missing"];
+                    return (
+                      <div key={`${subject.id || subject.name}-curriculum`} className="flex min-w-0 items-center justify-between gap-3 rounded-md border bg-white px-3 py-2">
+                        <div className="min-w-0">
+                          <p className="truncate text-xs font-bold text-gray-900">{subject.name}</p>
+                          <p className="text-[10px] text-gray-500">
+                            {subject.weeklyHours ? `${subject.weeklyHours} JP/minggu` : "JP belum ditetapkan"}
+                            {subject.finalAssessmentType ? ` | ${subject.finalAssessmentType === "none" ? "Tanpa ujian akhir" : subject.finalAssessmentType.toUpperCase()}` : ""}
+                            {subject.includeInReport === false ? " | Laporan terpisah" : " | Masuk rapor"}
+                          </p>
+                        </div>
+                        <span className={`shrink-0 rounded-md border px-2 py-1 text-[10px] font-bold ${status.className}`}>{status.label}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+                {cls._subjects.some((subject: SubjectOption) => subject.curriculumStatus === "missing") && (
+                  <p className="flex items-start gap-1.5 text-[11px] leading-4 text-red-700">
+                    <CircleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                    Hubungi koordinator kurikulum sebelum melanjutkan pembelajaran mapel yang belum memiliki perangkat semester.
+                  </p>
+                )}
+              </div>
+            )}
             
             <div className="grid grid-cols-2 divide-x">
               <button 
@@ -394,7 +506,12 @@ export const TeacherClasses: React.FC = () => {
                         <label className="block text-xs font-bold text-gray-700 mb-1 uppercase">Mata Pelajaran</label>
                         <select
                           value={selectedSubjectId}
-                          onChange={(event) => setSelectedSubjectId(event.target.value)}
+                          onChange={(event) => {
+                            setSelectedSubjectId(event.target.value);
+                            const offering = (selectedClass._subjects || []).find((subject: SubjectOption) => String(subject.id) === event.target.value);
+                            const nextTypes = getAssessmentGradeTypes({ final_assessment_type: offering?.finalAssessmentType, assessment_weights: offering?.assessmentWeights }, activeSemesterName);
+                            setGradeType(nextTypes[0]?.value || "formatif");
+                          }}
                           className="w-full border rounded-lg p-2 text-sm outline-none focus:border-primary"
                         >
                           <option value="">Pilih mata pelajaran</option>
@@ -413,7 +530,7 @@ export const TeacherClasses: React.FC = () => {
                           className="w-full border rounded-lg p-2 text-sm outline-none focus:border-primary"
                         >
                           {gradeTypes.map((type) => (
-                            <option key={type.value} value={type.value}>{type.label}</option>
+                            <option key={type.value} value={type.value}>{type.label} ({type.weight}%)</option>
                           ))}
                         </select>
                       </div>

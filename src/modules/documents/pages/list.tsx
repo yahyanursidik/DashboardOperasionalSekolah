@@ -1,140 +1,23 @@
-import React, { useState } from "react";
-import { useList } from "@refinedev/core";
-import { Link, useNavigate } from "react-router-dom";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import React, { useEffect, useState } from "react";
+import { useTable } from "@refinedev/core";
+import { Link } from "react-router-dom";
+import { AlertCircle, CheckCircle2, ChevronLeft, ChevronRight, Clock3, Eye, FileText, Search, UploadCloud } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
-import { FolderOpen, UploadCloud, Filter, CheckCircle2, AlertCircle, Clock } from "lucide-react";
+import { useCurrentUnit } from "../../../app/providers/UnitProvider";
+import { OfficeSectionNav } from "../../mail/components/OfficeSectionNav";
 
-const statusConfig: Record<string, { label: string, color: string, icon: any }> = {
-  belum_lengkap: { label: "Belum Lengkap", color: "bg-slate-100 text-slate-800", icon: AlertCircle },
-  menunggu_verifikasi: { label: "Menunggu Verifikasi", color: "bg-amber-100 text-amber-800 border border-amber-200", icon: Clock },
-  valid: { label: "Valid", color: "bg-emerald-100 text-emerald-800 border border-emerald-200", icon: CheckCircle2 },
-  perlu_revisi: { label: "Perlu Revisi", color: "bg-red-100 text-red-800 border border-red-200", icon: AlertCircle },
+const statusConfig: Record<string, { label: string; tone: string; icon: typeof Clock3 }> = {
+  belum_lengkap: { label: "Belum Lengkap", tone: "bg-slate-100 text-slate-700", icon: AlertCircle }, menunggu_verifikasi: { label: "Menunggu Verifikasi", tone: "bg-amber-50 text-amber-700", icon: Clock3 }, valid: { label: "Valid", tone: "bg-emerald-50 text-emerald-700", icon: CheckCircle2 }, perlu_revisi: { label: "Perlu Revisi", tone: "bg-red-50 text-red-700", icon: AlertCircle },
 };
 
 export const DocumentsList: React.FC = () => {
-  const navigate = useNavigate();
-  const [filterOwner, setFilterOwner] = useState("");
-  const [filterStatus, setFilterStatus] = useState("");
-
-  const filters: any[] = [];
-  if (filterOwner) filters.push({ field: "owner_type", operator: "eq", value: filterOwner });
-  if (filterStatus) filters.push({ field: "status", operator: "eq", value: filterStatus });
-
-  const { data, isLoading } = useList({
-    resource: "documents",
-    meta: { select: "*, document_types(name, category), uploaded:profiles!uploaded_by(full_name)" },
-    filters,
-    sorters: [{ field: "created_at", order: "desc" }]
-  });
-
-  return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Document Vault"
-        description="Pusat penyimpanan dan verifikasi dokumen digital sekolah."
-        action={
-          <Link
-            to="/documents/create"
-            className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition-colors shadow-sm font-medium text-sm"
-          >
-            <UploadCloud className="w-4 h-4" />
-            Upload Dokumen
-          </Link>
-        }
-      />
-
-      <div className="flex gap-4 items-center bg-card p-3 rounded-xl border shadow-sm flex-wrap">
-        <Filter className="w-4 h-4 text-muted-foreground ml-2" />
-        <select 
-          value={filterOwner}
-          onChange={(e) => setFilterOwner(e.target.value)}
-          className="border rounded-md px-3 py-1.5 text-sm bg-background"
-        >
-          <option value="">Semua Pemilik</option>
-          <option value="student">Siswa</option>
-          <option value="employee">Pegawai / Guru</option>
-          <option value="school">Sekolah / Yayasan</option>
-        </select>
-        <select 
-          value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
-          className="border rounded-md px-3 py-1.5 text-sm bg-background"
-        >
-          <option value="">Semua Status</option>
-          <option value="menunggu_verifikasi">Menunggu Verifikasi</option>
-          <option value="valid">Valid</option>
-          <option value="perlu_revisi">Perlu Revisi</option>
-        </select>
-        
-        <Link to="/document-types" className="ml-auto text-sm text-primary hover:underline font-medium">
-          Kelola Master Jenis Dokumen &rarr;
-        </Link>
-      </div>
-
-      <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
-        {isLoading ? (
-          <div className="p-8 text-center text-muted-foreground animate-pulse">Memuat vault...</div>
-        ) : (
-          <table className="w-full text-sm text-left">
-            <thead className="bg-muted/50 text-muted-foreground text-xs uppercase font-medium border-b">
-              <tr>
-                <th className="px-6 py-4">File Dokumen</th>
-                <th className="px-6 py-4">Tipe Dokumen</th>
-                <th className="px-6 py-4">Pemilik Data</th>
-                <th className="px-6 py-4">Status Verifikasi</th>
-                <th className="px-6 py-4">Tanggal Upload</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {data?.data.map((doc) => {
-                const status = statusConfig[doc.status] || statusConfig['belum_lengkap'];
-                const Icon = status.icon;
-                return (
-                  <tr key={doc.id} className="hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => navigate(`/documents/show/${doc.id}`)}>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded bg-primary/10 flex items-center justify-center shrink-0">
-                          <FolderOpen className="w-4 h-4 text-primary" />
-                        </div>
-                        <div>
-                          <p className="font-medium text-foreground leading-tight truncate max-w-[200px]" title={doc.file_name}>{doc.file_name}</p>
-                          {doc.document_number && (
-                            <p className="text-xs font-mono text-blue-600 mt-1">{doc.document_number}</p>
-                          )}
-                          <p className="text-[10px] text-muted-foreground mt-0.5 uppercase tracking-wide">
-                            {doc.document_date ? `Tgl: ${new Date(doc.document_date).toLocaleDateString('id-ID')} • ` : ""}
-                            {doc.file_size ? `${(doc.file_size / 1024).toFixed(1)} KB` : "Unknown Size"}
-                          </p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="font-medium">{doc.document_types?.name}</span>
-                      <p className="text-[10px] text-muted-foreground uppercase">{doc.document_types?.category}</p>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="px-2 py-0.5 bg-slate-100 border text-xs rounded-md uppercase">{doc.owner_type}</span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`flex items-center w-max gap-1.5 px-2.5 py-1 text-[11px] font-bold rounded-md ${status.color}`}>
-                        <Icon className="w-3.5 h-3.5" />
-                        {status.label}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-muted-foreground text-xs">
-                      {new Date(doc.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
-                      <br/>Oleh: {doc.uploaded?.full_name?.split(' ')[0] || "Unknown"}
-                    </td>
-                  </tr>
-                );
-              })}
-              {data?.data.length === 0 && (
-                <tr><td colSpan={5} className="text-center p-12 text-muted-foreground">Tidak ada dokumen di Vault yang sesuai filter.</td></tr>
-              )}
-            </tbody>
-          </table>
-        )}
-      </div>
-    </div>
-  );
+  const { activeUnitId } = useCurrentUnit(); const [owner, setOwner] = useState(""); const [status, setStatus] = useState(""); const [search, setSearch] = useState(""); const [debounced, setDebounced] = useState("");
+  useEffect(() => { const timer = setTimeout(() => setDebounced(search), 350); return () => clearTimeout(timer); }, [search]);
+  const filters: any[] = []; if (activeUnitId) filters.push({ field: "unit_id", operator: "eq", value: activeUnitId }); if (owner) filters.push({ field: "owner_type", operator: "eq", value: owner }); if (status) filters.push({ field: "status", operator: "eq", value: status }); if (debounced) filters.push({ operator: "or", value: [{ field: "file_name", operator: "contains", value: debounced }, { field: "document_number", operator: "contains", value: debounced }] });
+  const { tableQueryResult, current, setCurrent, pageCount } = useTable({ resource: "documents", filters: { permanent: filters }, pagination: { current: 1, pageSize: 15 }, sorters: { initial: [{ field: "created_at", order: "desc" }] }, meta: { select: "*,document_types(name,category,classification_code),units(name),uploaded:profiles!uploaded_by(full_name)" } }); const rows = tableQueryResult.data?.data || [];
+  return <div className="space-y-6"><PageHeader title="Arsip Dokumen Sekolah" description="Pusat arsip digital terverifikasi untuk dokumen siswa, pegawai, unit, sekolah, dan yayasan." action={<Link to="/documents/create" className="flex items-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground"><UploadCloud className="h-4 w-4" />Unggah Dokumen</Link>} /><OfficeSectionNav />
+    <div className="grid gap-3 rounded-lg border bg-card p-3 sm:grid-cols-[minmax(0,1fr)_180px_190px]"><label className="relative"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Cari nama file atau nomor dokumen" className="h-10 w-full rounded-md border bg-background pl-9 pr-3 text-sm" /></label><select value={owner} onChange={(event) => setOwner(event.target.value)} className="h-10 rounded-md border bg-background px-3 text-sm"><option value="">Semua pemilik</option><option value="student">Siswa</option><option value="employee">Pegawai</option><option value="school">Sekolah/Yayasan</option></select><select value={status} onChange={(event) => setStatus(event.target.value)} className="h-10 rounded-md border bg-background px-3 text-sm"><option value="">Semua status</option><option value="menunggu_verifikasi">Menunggu verifikasi</option><option value="valid">Valid</option><option value="perlu_revisi">Perlu revisi</option></select></div>
+    <div className="overflow-hidden rounded-lg border bg-card"><div className="overflow-x-auto"><table className="w-full min-w-[960px] text-left text-sm"><thead className="border-b bg-muted/40 text-xs uppercase text-muted-foreground"><tr><th className="px-4 py-3">Dokumen</th><th className="px-4 py-3">Jenis / klasifikasi</th><th className="px-4 py-3">Unit / pemilik</th><th className="px-4 py-3">Masa berlaku</th><th className="px-4 py-3">Verifikasi</th><th className="px-4 py-3">Arsip</th><th className="px-4 py-3 text-right">Buka</th></tr></thead><tbody className="divide-y">{tableQueryResult.isLoading ? <tr><td colSpan={7} className="h-48 text-center">Memuat arsip dokumen...</td></tr> : rows.map((doc: any) => { const state = statusConfig[doc.status] || statusConfig.belum_lengkap; const Icon = state.icon; const expired = doc.expiry_date && new Date(doc.expiry_date) < new Date(); return <tr key={doc.id} className="hover:bg-muted/20"><td className="px-4 py-3"><div className="flex items-center gap-3"><div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary/10"><FileText className="h-4 w-4 text-primary" /></div><div className="min-w-0"><p className="max-w-60 truncate font-semibold">{doc.file_name}</p><p className="mt-1 text-xs text-muted-foreground">{doc.document_number || "Tanpa nomor"} - Versi {doc.version_number || 1}</p></div></div></td><td className="px-4 py-3"><p className="font-medium">{doc.document_types?.name}</p><p className="mt-1 text-xs text-muted-foreground">{doc.document_types?.classification_code || "Belum diklasifikasi"}</p></td><td className="px-4 py-3"><p>{doc.units?.name || "Lintas unit"}</p><p className="mt-1 text-xs uppercase text-muted-foreground">{doc.owner_type}</p></td><td className="px-4 py-3"><span className={expired ? "font-bold text-red-600" : ""}>{doc.expiry_date ? new Date(doc.expiry_date).toLocaleDateString("id-ID") : "Tanpa batas"}</span></td><td className="px-4 py-3"><span className={`inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-semibold ${state.tone}`}><Icon className="h-3.5 w-3.5" />{state.label}</span></td><td className="px-4 py-3"><span className="rounded bg-muted px-2 py-1 text-xs font-semibold">{doc.archive_status || "active"}</span>{doc.legal_hold && <p className="mt-1 text-[10px] font-bold text-blue-700">LEGAL HOLD</p>}</td><td className="px-4 py-3 text-right"><Link to={`/documents/show/${doc.id}`} className="inline-flex rounded-md border p-2 text-primary"><Eye className="h-4 w-4" /></Link></td></tr>; })}{!tableQueryResult.isLoading && rows.length === 0 && <tr><td colSpan={7} className="h-48 text-center text-muted-foreground">Tidak ada dokumen sesuai filter.</td></tr>}</tbody></table></div>{pageCount > 1 && <div className="flex items-center justify-between border-t px-4 py-3 text-sm"><span>Halaman {current} dari {pageCount}</span><div className="flex gap-2"><button disabled={current === 1} onClick={() => setCurrent(current - 1)} className="rounded border p-2 disabled:opacity-40"><ChevronLeft className="h-4 w-4" /></button><button disabled={current === pageCount} onClick={() => setCurrent(current + 1)} className="rounded border p-2 disabled:opacity-40"><ChevronRight className="h-4 w-4" /></button></div></div>}</div>
+  </div>;
 };

@@ -1,13 +1,21 @@
-import React, { useEffect, useState } from "react";
-import { useOutletContext, Link } from "react-router-dom";
-import { supabaseClient } from "../../lib/supabase/client";
-import { BookOpen, Award, FileText, Download } from "lucide-react";
+import React, { useEffect, useMemo, useState } from "react";
+import { Link, useOutletContext } from "react-router-dom";
+import { BookOpen, Download } from "lucide-react";
 import { useAcademicYear } from "../../app/providers/AcademicYearProvider";
+import { supabaseClient } from "../../lib/supabase/client";
+import { calculateFinalScore, getAssessmentGradeTypes, getFinalAssessmentType } from "../curriculum/assessment-policy";
 import { LessonSchedulePanel } from "../schedules/components/LessonSchedulePanel";
+
+const LEGACY_GRADE_TYPES: Record<string, string> = {
+  tugas_1: "formatif",
+  tugas_2: "sumatif_lingkup",
+  uts: "sts",
+  uas: "semester_final",
+};
 
 export const PortalAcademic: React.FC = () => {
   const { student } = useOutletContext<any>();
-  const { activeYearId } = useAcademicYear();
+  const { activeYearId, activeSemesterId } = useAcademicYear();
   const [grades, setGrades] = useState<any[]>([]);
   const [schedules, setSchedules] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -15,23 +23,17 @@ export const PortalAcademic: React.FC = () => {
 
   useEffect(() => {
     const fetchGrades = async () => {
-      try {
-        const { data } = await supabaseClient
-          .from("academic_grades")
-          .select("*, subjects(name, category)")
-          .eq("student_id", student.id)
-          .order("academic_year", { ascending: false })
-          .order("semester", { ascending: false });
-        
-        if (data) setGrades(data);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setIsLoading(false);
-      }
+      setIsLoading(true);
+      const { data, error } = await supabaseClient
+        .from("academic_grades")
+        .select("id, subject_id, semester_id, grade_type, score, created_at, subjects(name, category), semesters(name, academic_years(name)), subject_curriculum_semesters(include_in_report, final_assessment_type, assessment_weights)")
+        .eq("student_id", student.id)
+        .order("created_at", { ascending: false });
+      if (error) console.error("Parent grade history error:", error);
+      setGrades((data || []) as any[]);
+      setIsLoading(false);
     };
-
-    fetchGrades();
+    void fetchGrades();
   }, [student.id]);
 
   useEffect(() => {
@@ -42,7 +44,6 @@ export const PortalAcademic: React.FC = () => {
           setSchedules([]);
           return;
         }
-
         let query = supabaseClient
           .from("employee_schedules")
           .select("id, day_of_week, start_time, end_time, schedule_type, subject, subject_id, unit_id, class_id, classes(name, unit_id, units(name)), units(name), subjects(name), employees(full_name)")
@@ -50,7 +51,7 @@ export const PortalAcademic: React.FC = () => {
           .eq("schedule_type", "mengajar")
           .order("start_time");
         if (activeYearId) query = query.eq("academic_year_id", activeYearId);
-
+        if (activeSemesterId) query = query.eq("semester_id", activeSemesterId);
         const { data } = await query;
         setSchedules(data || []);
       } catch (error) {
@@ -59,35 +60,56 @@ export const PortalAcademic: React.FC = () => {
         setIsSchedulesLoading(false);
       }
     };
+    void fetchSchedules();
+  }, [activeSemesterId, activeYearId, student?.class_id]);
 
-    fetchSchedules();
-  }, [activeYearId, student?.class_id]);
+  const periods = useMemo(() => {
+    const periodMap = new Map<string, any>();
+    grades.forEach((grade) => {
+      const semester = grade.semesters;
+      const yearName = semester?.academic_years?.name || "Tahun ajaran";
+      const semesterName = semester?.name || "Semester";
+      const periodKey = String(grade.semester_id);
+      const period = periodMap.get(periodKey) || { id: periodKey, label: `${yearName} - Semester ${semesterName}`, subjects: new Map<string, any>() };
+      const subjectKey = String(grade.subject_id);
+      const plan = grade.subject_curriculum_semesters;
+      if (plan?.include_in_report === false) return;
+      const subject = period.subjects.get(subjectKey) || {
+        id: subjectKey,
+        name: grade.subjects?.name || "Mata Pelajaran",
+        category: grade.subjects?.category,
+        plan,
+        scores: {},
+      };
+      const normalizedType = LEGACY_GRADE_TYPES[grade.grade_type] || grade.grade_type;
+      const finalType = getFinalAssessmentType(plan, semesterName);
+      const scoreKey = normalizedType === "semester_final" ? finalType : normalizedType;
+      subject.scores[scoreKey] = grade.score;
+      period.subjects.set(subjectKey, subject);
+      periodMap.set(periodKey, period);
+    });
 
-  if (isLoading) {
-    return <div className="p-6 text-center text-muted-foreground animate-pulse">Memuat data akademik...</div>;
-  }
+    return Array.from(periodMap.values()).map((period) => ({
+      ...period,
+      subjects: Array.from(period.subjects.values()).map((subject: any) => {
+        const semesterName = period.label.toLowerCase().includes("genap") ? "Genap" : "Ganjil";
+        const components = getAssessmentGradeTypes(subject.plan, semesterName);
+        return {
+          ...subject,
+          components,
+          finalType: getFinalAssessmentType(subject.plan, semesterName),
+          finalScore: calculateFinalScore(subject.scores, subject.plan, semesterName),
+        };
+      }).sort((a: any, b: any) => a.name.localeCompare(b.name)),
+    }));
+  }, [grades]);
 
-  // Group grades by academic year and semester
-  const groupedGrades = grades.reduce((acc, grade) => {
-    const term = `${grade.academic_year} - Semester ${grade.semester}`;
-    if (!acc[term]) acc[term] = [];
-    acc[term].push(grade);
-    return acc;
-  }, {} as Record<string, any[]>);
-
-  const getPredikat = (score: number) => {
-    if (score >= 90) return 'A';
-    if (score >= 80) return 'B';
-    if (score >= 70) return 'C';
-    return 'D';
-  };
-
-  const isPaud = student.level === 'PAUD';
+  const isPaud = String(student.level || "").toLowerCase().includes("paud");
 
   return (
-    <div className="p-4 space-y-6">
-      <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2 mb-2">
-        <BookOpen className="w-6 h-6 text-emerald-600" /> Nilai & e-Rapor
+    <div className="space-y-6 p-4">
+      <h2 className="flex items-center gap-2 text-xl font-bold text-gray-900">
+        <BookOpen className="h-6 w-6 text-emerald-600" /> Nilai & e-Rapor
       </h2>
 
       <LessonSchedulePanel
@@ -100,57 +122,38 @@ export const PortalAcademic: React.FC = () => {
         compact
       />
 
-      {Object.keys(groupedGrades).length === 0 ? (
-        <div className="bg-gray-50 rounded-xl border border-dashed p-8 text-center text-gray-500">
-          <p>Belum ada riwayat nilai akademik.</p>
-        </div>
+      {isLoading ? <div className="p-8 text-center text-sm text-muted-foreground">Memuat riwayat nilai...</div> : periods.length === 0 ? (
+        <div className="rounded-md border border-dashed bg-gray-50 p-8 text-center text-gray-500">Belum ada riwayat nilai akademik yang dapat ditampilkan.</div>
       ) : (
-        <div className="space-y-6">
-          {(Object.entries(groupedGrades) as [string, any[]][]).map(([term, termGrades]) => (
-            <div key={term} className="bg-white border rounded-xl shadow-sm overflow-hidden">
-              <div className="bg-emerald-50 px-4 py-3 border-b flex justify-between items-center">
-                <h3 className="font-bold text-emerald-900">{term}</h3>
-                <Link
-                  to={`/academic/report-cards/${student.id}/print`}
-                  className="flex items-center gap-1.5 text-xs font-semibold bg-emerald-600 text-white px-3 py-1.5 rounded-md hover:bg-emerald-700 transition-colors"
-                >
-                  <Download className="w-3.5 h-3.5" /> e-Rapor
+        <div className="space-y-5">
+          {periods.map((period) => (
+            <section key={period.id} className="overflow-hidden rounded-md border bg-white shadow-sm">
+              <div className="flex flex-col gap-3 border-b bg-emerald-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <h3 className="font-bold text-emerald-900">{period.label}</h3>
+                <Link to="/portal/reports" className="inline-flex items-center justify-center gap-1.5 rounded-md bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700">
+                  <Download className="h-3.5 w-3.5" /> Buka e-Rapor
                 </Link>
               </div>
-
               <div className="divide-y">
-                {termGrades.map((g: any) => (
-                  <div key={g.id} className="p-4 flex items-center justify-between hover:bg-gray-50">
-                    <div>
-                      <div className="font-semibold text-gray-900">{g.subjects?.name}</div>
-                      <div className="text-xs text-muted-foreground">{g.subjects?.category}</div>
+                {period.subjects.map((subject: any) => {
+                  const qualitative = Object.values(subject.scores).filter(Boolean).at(-1);
+                  return (
+                    <div key={subject.id} className="grid gap-3 p-4 sm:grid-cols-[1fr_auto] sm:items-center">
+                      <div>
+                        <p className="font-semibold text-gray-900">{subject.name}</p>
+                        <p className="mt-1 text-xs text-gray-500">{subject.category || "Akademik"} | {subject.finalType === "none" ? "Tanpa asesmen akhir" : subject.finalType.toUpperCase()}</p>
+                        <p className="mt-1 text-xs text-gray-500">{subject.components.map((component: any) => `${component.label} ${component.weight}%`).join(" | ")}</p>
+                      </div>
+                      <div className="text-left sm:text-right">
+                        <p className="text-[10px] font-bold uppercase text-gray-500">Nilai akhir</p>
+                        <p className="text-2xl font-bold text-gray-950">{isPaud ? String(qualitative || "-") : subject.finalScore ?? "-"}</p>
+                        {!isPaud && subject.finalScore === null ? <p className="text-[10px] text-amber-700">Komponen nilai belum lengkap</p> : null}
+                      </div>
                     </div>
-                    <div className="text-right">
-                      {isPaud ? (
-                        <div className={`font-bold px-2 py-1 rounded text-sm ${
-                          g.qualitative_score === 'BSB' ? 'bg-emerald-100 text-emerald-700' :
-                          g.qualitative_score === 'BSH' ? 'bg-blue-100 text-blue-700' :
-                          g.qualitative_score === 'MB' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'
-                        }`}>
-                          {g.qualitative_score}
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-3">
-                          <div className="text-2xl font-bold text-gray-900">{g.score}</div>
-                          <div className={`font-bold w-8 h-8 flex items-center justify-center rounded-full text-sm ${
-                            getPredikat(g.score) === 'A' ? 'bg-emerald-100 text-emerald-700' :
-                            getPredikat(g.score) === 'B' ? 'bg-blue-100 text-blue-700' :
-                            getPredikat(g.score) === 'C' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'
-                          }`}>
-                            {getPredikat(g.score)}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
-            </div>
+            </section>
           ))}
         </div>
       )}

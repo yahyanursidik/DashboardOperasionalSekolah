@@ -20,9 +20,20 @@ import {
   XCircle,
 } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
+import { CurriculumSectionNav } from "../components/CurriculumSectionNav";
 import { useAcademicYear } from "../../../app/providers/AcademicYearProvider";
 import { useCurrentUnit } from "../../../app/providers/UnitProvider";
-import { SD_PHASES, getRppmRows, getRpphRows } from "../subject-curriculums/sdCurriculumStructure";
+import { SD_PHASES } from "../subject-curriculums/sdCurriculumStructure";
+import {
+  getCurriculumCompletion,
+  getCurriculumRecord,
+  getPhaseReferenceRecord,
+  getSemesterLearningPlanRows,
+  getSemesterPlan,
+  getSemesterRppmRows,
+  getSubjectTargetGrades,
+  getTeacherCoverage,
+} from "../curriculum-utils";
 
 type ViewMode = "grid" | "list";
 type DirectoryFilter = "all" | "needs_teacher" | "needs_curriculum" | "ready";
@@ -68,35 +79,19 @@ function uniqueBy<T>(items: T[], getKey: (item: T) => string | undefined | null)
   return [...map.values()];
 }
 
-function parseGradeFromClassName(name?: string) {
-  if (!name) return undefined;
-  const match = name.match(/\b([1-6])\b/);
-  return match ? Number(match[1]) : undefined;
-}
-
-function getAssignmentGrade(assignment: any) {
-  return Number(assignment.classes?.grade_level) || parseGradeFromClassName(assignment.classes?.name);
-}
-
-function getTargetGrades(subject: any): number[] {
-  const grades: number[] = Array.isArray(subject.grade_levels) ? subject.grade_levels.map(Number).filter(Boolean) : [];
-  return grades.length > 0 ? grades.sort((a: number, b: number) => a - b) : [1, 2, 3, 4, 5, 6];
-}
-
-function isCurriculumReady(record: any) {
-  const hasCpAtp = Boolean(record?.cp_text && record?.atp_text);
-  const hasProta = Array.isArray(record?.prota_data) && record.prota_data.length > 0;
-  const hasProsem = Array.isArray(record?.prosem_data?.rows) && record.prosem_data.rows.length > 0;
-  const hasRppm = getRppmRows(record).length > 0;
-  const hasRpph = getRpphRows(record).length > 0;
-  return hasCpAtp && hasProta && hasProsem && hasRppm && hasRpph;
-}
-
-function getSubjectMetrics(subject: any, assignments: any[], curriculums: any[]) {
-  const targetGrades = getTargetGrades(subject);
-  const assignedGrades = new Set(assignments.map(getAssignmentGrade).filter(Boolean));
+function getSubjectMetrics(subject: any, assignments: any[], curriculums: any[], classes: any[], semesterId?: string | null) {
+  const targetGrades = getSubjectTargetGrades(subject);
+  const assignedGrades = new Set(
+    targetGrades.filter((grade) => getTeacherCoverage(assignments, classes, subject, grade).complete),
+  );
   const curriculumGrades = new Set(curriculums.map((record) => Number(record.grade_level)).filter(Boolean));
-  const readyGrades = new Set(curriculums.filter(isCurriculumReady).map((record) => Number(record.grade_level)));
+  const readyGrades = new Set(
+    targetGrades.filter((grade) => {
+      const record = getCurriculumRecord(curriculums, String(subject.id), grade);
+      const phaseRecord = getPhaseReferenceRecord(curriculums, String(subject.id), grade);
+      return getCurriculumCompletion(record, phaseRecord, semesterId).ready;
+    }),
+  );
   const missingTeacherGrades = targetGrades.filter((grade) => !assignedGrades.has(grade));
   const missingCurriculumGrades = targetGrades.filter((grade) => !curriculumGrades.has(grade));
   const uniqueTeachers = uniqueBy(assignments, (assignment) => assignment.employees?.id);
@@ -111,7 +106,10 @@ function getSubjectMetrics(subject: any, assignments: any[], curriculums: any[])
     missingCurriculumGrades,
     hasTeacherCoverage: missingTeacherGrades.length === 0 && targetGrades.length > 0,
     hasCurriculumCoverage: missingCurriculumGrades.length === 0 && targetGrades.length > 0,
-    isReady: missingTeacherGrades.length === 0 && missingCurriculumGrades.length === 0 && readyGrades.size > 0,
+    isReady:
+      missingTeacherGrades.length === 0 &&
+      missingCurriculumGrades.length === 0 &&
+      readyGrades.size === targetGrades.length,
   };
 }
 
@@ -162,18 +160,22 @@ function SubjectCard({
   subject,
   assignments,
   curriculums,
+  classes,
+  semesterId,
   isSelected,
   onSelect,
 }: {
   subject: any;
   assignments: any[];
   curriculums: any[];
+  classes: any[];
+  semesterId?: string | null;
   isSelected: boolean;
   onSelect: () => void;
 }) {
   const catKey = subject.category ?? "Lainnya";
   const cat = CATEGORY_CFG[catKey] ?? CATEGORY_CFG.Lainnya;
-  const metrics = getSubjectMetrics(subject, assignments, curriculums);
+  const metrics = getSubjectMetrics(subject, assignments, curriculums, classes, semesterId);
 
   return (
     <button
@@ -226,24 +228,21 @@ function SubjectDetailPanel({
   subject,
   assignments,
   curriculums,
+  classes,
+  semesterId,
   onClose,
   onNavigateTeacher,
 }: {
   subject: any;
   assignments: any[];
   curriculums: any[];
+  classes: any[];
+  semesterId?: string | null;
   onClose: () => void;
   onNavigateTeacher: (id: string) => void;
 }) {
-  const metrics = getSubjectMetrics(subject, assignments, curriculums);
+  const metrics = getSubjectMetrics(subject, assignments, curriculums, classes, semesterId);
   const teachers = metrics.uniqueTeachers;
-  const assignmentByGrade = new Map<number, any[]>();
-  assignments.forEach((assignment) => {
-    const grade = getAssignmentGrade(assignment);
-    if (!grade) return;
-    if (!assignmentByGrade.has(grade)) assignmentByGrade.set(grade, []);
-    assignmentByGrade.get(grade)?.push(assignment);
-  });
 
   return (
     <aside className="sticky top-4 rounded-xl border bg-card shadow-sm">
@@ -319,20 +318,22 @@ function SubjectDetailPanel({
             </h3>
             <div className="space-y-2">
               {metrics.targetGrades.map((grade) => {
-                const gradeAssignments = assignmentByGrade.get(grade) || [];
-                const curriculum = curriculums.find((record) => Number(record.grade_level) === grade);
-                const ready = isCurriculumReady(curriculum);
+                const teacherCoverage = getTeacherCoverage(assignments, classes, subject, grade);
+                const curriculum = getCurriculumRecord(curriculums, String(subject.id), grade);
+                const phaseRecord = getPhaseReferenceRecord(curriculums, String(subject.id), grade);
+                const ready = getCurriculumCompletion(curriculum, phaseRecord, semesterId).ready;
+                const semesterPlan = getSemesterPlan(curriculum, semesterId);
                 return (
                   <div key={grade} className="rounded-lg border bg-background p-3">
                     <div className="flex items-center justify-between gap-3">
                       <div>
                         <p className="font-semibold">Kelas {grade}</p>
                         <p className="text-xs text-muted-foreground">
-                          {gradeAssignments.length > 0 ? `${uniqueBy(gradeAssignments, (item) => item.employees?.id).length} guru terjadwal` : "Belum ada guru terjadwal"}
+                          {teacherCoverage.total > 0 ? `${teacherCoverage.covered}/${teacherCoverage.total} rombel memiliki pengampu` : "Belum ada rombel pada tahun aktif"}
                         </p>
                       </div>
                       <div className="flex flex-wrap justify-end gap-1.5">
-                        <StatusPill done={gradeAssignments.length > 0} label="Guru" />
+                        <StatusPill done={teacherCoverage.complete} label="Guru" />
                         <StatusPill done={Boolean(curriculum)} label="Kurikulum" />
                         <StatusPill done={ready} label="Siap" />
                       </div>
@@ -340,9 +341,9 @@ function SubjectDetailPanel({
                     {curriculum ? (
                       <div className="mt-3 grid grid-cols-4 gap-2 text-center text-xs">
                         <div className="rounded-md bg-muted/40 p-2">{curriculum.prota_data?.length || 0}<br />Prota</div>
-                        <div className="rounded-md bg-muted/40 p-2">{curriculum.prosem_data?.rows?.length || 0}<br />Promes</div>
-                        <div className="rounded-md bg-muted/40 p-2">{getRppmRows(curriculum).length}<br />RPPM</div>
-                        <div className="rounded-md bg-muted/40 p-2">{getRpphRows(curriculum).length}<br />RPPH</div>
+                        <div className="rounded-md bg-muted/40 p-2">{semesterPlan?.prosem_data?.rows?.length || 0}<br />Promes</div>
+                        <div className="rounded-md bg-muted/40 p-2">{getSemesterRppmRows(curriculum, semesterId).length}<br />RPPM</div>
+                        <div className="rounded-md bg-muted/40 p-2">{getSemesterLearningPlanRows(curriculum, semesterId).length}<br />RPPH</div>
                       </div>
                     ) : null}
                   </div>
@@ -376,7 +377,7 @@ function SubjectDetailPanel({
 export const SubjectTeacherDirectory: React.FC = () => {
   const navigate = useNavigate();
   const { activeUnitId } = useCurrentUnit();
-  const { activeYearId } = useAcademicYear();
+  const { activeYearId, activeSemesterId } = useAcademicYear();
 
   const [search, setSearch] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
@@ -400,6 +401,7 @@ export const SubjectTeacherDirectory: React.FC = () => {
     { field: "subject_id", operator: "nnull", value: null },
   ];
   if (activeYearId) scheduleFilters.push({ field: "academic_year_id", operator: "eq", value: activeYearId });
+  if (activeSemesterId) scheduleFilters.push({ field: "semester_id", operator: "eq", value: activeSemesterId });
 
   const { data: assignmentsData, isLoading: assignmentsLoading } = useList({
     resource: "employee_schedules",
@@ -410,6 +412,14 @@ export const SubjectTeacherDirectory: React.FC = () => {
     },
   });
 
+  const classFilters: any[] = [];
+  if (activeYearId) classFilters.push({ field: "academic_year_id", operator: "eq", value: activeYearId });
+  const { data: classesData, isLoading: classesLoading } = useList({
+    resource: "classes",
+    pagination: { pageSize: 1000 },
+    filters: classFilters,
+  });
+
   const curriculumFilters: any[] = [];
   if (activeYearId) curriculumFilters.push({ field: "academic_year_id", operator: "eq", value: activeYearId });
 
@@ -417,12 +427,13 @@ export const SubjectTeacherDirectory: React.FC = () => {
     resource: "subject_curriculums",
     pagination: { pageSize: 2000 },
     filters: curriculumFilters,
-    meta: { select: "*" },
+    meta: { select: "*, subject_curriculum_semesters(*)" },
   });
 
   const allSubjects = subjectsData?.data ?? [];
   const allAssignments = assignmentsData?.data ?? [];
   const allCurriculums = curriculumsData?.data ?? [];
+  const allClasses = classesData?.data ?? [];
 
   const assignmentsBySubjectId = useMemo(() => {
     const map: Record<string, any[]> = {};
@@ -450,7 +461,7 @@ export const SubjectTeacherDirectory: React.FC = () => {
     return allSubjects.filter((subject) => {
       const assignments = assignmentsBySubjectId[String(subject.id)] || [];
       const curriculums = curriculumsBySubjectId[String(subject.id)] || [];
-      const metrics = getSubjectMetrics(subject, assignments, curriculums);
+      const metrics = getSubjectMetrics(subject, assignments, curriculums, allClasses, activeSemesterId);
       const term = search.trim().toLowerCase();
       const matchesSearch = !term || subject.name?.toLowerCase().includes(term) || subject.code?.toLowerCase().includes(term);
       const matchesCategory = !filterCategory || subject.category === filterCategory;
@@ -463,19 +474,19 @@ export const SubjectTeacherDirectory: React.FC = () => {
         (workflowFilter === "ready" && metrics.isReady);
       return matchesSearch && matchesCategory && matchesUnit && matchesStatus && matchesWorkflow;
     });
-  }, [activeUnitId, allSubjects, assignmentsBySubjectId, curriculumsBySubjectId, filterCategory, filterStatus, filterUnit, search, workflowFilter]);
+  }, [activeSemesterId, activeUnitId, allClasses, allSubjects, assignmentsBySubjectId, curriculumsBySubjectId, filterCategory, filterStatus, filterUnit, search, workflowFilter]);
 
   const stats = useMemo(() => {
     const withTeachers = filteredSubjects.filter((subject) => {
       const assignments = assignmentsBySubjectId[String(subject.id)] || [];
-      return getSubjectMetrics(subject, assignments, curriculumsBySubjectId[String(subject.id)] || []).missingTeacherGrades.length === 0;
+      return getSubjectMetrics(subject, assignments, curriculumsBySubjectId[String(subject.id)] || [], allClasses, activeSemesterId).missingTeacherGrades.length === 0;
     });
     const withCurriculum = filteredSubjects.filter((subject) => {
       const curriculums = curriculumsBySubjectId[String(subject.id)] || [];
-      return getSubjectMetrics(subject, assignmentsBySubjectId[String(subject.id)] || [], curriculums).missingCurriculumGrades.length === 0;
+      return getSubjectMetrics(subject, assignmentsBySubjectId[String(subject.id)] || [], curriculums, allClasses, activeSemesterId).missingCurriculumGrades.length === 0;
     });
     const ready = filteredSubjects.filter((subject) => {
-      return getSubjectMetrics(subject, assignmentsBySubjectId[String(subject.id)] || [], curriculumsBySubjectId[String(subject.id)] || []).isReady;
+      return getSubjectMetrics(subject, assignmentsBySubjectId[String(subject.id)] || [], curriculumsBySubjectId[String(subject.id)] || [], allClasses, activeSemesterId).isReady;
     });
 
     return {
@@ -486,12 +497,12 @@ export const SubjectTeacherDirectory: React.FC = () => {
       ready: ready.length,
       totalTeachers: new Set(allAssignments.map((assignment) => assignment.employees?.id).filter(Boolean)).size,
     };
-  }, [allAssignments, assignmentsBySubjectId, curriculumsBySubjectId, filteredSubjects]);
+  }, [activeSemesterId, allAssignments, allClasses, assignmentsBySubjectId, curriculumsBySubjectId, filteredSubjects]);
 
   const selectedSubject = allSubjects.find((subject) => String(subject.id) === selectedSubjectId);
   const selectedAssignments = selectedSubject ? assignmentsBySubjectId[String(selectedSubject.id)] || [] : [];
   const selectedCurriculums = selectedSubject ? curriculumsBySubjectId[String(selectedSubject.id)] || [] : [];
-  const isLoading = subjectsLoading || assignmentsLoading || curriculumsLoading;
+  const isLoading = subjectsLoading || assignmentsLoading || curriculumsLoading || classesLoading;
 
   return (
     <div className="space-y-6">
@@ -504,6 +515,7 @@ export const SubjectTeacherDirectory: React.FC = () => {
           description="Kontrol siapa guru pengampu setiap mapel, kelas mana yang belum tertutup, dan perangkat ajar mana yang belum siap."
         />
       </div>
+      <CurriculumSectionNav />
 
       <section className="rounded-xl border bg-card p-5 shadow-sm">
         <div className="grid gap-5 lg:grid-cols-[1fr_1.1fr]">
@@ -650,6 +662,8 @@ export const SubjectTeacherDirectory: React.FC = () => {
                   subject={subject}
                   assignments={assignmentsBySubjectId[String(subject.id)] || []}
                   curriculums={curriculumsBySubjectId[String(subject.id)] || []}
+                  classes={allClasses}
+                  semesterId={activeSemesterId}
                   isSelected={String(subject.id) === selectedSubjectId}
                   onSelect={() => setSelectedSubjectId(String(subject.id) === selectedSubjectId ? null : String(subject.id))}
                 />
@@ -672,7 +686,7 @@ export const SubjectTeacherDirectory: React.FC = () => {
                   {filteredSubjects.map((subject) => {
                     const assignments = assignmentsBySubjectId[String(subject.id)] || [];
                     const curriculums = curriculumsBySubjectId[String(subject.id)] || [];
-                    const metrics = getSubjectMetrics(subject, assignments, curriculums);
+                    const metrics = getSubjectMetrics(subject, assignments, curriculums, allClasses, activeSemesterId);
                     const selected = String(subject.id) === selectedSubjectId;
                     return (
                       <tr key={subject.id} className={selected ? "bg-primary/5" : "hover:bg-muted/30"}>
@@ -706,6 +720,8 @@ export const SubjectTeacherDirectory: React.FC = () => {
             subject={selectedSubject}
             assignments={selectedAssignments}
             curriculums={selectedCurriculums}
+            classes={allClasses}
+            semesterId={activeSemesterId}
             onClose={() => setSelectedSubjectId(null)}
             onNavigateTeacher={(teacherId) => navigate(`/employees/show/${teacherId}`)}
           />

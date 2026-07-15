@@ -1,10 +1,21 @@
 import React, { useState } from "react";
-import { useList, useCreate } from "@refinedev/core";
+import { useList, useCreate, type CrudFilters } from "@refinedev/core";
 import { PageHeader } from "../../../components/layout/PageHeader";
-import { Receipt, Plus, Search, Filter, AlertCircle, CheckCircle, Clock, Banknote, CreditCard, Loader2 } from "lucide-react";
+import { Receipt, Plus, Search, Filter, AlertCircle, CheckCircle, Clock, Banknote, CreditCard, Loader2, X } from "lucide-react";
 import { useCurrentUnit } from "../../../app/providers/UnitProvider";
 import { useAcademicYear } from "../../../app/providers/AcademicYearProvider";
 import { supabaseClient } from "../../../lib/supabase/client";
+import { FinanceSectionNav } from "../components/FinanceSectionNav";
+import { belongsToFinanceUnit } from "../finance-utils";
+import { toast } from "sonner";
+
+type FinanceCategory = { id: string; name: string; is_recurring?: boolean | null; unit_id?: string | null };
+type NamedRecord = { id: string; name: string };
+type StudentRecord = { id: string; full_name: string; nis?: string | null };
+type CashAccount = { id: string; code: string; name: string; account_type: string; unit_id?: string | null };
+type FeeRate = { id: string; name: string; amount: number; category_id: string; program_id?: string | null; unit_id: string; academic_year_id: string; grade_level?: number | null; finance_programs?: { name?: string | null } | null };
+type InvoiceRecord = { id: string; student_id?: string | null; external_student_id?: string | null; title: string; amount?: number | null; discount?: number | null; paid_amount?: number | null; status: string; due_date?: string | null; students?: { full_name?: string | null; nis?: string | null } | null; external_students?: { full_name?: string | null; school_origin?: string | null } | null; finance_categories?: FinanceCategory | null };
+type InvoiceInsert = { student_id?: string | null; external_student_id?: string | null; category_id: string; program_id?: string | null; fee_rate_id?: string | null; title: string; amount: number; due_date: string; month: string | null; unit_id?: string | null; academic_year_id?: string | null; invoice_number: string; status: string };
 
 export const InvoicesList: React.FC = () => {
   const { activeUnitId } = useCurrentUnit();
@@ -14,57 +25,92 @@ export const InvoicesList: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [generateForm, setGenerateForm] = useState({ title: "", category_id: "", amount: 0, due_date: "" });
+  const [generateForm, setGenerateForm] = useState({ title: "", category_id: "", program_id: "", fee_rate_id: "", amount: 0, due_date: "", month: "" });
   
-  const [targetType, setTargetType] = useState<"all" | "ekskul">("all");
+  const [targetType, setTargetType] = useState<"all" | "class" | "student" | "ekskul">("all");
   const [ekskulId, setEkskulId] = useState("");
+  const [classId, setClassId] = useState("");
+  const [studentId, setStudentId] = useState("");
   
-  const { data: categoriesData } = useList({ resource: "finance_categories" });
-  const { data: extracurricularsData } = useList({ resource: "extracurriculars" });
+  const { data: categoriesData } = useList<FinanceCategory>({ resource: "finance_categories", filters: [{ field: "type", operator: "eq", value: "income" }], pagination: { mode: "off" } });
+  const { data: extracurricularsData } = useList<NamedRecord>({ resource: "extracurriculars", pagination: { mode: "off" } });
+  const { data: classesData } = useList<NamedRecord>({ resource: "classes", filters: activeUnitId ? [{ field: "unit_id", operator: "eq", value: activeUnitId }] : [], pagination: { mode: "off" } });
+  const studentFilters: CrudFilters = [{ field: "status", operator: "eq", value: "active" }];
+  if (activeUnitId) studentFilters.push({ field: "unit_id", operator: "eq", value: activeUnitId });
+  const { data: studentsData } = useList<StudentRecord>({
+    resource: "students",
+    filters: studentFilters,
+    pagination: { mode: "off" },
+    sorters: [{ field: "full_name", order: "asc" }],
+  });
+  const { data: cashAccountsData } = useList<CashAccount>({ resource: "finance_cash_accounts", filters: [{ field: "is_active", operator: "eq", value: true }], pagination: { mode: "off" } });
+  const { data: feeRatesData } = useList<FeeRate>({ resource: "finance_fee_rates", filters: [{ field: "is_active", operator: "eq", value: true }], meta: { select: "*, finance_programs(name)" }, pagination: { mode: "off" } });
+  const categories = (categoriesData?.data || []).filter((item) => belongsToFinanceUnit(item.unit_id, activeUnitId));
+  const cashAccounts = (cashAccountsData?.data || []).filter((item) => belongsToFinanceUnit(item.unit_id, activeUnitId));
+  const feeRates = (feeRatesData?.data || []).filter((item) => (!activeUnitId || item.unit_id === activeUnitId) && (!activeYearId || item.academic_year_id === activeYearId));
   
   // Payment / Installment Form
-  const [paymentInvoice, setPaymentInvoice] = useState<any>(null);
-  const [paymentForm, setPaymentForm] = useState({ amount_paid: 0, payment_method: "cash", notes: "" });
+  const [paymentInvoice, setPaymentInvoice] = useState<InvoiceRecord | null>(null);
+  const [paymentForm, setPaymentForm] = useState({ amount_paid: 0, payment_method: "cash", cash_account_id: "", notes: "" });
 
-  const { mutate: createInvoice } = useCreate();
   const { mutate: createPayment } = useCreate();
 
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!activeUnitId || !activeYearId) {
+      toast.error("Pilih satu unit dan tahun ajaran sebelum membuat tagihan.");
+      return;
+    }
     if (!generateForm.title || !generateForm.amount || !generateForm.category_id) {
-      alert("Harap lengkapi semua field.");
+      toast.error("Lengkapi judul, kategori, dan nominal tagihan.");
       return;
     }
     
     if (targetType === "ekskul" && !ekskulId) {
-      alert("Harap pilih program Ekstrakurikuler.");
+      toast.error("Pilih program ekstrakurikuler terlebih dahulu.");
+      return;
+    }
+    if (targetType === "class" && !classId) {
+      toast.error("Pilih kelas tujuan terlebih dahulu.");
+      return;
+    }
+    if (targetType === "student" && !studentId) {
+      toast.error("Pilih siswa terlebih dahulu.");
       return;
     }
     
     setIsGenerating(true);
     try {
-      let newInvoices: any[] = [];
+      let newInvoices: InvoiceInsert[] = [];
       
-      if (targetType === "all") {
-        // Get all active internal students for the unit
-        let query = supabaseClient.from('students').select('id').eq('status', 'AKTIF');
+      if (targetType !== "ekskul") {
+        let query = supabaseClient.from('students').select('id').eq('status', 'active');
         if (activeUnitId) query = query.eq('unit_id', activeUnitId);
+        if (targetType === "class") query = query.eq('class_id', classId);
+        if (targetType === "student") query = query.eq('id', studentId);
         
         const { data: students, error: studentErr } = await query;
         if (studentErr) throw studentErr;
 
         if (!students || students.length === 0) {
-          alert("Tidak ada siswa aktif ditemukan untuk di-generate tagihannya.");
+          toast.error("Tidak ada siswa aktif pada target yang dipilih.");
           setIsGenerating(false);
           return;
         }
 
-        newInvoices = (students as any[]).map(s => ({
+        const studentRows = students as unknown as Array<{ id: string }>;
+        newInvoices = studentRows.map((s, index) => ({
           student_id: s.id,
           category_id: generateForm.category_id,
+          program_id: generateForm.program_id || null,
+          fee_rate_id: generateForm.fee_rate_id || null,
           title: generateForm.title,
           amount: generateForm.amount,
           due_date: generateForm.due_date || new Date().toISOString().split('T')[0],
+          month: generateForm.month || null,
+          unit_id: activeUnitId,
+          academic_year_id: activeYearId,
+          invoice_number: `INV-${Date.now()}-${String(index + 1).padStart(4, '0')}`,
           status: 'unpaid'
         }));
       } else {
@@ -78,18 +124,25 @@ export const InvoicesList: React.FC = () => {
         if (membersErr) throw membersErr;
         
         if (!members || members.length === 0) {
-          alert("Tidak ada anggota aktif ditemukan di ekskul tersebut.");
+          toast.error("Tidak ada anggota aktif pada program tersebut.");
           setIsGenerating(false);
           return;
         }
         
-        newInvoices = (members as any[]).map(m => ({
+        const memberRows = members as unknown as Array<{ student_id?: string | null; external_student_id?: string | null }>;
+        newInvoices = memberRows.map((m, index) => ({
           student_id: m.student_id, // Could be null for external
           external_student_id: m.external_student_id, // Could be null for internal
           category_id: generateForm.category_id,
+          program_id: generateForm.program_id || null,
+          fee_rate_id: generateForm.fee_rate_id || null,
           title: generateForm.title,
           amount: generateForm.amount,
           due_date: generateForm.due_date || new Date().toISOString().split('T')[0],
+          month: generateForm.month || null,
+          unit_id: activeUnitId,
+          academic_year_id: activeYearId,
+          invoice_number: `INV-${Date.now()}-${String(index + 1).padStart(4, '0')}`,
           status: 'unpaid'
         }));
       }
@@ -97,15 +150,17 @@ export const InvoicesList: React.FC = () => {
       const { error: insertErr } = await supabaseClient.from('student_invoices').insert(newInvoices);
       if (insertErr) throw insertErr;
 
-      alert(`Berhasil membuat tagihan untuk ${newInvoices.length} siswa!`);
+      toast.success(`Tagihan berhasil dibuat untuk ${newInvoices.length} siswa.`);
       setIsModalOpen(false);
-      setGenerateForm({ title: "", category_id: "", amount: 0, due_date: "" });
+      setGenerateForm({ title: "", category_id: "", program_id: "", fee_rate_id: "", amount: 0, due_date: "", month: "" });
       setTargetType("all");
       setEkskulId("");
-      window.location.reload();
-    } catch (err: any) {
+      setClassId("");
+      setStudentId("");
+      refetchInvoices();
+    } catch (err: unknown) {
       console.error(err);
-      alert("Gagal men-generate tagihan: " + err.message);
+      toast.error(`Tagihan gagal dibuat: ${err instanceof Error ? err.message : "kesalahan tidak dikenal"}`);
     } finally {
       setIsGenerating(false);
     }
@@ -114,6 +169,11 @@ export const InvoicesList: React.FC = () => {
   const handlePaymentSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!paymentInvoice) return;
+    const remaining = Number(paymentInvoice.amount) - Number(paymentInvoice.discount || 0) - Number(paymentInvoice.paid_amount || 0);
+    if (paymentForm.amount_paid <= 0 || paymentForm.amount_paid > remaining) {
+      toast.error("Nominal pembayaran harus lebih dari nol dan tidak boleh melebihi sisa tagihan.");
+      return;
+    }
     
     createPayment({
       resource: "payment_transactions",
@@ -123,46 +183,31 @@ export const InvoicesList: React.FC = () => {
         external_student_id: paymentInvoice.external_student_id || null,
         amount_paid: paymentForm.amount_paid,
         payment_method: paymentForm.payment_method,
+        cash_account_id: paymentForm.cash_account_id || null,
         payment_date: new Date().toISOString().split('T')[0],
-        status: "verified", // Admin bypasses verification
+        receipt_number: `PAY-${Date.now()}`,
+        status: "verified",
         notes: paymentForm.notes
       }
     }, {
       onSuccess: () => {
         setPaymentInvoice(null);
-        alert('Pembayaran cicilan berhasil dicatat! Status tagihan akan otomatis diperbarui oleh sistem.');
-        
-        // Notifikasi Email ke Admin/Sistem
-        import("../../../lib/email").then(({ sendNotificationEmail }) => {
-          sendNotificationEmail({
-            to: "info@tslabschool.sch.id",
-            subject: `[Notifikasi Pembayaran] Tagihan ${paymentInvoice.title} Telah Dibayar`,
-            html: `
-              <h3>Notifikasi Pembayaran Baru</h3>
-              <p>Sebuah pembayaran telah berhasil diverifikasi oleh sistem.</p>
-              <ul>
-                <li><strong>Tagihan:</strong> ${paymentInvoice.title}</li>
-                <li><strong>Metode:</strong> ${paymentForm.payment_method.toUpperCase()}</li>
-                <li><strong>Nominal:</strong> Rp ${paymentForm.amount_paid.toLocaleString('id-ID')}</li>
-                <li><strong>Tanggal:</strong> ${new Date().toLocaleDateString('id-ID')}</li>
-              </ul>
-            `
-          });
-        });
+        toast.success('Pembayaran berhasil dicatat dan status tagihan diperbarui.');
       }
     });
   };
 
-  const filters: any[] = [];
+  const filters: CrudFilters = [];
   if (activeUnitId) filters.push({ field: "unit_id", operator: "eq", value: activeUnitId });
   if (activeYearId) filters.push({ field: "academic_year_id", operator: "eq", value: activeYearId });
   if (filterStatus) filters.push({ field: "status", operator: "eq", value: filterStatus });
 
-  const { data, isLoading } = useList({
+  const { data, isLoading, refetch: refetchInvoices } = useList<InvoiceRecord>({
     resource: "student_invoices",
     filters,
     meta: { select: "*, students(full_name, nis), external_students(full_name, school_origin), finance_categories(name, is_recurring)" },
-    sorters: [{ field: "created_at", order: "desc" }]
+    sorters: [{ field: "created_at", order: "desc" }],
+    pagination: { mode: "off" }
   });
 
   // Filter client-side by search
@@ -196,6 +241,7 @@ export const InvoicesList: React.FC = () => {
           </button>
         }
       />
+      <FinanceSectionNav />
 
       <div className="flex flex-col sm:flex-row gap-4 justify-between items-center bg-card p-4 rounded-xl border shadow-sm">
         <div className="relative w-full sm:w-72">
@@ -291,7 +337,8 @@ export const InvoicesList: React.FC = () => {
                             <button 
                               onClick={() => {
                                 setPaymentInvoice(inv);
-                                setPaymentForm({ amount_paid: remaining, payment_method: "cash", notes: "" });
+                                const defaultCash = cashAccounts.find((account) => account.account_type === "cash")?.id as string | undefined;
+                                setPaymentForm({ amount_paid: remaining, payment_method: "cash", cash_account_id: defaultCash || "", notes: "" });
                               }}
                               className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 rounded-md font-bold text-xs transition-colors"
                             >
@@ -316,16 +363,24 @@ export const InvoicesList: React.FC = () => {
           <div className="bg-background w-full max-w-md rounded-xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="px-6 py-4 border-b flex justify-between items-center bg-muted/30">
               <h3 className="font-bold text-lg flex items-center gap-2"><Receipt className="w-5 h-5"/> Buat Tagihan Baru</h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-muted-foreground hover:text-foreground">✕</button>
+              <button onClick={() => setIsModalOpen(false)} className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground" aria-label="Tutup"><X className="h-4 w-4" /></button>
             </div>
             <form onSubmit={handleGenerate} className="p-6 space-y-4">
               <div className="space-y-3">
                 <div>
                   <label className="block text-sm font-medium mb-2">Target Tagihan</label>
-                  <div className="flex gap-4">
+                  <div className="grid grid-cols-2 gap-2">
                     <label className="flex items-center gap-2 text-sm cursor-pointer">
                       <input type="radio" name="targetType" checked={targetType === "all"} onChange={() => setTargetType("all")} className="text-primary focus:ring-primary" />
-                      Semua Siswa Aktif (Umum)
+                      Semua Siswa Aktif
+                    </label>
+                    <label className="flex items-center gap-2 text-sm cursor-pointer">
+                      <input type="radio" name="targetType" checked={targetType === "class"} onChange={() => setTargetType("class")} className="text-primary focus:ring-primary" />
+                      Satu Kelas
+                    </label>
+                    <label className="flex items-center gap-2 text-sm cursor-pointer">
+                      <input type="radio" name="targetType" checked={targetType === "student"} onChange={() => setTargetType("student")} className="text-primary focus:ring-primary" />
+                      Siswa Tertentu
                     </label>
                     <label className="flex items-center gap-2 text-sm cursor-pointer">
                       <input type="radio" name="targetType" checked={targetType === "ekskul"} onChange={() => setTargetType("ekskul")} className="text-primary focus:ring-primary" />
@@ -346,12 +401,32 @@ export const InvoicesList: React.FC = () => {
                   </div>
                 )}
 
+                {targetType === "class" && (
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Kelas Tujuan</label>
+                    <select required value={classId} onChange={e => setClassId(e.target.value)} className="w-full border rounded-md px-3 py-2 text-sm bg-background">
+                      <option value="">Pilih kelas...</option>
+                      {classesData?.data?.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                    </select>
+                  </div>
+                )}
+
+                {targetType === "student" && (
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Siswa</label>
+                    <select required value={studentId} onChange={e => setStudentId(e.target.value)} className="w-full border rounded-md px-3 py-2 text-sm bg-background">
+                      <option value="">Pilih siswa...</option>
+                      {studentsData?.data?.map((item) => <option key={item.id} value={item.id}>{item.full_name} {item.nis ? `(${item.nis})` : ""}</option>)}
+                    </select>
+                  </div>
+                )}
+
                 {targetType === "ekskul" && (
                   <div className="animate-in slide-in-from-top-2">
                     <label className="block text-sm font-medium mb-1">Pilih Ekstrakurikuler</label>
                     <select required value={ekskulId} onChange={e => setEkskulId(e.target.value)} className="w-full border rounded-md px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary">
                       <option value="">Pilih Ekskul...</option>
-                      {extracurricularsData?.data?.map((eks: any) => (
+                      {extracurricularsData?.data?.map((eks) => (
                         <option key={eks.id} value={eks.id}>{eks.name}</option>
                       ))}
                     </select>
@@ -359,10 +434,20 @@ export const InvoicesList: React.FC = () => {
                 )}
 
                 <div>
+                  <label className="block text-sm font-medium mb-1">Master Tarif (Opsional)</label>
+                  <select value={generateForm.fee_rate_id} onChange={e => {
+                    const feeRate = feeRates.find((item) => item.id === e.target.value);
+                    setGenerateForm({ ...generateForm, fee_rate_id: e.target.value, ...(feeRate ? { title: feeRate.name, category_id: feeRate.category_id, program_id: feeRate.program_id || "", amount: Number(feeRate.amount) } : {}) });
+                  }} className="w-full border rounded-md px-3 py-2 text-sm bg-background">
+                    <option value="">Input nominal manual</option>
+                    {feeRates.map((rate) => <option key={rate.id} value={rate.id}>{rate.name}{rate.finance_programs?.name ? ` - ${rate.finance_programs.name}` : ""} (Rp {Number(rate.amount).toLocaleString("id-ID")})</option>)}
+                  </select>
+                </div>
+                <div>
                   <label className="block text-sm font-medium mb-1">Kategori Tagihan</label>
                   <select required value={generateForm.category_id} onChange={e => setGenerateForm({...generateForm, category_id: e.target.value})} className="w-full border rounded-md px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary">
                     <option value="">Pilih Kategori...</option>
-                    {categoriesData?.data?.map((cat: any) => (
+                    {categories.map((cat) => (
                       <option key={cat.id} value={cat.id}>{cat.name}</option>
                     ))}
                   </select>
@@ -380,6 +465,10 @@ export const InvoicesList: React.FC = () => {
                     <label className="block text-sm font-medium mb-1">Jatuh Tempo</label>
                     <input required type="date" value={generateForm.due_date} onChange={e => setGenerateForm({...generateForm, due_date: e.target.value})} className="w-full border rounded-md px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary" />
                   </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Periode Tagihan (Opsional)</label>
+                  <input type="month" value={generateForm.month} onChange={e => setGenerateForm({...generateForm, month: e.target.value})} className="w-full border rounded-md px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary" />
                 </div>
               </div>
               <div className="pt-4 flex justify-end gap-3">
@@ -399,7 +488,7 @@ export const InvoicesList: React.FC = () => {
           <div className="bg-background w-full max-w-md rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="px-6 py-4 border-b flex justify-between items-center bg-emerald-50 text-emerald-900">
               <h3 className="font-bold text-lg flex items-center gap-2"><CreditCard className="w-5 h-5"/> Input Pembayaran</h3>
-              <button onClick={() => setPaymentInvoice(null)} className="text-emerald-900/60 hover:text-emerald-900">✕</button>
+              <button onClick={() => setPaymentInvoice(null)} className="rounded-md p-1 text-emerald-900/60 hover:bg-emerald-100 hover:text-emerald-900" aria-label="Tutup"><X className="h-4 w-4" /></button>
             </div>
             
             <form onSubmit={handlePaymentSubmit} className="p-6 space-y-4">
@@ -417,7 +506,7 @@ export const InvoicesList: React.FC = () => {
                 </div>
                 <div className="flex justify-between border-t pt-2 mt-2">
                   <span className="text-muted-foreground">Total Sisa Tunggakan:</span>
-                  <span className="font-bold text-rose-600">Rp {((Number(paymentInvoice.amount) - Number(paymentInvoice.discount)) - Number(paymentInvoice.paid_amount)).toLocaleString('id-ID')}</span>
+                  <span className="font-bold text-rose-600">Rp {((Number(paymentInvoice.amount) - Number(paymentInvoice.discount || 0)) - Number(paymentInvoice.paid_amount || 0)).toLocaleString('id-ID')}</span>
                 </div>
               </div>
 
@@ -426,16 +515,29 @@ export const InvoicesList: React.FC = () => {
                 <div className="text-[10px] text-muted-foreground mb-1.5 flex items-center gap-1">
                   <AlertCircle className="w-3 h-3"/> Ubah nominal jika orang tua mencicil
                 </div>
-                <input required type="number" min="1" max={(Number(paymentInvoice.amount) - Number(paymentInvoice.discount)) - Number(paymentInvoice.paid_amount)} value={paymentForm.amount_paid} onChange={e => setPaymentForm({...paymentForm, amount_paid: Number(e.target.value)})} className="w-full border rounded-md px-3 py-2 text-lg font-bold text-emerald-700 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 bg-emerald-50/30" />
+                <input required type="number" min="1" max={(Number(paymentInvoice.amount) - Number(paymentInvoice.discount || 0)) - Number(paymentInvoice.paid_amount || 0)} value={paymentForm.amount_paid} onChange={e => setPaymentForm({...paymentForm, amount_paid: Number(e.target.value)})} className="w-full border rounded-md px-3 py-2 text-lg font-bold text-emerald-700 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 bg-emerald-50/30" />
               </div>
 
               <div>
                 <label className="block text-sm font-medium mb-1">Metode Pembayaran</label>
-                <select value={paymentForm.payment_method} onChange={e => setPaymentForm({...paymentForm, payment_method: e.target.value})} className="w-full border rounded-md px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500">
+                <select value={paymentForm.payment_method} onChange={e => {
+                  const method = e.target.value;
+                  const accountType = method === "cash" ? "cash" : method === "qris" ? "qris" : "bank";
+                  const defaultAccount = cashAccounts.find((account) => account.account_type === accountType)?.id as string | undefined;
+                  setPaymentForm({...paymentForm, payment_method: method, cash_account_id: defaultAccount || paymentForm.cash_account_id});
+                }} className="w-full border rounded-md px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500">
                   <option value="cash">Uang Tunai (Cash)</option>
                   <option value="transfer">Transfer Bank (Manual)</option>
                   <option value="qris">QRIS / E-Wallet</option>
                   <option value="virtual_account">Virtual Account</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">Masuk ke Kas/Rekening</label>
+                <select required value={paymentForm.cash_account_id} onChange={e => setPaymentForm({...paymentForm, cash_account_id: e.target.value})} className="w-full border rounded-md px-3 py-2 text-sm bg-background outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500">
+                  <option value="">Pilih kas atau rekening...</option>
+                  {cashAccounts.map((account) => <option key={account.id} value={account.id}>{account.code} - {account.name}</option>)}
                 </select>
               </div>
 

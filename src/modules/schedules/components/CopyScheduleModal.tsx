@@ -13,30 +13,31 @@ interface CopyScheduleModalProps {
 
 export const CopyScheduleModal: React.FC<CopyScheduleModalProps> = ({ isOpen, onClose }) => {
   const invalidate = useInvalidate();
-  const { activeYearId } = useAcademicYear();
+  const { activeYearId, activeSemesterId } = useAcademicYear();
   const { activeUnitId } = useCurrentUnit();
   
-  const [sourceYearId, setSourceYearId] = useState("");
+  const [sourceSemesterId, setSourceSemesterId] = useState("");
   const [replaceExisting, setReplaceExisting] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Fetch academic years
-  const { data: yearsData } = useList({
-    resource: "academic_years",
-    sorters: [{ field: "name", order: "desc" }],
+  const { data: semestersData } = useList({
+    resource: "semesters",
+    sorters: [{ field: "start_date", order: "desc" }],
+    pagination: { pageSize: 100 },
+    meta: { select: "*, academic_years(name)" },
   });
 
   const handleCopy = async () => {
-    if (!sourceYearId) {
-      toast.error("Pilih tahun ajaran sumber!");
+    if (!sourceSemesterId) {
+      toast.error("Pilih semester sumber!");
       return;
     }
-    if (!activeYearId || !activeUnitId) {
-      toast.error("Unit atau Tahun Ajaran aktif belum diatur!");
+    if (!activeYearId || !activeSemesterId || !activeUnitId) {
+      toast.error("Unit, tahun ajaran, atau semester aktif belum diatur!");
       return;
     }
-    if (sourceYearId === activeYearId) {
-      toast.error("Tidak dapat menyalin dari tahun ajaran yang sama!");
+    if (sourceSemesterId === activeSemesterId) {
+      toast.error("Semester sumber dan tujuan tidak boleh sama!");
       return;
     }
 
@@ -46,7 +47,7 @@ export const CopyScheduleModal: React.FC<CopyScheduleModalProps> = ({ isOpen, on
       const { data: sourceSchedules, error: fetchError } = await supabaseClient
         .from("employee_schedules")
         .select("*")
-        .eq("academic_year_id", sourceYearId)
+        .eq("semester_id", sourceSemesterId)
         .eq("unit_id", activeUnitId);
 
       if (fetchError) throw fetchError;
@@ -60,7 +61,7 @@ export const CopyScheduleModal: React.FC<CopyScheduleModalProps> = ({ isOpen, on
       const { data: targetSchedules, error: targetError } = await supabaseClient
         .from("employee_schedules")
         .select("id")
-        .eq("academic_year_id", activeYearId)
+        .eq("semester_id", activeSemesterId)
         .eq("unit_id", activeUnitId);
 
       if (targetError) throw targetError;
@@ -75,7 +76,7 @@ export const CopyScheduleModal: React.FC<CopyScheduleModalProps> = ({ isOpen, on
         const { error: deleteError } = await supabaseClient
           .from("employee_schedules")
           .delete()
-          .eq("academic_year_id", activeYearId)
+          .eq("semester_id", activeSemesterId)
           .eq("unit_id", activeUnitId);
 
         if (deleteError) throw deleteError;
@@ -83,11 +84,12 @@ export const CopyScheduleModal: React.FC<CopyScheduleModalProps> = ({ isOpen, on
 
       // 2. Map payload for current year
       const payload = sourceSchedules.map((sch: any) => {
-        // Exclude id, created_at, updated_at
-        const { id, created_at, updated_at, academic_year_id, ...rest } = sch;
+        const excludedFields = new Set(["id", "created_at", "updated_at", "academic_year_id", "semester_id"]);
+        const rest = Object.fromEntries(Object.entries(sch).filter(([key]) => !excludedFields.has(key)));
         return {
           ...rest,
           academic_year_id: activeYearId,
+          semester_id: activeSemesterId,
         };
       });
 
@@ -138,14 +140,14 @@ export const CopyScheduleModal: React.FC<CopyScheduleModalProps> = ({ isOpen, on
           <div>
             <label className="block text-sm font-medium mb-1">Salin DARI Tahun Ajaran / Semester:</label>
             <select
-              value={sourceYearId}
-              onChange={(e) => setSourceYearId(e.target.value)}
+              value={sourceSemesterId}
+              onChange={(e) => setSourceSemesterId(e.target.value)}
               className="w-full border rounded-lg px-3 py-2 bg-background outline-none focus:ring-2 focus:ring-primary/50"
             >
-              <option value="">-- Pilih Tahun Ajaran Sumber --</option>
-              {yearsData?.data.map((y) => (
-                <option key={y.id} value={y.id}>
-                  {y.name} {y.is_active ? "(Aktif Saat Ini)" : ""}
+              <option value="">-- Pilih Semester Sumber --</option>
+              {semestersData?.data.map((semester: any) => (
+                <option key={semester.id} value={semester.id}>
+                  {semester.academic_years?.name || "-"} - {semester.name}
                 </option>
               ))}
             </select>
@@ -154,7 +156,7 @@ export const CopyScheduleModal: React.FC<CopyScheduleModalProps> = ({ isOpen, on
           <div className="pt-2">
             <label className="block text-sm font-medium mb-1 text-muted-foreground">Tujuan (Semester Aktif):</label>
             <div className="px-3 py-2 bg-muted/50 rounded-lg border text-sm font-medium">
-              {yearsData?.data.find((y) => y.id === activeYearId)?.name || "Sedang memuat..."}
+              {semestersData?.data.find((semester: any) => semester.id === activeSemesterId)?.academic_years?.name || "Tahun aktif"} - {semestersData?.data.find((semester: any) => semester.id === activeSemesterId)?.name || "Semester aktif"}
             </div>
           </div>
 
@@ -184,7 +186,7 @@ export const CopyScheduleModal: React.FC<CopyScheduleModalProps> = ({ isOpen, on
           </button>
           <button
             onClick={handleCopy}
-            disabled={isProcessing || !sourceYearId || sourceYearId === activeYearId}
+            disabled={isProcessing || !sourceSemesterId || sourceSemesterId === activeSemesterId}
             className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 text-sm font-medium transition-colors flex items-center gap-2 disabled:opacity-50"
           >
             {isProcessing ? "Menyalin..." : "Salin Jadwal"}

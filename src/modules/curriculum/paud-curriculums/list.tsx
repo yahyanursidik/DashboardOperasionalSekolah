@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { useCurrentUnit } from "../../../app/providers/UnitProvider";
+import { CurriculumSectionNav } from "../components/CurriculumSectionNav";
 import {
   PAUD_FOUNDATION_LEVEL,
   PAUD_LEVELS,
@@ -230,6 +231,7 @@ export const PaudThemeList: React.FC = () => {
           }
         />
       </div>
+      <CurriculumSectionNav />
 
       <section className="rounded-lg border bg-card p-5 shadow-sm">
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.2fr_1fr]">

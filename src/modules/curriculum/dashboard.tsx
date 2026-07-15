@@ -1,166 +1,207 @@
-import React from "react";
-import { useList } from "@refinedev/core";
-import { BookOpen, FileText, Layers, Palette, Users, BrainCircuit, LibraryBig, ArrowRight, ShieldCheck, Activity } from "lucide-react";
+import React, { useMemo } from "react";
+import { useList, useOne } from "@refinedev/core";
+import {
+  AlertTriangle,
+  ArrowRight,
+  BookOpen,
+  CheckCircle2,
+  ClipboardCheck,
+  FileText,
+  Palette,
+  Plus,
+  School,
+  Users,
+} from "lucide-react";
+import { Link } from "react-router-dom";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { useCurrentUnit } from "../../app/providers/UnitProvider";
-import { Link } from "react-router-dom";
+import { useAcademicYear } from "../../app/providers/AcademicYearProvider";
+import { CurriculumSectionNav } from "./components/CurriculumSectionNav";
+import {
+  getCurriculumCompletion,
+  getCurriculumRecord,
+  getPhaseReferenceRecord,
+  getSubjectTargetGrades,
+} from "./curriculum-utils";
 
 export const CurriculumDashboard: React.FC = () => {
   const { activeUnitId } = useCurrentUnit();
+  const { activeYearId, activeSemesterId } = useAcademicYear();
 
-  const { data: subjectsData } = useList({
+  const { data: subjectsData, isLoading: subjectsLoading } = useList({
     resource: "subjects",
     filters: activeUnitId ? [{ field: "unit_id", operator: "eq", value: activeUnitId }] : [],
-    pagination: { mode: "off" }
+    pagination: { pageSize: 500 },
+    meta: { select: "*, units(id, name)" },
   });
-
-  const { data: subjectCurriculumsData } = useList({
+  const { data: subjectCurriculumsData, isLoading: curriculumLoading } = useList({
     resource: "subject_curriculums",
-    filters: activeUnitId ? [{ field: "subjects.unit_id", operator: "eq", value: activeUnitId }] : [],
-    meta: { select: "*, subjects(unit_id)" },
-    pagination: { mode: "off" }
+    filters: activeYearId ? [{ field: "academic_year_id", operator: "eq", value: activeYearId }] : [],
+    pagination: { pageSize: 3000 },
+    meta: { select: "*, subject_curriculum_semesters(*)" },
   });
-
   const { data: paudCurriculumsData } = useList({
     resource: "paud_curriculums",
-    filters: activeUnitId ? [{ field: "unit_id", operator: "eq", value: activeUnitId }] : [],
-    pagination: { mode: "off" }
+    filters: [
+      ...(activeUnitId ? [{ field: "unit_id", operator: "eq", value: activeUnitId }] : []),
+      ...(activeYearId ? [{ field: "academic_year_id", operator: "eq", value: activeYearId }] : []),
+    ] as any,
+    pagination: { pageSize: 500 },
+  });
+  const { data: documentsData } = useList({
+    resource: "curriculum_documents",
+    filters: activeYearId ? [{ field: "academic_year_id", operator: "eq", value: activeYearId }] : [],
+    pagination: { pageSize: 500 },
+  });
+  const { data: yearData } = useOne({
+    resource: "academic_years",
+    id: activeYearId || "",
+    queryOptions: { enabled: Boolean(activeYearId) },
+  });
+  const { data: unitData } = useOne({
+    resource: "units",
+    id: activeUnitId || "",
+    queryOptions: { enabled: Boolean(activeUnitId) },
+  });
+  const { data: semesterData } = useOne({
+    resource: "semesters",
+    id: activeSemesterId || "",
+    queryOptions: { enabled: Boolean(activeSemesterId) },
   });
 
-  const subjects = subjectsData?.data || [];
-  const subjectCurriculums = subjectCurriculumsData?.data || [];
-  const paudCurriculums = paudCurriculumsData?.data || [];
+  const subjects = useMemo(
+    () => (subjectsData?.data || []).filter((subject: any) => subject.is_active !== false),
+    [subjectsData?.data],
+  );
+  const curriculums = subjectCurriculumsData?.data || [];
+  const readiness = useMemo(() => {
+    const rows = subjects.flatMap((subject: any) =>
+      getSubjectTargetGrades(subject).map((grade) => {
+        const record = getCurriculumRecord(curriculums, String(subject.id), grade);
+        const phaseRecord = getPhaseReferenceRecord(curriculums, String(subject.id), grade);
+        return { subject, grade, record, completion: getCurriculumCompletion(record, phaseRecord, activeSemesterId) };
+      }),
+    );
+    return {
+      rows,
+      created: rows.filter((row) => row.record).length,
+      ready: rows.filter((row) => row.completion.ready).length,
+      missing: rows.filter((row) => !row.record).length,
+      incomplete: rows.filter((row) => row.record && !row.completion.ready).length,
+    };
+  }, [activeSemesterId, curriculums, subjects]);
+
+  const isLoading = subjectsLoading || curriculumLoading;
+  const readyPercent = readiness.rows.length ? Math.round((readiness.ready / readiness.rows.length) * 100) : 0;
+  const primaryIssue = readiness.missing > 0
+    ? `${readiness.missing} kurikulum mapel-kelas belum dibuat`
+    : readiness.incomplete > 0
+      ? `${readiness.incomplete} kurikulum perlu dilengkapi`
+      : "Kurikulum SD pada konteks aktif sudah lengkap";
 
   return (
-    <div className="space-y-8 pb-8 animate-in fade-in duration-500">
-      {/* Hero Section */}
-      <div className="bg-primary rounded-3xl p-8 lg:p-12 text-primary-foreground shadow-xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 p-8 opacity-10 rotate-12 scale-150 transform translate-x-1/4 -translate-y-1/4 pointer-events-none">
-          <BrainCircuit className="w-64 h-64" />
+    <div className="space-y-6 pb-10">
+      <PageHeader
+        title="Kurikulum & Pembelajaran"
+        description="Kelola kurikulum per unit dan tahun ajaran, pantau kesiapan perangkat ajar, serta tindak lanjuti kekurangan."
+        action={
+          <div className="flex flex-wrap gap-2">
+            <Link to="/curriculum/quality" className="inline-flex items-center gap-2 rounded-md border bg-background px-4 py-2 text-sm font-semibold hover:bg-muted">
+              <ClipboardCheck className="h-4 w-4" /> Periksa Mutu
+            </Link>
+            <Link to="/curriculum/subjects/create" className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90">
+              <Plus className="h-4 w-4" /> Tambah Mata Pelajaran
+            </Link>
+          </div>
+        }
+      />
+      <CurriculumSectionNav />
+
+      <section className="rounded-lg border bg-card p-5">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase text-muted-foreground">Konteks kerja</p>
+            <h2 className="mt-1 text-xl font-bold">{unitData?.data?.name || (activeUnitId ? "Unit aktif" : "Seluruh unit")}</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Tahun ajaran {yearData?.data?.name || "aktif"}, Semester {semesterData?.data?.name || "aktif"}. Semua indikator mengikuti pilihan global ini.</p>
+          </div>
+          <div className={`flex max-w-xl items-start gap-3 rounded-md border p-4 ${readiness.missing || readiness.incomplete ? "border-amber-200 bg-amber-50 text-amber-900" : "border-emerald-200 bg-emerald-50 text-emerald-900"}`}>
+            {readiness.missing || readiness.incomplete ? <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" /> : <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" />}
+            <div><p className="text-sm font-semibold">Prioritas saat ini</p><p className="mt-0.5 text-sm">{isLoading ? "Menghitung kesiapan kurikulum..." : primaryIssue}</p></div>
+          </div>
         </div>
-        <div className="relative z-10 max-w-2xl space-y-5">
-          <span className="inline-flex items-center gap-1.5 bg-primary-foreground/20 border border-primary-foreground/30 px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider backdrop-blur-md text-primary-foreground shadow-sm">
-            <ShieldCheck className="w-4 h-4" /> Pusat Kurikulum & Pembelajaran
-          </span>
-          <h1 className="text-4xl lg:text-5xl font-extrabold tracking-tight leading-tight">Manajemen Kurikulum Modern</h1>
-          <p className="text-primary-foreground/90 text-lg leading-relaxed font-medium">
-            Sistem terintegrasi untuk menyusun Capaian Pembelajaran, Alur Tujuan Pembelajaran, Prota, Prosem, RPPM, dan Modul Ajar/RPPH secara runtut menggunakan paradigma Kurikulum Merdeka.
-          </p>
-        </div>
+      </section>
+
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {[
+          { label: "Mata pelajaran aktif", value: subjects.length, detail: "Data induk pada unit aktif", icon: BookOpen, tone: "bg-blue-50 text-blue-700" },
+          { label: "Target mapel-kelas", value: readiness.rows.length, detail: `${readiness.created} dokumen sudah dibuat`, icon: School, tone: "bg-cyan-50 text-cyan-700" },
+          { label: "Siap digunakan", value: readiness.ready, detail: `${readyPercent}% lengkap`, icon: CheckCircle2, tone: "bg-emerald-50 text-emerald-700" },
+          { label: "Kurikulum PAUD", value: paudCurriculumsData?.data?.length || 0, detail: "Dokumen pada konteks aktif", icon: Palette, tone: "bg-violet-50 text-violet-700" },
+        ].map(({ label, value, detail, icon: Icon, tone }) => (
+          <div key={label} className="rounded-lg border bg-card p-4">
+            <div className={`mb-3 flex h-9 w-9 items-center justify-center rounded-md ${tone}`}><Icon className="h-4 w-4" /></div>
+            <p className="text-2xl font-bold">{isLoading ? "-" : value}</p>
+            <p className="text-sm font-semibold">{label}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{detail}</p>
+          </div>
+        ))}
       </div>
 
-      {/* Stats Section */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-card p-6 rounded-2xl border shadow-sm flex items-center gap-5 hover:border-primary/50 hover:shadow-md hover:ring-4 hover:ring-primary/10 transition-all relative overflow-hidden group">
-          <div className="absolute -right-4 -bottom-4 opacity-[0.03] group-hover:scale-110 transition-transform">
-            <LibraryBig className="w-32 h-32 text-primary" />
+      <section className="grid gap-6 lg:grid-cols-[1.25fr_0.75fr]">
+        <div className="overflow-hidden rounded-lg border bg-card">
+          <div className="flex items-center justify-between gap-4 border-b p-5">
+            <div><h2 className="text-lg font-bold">Alur kerja kurikulum</h2><p className="mt-1 text-sm text-muted-foreground">Gunakan urutan ini agar data induk dan perangkat ajar tidak tertukar.</p></div>
+            <Link to="/curriculum/quality" className="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline">Lihat semua <ArrowRight className="h-4 w-4" /></Link>
           </div>
-          <div className="w-14 h-14 bg-primary/10 text-primary rounded-2xl flex items-center justify-center shrink-0 shadow-sm">
-            <LibraryBig className="w-7 h-7" />
-          </div>
-          <div className="relative z-10">
-            <p className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Mata Pelajaran</p>
-            <div className="flex items-baseline gap-2 mt-1">
-              <h3 className="text-4xl font-black text-foreground tracking-tight">{subjects.length}</h3>
-              <span className="text-xs font-bold text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded-md">Total Mapel</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-card p-6 rounded-2xl border shadow-sm flex items-center gap-5 hover:border-primary/50 hover:shadow-md hover:ring-4 hover:ring-primary/10 transition-all relative overflow-hidden group">
-          <div className="absolute -right-4 -bottom-4 opacity-[0.03] group-hover:scale-110 transition-transform">
-            <BookOpen className="w-32 h-32 text-primary" />
-          </div>
-          <div className="w-14 h-14 bg-primary/10 text-primary rounded-2xl flex items-center justify-center shrink-0 shadow-sm">
-            <BookOpen className="w-7 h-7" />
-          </div>
-          <div className="relative z-10">
-            <p className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Kurikulum SD</p>
-            <div className="flex items-baseline gap-2 mt-1">
-              <h3 className="text-4xl font-black text-foreground tracking-tight">{subjectCurriculums.length}</h3>
-              <span className="text-xs font-bold text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded-md">Kelas Tersusun</span>
-            </div>
+          <div className="divide-y">
+            {[
+              { title: "1. Tetapkan mata pelajaran dan tingkat", detail: "Satu mapel disimpan sekali per unit, lalu dialokasikan ke kelas yang membutuhkan.", href: "/curriculum/subjects", icon: BookOpen },
+              { title: "2. Susun kurikulum per kelas", detail: "CP dan ATP mengikuti fase; Prota, Promes, RPPM, dan modul ajar mengikuti tingkat kelas.", href: "/curriculum/subjects", icon: ClipboardCheck },
+              { title: "3. Pastikan guru pengampu tersedia", detail: "Periksa jadwal mengajar agar setiap mapel-kelas memiliki guru yang bertanggung jawab.", href: "/curriculum/subjects/directory", icon: Users },
+              { title: "4. Tinjau kesiapan sebelum pembelajaran", detail: "Gunakan Kendali Mutu untuk menemukan dokumen atau penugasan yang masih kurang.", href: "/curriculum/quality", icon: CheckCircle2 },
+            ].map(({ title, detail, href, icon: Icon }) => (
+              <Link key={title} to={href} className="flex items-start gap-4 p-5 hover:bg-muted/30">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary"><Icon className="h-4 w-4" /></div>
+                <div className="min-w-0 flex-1"><p className="font-semibold">{title}</p><p className="mt-1 text-sm text-muted-foreground">{detail}</p></div>
+                <ArrowRight className="mt-2 h-4 w-4 shrink-0 text-muted-foreground" />
+              </Link>
+            ))}
           </div>
         </div>
 
-        <div className="bg-card p-6 rounded-2xl border shadow-sm flex items-center gap-5 hover:border-primary/50 hover:shadow-md hover:ring-4 hover:ring-primary/10 transition-all relative overflow-hidden group">
-          <div className="absolute -right-4 -bottom-4 opacity-[0.03] group-hover:scale-110 transition-transform">
-            <Palette className="w-32 h-32 text-primary" />
+        <div className="space-y-4">
+          <div className="rounded-lg border bg-card p-5">
+            <h2 className="text-lg font-bold">Kelengkapan SD</h2>
+            <div className="mt-4 flex items-end justify-between gap-3"><span className="text-3xl font-bold">{readyPercent}%</span><span className="text-sm text-muted-foreground">{readiness.ready}/{readiness.rows.length} target siap</span></div>
+            <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-muted"><div className="h-full bg-primary" style={{ width: `${readyPercent}%` }} /></div>
+            <div className="mt-4 grid grid-cols-2 gap-3 text-sm"><div className="rounded-md border bg-muted/20 p-3"><p className="text-xl font-bold text-amber-700">{readiness.missing}</p><p className="text-xs text-muted-foreground">Belum dibuat</p></div><div className="rounded-md border bg-muted/20 p-3"><p className="text-xl font-bold text-blue-700">{readiness.incomplete}</p><p className="text-xs text-muted-foreground">Belum lengkap</p></div></div>
           </div>
-          <div className="w-14 h-14 bg-primary/10 text-primary rounded-2xl flex items-center justify-center shrink-0 shadow-sm">
-            <Palette className="w-7 h-7" />
-          </div>
-          <div className="relative z-10">
-            <p className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Kurikulum PAUD</p>
-            <div className="flex items-baseline gap-2 mt-1">
-              <h3 className="text-4xl font-black text-foreground tracking-tight">{paudCurriculums.length}</h3>
-              <span className="text-xs font-bold text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded-md">Jenjang Tersusun</span>
-            </div>
+          <div className="rounded-lg border bg-card p-5">
+            <div className="flex items-center justify-between gap-3"><div><h2 className="font-bold">Lampiran kebijakan</h2><p className="mt-1 text-sm text-muted-foreground">{documentsData?.data?.length || 0} SK, panduan, template, atau referensi.</p></div><FileText className="h-5 w-5 text-primary" /></div>
+            <Link to="/curriculum/documents" className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline">Kelola lampiran <ArrowRight className="h-4 w-4" /></Link>
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* Main Modules Navigation */}
-      <div className="space-y-5">
-        <div className="flex items-center gap-3 px-1">
-          <div className="w-1.5 h-6 bg-primary rounded-full shadow-sm"></div>
-          <h3 className="font-extrabold text-2xl text-foreground tracking-tight">Modul Administrasi</h3>
+      <section className="rounded-lg border bg-card">
+        <div className="border-b p-5">
+          <h2 className="text-lg font-bold">Integrasi program khas sekolah Islam</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Kurikulum menetapkan arah dan target; pelaksanaan harian, asesmen, dan laporan tetap dicatat pada modul program terkait.</p>
         </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <Link to="/curriculum/subjects" className="group block bg-card p-6 rounded-2xl border shadow-sm hover:border-primary/50 hover:shadow-md hover:ring-4 hover:ring-primary/10 transition-all">
-            <div className="flex justify-between items-start mb-4">
-              <div className="w-14 h-14 bg-primary/10 text-primary rounded-xl flex items-center justify-center group-hover:scale-110 group-hover:bg-primary group-hover:text-primary-foreground transition-all shadow-sm">
-                <BookOpen className="w-7 h-7" />
-              </div>
-              <span className="text-primary opacity-0 group-hover:opacity-100 transition-opacity flex items-center text-sm font-bold bg-primary/10 px-3 py-1.5 rounded-full">Buka Modul <ArrowRight className="w-4 h-4 ml-1.5" /></span>
-            </div>
-            <h4 className="font-extrabold text-xl text-foreground mb-2">Mata Pelajaran & Kurikulum SD</h4>
-            <p className="text-muted-foreground text-sm leading-relaxed font-medium">
-              Kelola master data mata pelajaran (Nasional & Khas), serta susun kerangka Deep Learning: CP, ATP, Prota, Promes, dan 18 Pertemuan Modul Ajar (SD).
-            </p>
-          </Link>
-
-          <Link to="/curriculum/paud" className="group block bg-card p-6 rounded-2xl border shadow-sm hover:border-primary/50 hover:shadow-md hover:ring-4 hover:ring-primary/10 transition-all">
-            <div className="flex justify-between items-start mb-4">
-              <div className="w-14 h-14 bg-primary/10 text-primary rounded-xl flex items-center justify-center group-hover:scale-110 group-hover:bg-primary group-hover:text-primary-foreground transition-all shadow-sm">
-                <Palette className="w-7 h-7" />
-              </div>
-              <span className="text-primary opacity-0 group-hover:opacity-100 transition-opacity flex items-center text-sm font-bold bg-primary/10 px-3 py-1.5 rounded-full">Buka Modul <ArrowRight className="w-4 h-4 ml-1.5" /></span>
-            </div>
-            <h4 className="font-extrabold text-xl text-foreground mb-2">Kurikulum Tingkat PAUD</h4>
-            <p className="text-muted-foreground text-sm leading-relaxed font-medium">
-              Susun satu dokumen induk Fase Fondasi untuk KB, TK A, dan TK B berisi ATP, Prota, serta Prosem; lalu turunkan menjadi RPPM dan RPPH/Modul Ajar per tingkat.
-            </p>
-          </Link>
-
-          <Link to="/curriculum/subjects/directory" className="group block bg-card p-6 rounded-2xl border shadow-sm hover:border-primary/50 hover:shadow-md hover:ring-4 hover:ring-primary/10 transition-all">
-            <div className="flex justify-between items-start mb-4">
-              <div className="w-14 h-14 bg-primary/10 text-primary rounded-xl flex items-center justify-center group-hover:scale-110 group-hover:bg-primary group-hover:text-primary-foreground transition-all shadow-sm">
-                <Users className="w-7 h-7" />
-              </div>
-              <span className="text-primary opacity-0 group-hover:opacity-100 transition-opacity flex items-center text-sm font-bold bg-primary/10 px-3 py-1.5 rounded-full">Buka Modul <ArrowRight className="w-4 h-4 ml-1.5" /></span>
-            </div>
-            <h4 className="font-extrabold text-xl text-foreground mb-2">Direktori Guru Pengampu</h4>
-            <p className="text-muted-foreground text-sm leading-relaxed font-medium">
-              Pemetaan guru mata pelajaran ke setiap kelas, pengelolaan jam mengajar mingguan (JP), dan distribusi beban kerja tenaga pendidik.
-            </p>
-          </Link>
-
-          <Link to="/curriculum/documents" className="group block bg-card p-6 rounded-2xl border shadow-sm hover:border-primary/50 hover:shadow-md hover:ring-4 hover:ring-primary/10 transition-all">
-            <div className="flex justify-between items-start mb-4">
-              <div className="w-14 h-14 bg-primary/10 text-primary rounded-xl flex items-center justify-center group-hover:scale-110 group-hover:bg-primary group-hover:text-primary-foreground transition-all shadow-sm">
-                <FileText className="w-7 h-7" />
-              </div>
-              <span className="text-primary opacity-0 group-hover:opacity-100 transition-opacity flex items-center text-sm font-bold bg-primary/10 px-3 py-1.5 rounded-full">Buka Modul <ArrowRight className="w-4 h-4 ml-1.5" /></span>
-            </div>
-            <h4 className="font-extrabold text-xl text-foreground mb-2">Arsip & Lampiran Kurikulum</h4>
-            <p className="text-muted-foreground text-sm leading-relaxed font-medium">
-              Simpan file pendukung seperti SK Kurikulum, panduan, template, referensi, dan PDF final tanpa mencampur alur penyusunan CP/ATP dan perangkat ajar.
-            </p>
-          </Link>
+        <div className="grid gap-px bg-border md:grid-cols-3">
+          {[
+            { title: "Tahfidz & Mutaba'ah", detail: "Kelola halaqoh, target hafalan, ziyadah harian, munaqosyah, dan laporan.", href: "/tahfidz-halaqohs", icon: BookOpen },
+            { title: "Tahsin", detail: "Kelola halaqoh, target tilawah atau jilid, jurnal harian, dan ujian kenaikan.", href: "/tahsin-halaqohs", icon: Users },
+            { title: "Target Quran Klasikal", detail: "Selaraskan target per kelas dengan kurikulum mapel khas dan periode aktif.", href: "/quran-targets", icon: ClipboardCheck },
+          ].map(({ title, detail, href, icon: Icon }) => (
+            <Link key={title} to={href} className="flex items-start gap-4 bg-card p-5 hover:bg-muted/30">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-emerald-50 text-emerald-700"><Icon className="h-4 w-4" /></div>
+              <div className="min-w-0 flex-1"><p className="font-semibold">{title}</p><p className="mt-1 text-sm text-muted-foreground">{detail}</p></div>
+              <ArrowRight className="mt-2 h-4 w-4 shrink-0 text-muted-foreground" />
+            </Link>
+          ))}
         </div>
-      </div>
+      </section>
     </div>
   );
 };

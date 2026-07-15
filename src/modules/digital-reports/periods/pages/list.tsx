@@ -10,6 +10,7 @@ import { useCurrentUnit } from "../../../../app/providers/UnitProvider";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
+import { getAssessmentBasisLabel, getReportTypeLabel } from "../../report-period-utils";
 
 // --- DELETE CONFIRM MODAL ---
 const DeleteConfirmModal: React.FC<{
@@ -110,7 +111,8 @@ export const ReportPeriodsList: React.FC = () => {
           return (
             <div className="flex flex-col">
               <span className="font-semibold text-foreground">{getValue<string>()}</span>
-              <span className="text-xs text-muted-foreground uppercase">{row.original.report_type?.replace(/_/g, ' ')}</span>
+              <span className="text-xs text-muted-foreground">{getReportTypeLabel(row.original.report_type)}</span>
+              <span className="mt-1 w-fit rounded-md bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">{getAssessmentBasisLabel(row.original.assessment_basis)}</span>
             </div>
           );
         },

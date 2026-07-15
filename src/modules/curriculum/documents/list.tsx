@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { FileText, Plus, Trash2, ArrowLeft, ExternalLink, Download } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { useCurrentUnit } from "../../../app/providers/UnitProvider";
+import { CurriculumSectionNav } from "../components/CurriculumSectionNav";
 
 const DOCUMENT_TYPES = [
   "SK Kurikulum",
@@ -181,6 +182,7 @@ export const CurriculumDocumentsList: React.FC = () => {
           }
         />
       </div>
+      <CurriculumSectionNav />
 
       <section className="rounded-xl border bg-card p-5 shadow-sm">
         <div className="grid gap-4 md:grid-cols-3">

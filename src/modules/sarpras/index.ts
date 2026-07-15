@@ -5,3 +5,5 @@ export * from "./pages/procurements";
 export * from "./pages/unified-assets";
 export * from "./pages/rooms";
 export * from "./pages/room-schedules";
+export * from "./pages/maintenance";
+export * from "./pages/stocktakes";

@@ -4,10 +4,11 @@ import { ArrowLeft } from "lucide-react";
 import { supabaseClient } from "../../lib/supabase/client";
 import { useAcademicYear } from "../../app/providers/AcademicYearProvider";
 import { LessonSchedulePanel } from "../schedules/components/LessonSchedulePanel";
+import { toast } from "sonner";
 
 export const StaffSchedules: React.FC = () => {
   const { employee } = useOutletContext<any>();
-  const { activeYearId } = useAcademicYear();
+  const { activeYearId, activeSemesterId } = useAcademicYear();
   const [schedules, setSchedules] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -17,19 +18,24 @@ export const StaffSchedules: React.FC = () => {
       try {
         let query = supabaseClient
           .from("employee_schedules")
-          .select("*, classes(name, unit_id, units(name)), units(name), subjects(name)")
+          .select("*, classes(name, unit_id, units(name)), units(name), subjects(name), attendance_shifts(name,check_in_open,check_in_close)")
           .eq("employee_id", employee.id)
           .order("start_time");
-        if (activeYearId) query = query.eq("academic_year_id", activeYearId);
-        const { data } = await query;
+        if (activeYearId) query = query.or(`academic_year_id.eq.${activeYearId},academic_year_id.is.null`);
+        if (activeSemesterId) query = query.or(`semester_id.eq.${activeSemesterId},semester_id.is.null`);
+        const { data, error } = await query;
+        if (error) throw error;
         setSchedules(data || []);
+      } catch (error: any) {
+        console.error("Staff schedule fetch error:", error);
+        toast.error("Jadwal kerja belum dapat dimuat", { description: error.message });
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchSchedules();
-  }, [activeYearId, employee.id]);
+  }, [activeSemesterId, activeYearId, employee.id]);
 
   return (
     <div className="p-4 space-y-6">

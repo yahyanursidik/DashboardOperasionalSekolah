@@ -1,13 +1,26 @@
-import React, { useState, useEffect } from "react";
+/* eslint-disable react-hooks/set-state-in-effect */
+import React, { useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { X, ChevronDown, ChevronRight, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronRight,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Search,
+  Star,
+  X,
+} from "lucide-react";
+import { useOne } from "@refinedev/core";
+import { navigationConfig, type NavigationItem } from "../../config/navigation";
+import {
+  filterNavigationGroups,
+  getActiveNavigationHref,
+  getVisibleNavigationGroups,
+} from "../../config/navigation-utils";
 import { useCurrentRoles } from "../../hooks/useAuth";
-import { canAccessResource } from "../../lib/permissions";
-import { navigationConfig } from "../../config/navigation";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { BrandLogo } from "../common/BrandLogo";
 import { useCurrentUnit } from "../../app/providers/UnitProvider";
-import { useOne } from "@refinedev/core";
 
 interface SidebarProps {
   isOpen?: boolean;
@@ -16,154 +29,186 @@ interface SidebarProps {
   onToggleCollapse?: () => void;
 }
 
+const EXPANDED_STORAGE_KEY = "admin-sidebar-expanded-groups";
+const FAVORITES_STORAGE_KEY = "admin-sidebar-favorites";
+const RECENT_STORAGE_KEY = "admin-sidebar-recent";
+
+function readStoredStringArray(key: string) {
+  if (typeof window === "undefined") return [];
+  try {
+    const value = JSON.parse(window.localStorage.getItem(key) || "[]");
+    return Array.isArray(value) ? value.filter((item) => typeof item === "string") : [];
+  } catch { return []; }
+}
+
+function readExpandedGroups() {
+  if (typeof window === "undefined") return { "Operasional Harian": true };
+  try {
+    const value = JSON.parse(window.localStorage.getItem(EXPANDED_STORAGE_KEY) || "{}");
+    return Object.keys(value).length ? value : { "Operasional Harian": true };
+  } catch { return { "Operasional Harian": true }; }
+}
+
+function formatRoleName(role?: string) {
+  const labels: Record<string, string> = {
+    super_admin: "Super Admin", ketua_yayasan: "Ketua Yayasan", kepsek: "Kepala Sekolah",
+    wakasek: "Wakil Kepala Sekolah", kepala_tu: "Kepala Tata Usaha", admin_tu: "Admin Tata Usaha",
+    admin_sekolah: "Admin Sekolah", admin_unit: "Admin Unit", admin_keuangan: "Admin Keuangan",
+    admin_dokumen: "Admin Dokumen", admin_spmb: "Admin SPMB", operator_absensi: "Operator Absensi",
+    guru: "Guru", wali_kelas: "Wali Kelas", hrd: "HRD",
+  };
+  return labels[role || ""] || String(role || "Pengguna").replace(/_/g, " ");
+}
+
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, isCollapsed = false, onToggleCollapse }) => {
   const { roles } = useCurrentRoles();
   const location = useLocation();
   const { activeUnitId } = useCurrentUnit();
-  
-  // State to track which groups are expanded
-  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(readExpandedGroups);
+  const [favorites, setFavorites] = useState<string[]>(() => readStoredStringArray(FAVORITES_STORAGE_KEY));
+  const [recent, setRecent] = useState<string[]>(() => readStoredStringArray(RECENT_STORAGE_KEY));
+  const [search, setSearch] = useState("");
 
-  const { data: unitData } = useOne({
-    resource: "units",
-    id: activeUnitId || "",
-    queryOptions: { enabled: !!activeUnitId }
-  });
+  const { data: unitData } = useOne({ resource: "units", id: activeUnitId || "", queryOptions: { enabled: Boolean(activeUnitId) } });
+  const unitName = String(unitData?.data?.name || "");
+  const normalizedUnitName = unitName.toLowerCase();
+  const isPaudUnit = ["paud", "tk", "kb", "preschool"].some((name) => normalizedUnitName.includes(name));
 
-  const unitName = unitData?.data?.name?.toLowerCase() || "";
-  const isPaudUnit = unitName.includes("paud") || unitName.includes("tk") || unitName.includes("kb");
+  const visibleGroups = useMemo(
+    () => getVisibleNavigationGroups(navigationConfig, roles, { activeUnitId, isPaudUnit }),
+    [activeUnitId, isPaudUnit, roles],
+  );
+  const displayedGroups = useMemo(() => filterNavigationGroups(visibleGroups, search), [search, visibleGroups]);
+  const allVisibleItems = useMemo(() => visibleGroups.flatMap((group) => group.items), [visibleGroups]);
+  const itemByHref = useMemo(() => new Map(allVisibleItems.map((item) => [item.href, item])), [allVisibleItems]);
+  const activeHref = getActiveNavigationHref(location.pathname, visibleGroups);
 
-  const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(`${path}/`);
+  const quickItems = useMemo(() => {
+    const hrefs = [...favorites, ...recent.filter((href) => !favorites.includes(href))].slice(0, 5);
+    return hrefs.map((href) => itemByHref.get(href)).filter(Boolean) as NavigationItem[];
+  }, [favorites, itemByHref, recent]);
 
-  // Auto-expand group that contains active link on initial load
   useEffect(() => {
-    const newExpandedState: Record<string, boolean> = { ...expandedGroups };
-    let hasChanges = false;
-    
-    navigationConfig.forEach((group) => {
-      // Check if any item in this group is active
-      const hasActiveItem = group.items.some(item => isActive(item.href));
-      if (hasActiveItem && !expandedGroups[group.name]) {
-        newExpandedState[group.name] = true;
-        hasChanges = true;
-      }
-    });
+    const activeGroup = visibleGroups.find((group) => group.items.some((item) => item.href === activeHref));
+    if (!activeGroup) return;
+    setExpandedGroups((current) => current[activeGroup.name] ? current : { ...current, [activeGroup.name]: true });
+  }, [activeHref, visibleGroups]);
 
-    if (hasChanges) {
-      setExpandedGroups(newExpandedState);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.pathname]);
+  useEffect(() => {
+    if (isCollapsed) setSearch("");
+  }, [isCollapsed]);
 
   const toggleGroup = (groupName: string) => {
-    setExpandedGroups(prev => ({
-      ...prev,
-      [groupName]: !prev[groupName]
-    }));
+    setExpandedGroups((current) => {
+      const next = { ...current, [groupName]: !current[groupName] };
+      window.localStorage.setItem(EXPANDED_STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const toggleFavorite = (href: string) => {
+    setFavorites((current) => {
+      const next = current.includes(href) ? current.filter((item) => item !== href) : [...current, href];
+      window.localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const rememberRecent = (href: string) => {
+    setRecent((current) => {
+      const next = [href, ...current.filter((item) => item !== href)].slice(0, 5);
+      window.localStorage.setItem(RECENT_STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
+    onClose?.();
+  };
+
+  const renderItem = (item: NavigationItem, allowPin = true) => {
+    const Icon = item.icon;
+    const active = item.href === activeHref;
+    const favorite = favorites.includes(item.href);
+    return (
+      <div key={item.href} className={`group/item mx-1 flex items-center rounded-md ${active ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"}`}>
+        <Link
+          to={item.href}
+          onClick={() => rememberRecent(item.href)}
+          title={isCollapsed ? item.title : undefined}
+          className={`flex min-w-0 flex-1 items-center text-sm ${isCollapsed ? "md:justify-center md:px-2 md:py-3" : "gap-3 px-3 py-2.5"} ${active ? "font-bold" : "font-medium"}`}
+        >
+          <Icon className={`h-4 w-4 shrink-0 ${active ? "text-primary" : ""}`} />
+          <span className={`truncate ${isCollapsed ? "md:hidden" : ""}`}>{item.title}</span>
+        </Link>
+        {allowPin ? (
+          <button
+            type="button"
+            onClick={() => toggleFavorite(item.href)}
+            title={favorite ? "Lepas dari favorit" : "Tambahkan ke favorit"}
+            aria-label={favorite ? `Lepas ${item.title} dari favorit` : `Favoritkan ${item.title}`}
+            className={`mr-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition-opacity ${isCollapsed ? "md:hidden" : ""} ${favorite ? "text-amber-500" : "text-muted-foreground opacity-0 group-hover/item:opacity-100 focus:opacity-100"}`}
+          >
+            <Star className="h-3.5 w-3.5" fill={favorite ? "currentColor" : "none"} />
+          </button>
+        ) : null}
+      </div>
+    );
   };
 
   return (
     <>
-      {/* Mobile Overlay */}
-      {isOpen && (
-        <div 
-          className="fixed inset-0 bg-black/50 z-40 md:hidden transition-opacity"
-          onClick={onClose}
-        />
-      )}
-      
-      {/* Sidebar Container */}
-      <aside className={`fixed md:sticky top-0 left-0 z-50 bg-card text-card-foreground flex-col h-screen border-r shadow-[2px_0_8px_-4px_rgba(0,0,0,0.05)] transition-all duration-300 ease-in-out md:translate-x-0 flex overflow-hidden ${isCollapsed ? "md:w-20" : "md:w-64"} w-64 ${isOpen ? "translate-x-0" : "-translate-x-[110%]"}`}>
-        <div className={`h-16 flex items-center justify-between bg-transparent shrink-0 border-b transition-all ${isCollapsed ? "px-6 md:justify-center md:px-3" : "px-6"}`}>
-          <div className={`${isCollapsed ? "md:hidden" : "block"}`}>
-            <BrandLogo textClassName="font-bold text-xl tracking-tight text-foreground" />
-          </div>
-          <div className={`${isCollapsed ? "hidden md:flex" : "hidden"} w-10 h-10 rounded-xl bg-primary/10 text-primary items-center justify-center font-bold`}>
-            TS
-          </div>
-          <button
-            onClick={onToggleCollapse}
-            className="hidden md:flex p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-            title={isCollapsed ? "Lebarkan sidebar" : "Ciutkan sidebar"}
-            aria-label={isCollapsed ? "Lebarkan sidebar" : "Ciutkan sidebar"}
-          >
-            {isCollapsed ? <PanelLeftOpen className="w-5 h-5" /> : <PanelLeftClose className="w-5 h-5" />}
+      {isOpen ? <button type="button" aria-label="Tutup menu" className="fixed inset-0 z-40 bg-black/50 md:hidden" onClick={onClose} /> : null}
+      <aside className={`fixed left-0 top-0 z-50 flex h-screen w-72 flex-col overflow-hidden border-r bg-card text-card-foreground shadow-sm transition-all duration-200 md:sticky md:translate-x-0 ${isCollapsed ? "md:w-20" : "md:w-72"} ${isOpen ? "translate-x-0" : "-translate-x-[110%]"}`}>
+        <div className={`flex h-16 shrink-0 items-center justify-between border-b ${isCollapsed ? "px-3 md:justify-center" : "px-5"}`}>
+          <div className={isCollapsed ? "md:hidden" : "block"}><BrandLogo textClassName="text-lg font-bold text-foreground" /></div>
+          {isCollapsed ? <div className="hidden h-9 w-9 items-center justify-center rounded-md bg-primary/10 font-bold text-primary md:flex">TS</div> : null}
+          <button type="button" onClick={onToggleCollapse} title={isCollapsed ? "Lebarkan sidebar" : "Ciutkan sidebar"} aria-label={isCollapsed ? "Lebarkan sidebar" : "Ciutkan sidebar"} className="hidden h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground md:flex">
+            {isCollapsed ? <PanelLeftOpen className="h-5 w-5" /> : <PanelLeftClose className="h-5 w-5" />}
           </button>
-          {/* Mobile Close Button */}
-          <button 
-            onClick={onClose}
-            className="md:hidden p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <button type="button" onClick={onClose} aria-label="Tutup sidebar" className="flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-muted md:hidden"><X className="h-5 w-5" /></button>
         </div>
-      <ScrollArea className="flex-1">
-        <nav className={`${isCollapsed ? "md:px-2" : "px-3"} px-3 py-6 space-y-4`}>
-        {navigationConfig.map((group) => {
-          // Hide PAUD module if active unit is not PAUD
-          if (group.name === "Modul PAUD (KB/TK)" && !isPaudUnit && activeUnitId) {
-            return null;
-          }
 
-          // Filter items based on permissions
-          const visibleItems = group.items.filter(item => 
-            !item.resource || canAccessResource(roles, item.resource)
-          );
+        <div className={`border-b p-3 ${isCollapsed ? "md:hidden" : ""}`}>
+            <label className="relative block">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Cari menu atau fitur..." className="h-10 w-full rounded-md border bg-background pl-9 pr-9 text-sm outline-none focus:ring-2 focus:ring-primary/30" />
+              {search ? <button type="button" onClick={() => setSearch("")} title="Hapus pencarian" className="absolute right-1 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-muted"><X className="h-4 w-4" /></button> : null}
+            </label>
+            {search ? <p className="mt-2 px-1 text-[11px] text-muted-foreground">{displayedGroups.reduce((total, group) => total + group.items.length, 0)} tujuan ditemukan</p> : null}
+        </div>
 
-          if (visibleItems.length === 0) return null;
-
-          const isExpanded = isCollapsed ? true : expandedGroups[group.name];
-          const hasActiveChild = visibleItems.some(item => isActive(item.href));
-
-          return (
-            <div key={group.name} className="space-y-1.5">
-              <button 
-                onClick={() => toggleGroup(group.name)}
-                className={`w-full items-center justify-between px-3 py-2 text-[11px] font-bold uppercase tracking-[0.15em] rounded-lg transition-colors hover:text-foreground group ${isCollapsed ? "hidden md:flex md:justify-center md:px-1" : "flex"} ${hasActiveChild && !isExpanded ? 'text-primary' : 'text-muted-foreground/70'}`}
-                title={group.name}
-              >
-                <span className={isCollapsed ? "md:hidden" : ""}>{group.name}</span>
-                {isCollapsed ? (
-                  <span className="hidden md:block w-8 border-t border-border" />
-                ) : isExpanded ? (
-                  <ChevronDown className="w-3.5 h-3.5 opacity-50 group-hover:opacity-100 transition-opacity" />
-                ) : (
-                  <ChevronRight className="w-3.5 h-3.5 opacity-50 group-hover:opacity-100 transition-opacity" />
-                )}
-              </button>
-              
-              <div className={`space-y-1 overflow-hidden transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-[1000px] opacity-100 mb-4' : 'max-h-0 opacity-0'}`}>
-                {visibleItems.map((item) => {
-                  const Icon = item.icon;
-                  const itemIsActive = isActive(item.href);
-                  return (
-                    <Link
-                      key={item.title}
-                      to={item.href}
-                      onClick={() => {
-                        if (onClose) onClose();
-                      }}
-                      title={isCollapsed ? item.title : undefined}
-                      className={`group flex items-center rounded-lg transition-all text-sm mx-1 ${isCollapsed ? "md:justify-center md:gap-0 md:px-2 md:py-3" : "gap-3 px-3 py-2.5"} ${
-                        itemIsActive
-                          ? "bg-primary/10 text-primary font-bold shadow-sm"
-                          : "text-muted-foreground hover:bg-muted/50 hover:text-foreground font-medium"
-                      }`}
-                    >
-                      <Icon className={`w-4 h-4 shrink-0 transition-transform duration-200 ${itemIsActive ? 'text-primary scale-110' : 'group-hover:scale-110 group-hover:text-foreground'}`} />
-                      <span className={`transition-all duration-200 ${isCollapsed ? "md:hidden" : ""} ${itemIsActive ? 'translate-x-1' : 'group-hover:translate-x-1'}`}>
-                        {item.title}
-                      </span>
-                    </Link>
-                  );
-                })}
+        <ScrollArea className="flex-1">
+          <nav className={`space-y-4 py-4 ${isCollapsed ? "px-2" : "px-3"}`} aria-label="Navigasi utama">
+            {!search && quickItems.length ? (
+              <div className="space-y-1">
+                <div className={`flex items-center justify-between px-3 py-1.5 ${isCollapsed ? "md:hidden" : ""}`}><p className="text-[11px] font-bold uppercase text-muted-foreground">Akses Cepat</p><span className="text-[10px] text-muted-foreground">favorit & terbaru</span></div>
+                {isCollapsed ? <div className="mx-2 hidden border-t md:block" /> : null}
+                {quickItems.map((item) => renderItem(item, false))}
               </div>
-            </div>
-          );
-        })}
-        </nav>
-      </ScrollArea>
-    </aside>
+            ) : null}
+
+            {displayedGroups.map((group) => {
+              const expanded = Boolean(search) || isCollapsed || expandedGroups[group.name];
+              const hasActiveChild = group.items.some((item) => item.href === activeHref);
+              return (
+                <section key={group.name} className="space-y-1">
+                  {isCollapsed ? <div className="mx-2 hidden border-t md:block" title={group.name} /> : null}
+                  <button type="button" onClick={() => toggleGroup(group.name)} aria-expanded={expanded} className={`flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-[11px] font-bold uppercase text-muted-foreground hover:bg-muted/50 hover:text-foreground ${isCollapsed ? "md:hidden" : ""} ${hasActiveChild ? "text-primary" : ""}`}>
+                      <span className="truncate">{group.name}</span>
+                      {expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                  </button>
+                  {expanded ? <div className="space-y-1">{group.items.map((item) => renderItem(item))}</div> : null}
+                </section>
+              );
+            })}
+
+            {displayedGroups.length === 0 ? <div className="px-4 py-10 text-center"><Search className="mx-auto h-8 w-8 text-muted-foreground/40" /><p className="mt-3 text-sm font-semibold">Menu tidak ditemukan</p><p className="mt-1 text-xs text-muted-foreground">Coba kata seperti siswa, absensi, rapor, atau keuangan.</p></div> : null}
+          </nav>
+        </ScrollArea>
+
+        <div className={`shrink-0 border-t bg-muted/20 p-3 ${isCollapsed ? "md:hidden" : ""}`}>
+            <p className="truncate text-xs font-bold text-foreground">{unitName || (activeUnitId ? "Unit aktif" : "Lintas Unit")}</p>
+            <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{formatRoleName(roles?.[0]?.role)}{roles && roles.length > 1 ? ` +${roles.length - 1} peran` : ""}</p>
+        </div>
+      </aside>
     </>
   );
 };

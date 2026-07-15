@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useOutletContext, Link } from "react-router-dom";
 import { supabaseClient } from "../../lib/supabase/client";
-import { Calendar, Clock, BookOpen, ChevronRight, UserCheck, BarChart3, CalendarCheck, FileText, Megaphone, UserRound } from "lucide-react";
+import { Calendar, Clock, BookOpen, ChevronRight, UserCheck, BarChart3, CalendarCheck, FileText, Megaphone, ListTodo } from "lucide-react";
 import { useAcademicYear } from "../../app/providers/AcademicYearProvider";
 import { dayMap, getScheduleSubjectName } from "../schedules/schedule-utils";
-import { isLeaveActiveOnDate } from "../leaves/leave-utils";
+import { isLeaveActiveOnDate, toDateInputValue } from "../leaves/leave-utils";
 
 const READ_ANNOUNCEMENTS_KEY = "teacher_portal_read_announcement_ids";
 
@@ -23,6 +23,8 @@ export const TeacherDashboard: React.FC = () => {
     activeLeave: false,
     substitutesToday: 0,
     unreadAnnouncements: 0,
+    pendingTasks: 0,
+    pendingReports: 0,
   });
   const [recentQuranRecords, setRecentQuranRecords] = useState<any[]>([]);
   const [recentAnnouncements, setRecentAnnouncements] = useState<any[]>([]);
@@ -30,7 +32,7 @@ export const TeacherDashboard: React.FC = () => {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const todayStr = new Date().toISOString().split("T")[0];
+        const todayStr = toDateInputValue(new Date());
 
         const { data: myAtt } = await supabaseClient
           .from("employee_attendance")
@@ -60,7 +62,8 @@ export const TeacherDashboard: React.FC = () => {
           .eq("employee_id", employee.id)
           .eq("day_of_week", dayOfWeek)
           .order("start_time");
-        if (activeYearId) todayScheduleQuery = todayScheduleQuery.eq("academic_year_id", activeYearId);
+        if (activeYearId) todayScheduleQuery = todayScheduleQuery.or(`academic_year_id.eq.${activeYearId},academic_year_id.is.null`);
+        if (activeSemesterId) todayScheduleQuery = todayScheduleQuery.or(`semester_id.eq.${activeSemesterId},semester_id.is.null`);
         const { data: schedules } = await todayScheduleQuery;
         setTodaySchedules(schedules || []);
 
@@ -70,6 +73,7 @@ export const TeacherDashboard: React.FC = () => {
           .eq("employee_id", employee.id)
           .not("class_id", "is", null);
         if (activeYearId) assignmentQuery = assignmentQuery.eq("academic_year_id", activeYearId);
+        if (activeSemesterId) assignmentQuery = assignmentQuery.eq("semester_id", activeSemesterId);
         const { data: assignedClasses } = await assignmentQuery;
         const { data: homeroomClasses } = await supabaseClient
           .from("classes")
@@ -99,12 +103,15 @@ export const TeacherDashboard: React.FC = () => {
           return false;
         });
         setRecentAnnouncements(scopedAnnouncements.slice(0, 3));
-        let readIds: string[] = [];
-        try {
-          readIds = JSON.parse(localStorage.getItem(READ_ANNOUNCEMENTS_KEY) || "[]");
-        } catch {
-          readIds = [];
+        const { data: receiptRows, error: receiptError } = await supabaseClient.from("employee_announcement_reads").select("announcement_id").eq("employee_id", employee.id);
+        let readIds: string[] = (receiptRows || []).map((row: any) => row.announcement_id);
+        if (receiptError) {
+          try { readIds = JSON.parse(localStorage.getItem(READ_ANNOUNCEMENTS_KEY) || "[]"); } catch { readIds = []; }
         }
+
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        const { data: taskRows } = user ? await supabaseClient.from("admin_tasks").select("id, status").eq("assigned_to", user.id) : { data: [] as any[] };
+        const { data: reportRows } = assignedClassIds.size ? await supabaseClient.from("student_reports").select("id, status").in("class_id", Array.from(assignedClassIds)).neq("status", "archived") : { data: [] as any[] };
 
         let quranQuery = supabaseClient
           .from("quran_records")
@@ -130,7 +137,7 @@ export const TeacherDashboard: React.FC = () => {
         const assessmentList = assessments || [];
         const leaveList = leaves || [];
         setStats({
-          myAttendance: myAttendance ? (myAttendance.status === "present" ? `Hadir (${myAttendance.time_in?.substring(0, 5)})` : myAttendance.status) : "Belum Absen",
+          myAttendance: myAttendance ? (myAttendance.status === "present" ? `Hadir (${myAttendance.time_in?.substring(0, 5)})` : myAttendance.status === "late" ? `Terlambat (${myAttendance.time_in?.substring(0, 5)})` : myAttendance.status === "leave" ? "Izin" : myAttendance.status === "sick" ? "Sakit" : myAttendance.status === "absent" ? "Alpa" : myAttendance.status) : "Belum Absen",
           classesToday: schedules?.length || 0,
           classCount: assignedClassIds.size,
           quranRecords: records.length,
@@ -140,6 +147,8 @@ export const TeacherDashboard: React.FC = () => {
           activeLeave: leaveList.some((leave: any) => leave.status === "approved" && isLeaveActiveOnDate(leave, todayStr)),
           substitutesToday: substituteRows?.length || 0,
           unreadAnnouncements: scopedAnnouncements.filter((item: any) => !readIds.includes(item.id)).length,
+          pendingTasks: (taskRows || []).filter((item: any) => !["selesai", "completed", "cancelled"].includes(item.status)).length,
+          pendingReports: (reportRows || []).filter((item: any) => ["draft", "teacher_input", "revision_needed"].includes(item.status)).length,
         });
       } catch (err) {
         console.error("Dashboard fetch error:", err);
@@ -151,10 +160,12 @@ export const TeacherDashboard: React.FC = () => {
 
   const hariIni = new Date().toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
   const qualityChecklist = useMemo(() => ([
-    { label: "Kehadiran", done: stats.myAttendance.includes("Hadir"), value: stats.myAttendance },
+    { label: "Kehadiran", done: stats.myAttendance.includes("Hadir") || stats.myAttendance.includes("Terlambat"), value: stats.myAttendance },
     { label: "Izin", done: !stats.activeLeave && stats.pendingLeaves === 0, value: stats.activeLeave ? "Izin aktif" : `${stats.pendingLeaves} pending` },
     { label: "Inval", done: stats.substitutesToday === 0, value: `${stats.substitutesToday} tugas` },
     { label: "Informasi", done: stats.unreadAnnouncements === 0, value: `${stats.unreadAnnouncements} baru` },
+    { label: "Tugas", done: stats.pendingTasks === 0, value: `${stats.pendingTasks} aktif` },
+    { label: "Rapor", done: stats.pendingReports === 0, value: `${stats.pendingReports} perlu diisi` },
     { label: "Jadwal", done: stats.classesToday > 0, value: `${stats.classesToday} kelas` },
     { label: "Jurnal Qur'an", done: stats.quranRecords > 0, value: stats.quranRecords },
     { label: "Assessment", done: stats.assessments > 0, value: stats.assessments },
@@ -162,21 +173,21 @@ export const TeacherDashboard: React.FC = () => {
 
   return (
     <div className="p-4 md:p-0 space-y-6">
-      <section className="rounded-3xl bg-gradient-to-br from-emerald-600 to-emerald-800 p-6 text-white shadow-sm">
+      <section className="rounded-md bg-emerald-800 p-6 text-white shadow-sm">
         <p className="text-sm text-emerald-100">Assalamu'alaikum,</p>
         <h1 className="mt-1 text-2xl font-black leading-tight">{employee.full_name}</h1>
         <p className="mt-2 text-sm text-emerald-100">{hariIni}</p>
       </section>
 
-      <section className="grid gap-3 md:grid-cols-4">
+      <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
         {[
           { label: "Kelas Hari Ini", value: stats.classesToday, icon: Calendar, color: "text-blue-700 bg-blue-50" },
-          { label: "Absensi", value: stats.myAttendance.includes("Hadir") ? "OK" : "Cek", icon: CalendarCheck, color: "text-emerald-700 bg-emerald-50" },
+          { label: "Absensi", value: stats.myAttendance.includes("Hadir") || stats.myAttendance.includes("Terlambat") ? "OK" : "Cek", icon: CalendarCheck, color: "text-emerald-700 bg-emerald-50" },
           { label: "Info Baru", value: stats.unreadAnnouncements, icon: Megaphone, color: "text-amber-700 bg-amber-50" },
-          { label: "Izin Pending", value: stats.pendingLeaves, icon: FileText, color: "text-amber-700 bg-amber-50" },
+          { label: "Tugas Aktif", value: stats.pendingTasks, icon: ListTodo, color: "text-blue-700 bg-blue-50" },
         ].map(({ label, value, icon: Icon, color }) => (
-          <div key={label} className="rounded-2xl border bg-white p-4 shadow-sm">
-            <div className={`mb-3 flex h-10 w-10 items-center justify-center rounded-xl ${color}`}>
+          <div key={label} className="rounded-md border bg-white p-4 shadow-sm">
+            <div className={`mb-3 flex h-10 w-10 items-center justify-center rounded-md ${color}`}>
               <Icon className="h-5 w-5" />
             </div>
             <p className="text-2xl font-black text-gray-900">{value}</p>
@@ -186,7 +197,7 @@ export const TeacherDashboard: React.FC = () => {
       </section>
 
       <section className="grid gap-4 md:grid-cols-[1fr_1fr]">
-        <div className="rounded-2xl border bg-white p-5 shadow-sm">
+        <div className="rounded-md border bg-white p-5 shadow-sm">
           <div className="mb-4 flex items-center gap-3">
             <div className="rounded-xl bg-primary/10 p-2.5 text-primary">
               <Calendar className="h-5 w-5" />
@@ -199,7 +210,7 @@ export const TeacherDashboard: React.FC = () => {
           <div className="grid grid-cols-2 gap-3 border-t pt-4">
             <div className="rounded-xl bg-gray-50 p-3">
               <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-gray-500">Kehadiran</p>
-              <p className={`text-sm font-bold ${stats.myAttendance.includes("Hadir") ? "text-emerald-600" : "text-amber-600"}`}>{stats.myAttendance}</p>
+              <p className={`text-sm font-bold ${stats.myAttendance.includes("Hadir") || stats.myAttendance.includes("Terlambat") ? "text-emerald-600" : "text-amber-600"}`}>{stats.myAttendance}</p>
             </div>
             <div className="rounded-xl bg-gray-50 p-3">
               <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-gray-500">Jadwal</p>
@@ -208,7 +219,7 @@ export const TeacherDashboard: React.FC = () => {
           </div>
         </div>
 
-        <div className="rounded-2xl border bg-white p-5 shadow-sm">
+        <div className="rounded-md border bg-white p-5 shadow-sm">
           <h3 className="mb-4 flex items-center gap-2 font-bold text-gray-900">
             <BarChart3 className="h-5 w-5 text-emerald-600" />
             Definition of done hari ini
@@ -233,12 +244,12 @@ export const TeacherDashboard: React.FC = () => {
         <h3 className="mb-3 px-1 text-sm font-bold text-gray-900">Aksi Cepat</h3>
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           {[
-            { to: "/teacher/announcements", label: "Informasi", icon: Megaphone, color: "bg-amber-100 text-amber-600" },
+            { to: "/teacher/tasks", label: "Tugas Saya", icon: ListTodo, color: "bg-blue-100 text-blue-700" },
             { to: "/teacher/classes", label: "Absen & Nilai", icon: UserCheck, color: "bg-emerald-100 text-emerald-600" },
+            { to: "/teacher/reports", label: "Rapor Digital", icon: FileText, color: "bg-amber-100 text-amber-700" },
             { to: "/teacher/attendance", label: "Absensi Saya", icon: CalendarCheck, color: "bg-green-100 text-green-600" },
-            { to: "/teacher/profile", label: "Profil Guru", icon: UserRound, color: "bg-blue-100 text-blue-600" },
           ].map(({ to, label, icon: Icon, color }) => (
-            <Link key={to} to={to} className="flex flex-col items-center justify-center gap-3 rounded-2xl border bg-white p-4 shadow-sm transition hover:border-primary/50 hover:shadow-md">
+            <Link key={to} to={to} className="flex flex-col items-center justify-center gap-3 rounded-md border bg-white p-4 shadow-sm transition hover:border-primary/50 hover:shadow-md">
               <div className={`rounded-full p-3 ${color}`}>
                 <Icon className="h-6 w-6" />
               </div>

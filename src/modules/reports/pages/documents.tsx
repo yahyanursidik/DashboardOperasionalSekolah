@@ -1,200 +1,53 @@
-import React, { useState } from "react";
-import { useTable } from "@refinedev/react-table";
-import { flexRender } from "@tanstack/react-table";
-import type { ColumnDef } from "@tanstack/react-table";
-import { Search, FilterX, Download, ArrowLeft } from "lucide-react";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import React, { useMemo, useState } from "react";
+import { useList, useTable } from "@refinedev/core";
+import { useSearchParams } from "react-router-dom";
+import { Archive, ChevronLeft, ChevronRight, Download, FileWarning, FilterX, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { PageHeader } from "../../../components/layout/PageHeader";
-import { Link } from "react-router-dom";
 import { useCurrentUnit } from "../../../app/providers/UnitProvider";
+import { useAcademicYear } from "../../../app/providers/AcademicYearProvider";
 import { exportToCsv } from "../../../lib/csv";
+import { ReportsSectionNav } from "../components/ReportsSectionNav";
+import { fetchAllReportRows, localDateValue, recordReportExport, type ReportQueryFilter } from "../report-utils";
+
+const today = localDateValue();
+const verificationLabels: Record<string, string> = { belum_lengkap: "Belum Lengkap", menunggu_verifikasi: "Menunggu Verifikasi", valid: "Valid", perlu_revisi: "Perlu Revisi" };
+const archiveLabels: Record<string, string> = { active: "Aktif", expired: "Kedaluwarsa", retention_review: "Tinjau Retensi", archived: "Diarsipkan", destroyed: "Dimusnahkan" };
 
 export const DocumentReport: React.FC = () => {
   const { activeUnitId } = useCurrentUnit();
+  const { activeYearId, activeSemesterId } = useAcademicYear();
+  const [searchParams] = useSearchParams();
+  const [verification, setVerification] = useState(searchParams.get("status") || "");
+  const [archiveStatus, setArchiveStatus] = useState("");
+  const [ownerType, setOwnerType] = useState("");
+  const [isExporting, setIsExporting] = useState(false);
+  const baseFilters: any[] = activeUnitId ? [{ field: "unit_id", operator: "eq", value: activeUnitId }] : [];
+  const filters: any[] = [...baseFilters];
+  if (verification) filters.push({ field: "status", operator: "eq", value: verification });
+  if (archiveStatus) filters.push({ field: "archive_status", operator: "eq", value: archiveStatus });
+  if (ownerType) filters.push({ field: "owner_type", operator: "eq", value: ownerType });
+  const select = "id,file_name,document_number,document_date,owner_type,status,archive_status,confidentiality,expiry_date,retention_until,physical_location,unit_id,document_types(name,classification_code),units(name)";
+  const { tableQueryResult, current, setCurrent, pageCount } = useTable({ resource: "documents", filters: { permanent: filters }, pagination: { current: 1, pageSize: 20 }, sorters: { initial: [{ field: "created_at", order: "desc" }] }, meta: { select } });
+  const { data: scopeData } = useList({ resource: "documents", filters: baseFilters, pagination: { pageSize: 5000 }, meta: { select: "id,status,archive_status,expiry_date,physical_location,legal_hold" } });
+  const rows = tableQueryResult.data?.data || [];
+  const stats = useMemo(() => { const data = scopeData?.data || []; return { waiting: data.filter((row: any) => row.status === "menunggu_verifikasi").length, revisions: data.filter((row: any) => row.status === "perlu_revisi").length, expired: data.filter((row: any) => row.expiry_date && row.expiry_date < today && row.archive_status !== "destroyed").length, noLocation: data.filter((row: any) => !row.physical_location && row.archive_status !== "destroyed").length, hold: data.filter((row: any) => row.legal_hold).length }; }, [scopeData?.data]);
 
-  // Local Filter State
-  const [filterStatus, setFilterStatus] = useState("");
-  const [filterOwnerType, setFilterOwnerType] = useState("");
-
-  const buildFilters = () => {
-    const filters: any[] = [];
-    if (activeUnitId) filters.push({ field: "unit_id", operator: "eq", value: activeUnitId });
-    if (filterStatus) filters.push({ field: "status", operator: "eq", value: filterStatus });
-    if (filterOwnerType) filters.push({ field: "owner_type", operator: "eq", value: filterOwnerType });
-    return filters;
+  const exportReport = async () => {
+    setIsExporting(true);
+    try {
+      const data = await fetchAllReportRows<any>("documents", select, filters as ReportQueryFilter[], "file_name");
+      exportToCsv(data.map((doc) => ({ "Nama Dokumen": doc.file_name, "Nomor Dokumen": doc.document_number || "", Jenis: doc.document_types?.name || "", Klasifikasi: doc.document_types?.classification_code || "", Unit: doc.units?.name || "Konsolidasi", Pemilik: doc.owner_type, Verifikasi: verificationLabels[doc.status] || doc.status, "Status Arsip": archiveLabels[doc.archive_status] || doc.archive_status, Kerahasiaan: doc.confidentiality, "Masa Berlaku": doc.expiry_date || "", "Retensi Sampai": doc.retention_until || "", "Lokasi Fisik": doc.physical_location || "" })), "Laporan_Tata_Kelola_Dokumen");
+      await recordReportExport({ reportKey: "document_governance", reportLabel: "Laporan Dokumen dan Arsip", format: "csv", rowCount: data.length, unitId: activeUnitId, academicYearId: activeYearId, semesterId: activeSemesterId, filters: { verification, archiveStatus, ownerType } });
+      toast.success(`${data.length} dokumen berhasil diekspor.`);
+    } catch (error) { toast.error("Ekspor laporan dokumen gagal", { description: error instanceof Error ? error.message : "Kesalahan tidak diketahui" }); }
+    finally { setIsExporting(false); }
   };
 
-  const columns = React.useMemo<ColumnDef<any>[]>(
-    () => [
-      {
-        id: "title",
-        accessorKey: "title",
-        header: "Judul Dokumen",
-      },
-      {
-        id: "document_number",
-        accessorKey: "document_number",
-        header: "Nomor Dokumen",
-      },
-      {
-        id: "owner_type",
-        accessorKey: "owner_type",
-        header: "Tipe Pemilik",
-      },
-      {
-        id: "status",
-        accessorKey: "status",
-        header: "Status",
-      },
-      {
-        id: "created_at",
-        accessorKey: "created_at",
-        header: "Dibuat Pada",
-        cell: function render({ getValue }) {
-          const date = getValue<string>();
-          return date ? new Date(date).toLocaleDateString("id-ID") : "-";
-        }
-      },
-    ],
-    []
-  );
-
-  const { refineCore: { tableQueryResult }, ...table } = useTable({
-    columns,
-    refineCoreProps: {
-      resource: "documents",
-      filters: {
-        permanent: buildFilters(),
-      },
-      pagination: {
-        mode: "off",
-      }
-    },
-  });
-
-  const isLoading = tableQueryResult.isLoading;
-  const data = tableQueryResult.data?.data || [];
-
-  const handleExport = () => {
-    const exportData = data.map(item => ({
-      "Judul Dokumen": item.title,
-      "Nomor Dokumen": item.document_number || "",
-      "Tipe Pemilik": item.owner_type,
-      "Status": item.status,
-      "Dibuat Pada": item.created_at ? new Date(item.created_at).toLocaleDateString("id-ID") : "",
-    }));
-    exportToCsv(exportData, `Laporan_Dokumen_${new Date().toISOString().split('T')[0]}`);
-  };
-
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Link to="/reports" className="p-2 hover:bg-muted rounded-full transition-colors">
-          <ArrowLeft className="w-5 h-5" />
-        </Link>
-        <PageHeader
-          title="Laporan Dokumen"
-          description="Daftar dokumen berdasarkan status, unit, dan tipe pemilik."
-          action={
-            <button
-              onClick={handleExport}
-              disabled={isLoading || data.length === 0}
-              className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition-colors shadow-sm font-medium text-sm disabled:opacity-50"
-            >
-              <Download className="w-4 h-4" />
-              Export CSV
-            </button>
-          }
-        />
-      </div>
-
-      {/* Filters */}
-      <div className="bg-card rounded-xl border shadow-sm p-4 flex flex-wrap items-end gap-4">
-        <div className="space-y-1.5 flex-1 min-w-[150px]">
-          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Status</label>
-          <select 
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="w-full border rounded-md px-3 py-2 text-sm bg-background"
-          >
-            <option value="">Semua Status</option>
-            <option value="draft">Draft</option>
-            <option value="active">Aktif</option>
-            <option value="archived">Diarsipkan</option>
-          </select>
-        </div>
-        <div className="space-y-1.5 flex-1 min-w-[150px]">
-          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Tipe Pemilik</label>
-          <select 
-            value={filterOwnerType}
-            onChange={(e) => setFilterOwnerType(e.target.value)}
-            className="w-full border rounded-md px-3 py-2 text-sm bg-background"
-          >
-            <option value="">Semua Tipe</option>
-            <option value="student">Siswa</option>
-            <option value="teacher">Guru</option>
-            <option value="unit">Unit</option>
-            <option value="foundation">Yayasan</option>
-          </select>
-        </div>
-        <button 
-          onClick={() => { setFilterStatus(""); setFilterOwnerType(""); }}
-          className="px-4 py-2 border rounded-md text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors flex items-center gap-2"
-        >
-          <FilterX className="w-4 h-4" />
-          Reset
-        </button>
-      </div>
-
-      {/* Data Table */}
-      <div className="bg-card rounded-xl border shadow-sm overflow-hidden min-h-[400px] flex flex-col">
-        {isLoading ? (
-          <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground space-y-4 p-12">
-            <div className="animate-pulse flex flex-col items-center gap-4 w-full max-w-md">
-              <div className="h-10 bg-muted w-full rounded-md"></div>
-              <div className="h-10 bg-muted w-full rounded-md"></div>
-              <div className="h-10 bg-muted w-full rounded-md"></div>
-            </div>
-            <p className="animate-pulse">Memuat laporan dokumen...</p>
-          </div>
-        ) : data.length === 0 ? (
-          <div className="flex-1 flex flex-col items-center justify-center p-16 text-center">
-            <div className="w-16 h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center mb-4">
-              <Search className="w-8 h-8" />
-            </div>
-            <h3 className="text-lg font-bold mb-1">Data Tidak Ditemukan</h3>
-            <p className="text-muted-foreground text-sm max-w-sm">
-              Tidak ada dokumen yang cocok dengan filter saat ini.
-            </p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
-              <thead className="bg-muted/50 text-muted-foreground text-xs uppercase font-medium border-b">
-                {table.getHeaderGroups().map((headerGroup: any) => (
-                  <tr key={headerGroup.id}>
-                    {headerGroup.headers.map((header: any) => (
-                      <th key={header.id} className="px-6 py-4 whitespace-nowrap">
-                        {!header.isPlaceholder && flexRender(header.column.columnDef.header, header.getContext())}
-                      </th>
-                    ))}
-                  </tr>
-                ))}
-              </thead>
-              <tbody className="divide-y divide-border">
-                {table.getRowModel().rows.map((row: any) => (
-                  <tr key={row.id} className="hover:bg-muted/30 transition-colors">
-                    {row.getVisibleCells().map((cell: any) => (
-                      <td key={cell.id} className="px-6 py-3 whitespace-nowrap">
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-    </div>
-  );
+  return <div className="space-y-6"><PageHeader title="Laporan Dokumen & Arsip" description="Kelengkapan, validitas, kerahasiaan, lokasi fisik, masa berlaku, dan kepatuhan retensi dokumen sekolah." action={<button onClick={() => void exportReport()} disabled={isExporting} className="flex items-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground disabled:opacity-50">{isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}Ekspor Semua Hasil</button>} /><ReportsSectionNav />
+    <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">{[{ label: "Menunggu Verifikasi", value: stats.waiting, tone: "text-amber-700" }, { label: "Perlu Revisi", value: stats.revisions, tone: "text-red-700" }, { label: "Kedaluwarsa", value: stats.expired, tone: "text-red-700" }, { label: "Tanpa Lokasi Fisik", value: stats.noLocation, tone: "text-violet-700" }, { label: "Legal Hold", value: stats.hold, tone: "text-blue-700" }].map((item) => <div key={item.label} className="rounded-lg border bg-card p-3"><p className={`text-xl font-bold ${item.tone}`}>{item.value}</p><p className="mt-1 text-xs font-semibold text-muted-foreground">{item.label}</p></div>)}</section>
+    <section className="grid gap-3 rounded-lg border bg-card p-3 md:grid-cols-2 xl:grid-cols-[220px_220px_200px_auto] xl:items-end"><label className="text-xs font-bold text-muted-foreground">Status verifikasi<select value={verification} onChange={(event) => { setVerification(event.target.value); setCurrent(1); }} className="mt-1.5 h-10 w-full rounded-md border bg-background px-3 text-sm"><option value="">Semua status</option>{Object.entries(verificationLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><label className="text-xs font-bold text-muted-foreground">Status arsip<select value={archiveStatus} onChange={(event) => { setArchiveStatus(event.target.value); setCurrent(1); }} className="mt-1.5 h-10 w-full rounded-md border bg-background px-3 text-sm"><option value="">Semua status</option>{Object.entries(archiveLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><label className="text-xs font-bold text-muted-foreground">Pemilik<select value={ownerType} onChange={(event) => { setOwnerType(event.target.value); setCurrent(1); }} className="mt-1.5 h-10 w-full rounded-md border bg-background px-3 text-sm"><option value="">Semua pemilik</option><option value="student">Siswa</option><option value="employee">Pegawai</option><option value="school">Sekolah</option></select></label><button onClick={() => { setVerification(""); setArchiveStatus(""); setOwnerType(""); setCurrent(1); }} className="flex h-10 items-center justify-center gap-2 rounded-md border px-3 text-sm font-bold text-muted-foreground"><FilterX className="h-4 w-4" />Reset</button></section>
+    <section className="overflow-hidden rounded-lg border bg-card">{tableQueryResult.isLoading ? <div className="flex h-64 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin" /></div> : rows.length === 0 ? <div className="flex h-64 flex-col items-center justify-center text-center"><Archive className="h-10 w-10 text-muted-foreground/30" /><p className="mt-3 font-bold">Dokumen tidak ditemukan</p><p className="mt-1 text-sm text-muted-foreground">Ubah filter verifikasi, arsip, atau pemilik.</p></div> : <div className="overflow-x-auto"><table className="w-full min-w-[1050px] text-left text-sm"><thead className="border-b bg-muted/40 text-xs uppercase text-muted-foreground"><tr><th className="px-4 py-3">Dokumen</th><th className="px-4 py-3">Jenis / klasifikasi</th><th className="px-4 py-3">Unit / pemilik</th><th className="px-4 py-3">Verifikasi</th><th className="px-4 py-3">Arsip</th><th className="px-4 py-3">Berlaku / retensi</th><th className="px-4 py-3">Lokasi</th></tr></thead><tbody className="divide-y">{rows.map((doc: any) => <tr key={doc.id} className="hover:bg-muted/20"><td className="px-4 py-3"><p className="max-w-60 truncate font-semibold">{doc.file_name}</p><p className="text-xs text-muted-foreground">{doc.document_number || "Tanpa nomor"}</p></td><td className="px-4 py-3"><p>{doc.document_types?.name || "-"}</p><p className="text-xs text-muted-foreground">{doc.document_types?.classification_code || "Belum diklasifikasi"}</p></td><td className="px-4 py-3"><p>{doc.units?.name || "Konsolidasi"}</p><p className="text-xs uppercase text-muted-foreground">{doc.owner_type}</p></td><td className="px-4 py-3"><span className="rounded bg-muted px-2 py-1 text-xs font-bold">{verificationLabels[doc.status] || doc.status}</span></td><td className="px-4 py-3"><p>{archiveLabels[doc.archive_status] || doc.archive_status}</p><p className="text-xs uppercase text-muted-foreground">{doc.confidentiality}</p></td><td className="px-4 py-3"><p className={doc.expiry_date && doc.expiry_date < today ? "font-bold text-red-700" : ""}>{doc.expiry_date || "Tanpa batas"}</p><p className="text-xs text-muted-foreground">Retensi: {doc.retention_until || "-"}</p></td><td className="px-4 py-3">{doc.physical_location || <span className="flex items-center gap-1 text-amber-700"><FileWarning className="h-4 w-4" />Belum diisi</span>}</td></tr>)}</tbody></table></div>}{pageCount > 1 && <div className="flex items-center justify-between border-t px-4 py-3 text-sm"><span>{tableQueryResult.data?.total || 0} dokumen - halaman {current}/{pageCount}</span><div className="flex gap-2"><button title="Sebelumnya" disabled={current === 1} onClick={() => setCurrent(current - 1)} className="rounded-md border p-2 disabled:opacity-40"><ChevronLeft className="h-4 w-4" /></button><button title="Berikutnya" disabled={current === pageCount} onClick={() => setCurrent(current + 1)} className="rounded-md border p-2 disabled:opacity-40"><ChevronRight className="h-4 w-4" /></button></div></div>}</section>
+  </div>;
 };

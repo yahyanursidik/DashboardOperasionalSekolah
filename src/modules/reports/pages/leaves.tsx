@@ -4,8 +4,14 @@ import { PageHeader } from "../../../components/layout/PageHeader";
 import { ArrowLeft, Printer, Calendar, Filter } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useSystemSettings } from "../../../app/providers/SettingsProvider";
+import { useCurrentUnit } from "../../../app/providers/UnitProvider";
+import { useAcademicYear } from "../../../app/providers/AcademicYearProvider";
+import { ReportsSectionNav } from "../components/ReportsSectionNav";
+import { recordReportExport } from "../report-utils";
 
 export const ReportLeaves: React.FC = () => {
+  const { activeUnitId } = useCurrentUnit();
+  const { activeYearId, activeSemesterId } = useAcademicYear();
   const currentMonth = new Date().toISOString().slice(0, 7);
   const [filterMonth, setFilterMonth] = useState(currentMonth);
   const [filterStatus, setFilterStatus] = useState("");
@@ -13,6 +19,7 @@ export const ReportLeaves: React.FC = () => {
 
   const { data, isLoading } = useList({
     resource: "leave_requests",
+    filters: [...(activeUnitId ? [{ field: "unit_id", operator: "eq" as const, value: activeUnitId }] : []), ...(activeYearId ? [{ field: "academic_year_id", operator: "eq" as const, value: activeYearId }] : [])],
     meta: { select: "*, employees(full_name, nik, position)" },
     pagination: { mode: "off" },
     sorters: [{ field: "start_date", order: "desc" }]
@@ -28,7 +35,8 @@ export const ReportLeaves: React.FC = () => {
     return matchMonth && matchStatus;
   });
 
-  const handlePrint = () => {
+  const handlePrint = async () => {
+    await recordReportExport({ reportKey: "employee_leaves", reportLabel: "Laporan Izin dan Cuti Pegawai", format: "print", rowCount: filteredLeaves.length, unitId: activeUnitId, academicYearId: activeYearId, semesterId: activeSemesterId, dateFrom: filterMonth ? `${filterMonth}-01` : null, filters: { status: filterStatus } });
     window.print();
   };
 
@@ -104,6 +112,8 @@ export const ReportLeaves: React.FC = () => {
           }
         />
 
+        <div className="mt-6"><ReportsSectionNav /></div>
+
         <div className="bg-card rounded-xl border shadow-sm p-4 flex flex-wrap gap-4 items-end justify-between mt-6">
           <div className="flex gap-4">
             <div>
@@ -137,7 +147,7 @@ export const ReportLeaves: React.FC = () => {
           </div>
           
           <button 
-            onClick={handlePrint}
+            onClick={() => void handlePrint()}
             className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors shadow-sm font-medium text-sm"
           >
             <Printer className="w-4 h-4" />

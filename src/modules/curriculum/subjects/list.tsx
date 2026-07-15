@@ -23,7 +23,15 @@ import {
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { useAcademicYear } from "../../../app/providers/AcademicYearProvider";
 import { useCurrentUnit } from "../../../app/providers/UnitProvider";
-import { SD_PHASES, getRppmRows, getRpphRows, getSdPhaseByGrade, hasRows } from "../subject-curriculums/sdCurriculumStructure";
+import { SD_PHASES, getSdPhaseByGrade } from "../subject-curriculums/sdCurriculumStructure";
+import { CurriculumSectionNav } from "../components/CurriculumSectionNav";
+import {
+  getCurriculumCompletion,
+  getSemesterLearningPlanRows,
+  getSemesterPlan,
+  getSemesterRppmRows,
+} from "../curriculum-utils";
+import { getAssessmentWeightTotal, getFinalAssessmentType } from "../assessment-policy";
 
 type ViewMode = "class" | "master";
 
@@ -58,16 +66,6 @@ function findPhaseRecord(subjectId: string, grade: number, records: any[]) {
   return getSubjectRecords(subjectId, records).find(
     (record) => (phase.grades as readonly number[]).includes(Number(record.grade_level)) && (record.cp_text || record.atp_text)
   );
-}
-
-function isCurriculumReady(record: any, phaseRecord?: any) {
-  const cpSource = phaseRecord || record;
-  const hasCpAtp = Boolean(cpSource?.cp_text && cpSource?.atp_text);
-  const hasProta = hasRows(record?.prota_data);
-  const hasProsem = Array.isArray(record?.prosem_data?.rows) && record.prosem_data.rows.length > 0;
-  const hasRppm = getRppmRows(record).length > 0;
-  const hasRpph = getRpphRows(record).length > 0;
-  return hasCpAtp && hasProta && hasProsem && hasRppm && hasRpph;
 }
 
 function makeCurriculumCreateUrl(subjectId: string, grade: number, activeYearId: string | null) {
@@ -110,7 +108,7 @@ export const SubjectsList: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { activeUnitId } = useCurrentUnit();
-  const { activeYearId } = useAcademicYear();
+  const { activeYearId, activeSemesterId } = useAcademicYear();
   const { mutate: deleteSubject } = useDelete();
   const initialGrade = Number(searchParams.get("grade_level"));
 
@@ -138,7 +136,7 @@ export const SubjectsList: React.FC = () => {
     resource: "subject_curriculums",
     filters: curriculumFilters,
     pagination: { pageSize: 2000 },
-    meta: { select: "*" },
+    meta: { select: "*, subject_curriculum_semesters(*)" },
   });
 
   const subjects = subjectsData?.data || [];
@@ -162,7 +160,7 @@ export const SubjectsList: React.FC = () => {
       const readyCount = gradeSubjects.filter((subject: any) => {
         const record = findClassRecord(subject.id, grade, curriculums);
         const phaseRecord = findPhaseRecord(subject.id, grade, curriculums);
-        return isCurriculumReady(record, phaseRecord);
+        return getCurriculumCompletion(record, phaseRecord, activeSemesterId).ready;
       }).length;
 
       return {
@@ -172,7 +170,7 @@ export const SubjectsList: React.FC = () => {
         phase: getSdPhaseByGrade(grade),
       };
     });
-  }, [curriculums, filteredSubjects]);
+  }, [activeSemesterId, curriculums, filteredSubjects]);
 
   const selectedPhase = getSdPhaseByGrade(selectedGrade);
   const selectedStats = gradeStats.find((item) => item.grade === selectedGrade);
@@ -207,6 +205,7 @@ export const SubjectsList: React.FC = () => {
           }
         />
       </div>
+      <CurriculumSectionNav />
 
       <section className="rounded-lg border bg-card p-5 shadow-sm">
         <div className="grid gap-5 lg:grid-cols-[1fr_1.1fr]">
@@ -327,7 +326,7 @@ export const SubjectsList: React.FC = () => {
               </div>
               <div className="rounded-lg border bg-muted/20 px-4 py-3 text-sm">
                 <p className="font-semibold">Syarat lengkap</p>
-                <p className="mt-1 text-muted-foreground">CP/ATP fase, Prota, Promes, RPPM, dan RPPH/Modul sudah terisi.</p>
+                <p className="mt-1 text-muted-foreground">CP/ATP fase, perangkat ajar, serta kebijakan asesmen dan rapor semester sudah terisi.</p>
               </div>
             </div>
 
@@ -350,10 +349,13 @@ export const SubjectsList: React.FC = () => {
                   const phaseRecord = findPhaseRecord(subject.id, selectedGrade, curriculums);
                   const cpSource = phaseRecord || classRecord;
                   const protaCount = Array.isArray(classRecord?.prota_data) ? classRecord.prota_data.length : 0;
-                  const prosemCount = Array.isArray(classRecord?.prosem_data?.rows) ? classRecord.prosem_data.rows.length : 0;
-                  const rppmCount = getRppmRows(classRecord).length;
-                  const rpphCount = getRpphRows(classRecord).length;
-                  const ready = isCurriculumReady(classRecord, phaseRecord);
+                  const semesterPlan = getSemesterPlan(classRecord, activeSemesterId);
+                  const prosemCount = Array.isArray(semesterPlan?.prosem_data?.rows) ? semesterPlan.prosem_data.rows.length : 0;
+                  const rppmCount = getSemesterRppmRows(classRecord, activeSemesterId).length;
+                  const rpphCount = getSemesterLearningPlanRows(classRecord, activeSemesterId).length;
+                  const ready = getCurriculumCompletion(classRecord, phaseRecord, activeSemesterId).ready;
+                  const finalAssessment = getFinalAssessmentType(semesterPlan, semesterPlan?.semester_name);
+                  const assessmentWeightTotal = getAssessmentWeightTotal(semesterPlan);
                   const categoryClass = CATEGORY_STYLE[subject.category] || CATEGORY_STYLE.Lainnya;
                   const targetUrl = classRecord
                     ? `/curriculum/subject-curriculums/edit/${classRecord.id}`
@@ -370,6 +372,10 @@ export const SubjectsList: React.FC = () => {
                       </div>
 
                       <div className="mt-4 flex flex-wrap gap-2">
+                        <StatusPill done={Boolean(semesterPlan)} label={semesterPlan?.semester_name ? `Semester ${semesterPlan.semester_name}` : "Semester Aktif"} />
+                        <StatusPill done={Boolean(semesterPlan)} label={finalAssessment === "none" ? "Tanpa SAS/ASAT" : finalAssessment.toUpperCase()} />
+                        <StatusPill done={Boolean(semesterPlan) && semesterPlan?.include_in_report !== false} label={semesterPlan?.include_in_report === false ? "Laporan Terpisah" : "Masuk Rapor"} />
+                        <StatusPill done={assessmentWeightTotal === 100} label="Bobot Nilai" detail={`${assessmentWeightTotal}%`} />
                         <StatusPill done={Boolean(cpSource?.cp_text && cpSource?.atp_text)} label="CP/ATP Fase" />
                         <StatusPill done={protaCount > 0} label="Prota" detail={`${protaCount}`} />
                         <StatusPill done={prosemCount > 0} label="Promes" detail={`${prosemCount}`} />

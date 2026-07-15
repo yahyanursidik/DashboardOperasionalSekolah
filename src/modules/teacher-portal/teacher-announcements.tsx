@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link, useOutletContext } from "react-router-dom";
 import { ArrowLeft, Bell, Building2, Calendar, CheckCircle2, Clock, Megaphone, Search, Users } from "lucide-react";
 import { supabaseClient } from "../../lib/supabase/client";
+import { useAcademicYear } from "../../app/providers/AcademicYearProvider";
 
 const READ_KEY = "teacher_portal_read_announcement_ids";
 
@@ -32,6 +33,7 @@ function targetIcon(type?: string) {
 
 export const TeacherAnnouncements: React.FC = () => {
   const { employee } = useOutletContext<any>();
+  const { activeYearId, activeSemesterId } = useAcademicYear();
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [readIds, setReadIds] = useState<Set<string>>(getReadIds);
   const [isLoading, setIsLoading] = useState(true);
@@ -42,12 +44,16 @@ export const TeacherAnnouncements: React.FC = () => {
     const fetchAnnouncements = async () => {
       setIsLoading(true);
       try {
-        const [{ data: scheduleRows }, { data: homeroomRows }, { data: announcementRows }] = await Promise.all([
-          supabaseClient
-            .from("employee_schedules")
-            .select("class_id")
-            .eq("employee_id", employee.id)
-            .not("class_id", "is", null),
+        let scheduleQuery = supabaseClient
+          .from("employee_schedules")
+          .select("class_id")
+          .eq("employee_id", employee.id)
+          .not("class_id", "is", null);
+        if (activeYearId) scheduleQuery = scheduleQuery.eq("academic_year_id", activeYearId);
+        if (activeSemesterId) scheduleQuery = scheduleQuery.eq("semester_id", activeSemesterId);
+
+        const [{ data: scheduleRows }, { data: homeroomRows }, { data: announcementRows }, readsResult] = await Promise.all([
+          scheduleQuery,
           supabaseClient
             .from("classes")
             .select("id")
@@ -59,6 +65,10 @@ export const TeacherAnnouncements: React.FC = () => {
             .order("publish_at", { ascending: false })
             .order("created_at", { ascending: false })
             .limit(100),
+          supabaseClient
+            .from("employee_announcement_reads")
+            .select("announcement_id")
+            .eq("employee_id", employee.id),
         ]);
 
         const classIds = new Set<string>();
@@ -75,6 +85,11 @@ export const TeacherAnnouncements: React.FC = () => {
         });
 
         setAnnouncements(scopedAnnouncements);
+        if (!readsResult.error) {
+          const persistedIds = new Set<string>((readsResult.data || []).map((row: any) => row.announcement_id));
+          setReadIds(persistedIds);
+          saveReadIds(persistedIds);
+        }
       } catch (error) {
         console.error("Teacher announcements fetch error:", error);
       } finally {
@@ -83,7 +98,7 @@ export const TeacherAnnouncements: React.FC = () => {
     };
 
     fetchAnnouncements();
-  }, [employee.id, employee.unit_id]);
+  }, [activeSemesterId, activeYearId, employee.id, employee.unit_id]);
 
   const filteredAnnouncements = useMemo(() => {
     return announcements.filter((item) => {
@@ -96,18 +111,24 @@ export const TeacherAnnouncements: React.FC = () => {
 
   const unreadCount = announcements.filter((item) => !readIds.has(item.id)).length;
 
-  const markRead = (id: string) => {
+  const markRead = async (id: string) => {
     const next = new Set(readIds);
     next.add(id);
     setReadIds(next);
     saveReadIds(next);
+    const { error } = await supabaseClient.from("employee_announcement_reads").upsert({ employee_id: employee.id, announcement_id: id, read_at: new Date().toISOString() }, { onConflict: "employee_id,announcement_id" });
+    if (error && error.code !== "42P01") console.error("Announcement receipt error:", error);
   };
 
-  const markAllRead = () => {
+  const markAllRead = async () => {
     const next = new Set(readIds);
     announcements.forEach((item) => next.add(item.id));
     setReadIds(next);
     saveReadIds(next);
+    if (announcements.length) {
+      const { error } = await supabaseClient.from("employee_announcement_reads").upsert(announcements.map((item) => ({ employee_id: employee.id, announcement_id: item.id, read_at: new Date().toISOString() })), { onConflict: "employee_id,announcement_id" });
+      if (error && error.code !== "42P01") console.error("Announcement receipts error:", error);
+    }
   };
 
   return (

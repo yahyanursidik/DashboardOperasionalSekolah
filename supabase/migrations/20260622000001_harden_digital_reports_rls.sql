@@ -10,6 +10,38 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+-- The schema may have been provisioned before migration history was linked.
+-- Recreate this migration's policies so reruns converge to the intended RLS.
+DO $$
+DECLARE
+  existing_policy record;
+BEGIN
+  FOR existing_policy IN
+    SELECT schemaname, tablename, policyname
+    FROM pg_policies
+    WHERE schemaname IN ('public', 'storage')
+      AND policyname = ANY (ARRAY[
+        'Anyone can read active report periods', 'Admin can manage report periods',
+        'Staff can read templates', 'Admin manage templates',
+        'Staff can read template sections', 'Admin manage template sections',
+        'Staff can read template items', 'Admin manage template items',
+        'Admins and Kepsek can read all reports', 'Wakasek can read reports in their unit',
+        'Teachers can read reports', 'Parents can read published reports of their children',
+        'Admins can manage reports', 'Staff can update report status',
+        'Staff can manage scores', 'Parents can read visible scores of published reports',
+        'Staff can manage notes', 'Parents can read visible notes of published reports',
+        'Staff can manage review logs', 'Admin manage publish logs',
+        'Staff can read all receipts', 'Parents can read their own receipts',
+        'Parents can insert their own receipts', 'Staff can manage pdf exports',
+        'Parents can read pdf exports of their children', 'Staff can manage PDFs',
+        'Parents can view PDFs of their children'
+      ])
+  LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON %I.%I', existing_policy.policyname, existing_policy.schemaname, existing_policy.tablename);
+  END LOOP;
+END;
+$$;
+
 -------------------------------------------------------------------------------
 -- 1. REPORT PERIODS
 -------------------------------------------------------------------------------

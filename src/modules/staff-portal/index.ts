@@ -6,3 +6,5 @@ export * from "./staff-leaves";
 export * from "./staff-announcements";
 export * from "./staff-schedules";
 export * from "./staff-profile";
+export * from "./staff-tasks";
+export * from "./staff-operational-reports";

@@ -1,17 +1,19 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useOutletContext } from "react-router-dom";
-import { BarChart3, Bell, Calendar, CalendarCheck, ChevronRight, Clock, FileText, ShieldCheck, UserCheck } from "lucide-react";
-import { supabaseClient } from "../../lib/supabase/client";
+import { BarChart3, Bell, CalendarCheck, ChevronRight, Clock, FileText, FileWarning, ListTodo, Megaphone, UserCheck } from "lucide-react";
 import { useAcademicYear } from "../../app/providers/AcademicYearProvider";
+import { supabaseClient } from "../../lib/supabase/client";
+import { isLeaveActiveOnDate, toDateInputValue } from "../leaves/leave-utils";
 import { dayMap, getScheduleSubjectName } from "../schedules/schedule-utils";
-import { isLeaveActiveOnDate } from "../leaves/leave-utils";
 import { formatShortTime } from "../substitutes/substitute-utils";
 import { formatStaffPosition } from "./staff-utils";
 
+const readKey = "staff_portal_read_announcement_ids";
 function attendanceLabel(record: any) {
   if (!record) return "Belum Absen";
-  if (record.status === "present") return `Hadir ${record.time_in ? `(${formatShortTime(record.time_in)})` : ""}`;
-  if (record.status === "late") return "Terlambat";
+  if (record.status === "present") return `Hadir${record.time_in ? ` (${formatShortTime(record.time_in)})` : ""}`;
+  if (record.status === "late") return `Terlambat${record.time_in ? ` (${formatShortTime(record.time_in)})` : ""}`;
   if (record.status === "leave") return "Izin";
   if (record.status === "sick") return "Sakit";
   return record.status || "Belum Absen";
@@ -19,194 +21,68 @@ function attendanceLabel(record: any) {
 
 export const StaffDashboard: React.FC = () => {
   const { employee } = useOutletContext<any>();
-  const { activeYearId } = useAcademicYear();
+  const { activeYearId, activeSemesterId } = useAcademicYear();
   const [todaySchedules, setTodaySchedules] = useState<any[]>([]);
   const [announcements, setAnnouncements] = useState<any[]>([]);
-  const [stats, setStats] = useState({
-    attendance: "Belum Absen",
-    pendingLeaves: 0,
-    activeLeave: false,
-    schedulesToday: 0,
-    announcements: 0,
-  });
+  const [stats, setStats] = useState({ attendance: "Belum Absen", pendingLeaves: 0, activeLeave: false, schedulesToday: 0, unreadAnnouncements: 0, pendingTasks: 0, openReports: 0 });
 
   useEffect(() => {
-    const fetchDashboard = async () => {
-      const today = new Date().toISOString().split("T")[0];
+    const load = async () => {
+      const today = toDateInputValue(new Date());
       const day = dayMap[new Date().getDay()] || "Senin";
-
-      let scheduleQuery = supabaseClient
-        .from("employee_schedules")
-        .select("id, day_of_week, start_time, end_time, schedule_type, subject, classes(name), units(name), subjects(name)")
-        .eq("employee_id", employee.id)
-        .eq("day_of_week", day)
-        .order("start_time");
-      if (activeYearId) scheduleQuery = scheduleQuery.eq("academic_year_id", activeYearId);
-
-      const [{ data: attendanceRows }, { data: leaveRows }, { data: scheduleRows }, { data: announcementRows }] = await Promise.all([
-        supabaseClient.from("employee_attendance").select("status, time_in, time_out").eq("employee_id", employee.id).eq("date", today).limit(1),
-        supabaseClient.from("leave_requests").select("id, status, start_date, end_date").eq("employee_id", employee.id).order("created_at", { ascending: false }).limit(20),
+      let scheduleQuery = supabaseClient.from("employee_schedules").select("id,day_of_week,start_time,end_time,schedule_type,subject,classes(name),units(name),subjects(name)").eq("employee_id", employee.id).eq("day_of_week", day).order("start_time");
+      if (activeYearId) scheduleQuery = scheduleQuery.or(`academic_year_id.eq.${activeYearId},academic_year_id.is.null`);
+      if (activeSemesterId) scheduleQuery = scheduleQuery.or(`semester_id.eq.${activeSemesterId},semester_id.is.null`);
+      const { data: { user } } = await supabaseClient.auth.getUser();
+      const [attendanceResult, leavesResult, schedulesResult, announcementsResult, tasksResult, reportsResult, readsResult] = await Promise.all([
+        supabaseClient.from("employee_attendance").select("status,time_in,time_out").eq("employee_id", employee.id).eq("date", today).limit(1),
+        supabaseClient.from("leave_requests").select("id,status,start_date,end_date").eq("employee_id", employee.id).order("created_at", { ascending: false }).limit(20),
         scheduleQuery,
-        supabaseClient
-          .from("announcements")
-          .select("id, title, content, target_type, unit_id, publish_at, created_at, units(name)")
-          .eq("status", "terkirim")
-          .order("publish_at", { ascending: false })
-          .order("created_at", { ascending: false })
-          .limit(10),
+        supabaseClient.from("announcements").select("id,title,content,target_type,unit_id,publish_at,created_at,units(name)").eq("status", "terkirim").order("publish_at", { ascending: false }).limit(20),
+        user ? supabaseClient.from("admin_tasks").select("id,status,due_date").eq("assigned_to", user.id) : Promise.resolve({ data: [] as any[] }),
+        supabaseClient.from("staff_operational_reports").select("id,status,priority").or(`employee_id.eq.${employee.id},assigned_to.eq.${employee.id}`),
+        supabaseClient.from("employee_announcement_reads").select("announcement_id").eq("employee_id", employee.id),
       ]);
-
-      const scopedAnnouncements = (announcementRows || []).filter((item: any) => {
-        if (item.publish_at && new Date(item.publish_at).getTime() > Date.now()) return false;
-        if (item.target_type === "all" || item.target_type === "staff") return true;
-        if (item.target_type === "unit") return !item.unit_id || item.unit_id === employee.unit_id;
-        return false;
-      });
-      const leaves = leaveRows || [];
-      setTodaySchedules(scheduleRows || []);
+      const scopedAnnouncements = (announcementsResult.data || []).filter((item: any) => (!item.publish_at || new Date(item.publish_at).getTime() <= Date.now()) && (["all", "staff"].includes(item.target_type) || (item.target_type === "unit" && (!item.unit_id || item.unit_id === employee.unit_id))));
+      let readIds = new Set<string>((readsResult.data || []).map((row: any) => row.announcement_id));
+      if (readsResult.error) { try { readIds = new Set(JSON.parse(localStorage.getItem(readKey) || "[]")); } catch { readIds = new Set(); } }
+      const leaves = leavesResult.data || [];
+      setTodaySchedules(schedulesResult.data || []);
       setAnnouncements(scopedAnnouncements.slice(0, 3));
       setStats({
-        attendance: attendanceLabel(attendanceRows?.[0]),
-        pendingLeaves: leaves.filter((item: any) => item.status === "pending").length,
-        activeLeave: leaves.some((item: any) => item.status === "approved" && isLeaveActiveOnDate(item, today)),
-        schedulesToday: scheduleRows?.length || 0,
-        announcements: scopedAnnouncements.length,
+        attendance: attendanceLabel(attendanceResult.data?.[0]), pendingLeaves: leaves.filter((item: any) => item.status === "pending").length,
+        activeLeave: leaves.some((item: any) => item.status === "approved" && isLeaveActiveOnDate(item, today)), schedulesToday: schedulesResult.data?.length || 0,
+        unreadAnnouncements: scopedAnnouncements.filter((item: any) => !readIds.has(item.id)).length,
+        pendingTasks: (tasksResult.data || []).filter((item: any) => !["selesai", "completed", "cancelled"].includes(item.status)).length,
+        openReports: (reportsResult.data || []).filter((item: any) => ["submitted", "in_review", "assigned"].includes(item.status)).length,
       });
     };
-
-    fetchDashboard();
-  }, [activeYearId, employee.id, employee.unit_id]);
+    void load();
+  }, [activeSemesterId, activeYearId, employee.id, employee.unit_id]);
 
   const todayText = new Date().toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
-  const checklist = useMemo(() => ([
-    { label: "Absensi", done: stats.attendance.includes("Hadir"), value: stats.attendance },
-    { label: "Izin", done: !stats.activeLeave && stats.pendingLeaves === 0, value: stats.activeLeave ? "Izin aktif" : `${stats.pendingLeaves} pending` },
-    { label: "Jadwal kerja", done: stats.schedulesToday > 0, value: `${stats.schedulesToday} tugas` },
-    { label: "Informasi", done: stats.announcements === 0, value: `${stats.announcements} info` },
-  ]), [stats]);
+  const checklist = useMemo(() => [
+    { label: "Absensi", done: stats.attendance.includes("Hadir") || stats.attendance.includes("Terlambat"), value: stats.attendance },
+    { label: "Tugas aktif", done: stats.pendingTasks === 0, value: `${stats.pendingTasks} tugas` },
+    { label: "Jadwal kerja", done: stats.schedulesToday > 0, value: `${stats.schedulesToday} agenda` },
+    { label: "Laporan operasional", done: stats.openReports === 0, value: `${stats.openReports} diproses` },
+    { label: "Informasi", done: stats.unreadAnnouncements === 0, value: `${stats.unreadAnnouncements} belum dibaca` },
+  ], [stats]);
 
-  return (
-    <div className="p-4 md:p-0 space-y-6">
-      <section className="rounded-3xl bg-gradient-to-br from-slate-900 to-emerald-800 p-6 text-white shadow-sm">
-        <p className="text-sm text-emerald-100">Assalamu'alaikum,</p>
-        <h1 className="mt-1 text-2xl font-black leading-tight">{employee.full_name}</h1>
-        <p className="mt-2 text-sm text-emerald-100">{formatStaffPosition(employee.position)} - {todayText}</p>
-      </section>
-
-      <section className="grid gap-3 md:grid-cols-4">
-        {[
-          { label: "Absensi", value: stats.attendance.includes("Hadir") ? "OK" : "Cek", icon: CalendarCheck, tone: "bg-emerald-50 text-emerald-700" },
-          { label: "Jadwal Hari Ini", value: stats.schedulesToday, icon: Clock, tone: "bg-blue-50 text-blue-700" },
-          { label: "Izin Pending", value: stats.pendingLeaves, icon: FileText, tone: "bg-amber-50 text-amber-700" },
-          { label: "Informasi", value: stats.announcements, icon: Bell, tone: "bg-purple-50 text-purple-700" },
-        ].map(({ label, value, icon: Icon, tone }) => (
-          <div key={label} className="rounded-2xl border bg-white p-4 shadow-sm">
-            <div className={`mb-3 flex h-10 w-10 items-center justify-center rounded-xl ${tone}`}>
-              <Icon className="h-5 w-5" />
-            </div>
-            <p className="text-2xl font-black text-gray-900">{value}</p>
-            <p className="text-xs font-bold text-gray-500">{label}</p>
-          </div>
-        ))}
-      </section>
-
-      <section className="grid gap-4 md:grid-cols-[1fr_1fr]">
-        <div className="rounded-2xl border bg-white p-5 shadow-sm">
-          <h3 className="mb-4 flex items-center gap-2 font-black text-gray-900">
-            <BarChart3 className="h-5 w-5 text-emerald-600" />
-            Definition of done hari ini
-          </h3>
-          <div className="grid gap-2">
-            {checklist.map((item) => (
-              <div key={item.label} className="flex items-center justify-between rounded-xl border bg-gray-50 px-3 py-2">
-                <div>
-                  <p className="text-sm font-black text-gray-900">{item.label}</p>
-                  <p className="text-xs text-gray-500">{item.value}</p>
-                </div>
-                <span className={`rounded-full px-2 py-1 text-[10px] font-black uppercase ${item.done ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
-                  {item.done ? "Ok" : "Cek"}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="rounded-2xl border bg-white p-5 shadow-sm">
-          <div className="mb-4 flex items-center justify-between">
-            <h3 className="flex items-center gap-2 font-black text-gray-900">
-              <UserCheck className="h-5 w-5 text-slate-700" />
-              Aksi Cepat
-            </h3>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            {[
-              { to: "/staff/attendance", label: "Absen", icon: CalendarCheck },
-              { to: "/staff/leaves", label: "Ajukan Izin", icon: FileText },
-              { to: "/staff/schedules", label: "Jadwal Kerja", icon: Calendar },
-              { to: "/staff/announcements", label: "Informasi", icon: Bell },
-            ].map(({ to, label, icon: Icon }) => (
-              <Link key={to} to={to} className="flex items-center gap-2 rounded-xl border bg-gray-50 px-3 py-3 text-sm font-black text-gray-700 hover:bg-white">
-                <Icon className="h-4 w-4 text-primary" />
-                {label}
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="grid gap-6 lg:grid-cols-[1fr_1fr]">
-        <div>
-          <div className="mb-3 flex items-end justify-between px-1">
-            <h3 className="text-sm font-black text-gray-900">Jadwal Kerja Hari Ini</h3>
-            <Link to="/staff/schedules" className="flex items-center gap-0.5 text-xs font-black text-primary hover:underline">
-              Semua <ChevronRight className="h-3 w-3" />
-            </Link>
-          </div>
-          {todaySchedules.length === 0 ? (
-            <div className="rounded-2xl border border-dashed bg-white p-8 text-center shadow-sm">
-              <Clock className="mx-auto mb-3 h-8 w-8 text-gray-300" />
-              <p className="text-sm text-gray-500">Belum ada jadwal kerja hari ini.</p>
-            </div>
-          ) : (
-            <div className="overflow-hidden rounded-2xl border bg-white shadow-sm">
-              <div className="divide-y">
-                {todaySchedules.map((schedule: any) => (
-                  <div key={schedule.id} className="p-4">
-                    <p className="text-sm font-black text-gray-900">{getScheduleSubjectName(schedule)}</p>
-                    <p className="mt-0.5 text-xs text-gray-500">{formatShortTime(schedule.start_time)} - {formatShortTime(schedule.end_time)} {schedule.units?.name ? `- ${schedule.units.name}` : "- Lintas Unit"}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div>
-          <div className="mb-3 flex items-end justify-between px-1">
-            <h3 className="text-sm font-black text-gray-900">Informasi Terbaru</h3>
-            <Link to="/staff/announcements" className="flex items-center gap-0.5 text-xs font-black text-primary hover:underline">
-              Semua <ChevronRight className="h-3 w-3" />
-            </Link>
-          </div>
-          {announcements.length === 0 ? (
-            <div className="rounded-2xl border border-dashed bg-white p-8 text-center shadow-sm">
-              <ShieldCheck className="mx-auto mb-3 h-8 w-8 text-gray-300" />
-              <p className="text-sm text-gray-500">Belum ada informasi baru.</p>
-            </div>
-          ) : (
-            <div className="overflow-hidden rounded-2xl border bg-white shadow-sm">
-              <div className="divide-y">
-                {announcements.map((item: any) => (
-                  <Link key={item.id} to="/staff/announcements" className="block p-4 hover:bg-gray-50">
-                    <p className="line-clamp-1 text-sm font-black text-gray-900">{item.title}</p>
-                    <p className="mt-1 line-clamp-2 text-xs leading-5 text-gray-500">{item.content}</p>
-                  </Link>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      </section>
-    </div>
-  );
+  return <div className="space-y-6 p-4 md:p-0">
+    <section className="rounded-md bg-gray-900 p-6 text-white"><p className="text-sm text-emerald-200">Assalamu'alaikum,</p><h1 className="mt-1 text-2xl font-bold">{employee.full_name}</h1><p className="mt-2 text-sm text-gray-300">{formatStaffPosition(employee.position)} - {todayText}</p></section>
+    <section className="grid grid-cols-2 gap-3 md:grid-cols-4">{[
+      { label: "Absensi", value: stats.attendance.includes("Hadir") || stats.attendance.includes("Terlambat") ? "OK" : "Cek", icon: CalendarCheck, tone: "bg-emerald-50 text-emerald-700" },
+      { label: "Tugas Aktif", value: stats.pendingTasks, icon: ListTodo, tone: "bg-blue-50 text-blue-700" },
+      { label: "Jadwal Hari Ini", value: stats.schedulesToday, icon: Clock, tone: "bg-amber-50 text-amber-700" },
+      { label: "Laporan Aktif", value: stats.openReports, icon: FileWarning, tone: "bg-purple-50 text-purple-700" },
+    ].map((item) => <div key={item.label} className="rounded-md border bg-white p-4"><div className={`mb-3 flex h-9 w-9 items-center justify-center rounded-md ${item.tone}`}><item.icon className="h-5 w-5" /></div><p className="text-xl font-bold text-gray-950">{item.value}</p><p className="text-xs font-semibold text-gray-500">{item.label}</p></div>)}</section>
+    <section className="grid gap-4 lg:grid-cols-2"><div className="rounded-md border bg-white p-5"><h2 className="mb-4 flex items-center gap-2 font-bold text-gray-950"><BarChart3 className="h-5 w-5 text-emerald-700" />Kesiapan Hari Ini</h2><div className="space-y-2">{checklist.map((item) => <div key={item.label} className="flex items-center justify-between rounded-md border bg-gray-50 px-3 py-2"><div><p className="text-sm font-bold text-gray-900">{item.label}</p><p className="text-xs text-gray-500">{item.value}</p></div><span className={`rounded px-2 py-1 text-[10px] font-bold uppercase ${item.done ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>{item.done ? "Siap" : "Cek"}</span></div>)}</div></div>
+      <div className="rounded-md border bg-white p-5"><h2 className="mb-4 flex items-center gap-2 font-bold text-gray-950"><UserCheck className="h-5 w-5" />Aksi Cepat</h2><div className="grid grid-cols-2 gap-3">{[
+        { to: "/staff/tasks", label: "Tugas Saya", icon: ListTodo, tone: "bg-blue-50 text-blue-700" }, { to: "/staff/attendance", label: "Absensi", icon: CalendarCheck, tone: "bg-emerald-50 text-emerald-700" },
+        { to: "/staff/reports", label: "Buat Laporan", icon: FileWarning, tone: "bg-amber-50 text-amber-700" }, { to: "/staff/leaves", label: "Izin & Cuti", icon: FileText, tone: "bg-purple-50 text-purple-700" },
+      ].map((item) => <Link key={item.to} to={item.to} className="flex min-h-24 flex-col items-center justify-center gap-2 rounded-md border text-center hover:border-gray-400"><span className={`flex h-10 w-10 items-center justify-center rounded-md ${item.tone}`}><item.icon className="h-5 w-5" /></span><span className="text-xs font-bold text-gray-700">{item.label}</span></Link>)}</div></div></section>
+    <section className="grid gap-5 lg:grid-cols-2"><div><div className="mb-2 flex items-center justify-between"><h2 className="font-bold text-gray-950">Jadwal Hari Ini</h2><Link to="/staff/schedules" className="flex items-center text-xs font-bold text-emerald-700">Semua<ChevronRight className="h-3.5 w-3.5" /></Link></div>{todaySchedules.length === 0 ? <div className="rounded-md border border-dashed bg-white p-8 text-center text-sm text-gray-500">Tidak ada jadwal kerja hari ini.</div> : <div className="divide-y overflow-hidden rounded-md border bg-white">{todaySchedules.map((schedule) => <div key={schedule.id} className="flex items-center gap-4 p-4"><div className="w-14 text-center"><p className="text-sm font-bold">{String(schedule.start_time || "-").slice(0, 5)}</p><p className="text-xs text-gray-500">{String(schedule.end_time || "-").slice(0, 5)}</p></div><div className="min-w-0"><p className="font-bold text-gray-900">{getScheduleSubjectName(schedule)}</p><p className="text-xs text-gray-500">{schedule.units?.name || schedule.classes?.name || "Lintas unit"}</p></div></div>)}</div>}</div>
+      <div><div className="mb-2 flex items-center justify-between"><h2 className="font-bold text-gray-950">Informasi Terbaru</h2><Link to="/staff/announcements" className="flex items-center text-xs font-bold text-emerald-700">Semua<ChevronRight className="h-3.5 w-3.5" /></Link></div>{announcements.length === 0 ? <div className="rounded-md border border-dashed bg-white p-8 text-center"><Megaphone className="mx-auto mb-2 h-7 w-7 text-gray-300" /><p className="text-sm text-gray-500">Belum ada informasi terbaru.</p></div> : <div className="divide-y overflow-hidden rounded-md border bg-white">{announcements.map((item) => <Link key={item.id} to="/staff/announcements" className="block p-4 hover:bg-amber-50"><div className="flex items-center gap-2"><Bell className="h-4 w-4 text-amber-600" /><p className="line-clamp-1 font-bold text-gray-900">{item.title}</p></div><p className="mt-1 line-clamp-2 text-xs leading-5 text-gray-500">{item.content}</p></Link>)}</div>}</div></section>
+  </div>;
 };

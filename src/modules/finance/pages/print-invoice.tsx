@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React from "react";
 import { useParams } from "react-router-dom";
 import { useOne } from "@refinedev/core";
 import { Receipt, Loader2, Printer, Building, QrCode, MessageCircle } from "lucide-react";
@@ -43,6 +43,7 @@ export const PrintInvoice: React.FC = () => {
   const studentName = invoice.students?.full_name || invoice.external_students?.full_name || "-";
   const studentInfo = invoice.students?.nisn ? `NISN: ${invoice.students.nisn}` : invoice.external_students?.school_origin ? `Asal Sekolah: ${invoice.external_students.school_origin}` : "";
   const invoiceNumber = String(invoice?.id || '').split('-')[0].toUpperCase();
+  const invoiceDate = invoice.created_at ? new Date(invoice.created_at).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' }) : "-";
 
   return (
     <div className="min-h-screen bg-gray-100 py-8 print:bg-white print:py-0">
@@ -78,7 +79,7 @@ export const PrintInvoice: React.FC = () => {
               Status: <span className={`uppercase px-2 py-0.5 rounded text-xs font-bold ml-1 ${invoice?.status === 'paid' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{invoice?.status === 'paid' ? 'Lunas' : 'Belum Lunas'}</span>
             </div>
             <p className="text-xs text-gray-500 mt-2">No. Tagihan: <span className="font-mono text-gray-900 font-semibold">{invoiceNumber}</span></p>
-            <p className="text-xs text-gray-500">Tanggal: {new Date(invoice?.created_at || Date.now()).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+            <p className="text-xs text-gray-500">Tanggal: {invoiceDate}</p>
           </div>
         </div>
 

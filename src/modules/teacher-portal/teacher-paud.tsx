@@ -4,6 +4,7 @@ import { supabaseClient } from "../../lib/supabase/client";
 import { CheckSquare, Info, Camera, Calendar, Star } from "lucide-react";
 import { useAcademicYear } from "../../app/providers/AcademicYearProvider";
 import { toast } from "sonner";
+import { toDateInputValue } from "../leaves/leave-utils";
 
 export const TeacherPaud: React.FC = () => {
   const { employee } = useOutletContext<any>();
@@ -47,6 +48,7 @@ export const TeacherPaud: React.FC = () => {
         .eq("employee_id", employee.id)
         .not("class_id", "is", null);
       if (activeYearId) scheduleQuery = scheduleQuery.eq("academic_year_id", activeYearId);
+      if (activeSemesterId) scheduleQuery = scheduleQuery.eq("semester_id", activeSemesterId);
 
       const { data: scheduleClasses } = await scheduleQuery;
       const { data: homeroomClasses } = await supabaseClient
@@ -73,7 +75,7 @@ export const TeacherPaud: React.FC = () => {
       }
     };
     fetchAssignments();
-  }, [activeYearId, employee.id]);
+  }, [activeSemesterId, activeYearId, employee.id]);
 
   // Fetch Classes when Unit changes
   useEffect(() => {
@@ -124,7 +126,7 @@ export const TeacherPaud: React.FC = () => {
           employee_id: employee.id,
           academic_year_id: activeYearId,
           semester_id: activeSemesterId,
-          date: new Date().toISOString().split('T')[0],
+          date: toDateInputValue(new Date()),
           title: jurnalData.title,
           description: jurnalData.description,
           photo_url: jurnalData.photo_url || null
@@ -158,7 +160,7 @@ export const TeacherPaud: React.FC = () => {
           employee_id: employee.id,
           academic_year_id: activeYearId,
           semester_id: activeSemesterId,
-          date: new Date().toISOString().split('T')[0],
+          date: toDateInputValue(new Date()),
           ...stppaData
         });
 

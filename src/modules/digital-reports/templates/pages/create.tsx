@@ -200,9 +200,9 @@ export const ReportTemplateCreate: React.FC = () => {
               <label className="text-sm font-medium">Jenis Rapor <span className="text-destructive">*</span></label>
               <select {...register("report_type", { required: "Jenis rapor wajib dipilih" })} className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 bg-background">
                 <option value="">-- Pilih Jenis Rapor --</option>
-                <option value="progress_awal">Progress Awal (PTS 1 / PTS 2)</option>
+                <option value="progress_awal">Laporan Progres Awal</option>
                 <option value="progress_tengah">Progress Tengah Semester</option>
-                <option value="rapor_semester">Rapor Akhir Semester (PAS / PAT)</option>
+                <option value="rapor_semester">Rapor Semester / Akhir Tahun</option>
                 <option value="rapor_program_khusus">Rapor Program Khusus (Tahfidz, dll)</option>
               </select>
             </div>

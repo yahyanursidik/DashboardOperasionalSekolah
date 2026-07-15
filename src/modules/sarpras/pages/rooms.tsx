@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect } from "react";
 import { useTable, useCreate, useUpdate, useDelete } from "@refinedev/core";
 import { 
@@ -5,8 +6,11 @@ import {
   Search, Eye, ChevronLeft, ChevronRight, AlertCircle, MapPin, Users, Activity
 } from "lucide-react";
 import { toast } from "sonner";
+import { useCurrentUnit } from "../../../app/providers/UnitProvider";
+import { SarprasSectionNav } from "../components/SarprasSectionNav";
 
 export const RoomsList: React.FC = () => {
+  const { activeUnitId } = useCurrentUnit();
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
 
@@ -28,9 +32,10 @@ export const RoomsList: React.FC = () => {
     if (debouncedSearch) {
       newFilters.push({ field: "name", operator: "contains", value: debouncedSearch });
     }
+    if (activeUnitId) newFilters.push({ field: "unit_id", operator: "eq", value: activeUnitId });
     setFilters(newFilters, "replace");
     setCurrent(1);
-  }, [debouncedSearch, setFilters, setCurrent]);
+  }, [activeUnitId, debouncedSearch, setFilters, setCurrent]);
 
   const rooms = tableQueryResult?.data?.data || [];
   const totalRooms = rooms.length;
@@ -46,20 +51,21 @@ export const RoomsList: React.FC = () => {
   const [currentRoom, setCurrentRoom] = useState<any>(null);
   
   const [formData, setFormData] = useState({
-    code: "", name: "", type: "Ruang Kelas", capacity: 30, location: "", status: "Aktif", notes: ""
+    unit_id: activeUnitId || "", code: "", name: "", type: "Ruang Kelas", capacity: 30, location: "", status: "Aktif", notes: ""
   });
 
   const TYPES = ['Ruang Kelas', 'Laboratorium', 'Perpustakaan', 'Aula', 'Lapangan', 'Ruang Guru', 'Lainnya'];
   const STATUSES = ['Aktif', 'Sedang Direnovasi', 'Nonaktif'];
 
   const handleOpenCreate = () => {
-    setFormData({ code: "", name: "", type: "Ruang Kelas", capacity: 30, location: "", status: "Aktif", notes: "" });
+    setFormData({ unit_id: activeUnitId || "", code: "", name: "", type: "Ruang Kelas", capacity: 30, location: "", status: "Aktif", notes: "" });
     setIsCreateOpen(true);
   };
 
   const handleOpenEdit = (room: any) => {
     setCurrentRoom(room);
     setFormData({
+      unit_id: room.unit_id || activeUnitId || "",
       code: room.code || "", name: room.name, type: room.type || "Ruang Kelas", 
       capacity: room.capacity || 30, location: room.location || "", 
       status: room.status || "Aktif", notes: room.notes || ""
@@ -130,6 +136,8 @@ export const RoomsList: React.FC = () => {
           <Plus className="w-5 h-5" /> Tambah Ruangan
         </button>
       </div>
+
+      <SarprasSectionNav />
 
       {/* Filters & Search */}
       <div className="bg-white p-4 rounded-2xl border shadow-sm flex flex-col sm:flex-row justify-between items-center gap-4">

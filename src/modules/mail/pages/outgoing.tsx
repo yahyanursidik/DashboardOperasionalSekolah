@@ -1,127 +1,18 @@
-import React, { useState } from "react";
-import { useTable, useDelete } from "@refinedev/core";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import React, { useEffect, useState } from "react";
+import { useTable } from "@refinedev/core";
 import { Link } from "react-router-dom";
+import { ChevronLeft, ChevronRight, Eye, Plus, Search, Send } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
-import { Send, Plus, Trash2, Search } from "lucide-react";
+import { useCurrentUnit } from "../../../app/providers/UnitProvider";
+import { OfficeSectionNav } from "../components/OfficeSectionNav";
+
+const labels: Record<string, string> = { logged: "Draf tercatat", awaiting_approval: "Menunggu persetujuan", approved: "Disetujui", sent: "Terkirim", completed: "Selesai", archived: "Diarsipkan", rejected: "Perlu perbaikan" };
 
 export const OutgoingMailList: React.FC = () => {
-  const [q, setQ] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    setSearchQuery(q);
-  };
-
-  const filters: any[] = [{ field: "type", operator: "eq", value: "outgoing" }];
-  if (searchQuery) {
-    filters.push({
-      operator: "or",
-      value: [
-        { field: "mail_number", operator: "ilike", value: `%${searchQuery}%` },
-        { field: "title", operator: "ilike", value: `%${searchQuery}%` },
-        { field: "recipient", operator: "ilike", value: `%${searchQuery}%` }
-      ]
-    });
-  }
-
-  const { tableQueryResult } = useTable({
-    resource: "mail_records",
-    filters: { permanent: filters },
-    sorters: { initial: [{ field: "mail_date", order: "desc" }] }
-  });
-
-  const { mutate: deleteMail } = useDelete();
-
-  const mails = tableQueryResult?.data?.data || [];
-  const isLoading = tableQueryResult.isLoading;
-
-  const formatDate = (dateStr: string) => {
-    if (!dateStr) return "-";
-    return new Date(dateStr).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
-  };
-
-  return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Surat Keluar"
-        description="Buku agenda untuk mencatat nomor surat dan mengelola surat keluar."
-        action={
-          <div className="flex gap-2">
-            <Link
-              to="/mail"
-              className="px-4 py-2 text-sm font-medium border rounded-md hover:bg-muted transition-colors"
-            >
-              Kembali
-            </Link>
-            <Link
-              to="/mail/outgoing/create"
-              className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-md hover:bg-emerald-700 transition-colors shadow-sm font-medium text-sm"
-            >
-              <Plus className="w-4 h-4" /> Catat Surat Keluar
-            </Link>
-          </div>
-        }
-      />
-
-      <div className="bg-card rounded-xl border shadow-sm p-4">
-        <form onSubmit={handleSearch} className="flex gap-4">
-          <div className="flex-1 relative">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Cari nomor surat, perihal, atau tujuan..."
-              className="w-full pl-9 pr-4 py-2 border rounded-md text-sm focus:ring-2 focus:ring-emerald-500/50 outline-none"
-            />
-          </div>
-          <button type="submit" className="px-4 py-2 bg-muted text-foreground text-sm font-medium rounded-md hover:bg-muted/80 transition-colors">
-            Cari
-          </button>
-        </form>
-      </div>
-
-      <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
-        {isLoading ? (
-          <div className="p-12 text-center text-muted-foreground">Memuat data surat keluar...</div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
-              <thead className="bg-muted/50 text-muted-foreground text-xs uppercase font-medium border-b">
-                <tr>
-                  <th className="px-6 py-4">Nomor & Tanggal Surat</th>
-                  <th className="px-6 py-4">Tujuan / Penerima</th>
-                  <th className="px-6 py-4">Perihal</th>
-                  <th className="px-6 py-4 text-right">Aksi</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {mails.map((mail) => (
-                  <tr key={mail.id} className="hover:bg-muted/30 transition-colors">
-                    <td className="px-6 py-4">
-                      <div className="font-semibold text-emerald-600">{mail.mail_number}</div>
-                      <div className="text-xs text-muted-foreground mt-0.5">{formatDate(mail.mail_date)}</div>
-                    </td>
-                    <td className="px-6 py-4 font-medium">{mail.recipient}</td>
-                    <td className="px-6 py-4">{mail.title}</td>
-                    <td className="px-6 py-4 text-right">
-                      <button 
-                        onClick={() => { if(confirm('Hapus surat ini?')) deleteMail({ resource: "mail_records", id: mail.id as string }) }}
-                        className="p-1.5 text-red-600 hover:bg-red-50 rounded"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-                {mails.length === 0 && (
-                  <tr><td colSpan={4} className="text-center p-8 text-muted-foreground">Belum ada surat keluar.</td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-    </div>
-  );
+  const { activeUnitId } = useCurrentUnit(); const [search, setSearch] = useState(""); const [debounced, setDebounced] = useState(""); const [status, setStatus] = useState("");
+  useEffect(() => { const timer = setTimeout(() => setDebounced(search), 350); return () => clearTimeout(timer); }, [search]);
+  const filters: any[] = [{ field: "type", operator: "eq", value: "outgoing" }]; if (activeUnitId) filters.push({ field: "unit_id", operator: "eq", value: activeUnitId }); if (status) filters.push({ field: "status", operator: "eq", value: status }); if (debounced) filters.push({ operator: "or", value: [{ field: "agenda_number", operator: "contains", value: debounced }, { field: "mail_number", operator: "contains", value: debounced }, { field: "title", operator: "contains", value: debounced }, { field: "recipient", operator: "contains", value: debounced }] });
+  const { tableQueryResult, current, setCurrent, pageCount } = useTable({ resource: "mail_records", filters: { permanent: filters }, pagination: { current: 1, pageSize: 15 }, sorters: { initial: [{ field: "mail_date", order: "desc" }] }, meta: { select: "*,units(name),approver:employees!mail_records_approved_by_employee_id_fkey(full_name)" } }); const rows = tableQueryResult.data?.data || [];
+  return <div className="space-y-6"><PageHeader title="Agenda Surat Keluar" description="Kelola penyusunan, penomoran, persetujuan, pengiriman, dan arsip surat resmi sekolah." action={<Link to="/mail/outgoing/create" className="flex items-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground"><Plus className="h-4 w-4" />Buat Surat Keluar</Link>} /><OfficeSectionNav /><div className="flex flex-col gap-3 rounded-lg border bg-card p-3 sm:flex-row"><label className="relative flex-1"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Cari agenda, nomor surat, perihal, atau tujuan" className="h-10 w-full rounded-md border bg-background pl-9 pr-3 text-sm" /></label><select value={status} onChange={(event) => setStatus(event.target.value)} className="h-10 rounded-md border bg-background px-3 text-sm font-semibold"><option value="">Semua status</option><option value="awaiting_approval">Menunggu persetujuan</option><option value="approved">Disetujui</option><option value="sent">Terkirim</option><option value="archived">Diarsipkan</option><option value="rejected">Perlu perbaikan</option></select></div><div className="overflow-hidden rounded-lg border bg-card"><div className="overflow-x-auto"><table className="w-full min-w-[860px] text-left text-sm"><thead className="border-b bg-muted/40 text-xs uppercase text-muted-foreground"><tr><th className="px-4 py-3">Agenda / surat</th><th className="px-4 py-3">Tujuan & perihal</th><th className="px-4 py-3">Unit</th><th className="px-4 py-3">Persetujuan</th><th className="px-4 py-3">Status</th><th className="px-4 py-3 text-right">Buka</th></tr></thead><tbody className="divide-y">{tableQueryResult.isLoading ? <tr><td colSpan={6} className="h-48 text-center">Memuat agenda surat...</td></tr> : rows.map((row: any) => <tr key={row.id} className="hover:bg-muted/20"><td className="px-4 py-3"><p className="font-bold text-primary">{row.agenda_number || "Menunggu nomor agenda"}</p><p className="mt-1 text-xs text-muted-foreground">{row.mail_number} - {new Date(row.mail_date).toLocaleDateString("id-ID")}</p></td><td className="px-4 py-3"><p className="font-semibold">{row.recipient}</p><p className="mt-1 max-w-md truncate text-xs text-muted-foreground">{row.title}</p></td><td className="px-4 py-3">{row.units?.name || "Lintas unit"}</td><td className="px-4 py-3 text-xs">{row.approver?.full_name || "Belum disetujui"}</td><td className="px-4 py-3"><span className="rounded bg-muted px-2 py-1 text-xs font-semibold">{labels[row.status] || row.status}</span></td><td className="px-4 py-3 text-right"><Link to={`/mail/show/${row.id}`} className="inline-flex rounded-md border p-2 text-primary"><Eye className="h-4 w-4" /></Link></td></tr>)}{!tableQueryResult.isLoading && rows.length === 0 && <tr><td colSpan={6} className="h-48 text-center"><Send className="mx-auto mb-2 h-8 w-8 text-muted-foreground/40" />Belum ada surat keluar sesuai filter.</td></tr>}</tbody></table></div>{pageCount > 1 && <div className="flex items-center justify-between border-t px-4 py-3 text-sm"><span>Halaman {current} dari {pageCount}</span><div className="flex gap-2"><button disabled={current === 1} onClick={() => setCurrent(current - 1)} className="rounded border p-2 disabled:opacity-40"><ChevronLeft className="h-4 w-4" /></button><button disabled={current === pageCount} onClick={() => setCurrent(current + 1)} className="rounded border p-2 disabled:opacity-40"><ChevronRight className="h-4 w-4" /></button></div></div>}</div></div>;
 };

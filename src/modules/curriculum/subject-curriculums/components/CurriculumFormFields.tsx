@@ -1,13 +1,14 @@
 import React from "react";
 import { useFieldArray, useWatch } from "react-hook-form";
 import type { Control, FieldErrors, UseFormRegister } from "react-hook-form";
-import { CalendarDays, ClipboardList, Layers3, Plus, Trash2 } from "lucide-react";
+import { BarChart3, CalendarDays, ClipboardCheck, ClipboardList, Layers3, Plus, Trash2 } from "lucide-react";
 
 interface CurriculumFormFieldsProps {
   register: UseFormRegister<any>;
   control: Control<any>;
   errors: FieldErrors<any>;
   activeTab: string;
+  selectedSemester: "Ganjil" | "Genap";
 }
 
 const FieldLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => (
@@ -21,7 +22,12 @@ const EmptyState: React.FC<{ title: string; description: string }> = ({ title, d
   </div>
 );
 
-export const CurriculumFormFields: React.FC<CurriculumFormFieldsProps> = ({ register, control, activeTab }) => {
+export const CurriculumFormFields: React.FC<CurriculumFormFieldsProps> = ({ register, control, activeTab, selectedSemester }) => {
+  const semesterPlanPrefix = `semester_plans.${selectedSemester}`;
+  const assessmentWeights = useWatch({ control, name: `${semesterPlanPrefix}.assessment_weights` }) || {};
+  const finalAssessmentType = useWatch({ control, name: `${semesterPlanPrefix}.final_assessment_type` });
+  const assessmentWeightTotal = ["formatif", "sumatif_lingkup", "sts", "semester_final"]
+    .reduce((total, key) => total + (Number(assessmentWeights[key]) || 0), 0);
   const { fields: protaFields, append: appendProta, remove: removeProta } = useFieldArray({
     control,
     name: "prota_data",
@@ -29,23 +35,70 @@ export const CurriculumFormFields: React.FC<CurriculumFormFieldsProps> = ({ regi
 
   const { fields: prosemFields, append: appendProsem, remove: removeProsem } = useFieldArray({
     control,
-    name: "prosem_data.rows",
+    name: `${semesterPlanPrefix}.prosem_data.rows`,
   });
 
   const { fields: rppmFields, append: appendRppm, remove: removeRppm } = useFieldArray({
     control,
-    name: "prosem_data.rppm",
+    name: `${semesterPlanPrefix}.prosem_data.rppm`,
   });
 
   const { fields: rpphFields, append: appendRpph, remove: removeRpph } = useFieldArray({
     control,
-    name: "learning_plan_data",
+    name: `${semesterPlanPrefix}.learning_plan_data`,
   });
-
-  const prosemSemester = useWatch({ control, name: "prosem_data.semester" }) || "Ganjil";
 
   return (
     <>
+      <section className={activeTab === "assessment" ? "space-y-5 animate-in fade-in slide-in-from-bottom-2 duration-300" : "hidden"}>
+        <div className="border-b pb-4">
+          <div className="flex items-center gap-2 text-sm font-semibold text-primary"><ClipboardCheck className="h-4 w-4" />Sumber nilai semester</div>
+          <h3 className="mt-1 text-xl font-bold">Kebijakan Asesmen & Rapor</h3>
+          <p className="mt-1 text-sm text-muted-foreground">Tetapkan apakah mapel ini dinilai pada semester {selectedSemester}, jenis asesmen akhirnya, dan komposisi nilai rapor.</p>
+        </div>
+
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div className="rounded-lg border bg-card p-4">
+            <p className="font-semibold">Keikutsertaan Rapor</p>
+            <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-md border bg-muted/20 p-3">
+              <input type="checkbox" {...register(`${semesterPlanPrefix}.include_in_report`)} className="mt-1 h-4 w-4 accent-primary" />
+              <span><span className="block text-sm font-semibold">Tampilkan mata pelajaran pada rapor semester</span><span className="mt-1 block text-xs text-muted-foreground">Nonaktifkan untuk program pendamping yang dinilai pada laporan terpisah.</span></span>
+            </label>
+          </div>
+
+          <div className="rounded-lg border bg-card p-4">
+            <label className="font-semibold" htmlFor={`final-assessment-${selectedSemester}`}>Asesmen Akhir</label>
+            <select id={`final-assessment-${selectedSemester}`} {...register(`${semesterPlanPrefix}.final_assessment_type`)} className="mt-3 w-full rounded-md border bg-background px-3 py-2 text-sm">
+              <option value="sas">SAS - Sumatif Akhir Semester</option>
+              <option value="asat">ASAT - Asesmen Sumatif Akhir Tahun</option>
+              <option value="none">Tidak ada asesmen akhir</option>
+            </select>
+            <p className="mt-2 text-xs text-muted-foreground">Rekomendasi: Ganjil menggunakan SAS, Genap menggunakan ASAT.</p>
+          </div>
+        </div>
+
+        <div className="rounded-lg border bg-card p-4">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div><p className="flex items-center gap-2 font-semibold"><BarChart3 className="h-4 w-4 text-primary" />Bobot Nilai Rapor</p><p className="mt-1 text-xs text-muted-foreground">Bobot menjadi dasar perhitungan nilai akhir dan harus tepat 100%.</p></div>
+            <span className={`w-fit rounded-md px-3 py-1.5 text-sm font-bold ${assessmentWeightTotal === 100 ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"}`}>Total {assessmentWeightTotal}%</span>
+          </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {[
+              { key: "formatif", label: "Formatif" },
+              { key: "sumatif_lingkup", label: "Sumatif Lingkup" },
+              { key: "sts", label: "STS" },
+              { key: "semester_final", label: finalAssessmentType === "asat" ? "ASAT" : finalAssessmentType === "none" ? "Tanpa Ujian Akhir" : "SAS" },
+            ].map((item) => (
+              <label key={item.key} className="rounded-md border p-3 text-xs font-semibold text-muted-foreground">
+                {item.label}
+                <div className="mt-2 flex items-center gap-2"><input type="number" min={0} max={100} {...register(`${semesterPlanPrefix}.assessment_weights.${item.key}`, { valueAsNumber: true })} className="w-full rounded-md border bg-background px-3 py-2 text-sm font-bold text-foreground" /><span>%</span></div>
+              </label>
+            ))}
+          </div>
+          {finalAssessmentType === "none" ? <p className="mt-3 text-xs font-medium text-amber-700">Atur bobot ujian akhir menjadi 0% dan distribusikan bobotnya ke komponen lain.</p> : null}
+        </div>
+      </section>
+
       <section className={activeTab === "prota" ? "space-y-5 animate-in fade-in slide-in-from-bottom-2 duration-300" : "hidden"}>
         <div className="flex flex-wrap items-start justify-between gap-3 border-b pb-4">
           <div>
@@ -142,15 +195,15 @@ export const CurriculumFormFields: React.FC<CurriculumFormFieldsProps> = ({ regi
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <select {...register("prosem_data.semester")} className="rounded-md border bg-background px-3 py-2 text-sm font-semibold">
-              <option value="Ganjil">Semester Ganjil</option>
-              <option value="Genap">Semester Genap</option>
-            </select>
+            <div className="flex items-center gap-2 rounded-md border bg-background px-3 py-2">
+              <span className="text-xs font-semibold text-muted-foreground">JP/Minggu</span>
+              <input {...register(`${semesterPlanPrefix}.weekly_hours`, { valueAsNumber: true })} type="number" min={1} max={48} className="w-16 bg-transparent text-sm font-bold outline-none" placeholder="0" />
+            </div>
             <button
               type="button"
               onClick={() =>
                 appendProsem({
-                  semester: prosemSemester,
+                  semester: selectedSemester,
                   minggu: prosemFields.length + 1,
                   bulan: "",
                   topik: "",
@@ -175,7 +228,7 @@ export const CurriculumFormFields: React.FC<CurriculumFormFieldsProps> = ({ regi
                   <span className="flex h-9 w-9 items-center justify-center rounded-md bg-primary/10 text-sm font-bold text-primary">{index + 1}</span>
                   <div>
                     <p className="font-semibold">Pekan {index + 1}</p>
-                    <p className="text-xs text-muted-foreground">{prosemSemester === "Ganjil" ? "Juli-Desember" : "Januari-Juni"}</p>
+                    <p className="text-xs text-muted-foreground">{selectedSemester === "Ganjil" ? "Juli-Desember" : "Januari-Juni"}</p>
                   </div>
                 </div>
                 <button type="button" onClick={() => removeProsem(index)} className="rounded-md p-2 text-rose-600 hover:bg-rose-50" title="Hapus pekan">
@@ -185,27 +238,27 @@ export const CurriculumFormFields: React.FC<CurriculumFormFieldsProps> = ({ regi
               <div className="grid gap-4 md:grid-cols-12">
                 <div className="md:col-span-2">
                   <FieldLabel>Minggu</FieldLabel>
-                  <input {...register(`prosem_data.rows.${index}.minggu`, { valueAsNumber: true })} type="number" min={1} className="w-full rounded-md border px-3 py-2 text-sm" />
+                  <input {...register(`${semesterPlanPrefix}.prosem_data.rows.${index}.minggu`, { valueAsNumber: true })} type="number" min={1} className="w-full rounded-md border px-3 py-2 text-sm" />
                 </div>
                 <div className="md:col-span-2">
                   <FieldLabel>Bulan</FieldLabel>
-                  <input {...register(`prosem_data.rows.${index}.bulan`)} className="w-full rounded-md border px-3 py-2 text-sm" placeholder="Juli" />
+                  <input {...register(`${semesterPlanPrefix}.prosem_data.rows.${index}.bulan`)} className="w-full rounded-md border px-3 py-2 text-sm" placeholder={selectedSemester === "Ganjil" ? "Juli" : "Januari"} />
                 </div>
                 <div className="md:col-span-4">
                   <FieldLabel>Topik / Subtopik</FieldLabel>
-                  <textarea {...register(`prosem_data.rows.${index}.topik`)} rows={3} className="w-full rounded-md border px-3 py-2 text-sm" />
+                  <textarea {...register(`${semesterPlanPrefix}.prosem_data.rows.${index}.topik`)} rows={3} className="w-full rounded-md border px-3 py-2 text-sm" />
                 </div>
                 <div className="md:col-span-4">
                   <FieldLabel>Tujuan Pembelajaran</FieldLabel>
-                  <textarea {...register(`prosem_data.rows.${index}.tujuan_pembelajaran`)} rows={3} className="w-full rounded-md border px-3 py-2 text-sm" />
+                  <textarea {...register(`${semesterPlanPrefix}.prosem_data.rows.${index}.tujuan_pembelajaran`)} rows={3} className="w-full rounded-md border px-3 py-2 text-sm" />
                 </div>
                 <div className="md:col-span-2">
                   <FieldLabel>Alokasi JP</FieldLabel>
-                  <input {...register(`prosem_data.rows.${index}.alokasi_jp`)} className="w-full rounded-md border px-3 py-2 text-sm" placeholder="4 JP" />
+                  <input {...register(`${semesterPlanPrefix}.prosem_data.rows.${index}.alokasi_jp`)} className="w-full rounded-md border px-3 py-2 text-sm" placeholder="4 JP" />
                 </div>
                 <div className="md:col-span-10">
                   <FieldLabel>Nama Modul Ajar</FieldLabel>
-                  <input {...register(`prosem_data.rows.${index}.modul_ajar`)} className="w-full rounded-md border px-3 py-2 text-sm" placeholder="Judul modul/pertemuan utama pekan ini" />
+                  <input {...register(`${semesterPlanPrefix}.prosem_data.rows.${index}.modul_ajar`)} className="w-full rounded-md border px-3 py-2 text-sm" placeholder="Judul modul/pertemuan utama pekan ini" />
                 </div>
               </div>
             </div>
@@ -248,7 +301,7 @@ export const CurriculumFormFields: React.FC<CurriculumFormFieldsProps> = ({ regi
 
         <div className="grid gap-4">
           {rppmFields.map((field, index) => {
-            const prefix = `prosem_data.rppm.${index}`;
+            const prefix = `${semesterPlanPrefix}.prosem_data.rppm.${index}`;
             return (
               <div key={field.id} className="rounded-lg border bg-card p-4">
                 <div className="mb-4 flex items-center justify-between">
@@ -335,7 +388,7 @@ export const CurriculumFormFields: React.FC<CurriculumFormFieldsProps> = ({ regi
 
         <div className="grid gap-4">
           {rpphFields.map((field, index) => {
-            const prefix = `learning_plan_data.${index}`;
+            const prefix = `${semesterPlanPrefix}.learning_plan_data.${index}`;
             return (
               <div key={field.id} className="rounded-lg border bg-card p-4">
                 <div className="mb-4 flex items-center justify-between">

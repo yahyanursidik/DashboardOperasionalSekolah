@@ -1,246 +1,159 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useList } from "@refinedev/core";
-import { PageHeader } from "../../../components/layout/PageHeader";
-import { Save, FilterX } from "lucide-react";
-import { supabaseClient } from "../../../lib/supabase/client";
 import { useSearchParams } from "react-router-dom";
-
-const GRADE_TYPES = [
-  { id: "tugas_1", label: "Tugas 1" },
-  { id: "tugas_2", label: "Tugas 2" },
-  { id: "uts", label: "UTS" },
-  { id: "uas", label: "UAS" }
-];
+import { BookOpenCheck, FilterX, Save } from "lucide-react";
+import { toast } from "sonner";
+import { PageHeader } from "../../../components/layout/PageHeader";
+import { useAcademicYear } from "../../../app/providers/AcademicYearProvider";
+import { supabaseClient } from "../../../lib/supabase/client";
+import { calculateFinalScore, getAssessmentGradeTypes } from "../../curriculum/assessment-policy";
 
 const PAUD_OPTIONS = ["", "BB", "MB", "BSH", "BSB"];
 
+type SubjectOffering = {
+  id: string;
+  name: string;
+  curriculumSemesterId: string | null;
+  plan: any;
+};
+
 export const Gradebook: React.FC = () => {
   const [searchParams] = useSearchParams();
-  const [selectedSemester, setSelectedSemester] = useState<string>("");
-  const [selectedClass, setSelectedClass] = useState<string>(searchParams.get("class_id") || "");
-  const [selectedSubject, setSelectedSubject] = useState<string>("");
-
-  const { data: semesters } = useList({ resource: "semesters", pagination: { mode: "off" } });
-  const { data: classes } = useList({ resource: "classes", meta: { select: "*, units(name)" }, pagination: { mode: "off" } });
-  const { data: subjects } = useList({ resource: "subjects", pagination: { mode: "off" } });
-
-  // Students in selected class
-  const { data: students, isLoading: isLoadingStudents } = useList({
-    resource: "students",
-    filters: [
-      { field: "class_id", operator: "eq", value: selectedClass },
-      { field: "status", operator: "eq", value: "active" }
-    ],
-    queryOptions: { enabled: !!selectedClass },
-    pagination: { mode: "off" }
-  });
-
-  // Fetch existing grades
-  const [grades, setGrades] = useState<Record<string, string>>({}); // Key: `${studentId}_${gradeType}`, Value: score
+  const { activeSemesterId } = useAcademicYear();
+  const [selectedSemester, setSelectedSemester] = useState(activeSemesterId || "");
+  const [selectedClass, setSelectedClass] = useState(searchParams.get("class_id") || "");
+  const [selectedSubject, setSelectedSubject] = useState("");
+  const [offerings, setOfferings] = useState<SubjectOffering[]>([]);
+  const [isLoadingOfferings, setIsLoadingOfferings] = useState(false);
+  const [grades, setGrades] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
 
+  const { data: semesters } = useList({ resource: "semesters", meta: { select: "*, academic_years(name)" }, pagination: { mode: "off" } });
+  const { data: classes } = useList({ resource: "classes", meta: { select: "*, units(name)" }, pagination: { mode: "off" } });
+  const { data: subjects } = useList({ resource: "subjects", filters: [{ field: "is_active", operator: "eq", value: true }], pagination: { mode: "off" } });
+  const { data: students, isLoading: isLoadingStudents } = useList({
+    resource: "students",
+    filters: [{ field: "class_id", operator: "eq", value: selectedClass }, { field: "status", operator: "eq", value: "active" }],
+    queryOptions: { enabled: Boolean(selectedClass) },
+    pagination: { mode: "off" },
+  });
+
   useEffect(() => {
-    // Set active semester by default
-    if (semesters?.data) {
-      const active = semesters.data.find(s => s.is_active);
-      if (active && !selectedSemester) setSelectedSemester(active.id as string);
+    if (!selectedSemester && activeSemesterId) setSelectedSemester(activeSemesterId);
+  }, [activeSemesterId, selectedSemester]);
+
+  const semester = semesters?.data?.find((item: any) => String(item.id) === String(selectedSemester));
+  const availableClasses = useMemo(
+    () => (classes?.data || []).filter((item: any) => !semester?.academic_year_id || item.academic_year_id === semester.academic_year_id),
+    [classes?.data, semester?.academic_year_id],
+  );
+  const currentClass = classes?.data?.find((item: any) => String(item.id) === String(selectedClass));
+  const unitName = currentClass?.units?.name?.toLowerCase() || "";
+  const className = currentClass?.name?.toLowerCase() || "";
+  const isPaud = ["paud", "tk", "kb", "preschool"].some((name) => unitName.includes(name) || className.includes(name));
+
+  useEffect(() => {
+    if (selectedClass && !availableClasses.some((item: any) => String(item.id) === String(selectedClass))) {
+      setSelectedClass("");
+      setSelectedSubject("");
     }
-  }, [semesters]);
+  }, [availableClasses, selectedClass]);
+
+  useEffect(() => {
+    const loadOfferings = async () => {
+      setSelectedSubject("");
+      setOfferings([]);
+      if (!selectedSemester || !currentClass || !semester) return;
+      setIsLoadingOfferings(true);
+      try {
+        if (isPaud) {
+          setOfferings((subjects?.data || [])
+            .filter((subject: any) => !subject.unit_id || subject.unit_id === currentClass.unit_id)
+            .map((subject: any) => ({ id: String(subject.id), name: subject.name, curriculumSemesterId: null, plan: null })));
+          return;
+        }
+
+        const { data, error } = await supabaseClient
+          .from("subject_curriculums")
+          .select("id, subject_id, grade_level, subjects(id, name), subject_curriculum_semesters(id, semester_id, include_in_report, final_assessment_type, assessment_weights, status)")
+          .eq("academic_year_id", currentClass.academic_year_id)
+          .eq("grade_level", Number(currentClass.grade_level || currentClass.level));
+        if (error) throw error;
+
+        const nextOfferings = ((data || []) as any[]).flatMap((curriculum) => {
+          const plan = curriculum.subject_curriculum_semesters?.find((item: any) => String(item.semester_id) === String(selectedSemester));
+          if (!plan || !curriculum.subjects?.id) return [];
+          return [{ id: String(curriculum.subjects.id), name: curriculum.subjects.name, curriculumSemesterId: String(plan.id), plan }];
+        });
+        setOfferings(nextOfferings.sort((a, b) => a.name.localeCompare(b.name)));
+      } catch (error: any) {
+        toast.error("Daftar mata pelajaran semester belum dapat dimuat", { description: error.message });
+      } finally {
+        setIsLoadingOfferings(false);
+      }
+    };
+    void loadOfferings();
+  }, [currentClass, isPaud, selectedSemester, semester, subjects?.data]);
+
+  const selectedOffering = offerings.find((item) => item.id === selectedSubject);
+  const gradeTypes = useMemo(
+    () => getAssessmentGradeTypes(selectedOffering?.plan, semester?.name),
+    [selectedOffering?.plan, semester?.name],
+  );
 
   useEffect(() => {
     const fetchGrades = async () => {
+      setGrades({});
       if (!selectedSemester || !selectedClass || !selectedSubject) return;
-      
-      const response = await supabaseClient
-        .from("academic_grades")
-        .select("*")
-        .eq("semester_id", selectedSemester)
-        .eq("class_id", selectedClass)
-        .eq("subject_id", selectedSubject);
-      
-      const data = response.data as any[];
-      if (data) {
-        const gradeMap: Record<string, string> = {};
-        data.forEach(g => {
-          gradeMap[`${g.student_id}_${g.grade_type}`] = g.score || "";
-        });
-        setGrades(gradeMap);
-      }
+      const { data, error } = await supabaseClient.from("academic_grades").select("student_id, grade_type, score").eq("semester_id", selectedSemester).eq("class_id", selectedClass).eq("subject_id", selectedSubject);
+      if (error) return toast.error("Nilai sebelumnya belum dapat dimuat", { description: error.message });
+      const next: Record<string, string> = {};
+      (data || []).forEach((grade: any) => { next[`${grade.student_id}_${grade.grade_type}`] = grade.score || ""; });
+      setGrades(next);
     };
-    fetchGrades();
-  }, [selectedSemester, selectedClass, selectedSubject]);
-
-  const handleGradeChange = (studentId: string, gradeType: string, value: string) => {
-    setGrades(prev => ({
-      ...prev,
-      [`${studentId}_${gradeType}`]: value
-    }));
-  };
+    void fetchGrades();
+  }, [selectedClass, selectedSemester, selectedSubject]);
 
   const handleSaveAll = async () => {
-    if (!selectedSemester || !selectedClass || !selectedSubject || !students?.data) return;
-    
-    setIsSaving(true);
-    
-    // Prepare upsert payload
-    const payload = [];
-    for (const student of students.data) {
-      for (const type of GRADE_TYPES) {
-        const score = grades[`${student.id}_${type.id}`];
-        if (score !== undefined && score !== "") {
-          payload.push({
-            student_id: student.id,
-            subject_id: selectedSubject,
-            class_id: selectedClass,
-            semester_id: selectedSemester,
-            grade_type: type.id,
-            score: score
-          });
-        }
-      }
-    }
-
+    if (!selectedOffering || !students?.data) return;
     try {
-      if (payload.length > 0) {
-        await supabaseClient.from("academic_grades").upsert(payload, { 
-          onConflict: "student_id, subject_id, class_id, semester_id, grade_type" 
-        });
+      const payload = students.data.flatMap((student: any) => gradeTypes.flatMap((type) => {
+        const score = grades[`${student.id}_${type.value}`];
+        if (score === undefined || score === "") return [];
+        const numeric = Number(score);
+        if (!isPaud && (!Number.isFinite(numeric) || numeric < 0 || numeric > 100)) throw new Error(`Nilai ${student.full_name} harus 0-100.`);
+        return [{ student_id: student.id, subject_id: selectedOffering.id, class_id: selectedClass, semester_id: selectedSemester, subject_curriculum_semester_id: selectedOffering.curriculumSemesterId, grade_type: type.value, score }];
+      }));
+      if (!payload.length) {
+        toast.error("Belum ada nilai yang diisi.");
+        return;
       }
-      alert("Berhasil menyimpan seluruh nilai!");
-    } catch (error) {
-      console.error(error);
-      alert("Gagal menyimpan nilai.");
+      setIsSaving(true);
+      const { error } = await supabaseClient.from("academic_grades").upsert(payload, { onConflict: "student_id,subject_id,class_id,semester_id,grade_type" });
+      if (error) throw error;
+      toast.success("Nilai berhasil disimpan", { description: `${payload.length} komponen nilai diperbarui.` });
+    } catch (error: any) {
+      toast.error("Nilai belum dapat disimpan", { description: error.message });
     } finally {
       setIsSaving(false);
     }
   };
 
-  const currentClassObj = classes?.data?.find(c => c.id === selectedClass);
-  const unitName = currentClassObj?.units?.name?.toLowerCase() || "";
-  const className = currentClassObj?.name?.toLowerCase() || "";
-  const isPaud = unitName.includes("paud") || unitName.includes("tk") || unitName.includes("kb") || className.includes("tk") || className.includes("paud");
-
-  return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Input Nilai Akademik (Gradebook)"
-        description="Pilih kelas dan mata pelajaran untuk mulai menginput nilai."
-      />
-
-      <div className="bg-card rounded-xl border shadow-sm p-4 space-y-4">
-        <div className="flex flex-wrap items-end gap-4">
-          <div className="space-y-1.5 flex-1 min-w-[200px]">
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Semester Aktif</label>
-            <select value={selectedSemester} onChange={e => setSelectedSemester(e.target.value)} className="w-full border rounded-md px-3 py-2 text-sm bg-background">
-              <option value="">Pilih Semester</option>
-              {semesters?.data?.map(s => <option key={s.id} value={s.id}>{s.name} {s.is_active ? "(Aktif)" : ""}</option>)}
-            </select>
-          </div>
-          
-          <div className="space-y-1.5 flex-1 min-w-[200px]">
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Kelas</label>
-            <select value={selectedClass} onChange={e => setSelectedClass(e.target.value)} className="w-full border rounded-md px-3 py-2 text-sm bg-background">
-              <option value="">Pilih Kelas</option>
-              {classes?.data?.map(c => <option key={c.id} value={c.id}>{c.name} - {c.units?.name}</option>)}
-            </select>
-          </div>
-
-          <div className="space-y-1.5 flex-1 min-w-[200px]">
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Mata Pelajaran</label>
-            <select value={selectedSubject} onChange={e => setSelectedSubject(e.target.value)} className="w-full border rounded-md px-3 py-2 text-sm bg-background">
-              <option value="">Pilih Mata Pelajaran</option>
-              {subjects?.data?.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
-          </div>
-
-          <button 
-            onClick={() => { setSelectedClass(""); setSelectedSubject(""); }}
-            className="px-4 py-2 border rounded-md text-sm font-medium text-muted-foreground hover:bg-muted transition-colors flex items-center gap-2 h-[38px]"
-          >
-            <FilterX className="w-4 h-4" /> Reset
-          </button>
-        </div>
+  return <div className="space-y-6">
+    <PageHeader title="Gradebook Akademik" description="Input nilai berdasarkan mapel-kelas, tahun ajaran, semester, dan kebijakan asesmen kurikulum." />
+    <section className="rounded-lg border bg-card p-4">
+      <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-[1fr_1fr_1fr_auto] xl:items-end">
+        <label className="text-xs font-semibold text-muted-foreground">TAHUN AJARAN / SEMESTER<select value={selectedSemester} onChange={(event) => { setSelectedSemester(event.target.value); setSelectedClass(""); setSelectedSubject(""); }} className="mt-2 w-full rounded-md border bg-background px-3 py-2 text-sm font-normal text-foreground"><option value="">Pilih periode</option>{semesters?.data?.map((item: any) => <option key={item.id} value={item.id}>{item.academic_years?.name || "Tahun ajaran"} - {item.name}{item.is_active ? " (Aktif)" : ""}</option>)}</select></label>
+        <label className="text-xs font-semibold text-muted-foreground">KELAS<select value={selectedClass} onChange={(event) => { setSelectedClass(event.target.value); setSelectedSubject(""); }} className="mt-2 w-full rounded-md border bg-background px-3 py-2 text-sm font-normal text-foreground"><option value="">Pilih kelas</option>{availableClasses.map((item: any) => <option key={item.id} value={item.id}>{item.name} - {item.units?.name}</option>)}</select></label>
+        <label className="text-xs font-semibold text-muted-foreground">MATA PELAJARAN<select value={selectedSubject} disabled={!selectedClass || isLoadingOfferings} onChange={(event) => setSelectedSubject(event.target.value)} className="mt-2 w-full rounded-md border bg-background px-3 py-2 text-sm font-normal text-foreground disabled:opacity-60"><option value="">{isLoadingOfferings ? "Memuat mapel..." : "Pilih mapel semester"}</option>{offerings.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+        <button onClick={() => { setSelectedClass(""); setSelectedSubject(""); }} title="Reset filter" className="flex h-10 items-center justify-center gap-2 rounded-md border px-3 text-sm font-semibold"><FilterX className="h-4 w-4" />Reset</button>
       </div>
+      {selectedClass && !isPaud && !isLoadingOfferings && offerings.length === 0 ? <p className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">Belum ada mata pelajaran yang dikonfigurasi untuk kelas dan semester ini. Lengkapi Kurikulum SD terlebih dahulu.</p> : null}
+    </section>
 
-      {selectedSemester && selectedClass && selectedSubject ? (
-        <div className="bg-card rounded-xl border shadow-sm overflow-hidden flex flex-col">
-          <div className="p-4 border-b flex justify-between items-center bg-muted/20">
-            <div>
-              <h3 className="font-bold">Form Input Nilai</h3>
-              <p className="text-xs text-muted-foreground">
-                {isPaud ? "Mode PAUD aktif: Masukkan nilai kualitatif (BB, MB, BSH, BSB)." : "Masukkan nilai angka (0-100)."}
-              </p>
-            </div>
-            <button
-              onClick={handleSaveAll}
-              disabled={isSaving}
-              className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition-colors text-sm font-medium disabled:opacity-70"
-            >
-              <Save className="w-4 h-4" /> {isSaving ? "Menyimpan..." : "Simpan Semua Nilai"}
-            </button>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
-              <thead className="bg-muted/50 text-muted-foreground text-xs uppercase font-medium border-b">
-                <tr>
-                  <th className="px-4 py-3 w-12 text-center">No</th>
-                  <th className="px-4 py-3">Nama Siswa</th>
-                  <th className="px-4 py-3 w-32">NIS/NISN</th>
-                  {GRADE_TYPES.map(type => (
-                    <th key={type.id} className="px-4 py-3 w-32 text-center">{type.label}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {isLoadingStudents ? (
-                  <tr><td colSpan={7} className="text-center py-8">Memuat data siswa...</td></tr>
-                ) : students?.data?.length === 0 ? (
-                  <tr><td colSpan={7} className="text-center py-8">Belum ada siswa di kelas ini.</td></tr>
-                ) : (
-                  students?.data?.map((student, idx) => (
-                    <tr key={student.id} className="hover:bg-muted/20">
-                      <td className="px-4 py-3 text-center">{idx + 1}</td>
-                      <td className="px-4 py-3 font-semibold">{student.full_name}</td>
-                      <td className="px-4 py-3 text-xs text-muted-foreground">{student.nis || "-"}</td>
-                      {GRADE_TYPES.map(type => {
-                        const studentId = student.id as string;
-                        return (
-                        <td key={type.id} className="px-4 py-2">
-                          {isPaud ? (
-                            <select
-                              value={grades[`${studentId}_${type.id}`] || ""}
-                              onChange={e => handleGradeChange(studentId, type.id, e.target.value)}
-                              className="w-full border rounded text-center px-2 py-1.5 focus:ring-1 focus:ring-primary outline-none"
-                            >
-                              {PAUD_OPTIONS.map(opt => <option key={opt} value={opt}>{opt || "-"}</option>)}
-                            </select>
-                          ) : (
-                            <input
-                              type="number"
-                              min="0"
-                              max="100"
-                              value={grades[`${studentId}_${type.id}`] || ""}
-                              onChange={e => handleGradeChange(studentId, type.id, e.target.value)}
-                              className="w-full border rounded text-center px-2 py-1.5 focus:ring-1 focus:ring-primary outline-none"
-                              placeholder="0-100"
-                            />
-                          )}
-                        </td>
-                        );
-                      })}
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      ) : (
-        <div className="bg-muted/30 border border-dashed rounded-xl p-12 text-center flex flex-col items-center justify-center">
-          <p className="text-muted-foreground font-medium">Silakan pilih Semester, Kelas, dan Mata Pelajaran di atas untuk mulai mengisi nilai.</p>
-        </div>
-      )}
-    </div>
-  );
+    {selectedOffering ? <section className="overflow-hidden rounded-lg border bg-card">
+      <div className="flex flex-col gap-3 border-b p-4 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="flex items-center gap-2 font-bold"><BookOpenCheck className="h-5 w-5 text-primary" />{selectedOffering.name}</h2><p className="mt-1 text-xs text-muted-foreground">{semester?.academic_years?.name} - Semester {semester?.name} | {gradeTypes.map((type) => `${type.label} ${type.weight}%`).join(" | ")}</p></div><button onClick={() => void handleSaveAll()} disabled={isSaving} className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60"><Save className="h-4 w-4" />{isSaving ? "Menyimpan..." : "Simpan Nilai"}</button></div>
+      <div className="overflow-x-auto"><table className="w-full min-w-[850px] text-left text-sm"><thead className="border-b bg-muted/50 text-xs uppercase text-muted-foreground"><tr><th className="px-4 py-3">Siswa</th>{gradeTypes.map((type) => <th key={type.value} className="px-4 py-3 text-center">{type.label}<span className="block text-[10px] font-normal">{type.weight}%</span></th>)}<th className="px-4 py-3 text-center">Nilai Akhir</th></tr></thead><tbody className="divide-y">{isLoadingStudents ? <tr><td colSpan={gradeTypes.length + 2} className="p-8 text-center">Memuat siswa...</td></tr> : students?.data?.map((student: any) => { const studentGrades = Object.fromEntries(gradeTypes.map((type) => [type.value, grades[`${student.id}_${type.value}`]])); const finalScore = isPaud ? null : calculateFinalScore(studentGrades, selectedOffering.plan, semester?.name); return <tr key={student.id}><td className="px-4 py-3"><p className="font-semibold">{student.full_name}</p><p className="text-xs text-muted-foreground">{student.nis || student.nisn || "-"}</p></td>{gradeTypes.map((type) => <td key={type.value} className="px-4 py-2">{isPaud ? <select value={grades[`${student.id}_${type.value}`] || ""} onChange={(event) => setGrades((current) => ({ ...current, [`${student.id}_${type.value}`]: event.target.value }))} className="w-full rounded-md border px-2 py-2 text-center">{PAUD_OPTIONS.map((option) => <option key={option} value={option}>{option || "-"}</option>)}</select> : <input type="number" min={0} max={100} value={grades[`${student.id}_${type.value}`] || ""} onChange={(event) => setGrades((current) => ({ ...current, [`${student.id}_${type.value}`]: event.target.value }))} className="w-full rounded-md border px-2 py-2 text-center" />}</td>)}<td className="px-4 py-3 text-center text-base font-bold">{finalScore ?? "-"}</td></tr>; })}</tbody></table></div>
+    </section> : <div className="rounded-lg border border-dashed bg-muted/20 p-10 text-center text-sm text-muted-foreground">Pilih periode, kelas, dan mata pelajaran untuk mulai mengisi nilai.</div>}
+  </div>;
 };
