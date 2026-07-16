@@ -1,4 +1,6 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 export const daysOfWeek = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"];
+export const workWeekDays = daysOfWeek.slice(0, 5);
 
 export const scheduleTypes = [
   { value: "mengajar", label: "Mengajar (Guru)" },

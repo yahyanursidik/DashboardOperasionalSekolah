@@ -158,7 +158,7 @@ export const navigationConfig: NavigationGroup[] = [
     ],
   },
   {
-    name: "Penerimaan Siswa Baru",
+    name: "SPMB",
     items: [
       {
         title: "Penerimaan Murid Baru",
@@ -364,6 +364,26 @@ export const navigationConfig: NavigationGroup[] = [
         href: "/attendance/employees",
         icon: CalendarCheck,
         resource: "employee_attendance",
+      },
+      {
+        title: "Data Pendaftar",
+        href: "/admissions/applicants",
+        icon: Users,
+        resource: "admissions",
+      },
+      {
+        title: "Rapat & Kegiatan Pegawai",
+        href: "/attendance/events",
+        icon: ClipboardCheck,
+        resource: "employee_attendance",
+        keywords: ["rapat", "kegiatan", "pelatihan", "presensi acara"],
+      },
+      {
+        title: "Lembur Pegawai",
+        href: "/attendance/overtime",
+        icon: TrendingUp,
+        resource: "employee_attendance",
+        keywords: ["lembur", "overtime", "kompensasi", "jam tambahan"],
       },
       {
         title: "Tinjauan Absensi",
@@ -599,12 +619,14 @@ export const navigationConfig: NavigationGroup[] = [
         href: "/digital-library",
         icon: BookOpen,
         resource: "digital_library_books",
+        keywords: ["buku", "ebook", "modul", "literasi", "koleksi", "kategori", "perpustakaan keluarga"],
       },
       {
-        title: "Materi Onboarding",
+        title: "Panduan & Onboarding",
         href: "/onboarding",
         icon: Target,
         resource: "onboarding_materials",
+        keywords: ["sop", "orientasi", "panduan keluarga", "panduan guru", "panduan staf", "kebijakan wajib"],
       },
     ],
   },
@@ -615,7 +637,8 @@ export const navigationConfig: NavigationGroup[] = [
         title: "Data Induk",
         href: "/master-data",
         icon: Database,
-        resource: "settings",
+        resource: "master_data",
+        keywords: ["unit", "tahun ajaran", "semester", "periode aktif", "kalender unit", "data referensi"],
       },
       {
         title: "Komunikasi",

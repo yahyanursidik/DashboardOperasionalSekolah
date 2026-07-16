@@ -187,7 +187,6 @@ declare
   v_checkout_ts timestamp;
   v_start_ts timestamp;
   v_end_ts timestamp;
-  v_open_ts timestamp;
   v_close_ts timestamp;
   v_late integer;
   v_early integer;
@@ -215,11 +214,10 @@ begin
 
   if v_check_in_changed and new.time_in is not null then
     v_check_ts := coalesce(new.check_in_at at time zone 'Asia/Jakarta', new.date + new.time_in);
-    v_open_ts := new.date + v_shift.check_in_open;
-    if v_shift.check_in_open > v_shift.start_time then v_open_ts := v_open_ts - interval '1 day'; end if;
     v_close_ts := new.date + v_shift.check_in_close;
-    if v_close_ts < v_open_ts then v_close_ts := v_close_ts + interval '1 day'; end if;
-    if v_check_ts < v_open_ts or v_check_ts > v_close_ts then
+    if v_shift.check_in_close < v_shift.start_time then v_close_ts := v_close_ts + interval '1 day'; end if;
+    -- check_in_open is the normal operating reference, not an early-arrival ban.
+    if v_check_ts > v_close_ts then
       raise exception 'OUTSIDE_SHIFT_CHECK_IN_WINDOW:%:%:%', v_shift.name, v_shift.check_in_open, v_shift.check_in_close;
     end if;
     v_late := greatest(0, floor(extract(epoch from (v_check_ts - v_start_ts)) / 60)::integer - v_shift.grace_minutes);

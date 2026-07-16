@@ -9,7 +9,7 @@ import {
   Filter, LayoutGrid, LayoutList, Phone, Building2,
   UserCheck, UserX, GraduationCap, Briefcase, TrendingUp,
   ChevronRight, Star, Clock, UploadCloud, Download, FileSpreadsheet, Trash2,
-  CalendarCheck, ClipboardList, AlertTriangle
+  CalendarCheck, ClipboardList, AlertTriangle, LockKeyhole
 } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import Papa from "papaparse";
@@ -103,7 +103,7 @@ function StatCard({
 }
 
 // ─── Employee Card (Grid View) ─────────────────────────────────────────────────
-function EmployeeCard({ employee, onClick, onEdit, onDelete }: { employee: any; onClick: () => void; onEdit: () => void; onDelete: () => void }) {
+function EmployeeCard({ employee, onClick, onEdit, onAccess, onDelete }: { employee: any; onClick: () => void; onEdit: () => void; onAccess: () => void; onDelete: () => void }) {
   const pos = POSITION_MAP[employee.position] ?? { label: employee.position ?? "-", color: "bg-gray-100 text-gray-800 border-gray-200" };
   const sts = STATUS_MAP[employee.status] ?? { label: employee.status ?? "-", color: "bg-gray-100 text-gray-600", dot: "bg-gray-400" };
   const avatarColor = getAvatarColor(employee.full_name ?? "?");
@@ -174,6 +174,12 @@ function EmployeeCard({ employee, onClick, onEdit, onDelete }: { employee: any; 
           className="flex-1 flex items-center justify-center gap-1 text-xs font-medium text-muted-foreground hover:bg-muted py-1.5 rounded-md transition-colors"
         >
           <Edit className="w-3.5 h-3.5" /> Edit
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); onAccess(); }}
+          className="flex-1 flex items-center justify-center gap-1 text-xs font-medium text-emerald-700 hover:bg-emerald-50 py-1.5 rounded-md transition-colors"
+        >
+          <LockKeyhole className="w-3.5 h-3.5" /> Login
         </button>
         <button
           onClick={(e) => { e.stopPropagation(); onDelete(); }}
@@ -535,6 +541,14 @@ export const EmployeesList: React.FC = () => {
                 <BookOpen className="w-4 h-4" />
               </button>
               <button
+                onClick={() => navigate(`${basePath}/show/${id}?tab=access`)}
+                className="p-1.5 text-muted-foreground hover:text-emerald-700 transition-colors rounded-md hover:bg-emerald-50"
+                title="Kelola Login & Kata Sandi Portal"
+                aria-label={`Kelola login portal ${row.original.full_name}`}
+              >
+                <LockKeyhole className="w-4 h-4" />
+              </button>
+              <button
                 onClick={() => handleDelete(id, row.original.full_name)}
                 className="p-1.5 text-muted-foreground hover:text-red-600 transition-colors rounded-md hover:bg-red-50"
                 title="Hapus Pegawai"
@@ -814,6 +828,7 @@ export const EmployeesList: React.FC = () => {
               employee={row.original}
               onClick={() => navigate(`${basePath}/show/${row.original.id}`)}
               onEdit={() => navigate(`${basePath}/edit/${row.original.id}`)}
+              onAccess={() => navigate(`${basePath}/show/${row.original.id}?tab=access`)}
               onDelete={() => handleDelete(row.original.id, row.original.full_name)}
             />
           ))}

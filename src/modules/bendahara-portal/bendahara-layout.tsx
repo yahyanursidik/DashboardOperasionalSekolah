@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Outlet, useNavigate, useLocation, Link } from "react-router-dom";
 import { supabaseClient } from "../../lib/supabase/client";
-import { Wallet, Receipt, CheckCircle, CreditCard, Users, LogOut, LayoutDashboard, Settings, Landmark, BookOpenCheck, BarChart3, Tags, BadgeDollarSign } from "lucide-react";
+import { Wallet, Receipt, CheckCircle, CreditCard, Users, LogOut, LayoutDashboard, Settings, Landmark, BookOpenCheck, BarChart3, Tags, BadgeDollarSign, Bell, CalendarCheck, MoreHorizontal, UserRound, X } from "lucide-react";
 import { useSystemSettings } from "../../app/providers/SettingsProvider";
 import { BrandLogo } from "../../components/common/BrandLogo";
 
@@ -10,6 +10,7 @@ type RoleRow = { roles?: { name?: string | null } | null };
 
 export const BendaharaLayout: React.FC = () => {
   const [employee, setEmployee] = useState<FinanceEmployee | null>(null);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const { appName } = useSystemSettings();
@@ -67,8 +68,13 @@ export const BendaharaLayout: React.FC = () => {
       { name: "Akun & Kategori", path: "/bendahara/categories", icon: Tags },
       { name: "Pengaturan", path: "/bendahara/settings", icon: Settings },
     ] },
+    { label: "Kepegawaian", items: [
+      { name: "Absensi & Lembur", path: "/staff/attendance", icon: CalendarCheck },
+      { name: "Informasi Sekolah", path: "/staff/announcements", icon: Bell },
+      { name: "Profil & Keamanan", path: "/staff/profile", icon: UserRound },
+    ] },
   ];
-  const mobileItems = [navSections[0].items[0], navSections[1].items[0], navSections[2].items[1], navSections[2].items[0], navSections[3].items[1]];
+  const mobileItems = [navSections[0].items[0], navSections[1].items[0], navSections[2].items[1], navSections[4].items[0]];
 
   return (
     <div className="flex h-screen bg-slate-50 font-sans overflow-hidden">
@@ -146,7 +152,7 @@ export const BendaharaLayout: React.FC = () => {
 
         {/* Mobile Bottom Nav */}
         <nav className="md:hidden fixed bottom-0 left-0 w-full bg-white border-t z-50 pb-safe shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
-          <div className="flex justify-around px-2">
+          <div className="grid grid-cols-5 px-2">
             {mobileItems.map((item) => {
               const isActive = location.pathname === item.path || (item.path !== '/bendahara' && location.pathname.startsWith(item.path));
               return (
@@ -161,9 +167,21 @@ export const BendaharaLayout: React.FC = () => {
                 </Link>
               );
             })}
+            <button type="button" onClick={() => setIsMobileMenuOpen(true)} className={`relative flex w-full flex-col items-center py-3 px-1 ${isMobileMenuOpen ? "text-emerald-600" : "text-slate-400"}`}>
+              {isMobileMenuOpen && <div className="absolute top-0 h-1 w-8 rounded-b-full bg-emerald-600" />}
+              <MoreHorizontal className="mb-1 h-5 w-5" />
+              <span className="w-full truncate text-center text-[9px] font-medium">Menu</span>
+            </button>
           </div>
         </nav>
       </div>
+      {isMobileMenuOpen && <div className="fixed inset-0 z-[60] flex items-end md:hidden">
+        <button type="button" aria-label="Tutup menu" onClick={() => setIsMobileMenuOpen(false)} className="absolute inset-0 bg-black/50" />
+        <section className="relative max-h-[82vh] w-full overflow-y-auto rounded-t-lg bg-white p-5 text-slate-900 shadow-xl">
+          <div className="mb-4 flex items-center justify-between border-b pb-3"><div><h2 className="font-bold">Menu Bendahara</h2><p className="text-xs text-slate-500">Keuangan, kontrol, dan kepegawaian</p></div><button type="button" onClick={() => setIsMobileMenuOpen(false)} title="Tutup" className="flex h-9 w-9 items-center justify-center rounded-md bg-slate-100 text-slate-600"><X className="h-5 w-5" /></button></div>
+          <div className="space-y-5">{navSections.map((section) => <div key={section.label}><p className="mb-2 text-[10px] font-bold uppercase text-slate-400">{section.label}</p><div className="grid grid-cols-3 gap-2">{section.items.map((item) => { const Icon = item.icon; const active = location.pathname === item.path || (item.path !== "/bendahara" && location.pathname.startsWith(item.path)); return <Link key={item.path} to={item.path} onClick={() => setIsMobileMenuOpen(false)} className={`flex min-h-20 flex-col items-center justify-center gap-2 rounded-md border p-2 text-center ${active ? "border-emerald-300 bg-emerald-50 text-emerald-800" : "text-slate-600"}`}><Icon className="h-5 w-5" /><span className="text-[10px] font-semibold leading-4">{item.name}</span></Link>; })}</div></div>)}</div>
+        </section>
+      </div>}
     </div>
   );
 };

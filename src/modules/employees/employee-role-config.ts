@@ -52,12 +52,17 @@ export const attendanceModeOptions = [
   {
     value: "unit_hours",
     label: "Mengikuti Jam Unit",
-    description: "Acuan hadir mengikuti kebijakan unit induk atau shift khusus yang ditetapkan.",
+    description: "Acuan hadir mengikuti kebijakan unit induk atau shift khusus. Berlaku untuk pimpinan, termasuk yang memiliki tugas mengajar.",
   },
   {
     value: "teaching_schedule",
     label: "Sesuai Jadwal Mengajar",
-    description: "Khusus pengajar part-time: hadir dari pelajaran pertama sampai tugas mengajar terakhir pada hari itu.",
+    description: "Khusus pengajar part-time: hadir dari pelajaran pertama sampai tugas terakhir; datang lebih awal tetap diterima.",
+  },
+  {
+    value: "work_schedule",
+    label: "Sesuai Jadwal Kerja",
+    description: "Untuk staf operasional fleksibel atau shift: hadir mengikuti tugas pertama sampai tugas terakhir pada hari tersebut.",
   },
 ];
 
@@ -83,4 +88,18 @@ export function getEmployeePosition(position?: string | null) {
 export function canReceiveAcademicAssignment(position?: string | null) {
   const definition = getEmployeePosition(position);
   return definition.category === "academic" || definition.category === "leadership";
+}
+
+export function canUseTeachingScheduleAttendance(position?: string | null) {
+  return getEmployeePosition(position).category === "academic";
+}
+
+export function getRecommendedAttendanceMode(position?: string | null, employmentType?: string | null) {
+  if (canFollowWorkSchedule(position)) return "work_schedule";
+  if (employmentType === "part_time" && canUseTeachingScheduleAttendance(position)) return "teaching_schedule";
+  return "unit_hours";
+}
+
+export function canFollowWorkSchedule(position?: string | null) {
+  return getEmployeePosition(position).category === "operations";
 }

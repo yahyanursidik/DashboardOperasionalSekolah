@@ -16,6 +16,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({ title, description, acti
   if (location.pathname.startsWith("/hrd")) homePath = "/hrd";
   else if (location.pathname.startsWith("/bendahara")) homePath = "/bendahara";
   else if (location.pathname.startsWith("/teacher")) homePath = "/teacher";
+  else if (location.pathname.startsWith("/staff")) homePath = "/staff";
   else if (location.pathname.startsWith("/portal")) homePath = "/portal";
   else if (location.pathname.startsWith("/admin-spmb")) homePath = "/admin-spmb";
 

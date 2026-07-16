@@ -32,6 +32,8 @@ import { EmployeesList, EmployeeCreate, EmployeeEdit, EmployeeShow } from "../mo
 import { EmployeeAttendanceList } from "../modules/attendance/pages/employee-attendance";
 import { AttendanceSettings } from "../modules/attendance/pages/attendance-settings";
 import { AttendanceReviews } from "../modules/attendance/pages/attendance-reviews";
+import { AttendanceEvents } from "../modules/attendance/pages/attendance-events";
+import { AttendanceOvertime } from "../modules/attendance/pages/attendance-overtime";
 import { StaffOperationalReportsAdmin } from "../modules/attendance/pages/staff-operational-reports";
 import { SchedulesList, ScheduleCreate, ScheduleEdit } from "../modules/schedules";
 import { LeavesList, LeaveCreate, LeaveShow } from "../modules/leaves";
@@ -154,8 +156,8 @@ import { DigitalLibraryCategoriesEdit } from "../modules/digital-library/categor
 import { DigitalLibraryBooksList } from "../modules/digital-library/books-list";
 import { DigitalLibraryBooksCreate } from "../modules/digital-library/books-create";
 import { DigitalLibraryBooksEdit } from "../modules/digital-library/books-edit";
-import { PortalLibrary } from "../modules/portal/portal-library";
-import { PortalOnboarding } from "../modules/portal/portal-onboarding";
+import { PortalLibrary, StaffLibrary, TeacherLibrary } from "../modules/portal/portal-library";
+import { PortalOnboarding, StaffOnboarding, TeacherOnboarding } from "../modules/portal/portal-onboarding";
 import { PortalProfile } from "../modules/portal/portal-profile";
 import { PortalAttendance } from "../modules/portal/portal-attendance";
 import { PortalRequests } from "../modules/portal/portal-requests";
@@ -822,6 +824,8 @@ export default function App() {
                   <Route index element={<AttendanceSelector />} />
                   <Route path="class/:classId" element={<AttendanceInput />} />
                   <Route path="employees" element={<EmployeeAttendanceList />} />
+                  <Route path="events" element={<AttendanceEvents />} />
+                  <Route path="overtime" element={<AttendanceOvertime />} />
                   <Route path="settings" element={<AttendanceSettings />} />
                   <Route path="reviews" element={<AttendanceReviews />} />
                   <Route path="reports" element={<AttendanceReports />} />
@@ -1205,6 +1209,8 @@ export default function App() {
                 <Route path="leaves" element={<TeacherLeaves />} />
                 <Route path="schedules" element={<TeacherSchedules />} />
                 <Route path="announcements" element={<TeacherAnnouncements />} />
+                <Route path="library" element={<TeacherLibrary />} />
+                <Route path="onboarding" element={<TeacherOnboarding />} />
                 <Route path="tasks" element={<TeacherTasks />} />
                 <Route path="performance" element={<TeacherPerformance />} />
                 <Route path="profile" element={<TeacherProfile />} />
@@ -1216,6 +1222,8 @@ export default function App() {
                 <Route path="attendance" element={<StaffAttendance />} />
                 <Route path="leaves" element={<StaffLeaves />} />
                 <Route path="announcements" element={<StaffAnnouncements />} />
+                <Route path="library" element={<StaffLibrary />} />
+                <Route path="onboarding" element={<StaffOnboarding />} />
                 <Route path="schedules" element={<StaffSchedules />} />
                 <Route path="tasks" element={<StaffTasks />} />
                 <Route path="reports" element={<StaffOperationalReports />} />

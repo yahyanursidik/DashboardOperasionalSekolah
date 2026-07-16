@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useGetIdentity, useUpdate, useList, useCreate, useDelete } from "@refinedev/core";
 import { PageHeader } from "../../../components/layout/PageHeader";
-import { User, Users, Bell, Shield, Moon, Sun, Monitor, Palette, Check, Save, Type, Image as ImageIcon, Globe, Search, Filter, Trash2, Edit2, SearchX, Loader2, UserPlus, AlertTriangle, ChevronLeft, ChevronRight, Wallet } from "lucide-react";
+import { User, Users, Bell, Shield, Moon, Sun, Monitor, Palette, Check, Save, Type, Image as ImageIcon, Globe, Search, Filter, Trash2, Edit2, SearchX, Loader2, UserPlus, AlertTriangle, ChevronLeft, ChevronRight, Wallet, LockKeyhole, ArrowRight } from "lucide-react";
+import { Link } from "react-router-dom";
 import { useTheme } from "../../../app/providers/ThemeProvider";
 import { useSystemSettings } from "../../../app/providers/SettingsProvider";
 import { supabaseClient } from "../../../lib/supabase/client";
@@ -616,16 +617,37 @@ const SecuritySettings: React.FC = () => {
     <div className="max-w-xl space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
       <div>
         <h3 className="text-lg font-bold">Keamanan & Privasi</h3>
-        <p className="text-sm text-muted-foreground">Kelola kata sandi dan pengaturan keamanan akun Anda.</p>
+        <p className="text-sm text-muted-foreground">Kelola sandi akun admin Anda atau akses login portal pegawai.</p>
       </div>
 
       <div className="space-y-4">
+        <div className="border border-primary/20 bg-primary/5 rounded-xl p-5">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <LockKeyhole className="h-5 w-5" />
+              </div>
+              <div>
+                <h4 className="font-semibold text-foreground">Login Portal Guru & Staf</h4>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                  Aktivasi akun, perbaikan NIK/email login, dan reset kata sandi dilakukan per pegawai.
+                </p>
+              </div>
+            </div>
+            <Link
+              to="/employees"
+              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+            >
+              Pilih Pegawai <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+        </div>
         <div className="bg-muted/20 border rounded-xl p-5 space-y-4">
           <div className="flex gap-3 items-center pb-4 border-b">
             <Shield className="w-5 h-5 text-primary" />
             <div>
-              <h4 className="font-medium text-foreground">Ganti Kata Sandi</h4>
-              <p className="text-xs text-muted-foreground mt-0.5">Sandi baru akan otomatis menggantikan sandi lama Anda.</p>
+              <h4 className="font-medium text-foreground">Kata Sandi Akun Admin Saya</h4>
+              <p className="text-xs text-muted-foreground mt-0.5">Bagian ini hanya mengganti kata sandi akun yang sedang Anda gunakan.</p>
             </div>
           </div>
           

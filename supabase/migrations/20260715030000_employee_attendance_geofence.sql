@@ -263,8 +263,10 @@ begin
     v_check_in_close := v_policy.check_in_close;
   end if;
 
+  -- Kedatangan lebih awal tetap sah. check_in_open adalah panduan operasional;
+  -- hanya batas akhir masuk yang memblokir presensi mandiri.
   if p_action = 'check_in' and v_schedule.id is null
-    and (v_local_time < v_check_in_open or v_local_time > v_check_in_close) then
+    and v_local_time > v_check_in_close then
     raise exception 'OUTSIDE_CHECK_IN_WINDOW:%:%', v_check_in_open, v_check_in_close;
   end if;
 
@@ -314,7 +316,7 @@ begin
   if v_end_time < v_start_time then v_scheduled_end := v_scheduled_end + interval '1 day'; end if;
 
   if p_action = 'check_in' and v_schedule.id is not null
-    and (v_local_ts < v_scheduled_start - interval '3 hours' or v_local_ts > v_scheduled_start + interval '6 hours') then
+    and v_local_ts > v_scheduled_start + interval '6 hours' then
     raise exception 'OUTSIDE_SCHEDULE_CHECK_IN_WINDOW';
   end if;
 

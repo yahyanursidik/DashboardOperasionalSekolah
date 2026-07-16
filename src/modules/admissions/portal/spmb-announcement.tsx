@@ -1,61 +1,13 @@
 import React from "react";
+import { Award, CalendarDays, ChevronLeft, Clock3, XCircle } from "lucide-react";
 import { Link } from "react-router-dom";
-import { Award, ChevronLeft, Calendar } from "lucide-react";
+import { formatAdmissionDate, getAdmissionStatus } from "../admissions-config";
+import { useSpmbPortal } from "./spmb-context";
 
 export const SpmbAnnouncement: React.FC = () => {
-  // Read simulation status from localStorage
-  const isPassed = localStorage.getItem('spmbPassed') === 'true';
-  const resultStatus: string = isPassed ? 'accepted' : 'waiting'; 
-
-  return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      <Link to="/spmb" className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground mb-4">
-        <ChevronLeft className="w-4 h-4" /> Kembali ke Dashboard
-      </Link>
-
-      <div className="bg-white border rounded-2xl shadow-sm overflow-hidden text-center">
-        
-        {resultStatus === 'waiting' && (
-          <div className="p-12 flex flex-col items-center">
-            <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mb-6">
-              <Calendar className="w-10 h-10 text-muted-foreground" />
-            </div>
-            <h2 className="text-2xl font-bold mb-2">Pengumuman Belum Tersedia</h2>
-            <p className="text-muted-foreground max-w-md mx-auto">
-              Hasil seleksi penerimaan murid baru untuk gelombang ini belum dirilis. Silakan periksa kembali halaman ini pada tanggal yang telah ditentukan.
-            </p>
-          </div>
-        )}
-
-        {resultStatus === 'accepted' && (
-          <>
-            <div className="bg-emerald-600 text-white p-12 flex flex-col items-center">
-              <div className="w-24 h-24 bg-white/20 rounded-full flex items-center justify-center mb-6 ring-8 ring-white/10">
-                <Award className="w-12 h-12 text-white" />
-              </div>
-              <h2 className="text-3xl font-black mb-2 uppercase tracking-wide">Selamat!</h2>
-              <p className="text-emerald-50 text-lg">Anda Dinyatakan Lulus Seleksi</p>
-            </div>
-            <div className="p-8">
-              <p className="text-muted-foreground mb-6">
-                Berdasarkan hasil tes akademik dan wawancara, Ananda <strong>Ahmad Faiz</strong> dinyatakan diterima sebagai siswa TSLS OS tahun ajaran baru.
-              </p>
-              <div className="bg-muted/30 border rounded-xl p-6 text-left mb-6">
-                <h4 className="font-bold text-sm uppercase tracking-wider text-muted-foreground mb-3">Langkah Selanjutnya:</h4>
-                <ul className="list-disc pl-5 space-y-2 text-sm font-medium">
-                  <li>Melakukan daftar ulang paling lambat tanggal 15 Juli 2026.</li>
-                  <li>Melakukan pembayaran biaya masuk melalui portal Bendahara.</li>
-                  <li>Mengikuti kegiatan Masa Pengenalan Lingkungan Sekolah (MPLS).</li>
-                </ul>
-              </div>
-              <button className="w-full bg-emerald-600 text-white py-3 rounded-xl font-bold hover:bg-emerald-700 transition-colors shadow-sm">
-                Lanjut ke Daftar Ulang
-              </button>
-            </div>
-          </>
-        )}
-
-      </div>
-    </div>
-  );
+  const { applicant } = useSpmbPortal();
+  if (!applicant) return <div className="max-w-xl mx-auto bg-white border rounded-lg p-8 text-center"><CalendarDays className="w-9 h-9 text-slate-400 mx-auto" /><h1 className="text-xl font-bold mt-4">Belum ada pendaftaran</h1><Link to="/spmb/form" className="inline-flex mt-5 text-emerald-700 font-semibold">Isi formulir pendaftaran</Link></div>;
+  const status = getAdmissionStatus(applicant);
+  const released = ["accepted", "waitlisted", "rejected", "enrolled"].includes(status);
+  return <div className="max-w-2xl mx-auto space-y-6"><Link to="/spmb" className="inline-flex items-center gap-2 text-sm font-semibold text-slate-600"><ChevronLeft className="w-4 h-4" />Ringkasan pendaftaran</Link><section className="bg-white border rounded-lg overflow-hidden text-center">{!released ? <div className="p-10 sm:p-14"><Clock3 className="w-12 h-12 text-slate-400 mx-auto" /><h1 className="text-2xl font-bold mt-5">Hasil Belum Diumumkan</h1><p className="text-slate-600 mt-3">Proses {status === "assessment_scheduled" ? "seleksi masih berlangsung" : "verifikasi dan seleksi belum selesai"}. Keputusan resmi akan tampil di halaman ini.</p>{applicant.admission_batches?.announcement_at && <p className="text-sm font-semibold text-slate-700 mt-5">Rencana pengumuman: {formatAdmissionDate(applicant.admission_batches.announcement_at,true)}</p>}</div> : status === "accepted" || status === "enrolled" ? <><div className="bg-emerald-700 text-white p-10"><Award className="w-14 h-14 mx-auto" /><h1 className="text-3xl font-bold mt-4">Alhamdulillah, Diterima</h1><p className="text-emerald-50 mt-2">{applicant.name} diterima di {applicant.units?.name || applicant.unit}.</p></div><div className="p-7 text-left"><h2 className="font-bold">Langkah berikutnya</h2><ol className="mt-3 space-y-2 text-sm text-slate-700 list-decimal pl-5"><li>Pastikan berkas dan pembayaran telah terverifikasi.</li><li>Hubungi panitia jika jadwal daftar ulang belum diterima.</li><li>Data akan otomatis terhubung ke portal orang tua setelah panitia membentuk siswa aktif.</li></ol>{applicant.decision_notes && <p className="mt-5 bg-emerald-50 border border-emerald-200 p-4 rounded-md text-sm">Catatan panitia: {applicant.decision_notes}</p>}</div></> : status === "waitlisted" ? <div className="p-10"><CalendarDays className="w-12 h-12 text-amber-600 mx-auto" /><h1 className="text-2xl font-bold mt-5">Daftar Tunggu</h1><p className="text-slate-600 mt-3">Pendaftaran masih dipertimbangkan sesuai ketersediaan kuota. Panitia akan menghubungi keluarga bila terdapat perubahan.</p>{applicant.decision_notes && <p className="mt-5 bg-amber-50 border border-amber-200 p-4 rounded-md text-sm">{applicant.decision_notes}</p>}</div> : <div className="p-10"><XCircle className="w-12 h-12 text-rose-600 mx-auto" /><h1 className="text-2xl font-bold mt-5">Belum Dapat Diterima</h1><p className="text-slate-600 mt-3">Terima kasih telah mengikuti seluruh proses. Keputusan ini disampaikan dengan tetap menghargai ikhtiar setiap keluarga.</p>{applicant.decision_notes && <p className="mt-5 bg-rose-50 border border-rose-200 p-4 rounded-md text-sm text-left">Catatan panitia: {applicant.decision_notes}</p>}</div>}</section></div>;
 };

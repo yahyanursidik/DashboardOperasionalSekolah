@@ -1,7 +1,9 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useMemo, useState } from "react";
-import { Link, useOutletContext } from "react-router-dom";
-import { ArrowLeft, Bell, Building2, Calendar, CheckCircle2, Clock, Megaphone, Search } from "lucide-react";
+import { useOutletContext } from "react-router-dom";
+import { Bell, Building2, Calendar, CheckCircle2, Clock, Megaphone, Search } from "lucide-react";
 import { supabaseClient } from "../../lib/supabase/client";
+import { PageHeader } from "../../components/layout/PageHeader";
 
 const READ_KEY = "staff_portal_read_announcement_ids";
 
@@ -92,21 +94,13 @@ export const StaffAnnouncements: React.FC = () => {
   };
 
   return (
-    <div className="p-4 space-y-6">
-      <div className="flex items-center gap-3">
-        <Link to="/staff" className="p-2 bg-white rounded-full shadow-sm border text-gray-600 hover:text-primary transition">
-          <ArrowLeft className="w-5 h-5" />
-        </Link>
-        <div className="min-w-0">
-          <h2 className="font-black text-lg text-gray-900">Informasi Sekolah</h2>
-          <p className="text-xs text-gray-500">Pengumuman resmi untuk staf dan unit kerja Anda.</p>
-        </div>
-      </div>
+    <div className="space-y-6">
+      <PageHeader title="Informasi Sekolah" description="Pengumuman resmi untuk staf dan unit kerja Anda." />
 
-      <section className="rounded-3xl border bg-white p-5 shadow-sm">
+      <section className="rounded-md border bg-card p-5">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="flex items-start gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
+            <div className="flex h-12 w-12 items-center justify-center rounded-md bg-amber-100 text-amber-700">
               <Bell className="h-6 w-6" />
             </div>
             <div>
@@ -115,20 +109,20 @@ export const StaffAnnouncements: React.FC = () => {
               <p className="mt-1 text-sm text-gray-500">Informasi operasional, keamanan, kebersihan, dan layanan sekolah.</p>
             </div>
           </div>
-          <button onClick={markAllRead} disabled={announcements.length === 0} className="inline-flex items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-black text-gray-700 hover:bg-gray-50 disabled:opacity-50">
+          <button onClick={markAllRead} disabled={announcements.length === 0} className="inline-flex items-center justify-center gap-2 rounded-md border px-4 py-2.5 text-sm font-bold text-foreground hover:bg-muted disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500 disabled:opacity-100">
             <CheckCircle2 className="h-4 w-4" />
             Tandai Semua Dibaca
           </button>
         </div>
       </section>
 
-      <section className="rounded-2xl border bg-white p-4 shadow-sm">
+      <section className="rounded-md border bg-card p-4">
         <div className="grid gap-3 md:grid-cols-[1fr_auto]">
-          <div className="flex items-center gap-2 rounded-xl border bg-gray-50 px-3 py-2">
+          <div className="flex items-center gap-2 rounded-md border bg-background px-3 py-2">
             <Search className="h-4 w-4 text-gray-400" />
             <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Cari judul atau isi pengumuman..." className="w-full bg-transparent text-sm outline-none" />
           </div>
-          <select value={filter} onChange={(event) => setFilter(event.target.value)} className="rounded-xl border bg-white px-3 py-2 text-sm font-semibold outline-none">
+          <select value={filter} onChange={(event) => setFilter(event.target.value)} className="rounded-md border bg-background px-3 py-2 text-sm font-semibold outline-none focus:ring-2 focus:ring-primary/20">
             <option value="all">Semua Informasi</option>
             <option value="staff">Guru & Pegawai</option>
             <option value="unit">Unit Saya</option>
@@ -137,9 +131,9 @@ export const StaffAnnouncements: React.FC = () => {
       </section>
 
       {isLoading ? (
-        <div className="rounded-2xl border border-dashed bg-white p-10 text-center text-sm text-gray-400">Memuat pengumuman...</div>
+        <div className="rounded-md border border-dashed bg-card p-10 text-center text-sm text-muted-foreground">Memuat pengumuman...</div>
       ) : filteredAnnouncements.length === 0 ? (
-        <div className="rounded-2xl border border-dashed bg-white p-10 text-center">
+        <div className="rounded-md border border-dashed bg-card p-10 text-center">
           <Megaphone className="mx-auto mb-3 h-10 w-10 text-gray-300" />
           <p className="font-black text-gray-700">Belum ada pengumuman</p>
           <p className="mt-1 text-sm text-gray-500">Tidak ada informasi yang cocok dengan filter saat ini.</p>
@@ -149,11 +143,11 @@ export const StaffAnnouncements: React.FC = () => {
           {filteredAnnouncements.map((item) => {
             const isRead = readIds.has(item.id);
             return (
-              <article key={item.id} className={`rounded-2xl border bg-white shadow-sm transition ${isRead ? "border-gray-200" : "border-amber-300 ring-2 ring-amber-100"}`}>
+              <article key={item.id} className={`rounded-md border bg-card transition ${isRead ? "border-border" : "border-amber-300 ring-2 ring-amber-100"}`}>
                 <div className="p-5">
                   <div className="mb-3 flex items-start justify-between gap-3">
                     <div className="flex min-w-0 gap-3">
-                      <div className={`mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${isRead ? "bg-gray-100 text-gray-500" : "bg-amber-100 text-amber-700"}`}>
+                      <div className={`mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-md ${isRead ? "bg-gray-100 text-gray-500" : "bg-amber-100 text-amber-700"}`}>
                         {item.target_type === "unit" ? <Building2 className="h-5 w-5" /> : <Megaphone className="h-5 w-5" />}
                       </div>
                       <div className="min-w-0">
@@ -176,7 +170,7 @@ export const StaffAnnouncements: React.FC = () => {
                     </div>
                   </div>
                   <div className="whitespace-pre-wrap text-sm leading-6 text-gray-600">{item.content}</div>
-                  {!isRead && <button onClick={() => markRead(item.id)} className="mt-4 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-black text-white hover:bg-emerald-700">Tandai Dibaca</button>}
+                  {!isRead && <button onClick={() => markRead(item.id)} className="mt-4 rounded-md bg-emerald-700 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-800">Tandai Dibaca</button>}
                 </div>
               </article>
             );

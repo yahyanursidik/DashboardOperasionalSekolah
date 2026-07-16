@@ -22,6 +22,9 @@ import { useAcademicYear } from "../../../app/providers/AcademicYearProvider";
 import { dayMap, formatTime, getScheduleSubjectName } from "../../schedules/schedule-utils";
 import { formatLeaveType, isLeaveActiveOnDate, toDateInputValue } from "../../leaves/leave-utils";
 import { formatShortTime, formatSubstituteStatus } from "../../substitutes/substitute-utils";
+import { EmployeeEventAttendance } from "./employee-event-attendance";
+import { EmployeeOvertime } from "./employee-overtime";
+import { canUseTeachingScheduleAttendance } from "../../employees/employee-role-config";
 
 type PortalKind = "teacher" | "staff";
 
@@ -52,7 +55,7 @@ type AttendanceRuleContext = {
   schedule_id?: string | null;
   shift_id?: string | null;
   policy_id?: string | null;
-  rule_source: "assigned_shift" | "teaching_schedule" | "no_schedule" | "unit_policy" | "global_policy" | "system_default";
+  rule_source: "assigned_shift" | "teaching_schedule" | "work_schedule" | "no_schedule" | "no_work_schedule" | "unit_policy" | "global_policy" | "system_default";
   rule_name: string;
   start_time: string;
   end_time: string;
@@ -121,10 +124,11 @@ function formatAttendanceError(error: any) {
   if (message.includes("ATTENDANCE_SITE_REQUIRED")) return "Pilih lokasi kerja sebelum mencatat absensi.";
   if (message.includes("ATTENDANCE_SITE_NOT_ASSIGNED")) return "Lokasi ini tidak sesuai dengan unit atau jadwal tugas Anda hari ini.";
   if (message.includes("ATTENDANCE_SITE_INVALID")) return "Lokasi absensi tidak aktif atau tidak ditemukan.";
-  if (message.includes("OUTSIDE_CHECK_IN_WINDOW")) return "Anda berada di luar jam masuk yang diizinkan. Ajukan koreksi bila ada penugasan khusus.";
-  if (message.includes("OUTSIDE_SHIFT_CHECK_IN_WINDOW")) return "Anda berada di luar jam absen shift yang ditugaskan. Periksa shift aktif atau ajukan koreksi.";
-  if (message.includes("OUTSIDE_SCHEDULE_CHECK_IN_WINDOW")) return "Waktu absen terlalu jauh dari jadwal tugas hari ini. Ajukan koreksi bila ada perubahan penugasan.";
+  if (message.includes("OUTSIDE_CHECK_IN_WINDOW")) return "Batas akhir absen masuk telah lewat. Ajukan koreksi bila ada penugasan atau kendala khusus.";
+  if (message.includes("OUTSIDE_SHIFT_CHECK_IN_WINDOW")) return "Batas akhir absen masuk shift telah lewat. Periksa shift aktif atau ajukan koreksi.";
+  if (message.includes("OUTSIDE_SCHEDULE_CHECK_IN_WINDOW")) return "Batas akhir absen masuk untuk jadwal tugas hari ini telah lewat. Ajukan koreksi bila ada perubahan penugasan.";
   if (message.includes("PART_TIME_NO_TEACHING_SCHEDULE")) return "Hari ini tidak ada jadwal mengajar aktif. Absensi tidak diwajibkan; ajukan koreksi bila ada tugas khusus.";
+  if (message.includes("NO_WORK_SCHEDULE")) return "Hari ini tidak ada jadwal kerja aktif. Hubungi admin bila ada perubahan shift atau tugas tambahan.";
   if (message.includes("LOCATION_INVALID")) return "Koordinat lokasi perangkat tidak valid.";
   if (message.includes("attendance_corrections_one_pending_action_idx")) return "Permohonan untuk aksi dan tanggal ini sudah menunggu tinjauan.";
   if (message.includes("LOCATION_REQUIRED")) return "Lokasi perangkat diperlukan untuk absensi pada unit ini.";
@@ -271,32 +275,37 @@ export const EmployeeSelfAttendance: React.FC<EmployeeSelfAttendanceProps> = ({ 
   );
   const assignedShiftSchedule = schedules.find((schedule) => schedule.attendance_shift_id) || null;
   const teachingSchedules = schedules.filter((schedule) => schedule.schedule_type === "mengajar" && !schedule.attendance_shift_id);
+  const workSchedules = schedules.filter((schedule) => schedule.schedule_type !== "mengajar" && !schedule.attendance_shift_id);
   const firstTeachingSchedule = teachingSchedules[0] || null;
   const lastTeachingSchedule = teachingSchedules.reduce((latest, schedule) => !latest || String(schedule.end_time) > String(latest.end_time) ? schedule : latest, null as any);
-  const followsTeachingSchedule = employee.attendance_mode === "teaching_schedule";
-  const activeUnitId = ruleContext?.unit_id || assignedShiftSchedule?.unit_id || (followsTeachingSchedule ? firstTeachingSchedule?.unit_id : null) || employee.unit_id || null;
+  const firstWorkSchedule = workSchedules[0] || null;
+  const lastWorkSchedule = workSchedules.reduce((latest, schedule) => !latest || String(schedule.end_time) > String(latest.end_time) ? schedule : latest, null as any);
+  const followsTeachingSchedule = employee.attendance_mode === "teaching_schedule" && canUseTeachingScheduleAttendance(employee.position);
+  const followsWorkSchedule = employee.attendance_mode === "work_schedule";
+  const compatibleRuleContext = !followsTeachingSchedule && ["teaching_schedule", "no_schedule"].includes(ruleContext?.rule_source || "") ? null : ruleContext;
+  const activeUnitId = compatibleRuleContext?.unit_id || assignedShiftSchedule?.unit_id || (followsTeachingSchedule ? firstTeachingSchedule?.unit_id : followsWorkSchedule ? firstWorkSchedule?.unit_id : null) || employee.unit_id || null;
   const policy = useMemo(
     () => policies.find((item) => item.unit_id === activeUnitId) || policies.find((item) => !item.unit_id) || FALLBACK_POLICY,
     [activeUnitId, policies]
   );
-  const effectiveRule = useMemo<AttendanceRuleContext>(() => ruleContext || ({
+  const effectiveRule = useMemo<AttendanceRuleContext>(() => compatibleRuleContext || ({
     unit_id: activeUnitId,
     unit_name: assignedShiftSchedule?.units?.name || employee.units?.name || null,
-    schedule_id: assignedShiftSchedule?.id || (followsTeachingSchedule ? firstTeachingSchedule?.id : null),
+    schedule_id: assignedShiftSchedule?.id || (followsTeachingSchedule ? firstTeachingSchedule?.id : followsWorkSchedule ? firstWorkSchedule?.id : null),
     shift_id: assignedShiftSchedule?.attendance_shift_id || null,
     policy_id: policy.id || null,
-    rule_source: assignedShiftSchedule ? "assigned_shift" : followsTeachingSchedule ? firstTeachingSchedule ? "teaching_schedule" : "no_schedule" : policy.unit_id ? "unit_policy" : policy.id ? "global_policy" : "system_default",
-    rule_name: assignedShiftSchedule?.attendance_shifts?.name || (followsTeachingSchedule ? firstTeachingSchedule ? "Jadwal Mengajar Part-time" : "Tidak Ada Jadwal Mengajar" : policy.name || "Aturan Presensi Sistem"),
-    start_time: assignedShiftSchedule?.start_time || (followsTeachingSchedule ? firstTeachingSchedule?.start_time : null) || policy.default_start_time || "07:00",
-    end_time: assignedShiftSchedule?.end_time || (followsTeachingSchedule ? lastTeachingSchedule?.end_time : null) || policy.default_end_time || "15:00",
-    check_in_open: assignedShiftSchedule?.attendance_shifts?.check_in_open || (followsTeachingSchedule && firstTeachingSchedule ? addMinutes(firstTeachingSchedule.start_time, -(employee.attendance_lead_minutes ?? 30)) : null) || policy.check_in_open || "05:00",
-    check_in_close: assignedShiftSchedule?.attendance_shifts?.check_in_close || (followsTeachingSchedule && firstTeachingSchedule ? addMinutes(firstTeachingSchedule.start_time, employee.attendance_close_minutes ?? 120) : null) || policy.check_in_close || "10:00",
+    rule_source: assignedShiftSchedule ? "assigned_shift" : followsTeachingSchedule ? firstTeachingSchedule ? "teaching_schedule" : "no_schedule" : followsWorkSchedule ? firstWorkSchedule ? "work_schedule" : "no_work_schedule" : policy.unit_id ? "unit_policy" : policy.id ? "global_policy" : "system_default",
+    rule_name: assignedShiftSchedule?.attendance_shifts?.name || (followsTeachingSchedule ? firstTeachingSchedule ? "Jadwal Mengajar Part-time" : "Tidak Ada Jadwal Mengajar" : followsWorkSchedule ? firstWorkSchedule ? "Jadwal Kerja Fleksibel" : "Tidak Ada Jadwal Kerja" : policy.name || "Aturan Presensi Sistem"),
+    start_time: assignedShiftSchedule?.start_time || (followsTeachingSchedule ? firstTeachingSchedule?.start_time : followsWorkSchedule ? firstWorkSchedule?.start_time : null) || policy.default_start_time || "07:00",
+    end_time: assignedShiftSchedule?.end_time || (followsTeachingSchedule ? lastTeachingSchedule?.end_time : followsWorkSchedule ? lastWorkSchedule?.end_time : null) || policy.default_end_time || "15:00",
+    check_in_open: assignedShiftSchedule?.attendance_shifts?.check_in_open || ((followsTeachingSchedule && firstTeachingSchedule) ? addMinutes(firstTeachingSchedule.start_time, -(employee.attendance_lead_minutes ?? 30)) : (followsWorkSchedule && firstWorkSchedule) ? addMinutes(firstWorkSchedule.start_time, -(employee.attendance_lead_minutes ?? 30)) : null) || policy.check_in_open || "05:00",
+    check_in_close: assignedShiftSchedule?.attendance_shifts?.check_in_close || ((followsTeachingSchedule && firstTeachingSchedule) ? addMinutes(firstTeachingSchedule.start_time, employee.attendance_close_minutes ?? 120) : (followsWorkSchedule && firstWorkSchedule) ? addMinutes(firstWorkSchedule.start_time, employee.attendance_close_minutes ?? 120) : null) || policy.check_in_close || "10:00",
     grace_minutes: assignedShiftSchedule?.attendance_shifts?.grace_minutes ?? policy.grace_minutes ?? 10,
     early_departure_tolerance_minutes: assignedShiftSchedule?.attendance_shifts?.early_departure_tolerance_minutes ?? policy.early_departure_tolerance_minutes ?? 0,
     require_geofence: policy.require_geofence,
     allow_correction_request: policy.allow_correction_request,
     max_accuracy_meters: policy.max_accuracy_meters,
-  }), [activeUnitId, assignedShiftSchedule, employee.attendance_close_minutes, employee.attendance_lead_minutes, employee.units?.name, firstTeachingSchedule, followsTeachingSchedule, lastTeachingSchedule?.end_time, policy, ruleContext]);
+  }), [activeUnitId, assignedShiftSchedule, compatibleRuleContext, employee.attendance_close_minutes, employee.attendance_lead_minutes, employee.units?.name, firstTeachingSchedule, firstWorkSchedule, followsTeachingSchedule, followsWorkSchedule, lastTeachingSchedule?.end_time, lastWorkSchedule?.end_time, policy]);
   const validSites = useMemo(() => sites.filter((site) => {
     const mappings = site.attendance_site_units ?? [];
     if (mappings.length === 0) return true;
@@ -316,8 +325,8 @@ export const EmployeeSelfAttendance: React.FC<EmployeeSelfAttendanceProps> = ({ 
       toast.error("Absen masuk harus dicatat terlebih dahulu.");
       return;
     }
-    if (action === "check_in" && effectiveRule.rule_source === "no_schedule") {
-      toast.error("Hari ini tidak ada jadwal mengajar aktif. Anda tidak diwajibkan absen kecuali ada tugas khusus.");
+    if (action === "check_in" && ["no_schedule", "no_work_schedule"].includes(effectiveRule.rule_source)) {
+      toast.error(effectiveRule.rule_source === "no_work_schedule" ? "Hari ini tidak ada jadwal kerja aktif. Hubungi admin bila shift berubah." : "Hari ini tidak ada jadwal mengajar aktif. Anda tidak diwajibkan absen kecuali ada tugas khusus.");
       return;
     }
     if (effectiveRule.require_geofence && !effectiveSiteId) {
@@ -397,7 +406,7 @@ export const EmployeeSelfAttendance: React.FC<EmployeeSelfAttendanceProps> = ({ 
     }
   };
 
-  const hasAttendanceDuty = effectiveRule.rule_source !== "no_schedule";
+  const hasAttendanceDuty = !["no_schedule", "no_work_schedule"].includes(effectiveRule.rule_source);
   const todaySummary = activeLeave
     ? `Izin disetujui: ${formatLeaveType(activeLeave.leave_type)}`
     : !currentRecord && !hasAttendanceDuty
@@ -446,19 +455,20 @@ export const EmployeeSelfAttendance: React.FC<EmployeeSelfAttendanceProps> = ({ 
         )}
 
         {effectiveRule && (
-          <div className={`mt-4 grid gap-3 rounded-lg border p-3 text-sm sm:grid-cols-[1fr_auto] sm:items-center ${effectiveRule.rule_source === "no_schedule" ? "border-amber-200 bg-amber-50" : "border-emerald-200 bg-emerald-50"}`}>
+          <div className={`mt-4 grid gap-3 rounded-lg border p-3 text-sm sm:grid-cols-[1fr_auto] sm:items-center ${!["no_schedule", "no_work_schedule"].includes(effectiveRule.rule_source) ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}>
             <div>
-              <p className={`font-bold ${effectiveRule.rule_source === "no_schedule" ? "text-amber-900" : "text-emerald-900"}`}>Acuan absensi: {effectiveRule.rule_name}</p>
-              {effectiveRule.rule_source === "no_schedule" ? (
-                <p className="mt-1 text-xs text-amber-800">Hari tanpa jadwal mengajar aktif tidak dihitung sebagai belum absen. Ajukan koreksi hanya bila ada tugas khusus dari sekolah.</p>
+              <p className={`font-bold ${!["no_schedule", "no_work_schedule"].includes(effectiveRule.rule_source) ? "text-emerald-900" : "text-amber-900"}`}>Acuan absensi: {effectiveRule.rule_name}</p>
+              {["no_schedule", "no_work_schedule"].includes(effectiveRule.rule_source) ? (
+                <p className="mt-1 text-xs text-amber-800">Hari tanpa jadwal aktif tidak dihitung sebagai belum absen. Hubungi admin bila ada perubahan tugas atau shift.</p>
               ) : (
                 <>
-                  <p className="mt-1 text-xs text-emerald-800">{effectiveRule.unit_name || "Lintas unit"} | jam kerja {formatTime(effectiveRule.start_time)}-{formatTime(effectiveRule.end_time)} | absen masuk {formatTime(effectiveRule.check_in_open)}-{formatTime(effectiveRule.check_in_close)}</p>
-                  <p className="mt-1 text-[11px] text-emerald-700">{effectiveRule.rule_source === "assigned_shift" ? "Shift khusus pegawai" : effectiveRule.rule_source === "teaching_schedule" ? "Pelajaran pertama sampai pelajaran terakhir" : effectiveRule.rule_source === "unit_policy" ? "Kebijakan unit induk" : effectiveRule.rule_source === "global_policy" ? "Kebijakan lintas unit" : "Default sistem"}.</p>
+                  <p className="mt-1 text-xs text-emerald-800">{effectiveRule.unit_name || "Lintas unit"} | jam kerja {formatTime(effectiveRule.start_time)}-{formatTime(effectiveRule.end_time)} | batas akhir masuk {formatTime(effectiveRule.check_in_close)}</p>
+                  <p className="mt-1 text-[11px] text-emerald-700">Kedatangan sebelum jam mulai tetap diterima dan dicatat sebagai hadir.</p>
+                  <p className="mt-1 text-[11px] text-emerald-700">{effectiveRule.rule_source === "assigned_shift" ? "Shift khusus pegawai" : effectiveRule.rule_source === "teaching_schedule" ? "Pelajaran pertama sampai pelajaran terakhir" : effectiveRule.rule_source === "work_schedule" ? "Tugas pertama sampai tugas terakhir hari ini" : effectiveRule.rule_source === "unit_policy" ? "Kebijakan unit induk" : effectiveRule.rule_source === "global_policy" ? "Kebijakan lintas unit" : "Default sistem"}.</p>
                 </>
               )}
             </div>
-            <span className={`w-fit rounded-md bg-white px-2 py-1 text-xs font-bold ${effectiveRule.rule_source === "no_schedule" ? "text-amber-700" : "text-emerald-700"}`}>{effectiveRule.rule_source === "no_schedule" ? "Tidak wajib absen" : `Toleransi ${effectiveRule.grace_minutes} menit`}</span>
+            <span className={`w-fit rounded-md bg-white px-2 py-1 text-xs font-bold ${!["no_schedule", "no_work_schedule"].includes(effectiveRule.rule_source) ? "text-emerald-700" : "text-amber-700"}`}>{!["no_schedule", "no_work_schedule"].includes(effectiveRule.rule_source) ? `Toleransi ${effectiveRule.grace_minutes} menit` : "Tidak wajib absen"}</span>
           </div>
         )}
 
@@ -491,7 +501,7 @@ export const EmployeeSelfAttendance: React.FC<EmployeeSelfAttendanceProps> = ({ 
           <div className="grid grid-cols-2 gap-2 self-end">
             <button
               onClick={() => void recordAttendance("check_in")}
-              disabled={isSaving || Boolean(currentRecord?.time_in) || Boolean(activeLeave) || effectiveRule.rule_source === "no_schedule"}
+              disabled={isSaving || Boolean(currentRecord?.time_in) || Boolean(activeLeave) || ["no_schedule", "no_work_schedule"].includes(effectiveRule.rule_source)}
               className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-emerald-600 px-3 py-2 text-sm font-bold text-white disabled:opacity-45"
             >
               {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogIn className="h-4 w-4" />}
@@ -514,6 +524,10 @@ export const EmployeeSelfAttendance: React.FC<EmployeeSelfAttendanceProps> = ({ 
           </div>
         )}
       </section>
+
+      <EmployeeEventAttendance employee={employee} portal={portal} />
+
+      <EmployeeOvertime employee={employee} portal={portal} />
 
       <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="rounded-lg border bg-white p-5 shadow-sm">

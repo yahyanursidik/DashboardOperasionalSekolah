@@ -1,360 +1,82 @@
-import React, { useState } from "react";
-import { useTable } from "@refinedev/react-table";
-import { flexRender } from "@tanstack/react-table";
-import type { ColumnDef } from "@tanstack/react-table";
-import { useNavigate } from "react-router-dom";
-import { Plus, Search, Edit, Trash2, AlertTriangle, Loader2, ChevronLeft, ChevronRight, Book, Filter, ExternalLink, CheckCircle2, XCircle } from "lucide-react";
-import { PageHeader } from "../../components/layout/PageHeader";
+/* eslint-disable react-hooks/set-state-in-effect */
+import React, { useEffect, useMemo, useState } from "react";
+import { AlertTriangle, BookOpen, CheckCircle2, ChevronLeft, ChevronRight, Edit, ExternalLink, Filter, Library, Loader2, Plus, Search, Star, Trash2, Users } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useDelete, useSelect } from "@refinedev/core";
 import { toast } from "sonner";
+import { PageHeader } from "../../components/layout/PageHeader";
+import { supabaseClient } from "../../lib/supabase/client";
+import { audienceLabel, gradeLabel, isLibraryPublished, resourceTypeLabel } from "./library-config";
+import type { LibraryBook } from "./library-config";
 
-// --- DELETE CONFIRM MODAL ---
-const DeleteConfirmModal: React.FC<{
-  isOpen: boolean;
-  title: string;
-  isDeleting: boolean;
-  onConfirm: () => void;
-  onCancel: () => void;
-}> = ({ isOpen, title, isDeleting, onConfirm, onCancel }) => {
-  if (!isOpen) return null;
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="bg-card rounded-xl shadow-2xl w-full max-w-md border overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-        <div className="p-6 text-center space-y-4">
-          <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-2">
-            <AlertTriangle className="w-8 h-8" />
-          </div>
-          <h3 className="text-xl font-bold text-foreground">Hapus Buku?</h3>
-          <p className="text-sm text-muted-foreground">
-            Anda akan menghapus buku <span className="font-bold text-foreground">"{title}"</span> secara permanen.
-          </p>
-        </div>
-        <div className="flex bg-muted/30 p-4 gap-3 justify-end border-t">
-          <button onClick={onCancel} disabled={isDeleting} className="px-4 py-2 border rounded-md text-sm font-medium hover:bg-muted transition-colors">Batal</button>
-          <button onClick={onConfirm} disabled={isDeleting} className="px-4 py-2 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700 transition-colors flex items-center gap-2">
-            {isDeleting && <Loader2 className="w-4 h-4 animate-spin" />}
-            Hapus Permanen
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// --- TABLE PAGINATION ---
-const TablePagination: React.FC<{
-  currentPage: number;
-  totalPages: number;
-  totalItems: number;
-  itemsPerPage: number;
-  onPageChange: (page: number) => void;
-}> = ({ currentPage, totalPages, totalItems, itemsPerPage, onPageChange }) => {
-  const actualTotalPages = Math.max(1, totalPages);
-  const start = totalItems === 0 ? 0 : ((currentPage - 1) * itemsPerPage) + 1;
-  const end = Math.min(currentPage * itemsPerPage, totalItems);
-  return (
-    <div className="flex items-center justify-between px-6 py-3 border-t bg-muted/20">
-      <p className="text-sm text-muted-foreground">
-        Menampilkan <span className="font-medium text-foreground">{start}-{end}</span> dari <span className="font-medium text-foreground">{totalItems}</span> data
-      </p>
-      <div className="flex items-center gap-1">
-        <button
-          onClick={() => onPageChange(currentPage - 1)}
-          disabled={currentPage === 1}
-          className="p-1.5 rounded-md hover:bg-muted text-muted-foreground disabled:opacity-30 transition-colors"
-        >
-          <ChevronLeft className="w-5 h-5" />
-        </button>
-        <span className="text-sm font-medium px-2">{currentPage} / {actualTotalPages}</span>
-        <button
-          onClick={() => onPageChange(currentPage + 1)}
-          disabled={currentPage >= actualTotalPages}
-          className="p-1.5 rounded-md hover:bg-muted text-muted-foreground disabled:opacity-30 transition-colors"
-        >
-          <ChevronRight className="w-5 h-5" />
-        </button>
-      </div>
-    </div>
-  );
-};
+const PAGE_SIZE = 12;
 
 export const DigitalLibraryBooksList: React.FC = () => {
-  const navigate = useNavigate();
+  const [books, setBooks] = useState<LibraryBook[]>([]);
+  const [categories, setCategories] = useState<Array<{ id: string; name: string }>>([]);
+  const [query, setQuery] = useState("");
+  const [category, setCategory] = useState("");
+  const [status, setStatus] = useState("all");
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState<LibraryBook | null>(null);
 
-  const [q, setQ] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [filterCategory, setFilterCategory] = useState("");
-
-  const { options: categoryOptions } = useSelect({
-    resource: "digital_library_categories",
-    optionLabel: "name",
-    optionValue: "id",
-  });
-
-  const { mutate: deleteMutate, isLoading: isDeleting } = useDelete();
-  const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; id: string; title: string }>({ isOpen: false, id: "", title: "" });
-
-  const handleDelete = (id: string, title: string) => {
-    setDeleteModal({ isOpen: true, id, title });
+  const load = async () => {
+    setLoading(true);
+    const [categoryResult, bookResult] = await Promise.all([
+      supabaseClient.from("digital_library_categories").select("id,name").order("name"),
+      supabaseClient.from("digital_library_books")
+        .select("*,digital_library_categories(name),units(name),digital_library_user_books(progress_percent,is_favorite,completed_at,last_opened_at)")
+        .order("is_featured", { ascending: false }).order("created_at", { ascending: false }),
+    ]);
+    setCategories((categoryResult.data || []) as unknown as Array<{ id: string; name: string }>);
+    if (bookResult.error) {
+      const fallback = await supabaseClient.from("digital_library_books").select("*,digital_library_categories(name)").order("created_at", { ascending: false });
+      if (fallback.error) toast.error("Katalog perpustakaan belum dapat dimuat.");
+      setBooks((fallback.data || []) as unknown as LibraryBook[]);
+    } else setBooks((bookResult.data || []) as unknown as LibraryBook[]);
+    setLoading(false);
   };
 
-  const confirmDelete = () => {
-    deleteMutate(
-      { resource: "digital_library_books", id: deleteModal.id },
-      {
-        onSuccess: () => {
-          toast.success(`Buku ${deleteModal.title} berhasil dihapus!`);
-          setDeleteModal({ isOpen: false, id: "", title: "" });
-        },
-        onError: (error) => {
-          console.error(error);
-          toast.error(`Gagal menghapus Buku ${deleteModal.title}.`);
-          setDeleteModal({ isOpen: false, id: "", title: "" });
-        }
-      }
-    );
+  useEffect(() => { void load(); }, []);
+
+  const filtered = useMemo(() => books.filter((book) => {
+    const needle = query.trim().toLowerCase();
+    const searchable = [book.title, book.author, book.publisher, ...(book.tags || [])].filter(Boolean).join(" ").toLowerCase();
+    const statusMatches = status === "all" || (status === "published" ? isLibraryPublished(book) : !isLibraryPublished(book));
+    return (!needle || searchable.includes(needle)) && (!category || book.category_id === category) && statusMatches;
+  }), [books, category, query, status]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const visible = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const activityCount = books.reduce((total, book) => total + (book.digital_library_user_books?.filter((item) => item.last_opened_at).length || 0), 0);
+
+  const remove = async () => {
+    if (!deleting) return;
+    const { error } = await supabaseClient.from("digital_library_books").delete().eq("id", deleting.id);
+    if (error) return toast.error(error.message || "Koleksi belum dapat dihapus.");
+    toast.success("Koleksi berhasil dihapus.");
+    setDeleting(null);
+    await load();
   };
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    setSearchQuery(q);
-  };
+  return <div className="mx-auto max-w-7xl space-y-6 p-4 md:p-6">
+    <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start"><PageHeader title="Perpustakaan Digital" description="Kurasi sumber baca dan belajar sesuai unit, jenjang, serta kebutuhan warga sekolah." /><div className="flex flex-wrap gap-2"><Link to="/digital-library/categories" className="flex h-10 items-center gap-2 rounded-md border px-4 text-sm font-semibold hover:bg-muted"><Filter className="h-4 w-4" />Kategori</Link><Link to="/digital-library/create" className="flex h-10 items-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary/90"><Plus className="h-4 w-4" />Tambah Koleksi</Link></div></div>
 
-  const columns = React.useMemo<ColumnDef<any>[]>(
-    () => [
-      {
-        id: "cover",
-        header: "Cover",
-        cell: function render({ row }) {
-          const cover = row.original.cover_url;
-          return cover ? (
-            <div className="w-12 h-16 bg-muted rounded overflow-hidden">
-              <img src={cover} alt="Cover" className="w-full h-full object-cover" />
-            </div>
-          ) : (
-            <div className="w-12 h-16 bg-muted rounded flex items-center justify-center text-muted-foreground">
-              <Book className="w-6 h-6 opacity-50" />
-            </div>
-          );
-        },
-      },
-      {
-        id: "title",
-        accessorKey: "title",
-        header: "Judul Buku",
-        cell: function render({ row }) {
-          return (
-            <div>
-              <p className="font-semibold text-foreground">{row.original.title}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">{row.original.author}</p>
-            </div>
-          );
-        },
-      },
-      {
-        id: "category",
-        header: "Kategori",
-        cell: function render({ row }) {
-          return row.original.digital_library_categories?.name || "-";
-        },
-      },
-      {
-        id: "status",
-        accessorKey: "is_active",
-        header: "Status",
-        cell: function render({ getValue }) {
-          const isActive = getValue<boolean>();
-          return isActive ? (
-            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-emerald-100 text-emerald-700">
-              <CheckCircle2 className="w-3 h-3" /> Aktif
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-red-100 text-red-700">
-              <XCircle className="w-3 h-3" /> Nonaktif
-            </span>
-          );
-        },
-      },
-      {
-        id: "actions",
-        accessorKey: "id",
-        header: "Aksi",
-        cell: function render({ row }) {
-          return (
-            <div className="flex items-center gap-2">
-              <a
-                href={row.original.file_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-md transition-colors"
-                title="Buka File"
-              >
-                <ExternalLink className="w-4 h-4" />
-              </a>
-              <button
-                onClick={() => navigate(`/digital-library/edit/${row.original.id}`)}
-                className="p-2 text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
-                title="Edit Buku"
-              >
-                <Edit className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => handleDelete(row.original.id, row.original.title)}
-                className="p-2 text-red-600 hover:bg-red-50 rounded-md transition-colors"
-                title="Hapus Buku"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </div>
-          );
-        },
-      },
-    ],
-    []
-  );
+    <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {[{ label: "Total koleksi", value: books.length, icon: Library, tone: "text-blue-700 bg-blue-50" }, { label: "Sedang tayang", value: books.filter(isLibraryPublished).length, icon: CheckCircle2, tone: "text-emerald-700 bg-emerald-50" }, { label: "Koleksi pilihan", value: books.filter((item) => item.is_featured).length, icon: Star, tone: "text-amber-700 bg-amber-50" }, { label: "Akun pernah membuka", value: activityCount, icon: Users, tone: "text-violet-700 bg-violet-50" }].map((item) => <article key={item.label} className="rounded-lg border bg-card p-4"><div className={`flex h-9 w-9 items-center justify-center rounded-md ${item.tone}`}><item.icon className="h-4 w-4" /></div><p className="mt-4 text-2xl font-bold">{item.value}</p><p className="text-xs font-medium text-muted-foreground">{item.label}</p></article>)}
+    </section>
 
-  const filters = [];
-  if (searchQuery) {
-    filters.push({ field: "title", operator: "contains", value: searchQuery });
-  }
-  if (filterCategory) {
-    filters.push({ field: "category_id", operator: "eq", value: filterCategory });
-  }
+    <section className="overflow-hidden rounded-lg border bg-card">
+      <div className="grid gap-3 border-b p-4 md:grid-cols-[minmax(220px,1fr)_220px_180px]"><label className="relative"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><input value={query} onChange={(e) => { setQuery(e.target.value); setPage(1); }} placeholder="Cari judul, penulis, penerbit, atau tag" className="h-10 w-full rounded-md border bg-background pl-9 pr-3 text-sm" /></label><select value={category} onChange={(e) => { setCategory(e.target.value); setPage(1); }} className="h-10 rounded-md border bg-background px-3 text-sm"><option value="">Semua kategori</option>{categories.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select><select value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }} className="h-10 rounded-md border bg-background px-3 text-sm"><option value="all">Semua status</option><option value="published">Sedang tayang</option><option value="draft">Draf / tidak tayang</option></select></div>
 
-  const {
-    getHeaderGroups,
-    getRowModel,
-    getState,
-    setPageIndex,
-    getCanPreviousPage,
-    getPageCount,
-    getCanNextPage,
-    nextPage,
-    previousPage,
-    refineCore: { setCurrent, pageCount, current },
-  } = useTable({
-    columns,
-    refineCoreProps: {
-      resource: "digital_library_books",
-      filters: {
-        initial: filters as any,
-        permanent: [],
-      },
-      meta: {
-        select: "*, digital_library_categories(name)"
-      },
-      pagination: { pageSize: 10 },
-    }
-  });
+      {loading ? <div className="flex min-h-72 items-center justify-center text-sm text-muted-foreground"><Loader2 className="mr-2 h-5 w-5 animate-spin" />Memuat katalog...</div> : visible.length === 0 ? <div className="flex min-h-72 flex-col items-center justify-center px-4 text-center"><BookOpen className="h-10 w-10 text-muted-foreground/40" /><h2 className="mt-3 font-bold">Belum ada koleksi sesuai filter</h2><p className="mt-1 text-sm text-muted-foreground">Ubah pencarian atau tambahkan sumber belajar yang sudah dikurasi.</p></div> : <>
+        <div className="hidden overflow-x-auto md:block"><table className="w-full text-left text-sm"><thead className="bg-muted/50 text-xs uppercase text-muted-foreground"><tr><th className="px-5 py-3">Koleksi</th><th className="px-5 py-3">Cakupan</th><th className="px-5 py-3">Publikasi</th><th className="px-5 py-3">Pemanfaatan</th><th className="px-5 py-3 text-right">Aksi</th></tr></thead><tbody className="divide-y">{visible.map((book) => <tr key={book.id} className="align-top hover:bg-muted/20"><td className="px-5 py-4"><div className="flex gap-3">{book.cover_url ? <img src={book.cover_url} alt="" className="h-16 w-12 rounded object-cover" /> : <div className="flex h-16 w-12 items-center justify-center rounded bg-muted"><BookOpen className="h-5 w-5 text-muted-foreground" /></div>}<div className="min-w-0"><div className="flex flex-wrap items-center gap-1.5">{book.is_featured && <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-500" />}<p className="font-bold">{book.title}</p></div><p className="text-xs text-muted-foreground">{book.author}</p><p className="mt-1 text-xs text-primary">{book.digital_library_categories?.name || "Tanpa kategori"} · {resourceTypeLabel(book.resource_type)}</p></div></div></td><td className="px-5 py-4"><p className="font-medium">{book.units?.name || "Lintas unit"}</p><p className="mt-1 max-w-56 text-xs text-muted-foreground">{audienceLabel(book.audience)} · {gradeLabel(book.grade_min, book.grade_max)}</p></td><td className="px-5 py-4"><span className={`inline-flex rounded px-2 py-1 text-xs font-bold ${isLibraryPublished(book) ? "bg-emerald-50 text-emerald-700" : "bg-gray-100 text-gray-600"}`}>{isLibraryPublished(book) ? "Tayang" : "Draf / dijadwalkan"}</span>{book.publish_end_at && <p className="mt-1 text-xs text-muted-foreground">s.d. {new Date(book.publish_end_at).toLocaleDateString("id-ID")}</p>}</td><td className="px-5 py-4"><p className="font-bold">{book.digital_library_user_books?.filter((item) => item.last_opened_at).length || 0} pembaca</p><p className="text-xs text-muted-foreground">{book.digital_library_user_books?.filter((item) => item.completed_at).length || 0} selesai</p></td><td className="px-5 py-4"><div className="flex justify-end gap-1"><a href={book.file_url} target="_blank" rel="noreferrer" title="Buka sumber" className="flex h-9 w-9 items-center justify-center rounded-md hover:bg-muted"><ExternalLink className="h-4 w-4" /></a><Link to={`/digital-library/edit/${book.id}`} title="Ubah koleksi" className="flex h-9 w-9 items-center justify-center rounded-md text-blue-600 hover:bg-blue-50"><Edit className="h-4 w-4" /></Link><button type="button" onClick={() => setDeleting(book)} title="Hapus koleksi" className="flex h-9 w-9 items-center justify-center rounded-md text-red-600 hover:bg-red-50"><Trash2 className="h-4 w-4" /></button></div></td></tr>)}</tbody></table></div>
+        <div className="divide-y md:hidden">{visible.map((book) => <article key={book.id} className="p-4"><div className="flex gap-3">{book.cover_url ? <img src={book.cover_url} alt="" className="h-24 w-16 rounded object-cover" /> : <div className="flex h-24 w-16 shrink-0 items-center justify-center rounded bg-muted"><BookOpen className="h-6 w-6 text-muted-foreground" /></div>}<div className="min-w-0 flex-1"><div className="flex items-start justify-between gap-2"><h2 className="font-bold leading-5">{book.title}</h2>{book.is_featured && <Star className="h-4 w-4 shrink-0 fill-amber-400 text-amber-500" />}</div><p className="mt-1 text-xs text-muted-foreground">{book.author}</p><span className={`mt-2 inline-flex rounded px-2 py-1 text-[10px] font-bold ${isLibraryPublished(book) ? "bg-emerald-50 text-emerald-700" : "bg-gray-100 text-gray-600"}`}>{isLibraryPublished(book) ? "Tayang" : "Draf"}</span></div></div><p className="mt-3 text-xs text-muted-foreground">{book.units?.name || "Lintas unit"} · {audienceLabel(book.audience)} · {gradeLabel(book.grade_min, book.grade_max)}</p><div className="mt-3 flex justify-end gap-1 border-t pt-3"><a href={book.file_url} target="_blank" rel="noreferrer" className="flex h-9 items-center gap-2 rounded-md px-3 text-xs font-semibold hover:bg-muted"><ExternalLink className="h-4 w-4" />Buka</a><Link to={`/digital-library/edit/${book.id}`} className="flex h-9 w-9 items-center justify-center rounded-md text-blue-600 hover:bg-blue-50"><Edit className="h-4 w-4" /></Link><button type="button" onClick={() => setDeleting(book)} className="flex h-9 w-9 items-center justify-center rounded-md text-red-600 hover:bg-red-50"><Trash2 className="h-4 w-4" /></button></div></article>)}</div>
+      </>}
 
-  return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
-      <DeleteConfirmModal
-        isOpen={deleteModal.isOpen}
-        title={deleteModal.title}
-        isDeleting={isDeleting}
-        onConfirm={confirmDelete}
-        onCancel={() => setDeleteModal({ isOpen: false, id: "", title: "" })}
-      />
+      <div className="flex flex-col items-center justify-between gap-3 border-t px-4 py-3 sm:flex-row"><p className="text-xs text-muted-foreground">Menampilkan {filtered.length ? (page - 1) * PAGE_SIZE + 1 : 0}-{Math.min(page * PAGE_SIZE, filtered.length)} dari {filtered.length} koleksi</p><div className="flex items-center gap-2"><button disabled={page <= 1} onClick={() => setPage((value) => value - 1)} title="Halaman sebelumnya" className="flex h-9 w-9 items-center justify-center rounded-md border disabled:opacity-40"><ChevronLeft className="h-4 w-4" /></button><span className="min-w-20 text-center text-xs font-semibold">{page} / {totalPages}</span><button disabled={page >= totalPages} onClick={() => setPage((value) => value + 1)} title="Halaman berikutnya" className="flex h-9 w-9 items-center justify-center rounded-md border disabled:opacity-40"><ChevronRight className="h-4 w-4" /></button></div></div>
+    </section>
 
-      <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
-        <PageHeader
-          title="Koleksi Buku"
-          description="Kelola koleksi perpustakaan digital."
-        />
-        <Link
-          to="/digital-library/categories"
-          className="flex items-center gap-2 px-4 py-2 border border-primary text-primary hover:bg-primary/5 rounded-lg transition-colors text-sm font-medium shadow-sm"
-        >
-          <Filter className="w-4 h-4" />
-          <span>Kelola Kategori</span>
-        </Link>
-      </div>
-
-      <div className="bg-card border rounded-xl shadow-sm overflow-hidden flex flex-col h-[calc(100vh-200px)]">
-        {/* Toolbar */}
-        <div className="p-4 border-b flex flex-col sm:flex-row gap-4 justify-between bg-muted/10 shrink-0">
-          <div className="flex flex-1 gap-4 flex-col sm:flex-row">
-            <form onSubmit={handleSearch} className="relative w-full sm:max-w-xs">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <input
-                type="text"
-                placeholder="Cari judul buku..."
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 bg-white border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
-              />
-            </form>
-            <select
-              value={filterCategory}
-              onChange={(e) => setFilterCategory(e.target.value)}
-              className="w-full sm:max-w-[200px] px-3 py-2 bg-white border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-            >
-              <option value="">Semua Kategori</option>
-              {categoryOptions?.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
-          </div>
-
-          <Link
-            to="/digital-library/create"
-            className="flex items-center justify-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium whitespace-nowrap shadow-sm shrink-0"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Tambah Buku</span>
-          </Link>
-        </div>
-
-        {/* Table Area */}
-        <div className="flex-1 overflow-auto">
-          <table className="w-full text-sm text-left">
-            <thead className="text-xs text-muted-foreground uppercase bg-muted/50 sticky top-0 z-10">
-              {getHeaderGroups().map((headerGroup) => (
-                <tr key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => (
-                    <th key={header.id} className="px-6 py-4 font-semibold whitespace-nowrap">
-                      {flexRender(
-                        header.column.columnDef.header,
-                        header.getContext()
-                      )}
-                    </th>
-                  ))}
-                </tr>
-              ))}
-            </thead>
-            <tbody className="divide-y">
-              {getRowModel().rows.length > 0 ? (
-                getRowModel().rows.map((row) => (
-                  <tr key={row.id} className="hover:bg-muted/30 transition-colors">
-                    {row.getVisibleCells().map((cell) => (
-                      <td key={cell.id} className="px-6 py-4">
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </td>
-                    ))}
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={columns.length} className="px-6 py-12 text-center text-muted-foreground">
-                    Belum ada buku yang ditambahkan.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination */}
-        <TablePagination
-          currentPage={current}
-          totalPages={pageCount}
-          totalItems={pageCount * 10} // Approximation
-          itemsPerPage={10}
-          onPageChange={setCurrent}
-        />
-      </div>
-    </div>
-  );
+    {deleting && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"><section role="dialog" aria-modal="true" className="w-full max-w-md rounded-lg bg-card p-6 shadow-xl"><AlertTriangle className="h-10 w-10 text-red-600" /><h2 className="mt-4 text-lg font-bold">Hapus koleksi?</h2><p className="mt-2 text-sm text-muted-foreground">“{deleting.title}” dan seluruh riwayat aktivitasnya akan dihapus permanen.</p><div className="mt-6 flex justify-end gap-2"><button onClick={() => setDeleting(null)} className="h-10 rounded-md border px-4 text-sm font-semibold">Batal</button><button onClick={() => void remove()} className="h-10 rounded-md bg-red-600 px-4 text-sm font-semibold text-white">Hapus</button></div></section></div>}
+  </div>;
 };

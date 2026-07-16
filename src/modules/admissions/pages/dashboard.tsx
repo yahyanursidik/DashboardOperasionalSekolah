@@ -1,201 +1,44 @@
-import React from "react";
-import { Link } from "react-router-dom";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import React, { useEffect, useMemo, useState } from "react";
+import { AlertCircle, ArrowRight, CheckCircle2, ClipboardCheck, FileClock, Loader2, Users } from "lucide-react";
+import { Link, useLocation } from "react-router-dom";
 import { PageHeader } from "../../../components/layout/PageHeader";
-import { Users, FileCheck, XCircle, TrendingUp, Loader2 } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
-import { useList } from "@refinedev/core";
+import { supabaseClient } from "../../../lib/supabase/client";
+import { admissionStatusMeta, formatAdmissionDate, getAdmissionStatus } from "../admissions-config";
+
+const db = supabaseClient as any;
 
 export const AdmissionsDashboard: React.FC = () => {
-  const { data: tableData, isLoading } = useList({
-    resource: "admissions_applicants",
-    pagination: { mode: "off" }
-  });
+  const location = useLocation();
+  const base = location.pathname.startsWith("/admin-spmb") ? "/admin-spmb" : "/admissions";
+  const [applicants, setApplicants] = useState<any[]>([]);
+  const [documents, setDocuments] = useState<any[]>([]);
+  const [payments, setPayments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const rawData = tableData?.data || [];
+  useEffect(() => { Promise.all([
+    db.from("admissions_applicants").select("*, units(name), academic_years(name)").is("archived_at", null).order("registration_date", { ascending: false }),
+    db.from("admission_documents").select("id,status"),
+    db.from("admission_payments").select("id,status"),
+  ]).then(([appResult, docResult, payResult]) => { setApplicants(appResult.data || []); setDocuments(docResult.data || []); setPayments(payResult.data || []); setLoading(false); }); }, []);
 
-  const statsData = {
-    total: rawData.length,
-    waiting: rawData.filter(a => a.status === 'Menunggu Verifikasi').length,
-    verified: rawData.filter(a => a.status === 'Verifikasi Valid' || a.status === 'Berkas Lengkap').length,
-    passed: rawData.filter(a => a.status === 'Lulus Tes').length,
-    rejected: rawData.filter(a => a.status === 'Ditolak').length,
-  };
+  const metrics = useMemo(() => {
+    const statuses = applicants.map(getAdmissionStatus);
+    return [
+      { label: "Total pendaftar", value: applicants.length, icon: Users, tone: "bg-blue-50 text-blue-700" },
+      { label: "Perlu pemeriksaan", value: statuses.filter((status) => ["submitted", "documents_review"].includes(status)).length, icon: FileClock, tone: "bg-amber-50 text-amber-700" },
+      { label: "Siap / selesai seleksi", value: statuses.filter((status) => ["verified", "assessment_scheduled", "assessed"].includes(status)).length, icon: ClipboardCheck, tone: "bg-violet-50 text-violet-700" },
+      { label: "Diterima", value: statuses.filter((status) => ["accepted", "enrolled"].includes(status)).length, icon: CheckCircle2, tone: "bg-emerald-50 text-emerald-700" },
+    ];
+  }, [applicants]);
+  const byUnit = useMemo(() => Object.entries(applicants.reduce((acc: Record<string, number>, row) => { const name = row.units?.name || row.unit || "Belum ditentukan"; acc[name] = (acc[name] || 0) + 1; return acc; }, {})).sort((a,b) => b[1]-a[1]), [applicants]);
+  const maxUnit = Math.max(1, ...byUnit.map((entry) => entry[1]));
 
-  const funnelData = [
-    { name: 'Mendaftar', jumlah: statsData.total },
-    { name: 'Berkas Lengkap', jumlah: statsData.waiting + statsData.verified + statsData.passed },
-    { name: 'Verifikasi Valid', jumlah: statsData.verified + statsData.passed },
-    { name: 'Lulus Tes', jumlah: statsData.passed },
-  ];
-
-  const stats = [
-    { label: "Total Pendaftar", value: statsData.total, icon: Users, color: "text-blue-600 bg-blue-100" },
-    { label: "Berkas Terverifikasi", value: statsData.verified + statsData.passed, icon: FileCheck, color: "text-emerald-600 bg-emerald-100" },
-    { label: "Menunggu Verifikasi", value: statsData.waiting, icon: TrendingUp, color: "text-amber-600 bg-amber-100" },
-    { label: "Ditolak", value: statsData.rejected, icon: XCircle, color: "text-rose-600 bg-rose-100" },
-  ];
-
-  const unitData = [
-    { name: 'PAUD/TK', value: rawData.filter(a => a.unit === 'PAUD/TK').length },
-    { name: 'SD', value: rawData.filter(a => a.unit === 'SD').length },
-    { name: 'SMP', value: rawData.filter(a => a.unit === 'SMP').length },
-    { name: 'SMA', value: rawData.filter(a => a.unit === 'SMA').length },
-  ].filter(d => d.value > 0);
-  
-  const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'];
-  const recentApplicants = [...rawData].sort((a, b) => new Date(b.registration_date).getTime() - new Date(a.registration_date).getTime()).slice(0, 5);
-
-  return (
-    <div className="space-y-6">
-      <PageHeader 
-        title="Dashboard SPMB" 
-        description="Pantau statistik dan corong (funnel) Seleksi Penerimaan Murid Baru."
-        action={
-          <div className="flex items-center gap-2">
-            <Link to="/admissions/settings" className="px-4 py-2 border rounded-lg font-medium text-sm hover:bg-muted transition-colors">
-              Pengaturan
-            </Link>
-            <Link to="/admissions/reports" className="px-4 py-2 border rounded-lg font-medium text-sm hover:bg-muted transition-colors">
-              Laporan
-            </Link>
-            <Link to="/admissions/applicants" className="bg-primary text-primary-foreground px-4 py-2 rounded-lg font-medium text-sm hover:bg-primary/90 transition-colors shadow-sm">
-              Kelola Pendaftar
-            </Link>
-          </div>
-        }
-      />
-
-      {isLoading ? (
-        <div className="flex justify-center items-center py-20">
-          <Loader2 className="w-8 h-8 text-primary animate-spin" />
-        </div>
-      ) : (
-        <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {stats.map((stat, idx) => {
-              const Icon = stat.icon;
-              return (
-                <div key={idx} className="bg-card border rounded-xl p-6 shadow-sm flex items-center gap-4">
-                  <div className={`p-3 rounded-xl ${stat.color}`}>
-                    <Icon className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground uppercase">{stat.label}</p>
-                    <p className="text-2xl font-bold text-foreground mt-1">{stat.value}</p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-            <div className="bg-card border rounded-2xl p-6 shadow-sm">
-              <h3 className="text-lg font-bold mb-6">Funnel Pendaftaran</h3>
-              <div className="h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={funnelData} layout="vertical" margin={{ top: 0, right: 20, left: 40, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#e5e7eb" />
-                    <XAxis type="number" />
-                    <YAxis dataKey="name" type="category" width={110} tick={{ fontSize: 12, fill: '#374151' }} />
-                    <Tooltip cursor={{ fill: '#f3f4f6' }} contentStyle={{ borderRadius: '8px' }} />
-                    <Bar dataKey="jumlah" fill="#14b8a6" radius={[0, 4, 4, 0]} barSize={32} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-            <div className="bg-card border rounded-2xl p-6 shadow-sm">
-              <h3 className="text-lg font-bold mb-6">Distribusi Pendaftar per Unit</h3>
-              <div className="h-[300px]">
-                {unitData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={unitData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={80}
-                        outerRadius={110}
-                        paddingAngle={5}
-                        dataKey="value"
-                      >
-                        {unitData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip contentStyle={{ borderRadius: '8px' }} />
-                      <Legend verticalAlign="bottom" height={36} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="h-full flex items-center justify-center text-muted-foreground text-sm">
-                    Belum ada data pendaftar.
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Pendaftar Terbaru */}
-          <div className="bg-card border rounded-2xl shadow-sm overflow-hidden mt-6">
-            <div className="p-5 border-b flex justify-between items-center bg-muted/10">
-              <div>
-                <h3 className="text-lg font-bold">Pendaftar Terbaru</h3>
-                <p className="text-sm text-muted-foreground mt-1">Calon siswa yang baru saja mendaftar.</p>
-              </div>
-              <Link to="/admissions/applicants" className="text-sm font-semibold text-primary hover:underline">
-                Lihat Semua
-              </Link>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left">
-                <thead className="bg-muted/30 text-muted-foreground text-xs uppercase font-medium">
-                  <tr>
-                    <th className="px-6 py-4">Nama Pendaftar</th>
-                    <th className="px-6 py-4">Unit Tujuan</th>
-                    <th className="px-6 py-4">Tanggal Daftar</th>
-                    <th className="px-6 py-4">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {recentApplicants.length > 0 ? recentApplicants.map((app) => (
-                    <tr key={app.id} className="hover:bg-muted/20 transition-colors">
-                      <td className="px-6 py-4">
-                        <Link to={`/admissions/applicants/${app.registration_number}`} className="font-semibold text-primary hover:underline">
-                          {app.name}
-                        </Link>
-                        <div className="text-xs text-muted-foreground">{app.registration_number}</div>
-                      </td>
-                      <td className="px-6 py-4 font-medium">{app.unit}</td>
-                      <td className="px-6 py-4">
-                        {new Date(app.registration_date).toLocaleDateString('id-ID', {
-                          day: 'numeric', month: 'short', year: 'numeric'
-                        })}
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider
-                          ${app.status === 'Lulus Tes' ? 'bg-emerald-100 text-emerald-700' : 
-                            app.status === 'Verifikasi Valid' ? 'bg-blue-100 text-blue-700' : 
-                            app.status === 'Berkas Lengkap' ? 'bg-purple-100 text-purple-700' : 
-                            app.status === 'Ditolak' ? 'bg-rose-100 text-rose-700' :
-                            'bg-amber-100 text-amber-700'}`}>
-                          {app.status}
-                        </span>
-                      </td>
-                    </tr>
-                  )) : (
-                    <tr>
-                      <td colSpan={4} className="px-6 py-8 text-center text-muted-foreground">
-                        Belum ada pendaftar terbaru.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </>
-      )}
-    </div>
-  );
+  if (loading) return <div className="py-28 grid place-items-center"><Loader2 className="w-8 h-8 text-emerald-700 animate-spin" /></div>;
+  return <div className="space-y-6"><PageHeader title="SPMB / Penerimaan Murid Baru" description="Kendali penerimaan lintas unit, tahun ajaran, verifikasi, seleksi, dan pembentukan siswa." action={<Link to={`${base}/applicants`} className="h-10 px-4 rounded-md bg-emerald-700 text-white font-semibold text-sm inline-flex items-center gap-2 hover:bg-emerald-800">Buka Pendaftar <ArrowRight className="w-4 h-4" /></Link>} />
+    <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4">{metrics.map(({ label,value,icon:Icon,tone }) => <div key={label} className="bg-white border rounded-lg p-5"><div className={`w-10 h-10 rounded-md grid place-items-center ${tone}`}><Icon className="w-5 h-5" /></div><p className="text-3xl font-bold mt-5">{value}</p><p className="text-sm text-slate-600 mt-1">{label}</p></div>)}</div>
+    {(documents.filter((doc) => doc.status === "submitted").length > 0 || payments.filter((pay) => ["pending", "submitted"].includes(pay.status)).length > 0) && <div className="border border-amber-200 bg-amber-50 rounded-lg p-4 flex flex-col sm:flex-row sm:items-center gap-3"><AlertCircle className="w-5 h-5 text-amber-700 shrink-0" /><div className="flex-1"><p className="font-bold text-amber-950">Antrean verifikasi perlu ditindaklanjuti</p><p className="text-sm text-amber-800 mt-1">{documents.filter((doc) => doc.status === "submitted").length} berkas dan {payments.filter((pay) => ["pending", "submitted"].includes(pay.status)).length} pembayaran menunggu pemeriksaan.</p></div><Link to={`${base}/applicants?queue=verification`} className="text-sm font-semibold text-amber-900 hover:underline">Buka antrean</Link></div>}
+    <div className="grid lg:grid-cols-[1.4fr_1fr] gap-6"><section className="bg-white border rounded-lg overflow-hidden"><div className="p-5 border-b flex items-center justify-between"><div><h2 className="font-bold text-lg">Pendaftar Terbaru</h2><p className="text-sm text-slate-600 mt-1">Prioritaskan pendaftaran yang baru dikirim.</p></div><Link to={`${base}/applicants`} className="text-sm font-semibold text-emerald-700">Lihat semua</Link></div><div className="divide-y">{applicants.slice(0,6).map((row) => { const status = getAdmissionStatus(row); return <Link key={row.id} to={`${base}/applicants/${row.registration_number || row.id}`} className="p-4 sm:px-5 flex items-center gap-4 hover:bg-slate-50"><div className="w-10 h-10 rounded-full bg-slate-100 grid place-items-center font-bold text-slate-600">{row.name?.charAt(0)}</div><div className="min-w-0 flex-1"><p className="font-bold truncate">{row.name}</p><p className="text-xs text-slate-500 mt-1 truncate">{row.units?.name || row.unit || "Tanpa unit"} · {formatAdmissionDate(row.registration_date)}</p></div><span className={`hidden sm:inline-flex px-2.5 py-1 rounded-full text-xs font-semibold ${admissionStatusMeta[status].tone}`}>{admissionStatusMeta[status].label}</span></Link>; })}{applicants.length === 0 && <p className="p-10 text-center text-slate-500">Belum ada pendaftar.</p>}</div></section>
+      <section className="bg-white border rounded-lg p-5"><h2 className="font-bold text-lg">Sebaran per Unit</h2><p className="text-sm text-slate-600 mt-1 mb-6">Membantu pemantauan kuota dan kebutuhan kelas.</p><div className="space-y-5">{byUnit.map(([name,value]) => <div key={name}><div className="flex justify-between text-sm mb-2"><span className="font-semibold">{name}</span><span className="text-slate-600">{value}</span></div><div className="h-2 rounded-full bg-slate-100 overflow-hidden"><div className="h-full bg-emerald-600" style={{ width: `${(value/maxUnit)*100}%` }} /></div></div>)}{byUnit.length === 0 && <p className="text-sm text-slate-500">Belum ada distribusi unit.</p>}</div></section></div>
+  </div>;
 };

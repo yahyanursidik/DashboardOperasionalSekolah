@@ -1,269 +1,147 @@
-import React, { useState, useEffect } from "react";
-import { useTable } from "@refinedev/react-table";
-import { flexRender } from "@tanstack/react-table";
-import type { ColumnDef } from "@tanstack/react-table";
-import { useNavigate, Link } from "react-router-dom";
-import { useDelete } from "@refinedev/core";
-import { PageHeader } from "../../../components/layout/PageHeader";
-import { Eye, Edit, Trash2, Plus, FileText, Video, Image as ImageIcon, Music, PlayCircle, HardDrive, Search, Filter, ChevronRight, Inbox } from "lucide-react";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import React, { useEffect, useMemo, useState } from "react";
+import { useDelete, useList, useUpdate } from "@refinedev/core";
+import { Link } from "react-router-dom";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  Edit3,
+  Eye,
+  FileCheck2,
+  FilePlus2,
+  FileText,
+  Filter,
+  Loader2,
+  Search,
+  ShieldCheck,
+  Trash2,
+  Users,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
+import { PageHeader } from "../../../components/layout/PageHeader";
+import { supabaseClient } from "../../../lib/supabase/client";
+import { isMissingSupabaseRelation } from "../../../lib/supabase/schema-errors";
+import {
+  isPublishedNow,
+  labelFor,
+  materialAudience,
+  onboardingAudiences,
+  onboardingCategories,
+  onboardingMaterialTypes,
+  type OnboardingMaterial,
+} from "../onboarding-config";
+
+const PAGE_SIZE = 15;
 
 export const OnboardingList: React.FC = () => {
-  const navigate = useNavigate();
-  const { mutate: deleteMaterial } = useDelete();
+  const { mutateAsync: updateMaterial } = useUpdate();
+  const { mutateAsync: deleteMaterial } = useDelete();
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState("all");
+  const [audience, setAudience] = useState("all");
+  const [category, setCategory] = useState("all");
+  const [page, setPage] = useState(1);
+  const [progressByMaterial, setProgressByMaterial] = useState<Record<string, { opened: number; completed: number; acknowledged: number }>>({});
 
-  const columns = React.useMemo<ColumnDef<any>[]>(
-    () => [
-      {
-        id: "title",
-        accessorKey: "title",
-        header: "Judul Materi",
-        cell: function render({ getValue }) {
-          return <span className="font-semibold text-gray-900">{getValue<string>()}</span>;
-        },
-      },
-      {
-        id: "material_type",
-        accessorKey: "material_type",
-        header: "Tipe",
-        cell: function render({ getValue }) {
-          const type = getValue<string>();
-          const getIcon = () => {
-            switch (type) {
-              case 'pdf': return <FileText className="w-3.5 h-3.5" />;
-              case 'video': return <Video className="w-3.5 h-3.5" />;
-              case 'image': return <ImageIcon className="w-3.5 h-3.5" />;
-              case 'audio': return <Music className="w-3.5 h-3.5" />;
-              case 'youtube': return <PlayCircle className="w-3.5 h-3.5" />;
-              case 'gdrive': return <HardDrive className="w-3.5 h-3.5" />;
-              case 's3_link': return <HardDrive className="w-3.5 h-3.5 text-blue-500" />;
-              default: return null;
-            }
-          };
-          return (
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gray-100 text-gray-700 text-xs font-medium uppercase tracking-wider">
-              {getIcon()}
-              {type === 's3_link' ? 'S3 Contabo' : type}
-            </span>
-          );
-        },
-      },
-      {
-        id: "status",
-        accessorKey: "status",
-        header: "Status",
-        cell: function render({ getValue }) {
-          const status = getValue<string>();
-          return (
-            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
-              status === 'published' ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' : 'bg-gray-100 text-gray-700 border border-gray-200'
-            }`}>
-              {status === 'published' ? 'Dipublikasikan' : 'Draft'}
-            </span>
-          );
-        },
-      },
-      {
-        id: "order_index",
-        accessorKey: "order_index",
-        header: "Urutan",
-      },
-      {
-        id: "actions",
-        accessorKey: "id",
-        header: "Aksi",
-        cell: function render({ getValue, row }) {
-          const id = getValue<string>();
-          return (
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => navigate(`/onboarding/show/${id}`)}
-                className="p-1.5 text-gray-500 hover:text-primary hover:bg-primary/10 rounded-md transition-colors"
-                title="Lihat"
-              >
-                <Eye className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => navigate(`/onboarding/edit/${id}`)}
-                className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
-                title="Edit"
-              >
-                <Edit className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => {
-                  if (confirm("Apakah Anda yakin ingin menghapus materi ini?")) {
-                    deleteMaterial({
-                      resource: "onboarding_materials",
-                      id,
-                      successNotification: () => {
-                        toast.success("Materi berhasil dihapus");
-                        return false;
-                      }
-                    });
-                  }
-                }}
-                className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
-                title="Hapus"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </div>
-          );
-        },
-      },
-    ],
-    [navigate, deleteMaterial]
-  );
-
-  const { refineCore: { tableQueryResult, setFilters }, ...table } = useTable({
-    columns,
-    refineCoreProps: {
-      resource: "onboarding_materials",
-      sorters: { permanent: [{ field: "order_index", order: "asc" }] },
-    },
+  const materialsQuery = useList<OnboardingMaterial>({
+    resource: "onboarding_materials",
+    pagination: { mode: "off" },
+    sorters: [{ field: "order_index", order: "asc" }, { field: "updated_at", order: "desc" }],
   });
-
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [typeFilter, setTypeFilter] = useState("all");
+  const unitsQuery = useList<{ id: string; name: string }>({ resource: "units", pagination: { mode: "off" } });
+  const unitMap = useMemo(() => new Map((unitsQuery.data?.data || []).map((unit) => [unit.id, unit.name])), [unitsQuery.data?.data]);
 
   useEffect(() => {
-    const filters: any[] = [];
-    if (searchTerm) {
-      filters.push({ field: "title", operator: "contains", value: searchTerm });
-    }
-    if (statusFilter !== "all") {
-      filters.push({ field: "status", operator: "eq", value: statusFilter });
-    }
-    if (typeFilter !== "all") {
-      filters.push({ field: "material_type", operator: "eq", value: typeFilter });
-    }
-    setFilters(filters);
-  }, [searchTerm, statusFilter, typeFilter, setFilters]);
+    const loadProgress = async () => {
+      const { data, error } = await supabaseClient.from("onboarding_progress").select("material_id,progress_percent,acknowledged_at");
+      if (error) {
+        if (!isMissingSupabaseRelation(error, "onboarding_progress")) console.error("Onboarding progress error", error);
+        return;
+      }
+      const next: typeof progressByMaterial = {};
+      (data || []).forEach((row: any) => {
+        const current = next[row.material_id] || { opened: 0, completed: 0, acknowledged: 0 };
+        current.opened += 1;
+        if (Number(row.progress_percent) >= 100) current.completed += 1;
+        if (row.acknowledged_at) current.acknowledged += 1;
+        next[row.material_id] = current;
+      });
+      setProgressByMaterial(next);
+    };
+    void loadProgress();
+  }, []);
 
-  const isLoading = tableQueryResult.isLoading;
-  const rows = table.getRowModel().rows;
+  const materials = useMemo(() => materialsQuery.data?.data || [], [materialsQuery.data?.data]);
+  const filtered = useMemo(() => {
+    const keyword = search.trim().toLowerCase();
+    return materials.filter((material) => {
+      if (status !== "all" && material.status !== status) return false;
+      if (audience !== "all" && !materialAudience(material).includes(audience) && !materialAudience(material).includes("all")) return false;
+      if (category !== "all" && (material.category || "general") !== category) return false;
+      if (!keyword) return true;
+      return [material.title, material.description, labelFor(onboardingCategories, material.category), unitMap.get(material.unit_id || "")]
+        .filter(Boolean).some((value) => String(value).toLowerCase().includes(keyword));
+    });
+  }, [audience, category, materials, search, status, unitMap]);
+
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const rows = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const metrics = {
+    total: materials.length,
+    live: materials.filter((item) => isPublishedNow(item)).length,
+    required: materials.filter((item) => item.is_required).length,
+    acknowledgements: Object.values(progressByMaterial).reduce((sum, item) => sum + item.acknowledged, 0),
+  };
+
+  const publish = async (material: OnboardingMaterial) => {
+    await updateMaterial({ resource: "onboarding_materials", id: material.id, values: { status: material.status === "published" ? "draft" : "published" } });
+    toast.success(material.status === "published" ? "Materi dikembalikan menjadi draf." : "Materi dipublikasikan.");
+    await materialsQuery.refetch();
+  };
+
+  const remove = async (material: OnboardingMaterial) => {
+    if (!window.confirm(`Hapus materi "${material.title}"? Progres pengguna ikut terhapus dan tindakan ini tidak dapat dibatalkan.`)) return;
+    await deleteMaterial({ resource: "onboarding_materials", id: material.id });
+    toast.success("Materi onboarding dihapus.");
+    await materialsQuery.refetch();
+  };
 
   return (
     <div className="space-y-6">
-      {/* Breadcrumbs */}
-      <div className="flex items-center text-sm text-gray-500 mb-2">
-        <Link to="/" className="hover:text-primary transition-colors">Dashboard</Link>
-        <ChevronRight className="w-4 h-4 mx-1" />
-        <span className="text-gray-900 font-medium">Onboarding</span>
-      </div>
+      <PageHeader title="Pusat Panduan & Onboarding" description="Kelola orientasi, SOP, kebijakan wajib, dan panduan portal untuk keluarga, pengajar, serta staf per unit." action={<Link to="/onboarding/create" className="inline-flex min-h-10 items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-bold text-primary-foreground"><FilePlus2 className="h-4 w-4" />Tambah Materi</Link>} />
 
-      <PageHeader
-        title="Materi Onboarding"
-        description="Kelola materi sambutan dan panduan untuk orang tua siswa."
-        action={
-          <button
-            onClick={() => navigate("/onboarding/create")}
-            className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors shadow-sm font-medium text-sm"
-          >
-            <Plus className="w-4 h-4" />
-            Tambah Materi
-          </button>
-        }
-      />
+      <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {[
+          { label: "Total materi", value: metrics.total, icon: FileText, tone: "bg-blue-50 text-blue-700" },
+          { label: "Sedang tayang", value: metrics.live, icon: CheckCircle2, tone: "bg-emerald-50 text-emerald-700" },
+          { label: "Materi wajib", value: metrics.required, icon: ShieldCheck, tone: "bg-amber-50 text-amber-700" },
+          { label: "Persetujuan tercatat", value: metrics.acknowledgements, icon: FileCheck2, tone: "bg-violet-50 text-violet-700" },
+        ].map((item) => <div key={item.label} className="rounded-md border bg-card p-4"><div className={`flex h-9 w-9 items-center justify-center rounded-md ${item.tone}`}><item.icon className="h-5 w-5" /></div><p className="mt-3 text-2xl font-bold">{materialsQuery.isLoading ? "..." : item.value}</p><p className="text-xs font-semibold text-muted-foreground">{item.label}</p></div>)}
+      </section>
 
-      {/* Filters and Search */}
-      <div className="bg-white p-4 rounded-xl border shadow-sm flex flex-col sm:flex-row gap-4 items-center justify-between">
-        <div className="relative w-full sm:w-72">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input 
-            type="text" 
-            placeholder="Cari judul materi..." 
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-          />
+      <section className="rounded-md border bg-card">
+        <div className="grid gap-3 border-b p-4 lg:grid-cols-[minmax(240px,1fr)_repeat(3,minmax(150px,auto))]">
+          <label className="relative"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><input value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} placeholder="Cari judul, unit, atau kategori..." className="h-10 w-full rounded-md border bg-background pl-9 pr-9 text-sm" />{search ? <button type="button" onClick={() => { setSearch(""); setPage(1); }} title="Hapus pencarian" className="absolute right-1 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md hover:bg-muted"><X className="h-4 w-4" /></button> : null}</label>
+          <FilterSelect label="Status" value={status} onChange={(value) => { setStatus(value); setPage(1); }} options={[{ value: "all", label: "Semua status" }, { value: "published", label: "Dipublikasikan" }, { value: "draft", label: "Draf" }]} />
+          <FilterSelect label="Audiens" value={audience} onChange={(value) => { setAudience(value); setPage(1); }} options={[{ value: "all", label: "Semua portal" }, ...onboardingAudiences.filter((item) => item.value !== "all")]} />
+          <FilterSelect label="Kategori" value={category} onChange={(value) => { setCategory(value); setPage(1); }} options={[{ value: "all", label: "Semua kategori" }, ...onboardingCategories]} />
         </div>
-        <div className="flex w-full sm:w-auto items-center gap-3">
-          <div className="flex items-center gap-2">
-            <Filter className="w-4 h-4 text-gray-400 hidden sm:block" />
-            <select 
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              className="border rounded-lg text-sm px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-            >
-              <option value="all">Semua Tipe</option>
-              <option value="pdf">PDF</option>
-              <option value="video">Video</option>
-              <option value="image">Gambar</option>
-              <option value="audio">Audio</option>
-              <option value="youtube">YouTube</option>
-              <option value="gdrive">G-Drive</option>
-              <option value="s3_link">S3 Contabo</option>
-            </select>
-          </div>
-          <select 
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="border rounded-lg text-sm px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-          >
-            <option value="all">Semua Status</option>
-            <option value="published">Dipublikasikan</option>
-            <option value="draft">Draft</option>
-          </select>
-        </div>
-      </div>
 
-      <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
-        {isLoading ? (
-          <div className="p-12 flex justify-center items-center gap-3 text-gray-500">
-            <div className="w-5 h-5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-            Memuat data...
-          </div>
-        ) : rows.length === 0 ? (
-          <div className="p-16 flex flex-col items-center justify-center text-center">
-            <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4">
-              <Inbox className="w-8 h-8 text-gray-300" />
-            </div>
-            <h3 className="text-gray-900 font-medium mb-1">Data Kosong</h3>
-            <p className="text-gray-500 text-sm max-w-[250px]">Belum ada materi onboarding yang ditambahkan atau sesuai dengan pencarian Anda.</p>
-            {searchTerm || typeFilter !== 'all' || statusFilter !== 'all' ? (
-              <button 
-                onClick={() => {
-                  setSearchTerm(''); setTypeFilter('all'); setStatusFilter('all');
-                }}
-                className="mt-4 text-sm text-emerald-600 font-medium hover:underline"
-              >
-                Reset Filter
-              </button>
-            ) : null}
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
-              <thead className="bg-gray-50/50 text-gray-600 text-xs uppercase font-semibold border-b">
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <tr key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => (
-                      <th key={header.id} className="px-6 py-4 whitespace-nowrap">
-                        {!header.isPlaceholder && flexRender(header.column.columnDef.header, header.getContext())}
-                      </th>
-                    ))}
-                  </tr>
-                ))}
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {rows.map((row) => (
-                  <tr key={row.id} className="hover:bg-gray-50/80 transition-colors group">
-                    {row.getVisibleCells().map((cell) => (
-                      <td key={cell.id} className="px-6 py-4 whitespace-nowrap">
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+        {materialsQuery.isLoading ? <div className="flex min-h-64 items-center justify-center text-sm text-muted-foreground"><Loader2 className="mr-2 h-5 w-5 animate-spin" />Memuat materi...</div> : materialsQuery.isError ? <div className="flex min-h-64 flex-col items-center justify-center p-8 text-center"><AlertTriangle className="h-9 w-9 text-red-500" /><p className="mt-3 font-bold">Materi tidak dapat dimuat</p><p className="mt-1 text-sm text-muted-foreground">Periksa migrasi database dan hak akses pengelola onboarding.</p></div> : rows.length === 0 ? <div className="min-h-64 p-12 text-center"><Filter className="mx-auto h-9 w-9 text-muted-foreground/40" /><p className="mt-3 font-bold">Tidak ada materi sesuai filter</p><button type="button" onClick={() => { setSearch(""); setStatus("all"); setAudience("all"); setCategory("all"); }} className="mt-3 text-sm font-semibold text-primary hover:underline">Reset filter</button></div> : <>
+          <div className="hidden overflow-x-auto md:block"><table className="w-full min-w-[1080px] text-left text-sm"><thead className="border-b bg-muted/30 text-xs uppercase text-muted-foreground"><tr><th className="px-4 py-3">Materi</th><th className="px-4 py-3">Cakupan</th><th className="px-4 py-3">Publikasi</th><th className="px-4 py-3">Monitoring</th><th className="px-4 py-3">Tindakan</th></tr></thead><tbody className="divide-y">{rows.map((material) => <MaterialRow key={material.id} material={material} unitName={unitMap.get(material.unit_id || "")} progress={progressByMaterial[material.id]} onPublish={() => void publish(material)} onDelete={() => void remove(material)} />)}</tbody></table></div>
+          <div className="divide-y md:hidden">{rows.map((material) => <MaterialCard key={material.id} material={material} unitName={unitMap.get(material.unit_id || "")} progress={progressByMaterial[material.id]} onPublish={() => void publish(material)} onDelete={() => void remove(material)} />)}</div>
+        </>}
+        <div className="flex flex-col gap-3 border-t p-4 text-sm sm:flex-row sm:items-center sm:justify-between"><p className="text-muted-foreground">Menampilkan {rows.length} dari {filtered.length} materi</p><div className="flex items-center gap-2"><button type="button" disabled={page <= 1} onClick={() => setPage((current) => current - 1)} title="Halaman sebelumnya" className="flex h-9 w-9 items-center justify-center rounded-md border disabled:opacity-40"><ChevronLeft className="h-4 w-4" /></button><span className="min-w-24 text-center text-xs font-bold">Halaman {page} / {pageCount}</span><button type="button" disabled={page >= pageCount} onClick={() => setPage((current) => current + 1)} title="Halaman berikutnya" className="flex h-9 w-9 items-center justify-center rounded-md border disabled:opacity-40"><ChevronRight className="h-4 w-4" /></button></div></div>
+      </section>
     </div>
   );
 };
 
+const MaterialRow = ({ material, unitName, progress, onPublish, onDelete }: any) => <tr className="hover:bg-muted/20"><td className="max-w-sm px-4 py-4"><div className="flex items-start gap-3"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary"><FileText className="h-5 w-5" /></div><div><p className="font-bold">{material.title}</p><p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{material.description || "Tanpa deskripsi"}</p><div className="mt-2 flex gap-1.5"><Badge>{labelFor(onboardingMaterialTypes, material.material_type)}</Badge>{material.is_required ? <Badge tone="amber">Wajib</Badge> : null}</div></div></div></td><td className="px-4 py-4"><p className="font-semibold">{unitName || "Lintas unit"}</p><p className="mt-1 text-xs text-muted-foreground">{materialAudience(material).map((item) => labelFor(onboardingAudiences, item)).join(", ")}</p><p className="mt-1 text-xs text-muted-foreground">{labelFor(onboardingCategories, material.category || "general")}</p></td><td className="px-4 py-4"><button type="button" onClick={onPublish} className={`rounded-md px-2.5 py-1 text-xs font-bold ${material.status === "published" ? "bg-emerald-50 text-emerald-700" : "bg-gray-100 text-gray-700"}`}>{material.status === "published" ? "Tayang" : "Draf"}</button><p className="mt-2 text-xs text-muted-foreground">Urutan {material.order_index || 0} | v{material.version_label || "1.0"}</p></td><td className="px-4 py-4"><p className="font-semibold">{progress?.opened || 0} membuka</p><p className="mt-1 text-xs text-muted-foreground">{progress?.completed || 0} selesai | {progress?.acknowledged || 0} setuju</p></td><td className="px-4 py-4"><ActionButtons material={material} onDelete={onDelete} /></td></tr>;
+const MaterialCard = ({ material, unitName, progress, onPublish, onDelete }: any) => <article className="p-4"><div className="flex items-start justify-between gap-3"><div><p className="font-bold">{material.title}</p><p className="mt-1 text-xs text-muted-foreground">{unitName || "Lintas unit"} | {labelFor(onboardingCategories, material.category || "general")}</p></div><button type="button" onClick={onPublish} className={`rounded-md px-2 py-1 text-xs font-bold ${material.status === "published" ? "bg-emerald-50 text-emerald-700" : "bg-gray-100"}`}>{material.status === "published" ? "Tayang" : "Draf"}</button></div><div className="mt-3 flex flex-wrap gap-1.5"><Badge>{labelFor(onboardingMaterialTypes, material.material_type)}</Badge>{material.is_required ? <Badge tone="amber">Wajib</Badge> : null}{materialAudience(material).map((item: string) => <Badge key={item}>{labelFor(onboardingAudiences, item)}</Badge>)}</div><div className="mt-4 flex items-center justify-between border-t pt-3"><p className="text-xs text-muted-foreground"><Users className="mr-1 inline h-3.5 w-3.5" />{progress?.completed || 0}/{progress?.opened || 0} selesai</p><ActionButtons material={material} onDelete={onDelete} /></div></article>;
+const ActionButtons = ({ material, onDelete }: { material: OnboardingMaterial; onDelete: () => void }) => <div className="flex items-center gap-1"><Link to={`/onboarding/show/${material.id}`} title="Pratinjau dan detail" className="flex h-9 w-9 items-center justify-center rounded-md border hover:bg-muted"><Eye className="h-4 w-4" /></Link><Link to={`/onboarding/edit/${material.id}`} title="Ubah materi" className="flex h-9 w-9 items-center justify-center rounded-md border text-blue-700 hover:bg-blue-50"><Edit3 className="h-4 w-4" /></Link><button type="button" onClick={onDelete} title="Hapus materi" className="flex h-9 w-9 items-center justify-center rounded-md border text-red-600 hover:bg-red-50"><Trash2 className="h-4 w-4" /></button></div>;
+const Badge = ({ children, tone = "default" }: { children: React.ReactNode; tone?: "default" | "amber" }) => <span className={`rounded-md px-2 py-1 text-[10px] font-bold ${tone === "amber" ? "bg-amber-50 text-amber-700" : "bg-muted text-muted-foreground"}`}>{children}</span>;
+const FilterSelect = ({ label, value, onChange, options }: { label: string; value: string; onChange: (value: string) => void; options: ReadonlyArray<{ value: string; label: string }> }) => <label className="relative"><span className="sr-only">{label}</span><Filter className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><select value={value} onChange={(event) => onChange(event.target.value)} className="h-10 w-full rounded-md border bg-background pl-9 pr-8 text-sm font-semibold">{options.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>;

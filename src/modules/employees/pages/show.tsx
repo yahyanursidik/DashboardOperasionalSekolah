@@ -2,19 +2,20 @@ import React, { useState } from "react";
 import {
   useShow, useList, useCreate, useSelect, useUpdate
 } from "@refinedev/core";
-import { useNavigate, useParams, useLocation } from "react-router-dom";
+import { useNavigate, useParams, useLocation, useSearchParams } from "react-router-dom";
 import { useAcademicYear } from "../../../app/providers/AcademicYearProvider";
 import {
   User, Edit, ArrowLeft, GraduationCap, Building2,
   Phone, Mail, MapPin, X, Plus, Trash2, FolderOpen, History,
   BookOpen, Calendar, Clock, CheckCircle2, XCircle,
-  Award, ClipboardList, UserCheck, Star, AlertCircle
+  Award, ClipboardList, UserCheck, Star, AlertCircle, LockKeyhole
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import {
   academicAssignmentTypes,
   canReceiveAcademicAssignment,
+  canUseTeachingScheduleAttendance,
   getAttendanceMode,
   getEmployeePosition,
   getEmploymentType,
@@ -22,6 +23,7 @@ import {
 import { formatScheduleType, formatTime } from "../../schedules/schedule-utils";
 import { validateTeachingScheduleCurriculum } from "../../schedules/curriculum-schedule-validation";
 import { toast } from "sonner";
+import { PortalAccessPanel } from "../components/PortalAccessPanel";
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 const POSITION_MAP: Record<string, { label: string; color: string; icon: React.ElementType }> = {
@@ -302,23 +304,33 @@ function AssignmentModal({
 }
 
 // ─── Main Show Page ────────────────────────────────────────────────────────────
-type TabType = "assignments" | "attendance" | "leaves" | "documents";
+type TabType = "assignments" | "access" | "attendance" | "leaves" | "documents";
+const EMPLOYEE_TAB_KEYS: TabType[] = ["assignments", "access", "attendance", "leaves", "documents"];
 
 export const EmployeeShow: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const basePath = location.pathname.startsWith("/hrd") ? "/hrd/employees" : "/employees";
-  const [activeTab, setActiveTab] = useState<TabType>("assignments");
+  const requestedTab = searchParams.get("tab") as TabType | null;
+  const activeTab: TabType = requestedTab && EMPLOYEE_TAB_KEYS.includes(requestedTab) ? requestedTab : "assignments";
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { activeYearId, activeSemesterId } = useAcademicYear();
+
+  const handleTabChange = (tab: TabType) => {
+    const nextParams = new URLSearchParams(searchParams);
+    if (tab === "assignments") nextParams.delete("tab");
+    else nextParams.set("tab", tab);
+    setSearchParams(nextParams, { replace: true });
+  };
 
   const { queryResult } = useShow({
     resource: "employees",
     id,
     meta: { select: "*, units(name)" },
   });
-  const { data, isLoading } = queryResult;
+  const { data, isLoading, refetch: refetchEmployee } = queryResult;
   const record = data?.data;
 
   // Assignments
@@ -390,7 +402,7 @@ export const EmployeeShow: React.FC = () => {
   const teachingSchedules = schedules.filter((schedule) => schedule.schedule_type === "mengajar");
   const employmentType = getEmploymentType(record.employment_type);
   const attendanceMode = getAttendanceMode(record.attendance_mode);
-  const followsTeachingSchedule = record.attendance_mode === "teaching_schedule";
+  const followsTeachingSchedule = record.attendance_mode === "teaching_schedule" && canUseTeachingScheduleAttendance(record.position);
   const portalLabel = positionDefinition.portal === "teacher" ? "Portal Pengajar" : "Portal Staf";
   const profileChecklist = [
     { label: "Identitas inti", done: Boolean(record.full_name && record.nik) },
@@ -403,6 +415,7 @@ export const EmployeeShow: React.FC = () => {
 
   const TABS = [
     { key: "assignments" as TabType, label: "Penugasan & Jadwal", icon: BookOpen, count: activeAssignments.length + schedules.length },
+    { key: "access" as TabType, label: "Akses Portal", icon: LockKeyhole },
     { key: "attendance" as TabType, label: "Riwayat Presensi", icon: Clock },
     { key: "leaves" as TabType, label: "Riwayat Cuti", icon: Calendar },
     { key: "documents" as TabType, label: "Dokumen", icon: FolderOpen },
@@ -414,12 +427,18 @@ export const EmployeeShow: React.FC = () => {
         title="Profil Pegawai"
         description="Jabatan utama, penugasan periode, jadwal pelaksanaan, dan kesiapan portal pegawai."
         action={
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <button
               onClick={() => navigate(basePath)}
               className="flex items-center gap-2 border px-4 py-2 rounded-lg hover:bg-muted transition-colors text-sm font-medium"
             >
               <ArrowLeft className="w-4 h-4" /> Kembali
+            </button>
+            <button
+              onClick={() => handleTabChange("access")}
+              className="flex items-center gap-2 border border-primary/30 bg-primary/5 px-4 py-2 rounded-lg text-primary hover:bg-primary/10 transition-colors text-sm font-medium"
+            >
+              <LockKeyhole className="w-4 h-4" /> Kelola Login
             </button>
             <Link
               to={`${basePath}/edit/${record.id}`}
@@ -532,6 +551,13 @@ export const EmployeeShow: React.FC = () => {
           <div className="bg-card border rounded-xl shadow-sm p-4">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Aksi Cepat</p>
             <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => handleTabChange("access")}
+                className="col-span-2 flex items-center justify-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2.5 text-xs font-semibold text-primary hover:bg-primary/10"
+              >
+                <LockKeyhole className="w-3.5 h-3.5" /> Kelola NIK, Email & Kata Sandi Portal
+              </button>
               <Link to={`/schedules?employee_id=${record.id}`} className="text-xs border rounded-lg px-3 py-2 hover:bg-muted flex items-center gap-2">
                 <Calendar className="w-3.5 h-3.5" /> Jadwal
               </Link>
@@ -573,7 +599,7 @@ export const EmployeeShow: React.FC = () => {
               {TABS.map((tab) => (
                 <button
                   key={tab.key}
-                  onClick={() => setActiveTab(tab.key)}
+                  onClick={() => handleTabChange(tab.key)}
                   className={`flex items-center gap-2 px-5 py-3.5 text-sm font-medium whitespace-nowrap transition-colors border-b-2 -mb-px ${
                     activeTab === tab.key
                       ? "border-primary text-primary bg-primary/5"
@@ -732,6 +758,17 @@ export const EmployeeShow: React.FC = () => {
                   )}
                 </section>
               </div>
+            )}
+
+            {/* ── Tab: Akses Portal ── */}
+            {activeTab === "access" && (
+              <PortalAccessPanel
+                employeeId={record.id as string}
+                employeeName={record.full_name || "Pegawai"}
+                employeeEmail={record.email}
+                employeeNik={record.nik}
+                onAccessChanged={() => void refetchEmployee()}
+              />
             )}
 
             {/* ── Tab: Presensi ── */}

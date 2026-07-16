@@ -6,6 +6,7 @@ import { Calendar, Clock, BookOpen, ChevronRight, UserCheck, BarChart3, Calendar
 import { useAcademicYear } from "../../app/providers/AcademicYearProvider";
 import { dayMap, getScheduleSubjectName } from "../schedules/schedule-utils";
 import { isLeaveActiveOnDate, toDateInputValue } from "../leaves/leave-utils";
+import { canUseTeachingScheduleAttendance, getEmployeePosition } from "../employees/employee-role-config";
 
 const READ_ANNOUNCEMENTS_KEY = "teacher_portal_read_announcement_ids";
 
@@ -15,6 +16,7 @@ function isAttendanceReady(value: string) {
 
 export const TeacherDashboard: React.FC = () => {
   const { employee } = useOutletContext<any>();
+  const isLeadership = getEmployeePosition(employee.position).category === "leadership";
   const { activeYearId, activeSemesterId } = useAcademicYear();
   const [todaySchedules, setTodaySchedules] = useState<any[]>([]);
   const [stats, setStats] = useState({
@@ -139,6 +141,7 @@ export const TeacherDashboard: React.FC = () => {
 
         const myAttendance = myAtt as any;
         const hasAttendanceDuty = employee.attendance_mode !== "teaching_schedule"
+          || !canUseTeachingScheduleAttendance(employee.position)
           || (schedules || []).some((schedule: any) => schedule.attendance_shift_id || schedule.schedule_type === "mengajar");
         const records = quranRecords || [];
         const assessmentList = assessments || [];
@@ -163,7 +166,7 @@ export const TeacherDashboard: React.FC = () => {
     };
 
     fetchDashboardData();
-  }, [employee.attendance_mode, employee.id, employee.unit_id, activeYearId, activeSemesterId]);
+  }, [employee.attendance_mode, employee.id, employee.position, employee.unit_id, activeYearId, activeSemesterId]);
 
   const hariIni = new Date().toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
   const qualityChecklist = useMemo(() => ([
@@ -173,70 +176,70 @@ export const TeacherDashboard: React.FC = () => {
     { label: "Informasi", done: stats.unreadAnnouncements === 0, value: `${stats.unreadAnnouncements} baru` },
     { label: "Tugas", done: stats.pendingTasks === 0, value: `${stats.pendingTasks} aktif` },
     { label: "Rapor", done: stats.pendingReports === 0, value: `${stats.pendingReports} perlu diisi` },
-    { label: "Jadwal", done: stats.classesToday > 0, value: `${stats.classesToday} kelas` },
+    { label: "Jadwal", done: stats.classesToday > 0, value: `${stats.classesToday} agenda` },
     { label: "Jurnal Qur'an", done: stats.quranRecords > 0, value: stats.quranRecords },
     { label: "Assessment", done: stats.assessments > 0, value: stats.assessments },
   ]), [stats]);
 
   return (
-    <div className="p-4 md:p-0 space-y-6">
-      <section className="rounded-md bg-emerald-800 p-6 text-white shadow-sm">
-        <p className="text-sm text-emerald-100">Assalamu'alaikum,</p>
+    <div className="space-y-6">
+      <section className="rounded-lg border bg-primary p-6 text-primary-foreground shadow-sm">
+        <p className="text-sm text-primary-foreground/80">Assalamu'alaikum,</p>
         <h1 className="mt-1 text-2xl font-black leading-tight">{employee.full_name}</h1>
-        <p className="mt-2 text-sm text-emerald-100">{hariIni}</p>
+        <p className="mt-2 text-sm text-primary-foreground/80">{hariIni}</p>
       </section>
 
       <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
         {[
-          { label: "Kelas Hari Ini", value: stats.classesToday, icon: Calendar, color: "text-blue-700 bg-blue-50" },
+          { label: isLeadership ? "Agenda Hari Ini" : "Kelas Hari Ini", value: stats.classesToday, icon: Calendar, color: "text-blue-700 bg-blue-50" },
           { label: "Absensi", value: isAttendanceReady(stats.myAttendance) ? "OK" : "Cek", icon: CalendarCheck, color: "text-emerald-700 bg-emerald-50" },
           { label: "Info Baru", value: stats.unreadAnnouncements, icon: Megaphone, color: "text-amber-700 bg-amber-50" },
           { label: "Tugas Aktif", value: stats.pendingTasks, icon: ListTodo, color: "text-blue-700 bg-blue-50" },
         ].map(({ label, value, icon: Icon, color }) => (
-          <div key={label} className="rounded-md border bg-white p-4 shadow-sm">
+          <div key={label} className="rounded-lg border bg-card p-4 shadow-sm">
             <div className={`mb-3 flex h-10 w-10 items-center justify-center rounded-md ${color}`}>
               <Icon className="h-5 w-5" />
             </div>
-            <p className="text-2xl font-black text-gray-900">{value}</p>
-            <p className="text-xs font-semibold text-gray-500">{label}</p>
+            <p className="text-2xl font-black text-foreground">{value}</p>
+            <p className="text-xs font-semibold text-muted-foreground">{label}</p>
           </div>
         ))}
       </section>
 
       <section className="grid gap-4 md:grid-cols-[1fr_1fr]">
-        <div className="rounded-md border bg-white p-5 shadow-sm">
+        <div className="rounded-lg border bg-card p-5 shadow-sm">
           <div className="mb-4 flex items-center gap-3">
-            <div className="rounded-xl bg-primary/10 p-2.5 text-primary">
+            <div className="rounded-md bg-primary/10 p-2.5 text-primary">
               <Calendar className="h-5 w-5" />
             </div>
             <div>
               <p className="text-xs font-medium text-muted-foreground">Status hari ini</p>
-              <h3 className="font-bold text-gray-900">{hariIni}</h3>
+              <h3 className="font-bold text-foreground">{hariIni}</h3>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3 border-t pt-4">
-            <div className="rounded-xl bg-gray-50 p-3">
-              <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-gray-500">Kehadiran</p>
+            <div className="rounded-md bg-muted/50 p-3">
+              <p className="mb-1 text-[10px] font-bold uppercase text-muted-foreground">Kehadiran</p>
               <p className={`text-sm font-bold ${isAttendanceReady(stats.myAttendance) ? "text-emerald-600" : "text-amber-600"}`}>{stats.myAttendance}</p>
             </div>
-            <div className="rounded-xl bg-gray-50 p-3">
-              <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-gray-500">Jadwal</p>
-              <p className="text-sm font-bold text-gray-900">{stats.classesToday} kelas</p>
+            <div className="rounded-md bg-muted/50 p-3">
+              <p className="mb-1 text-[10px] font-bold uppercase text-muted-foreground">Jadwal</p>
+              <p className="text-sm font-bold text-foreground">{stats.classesToday} agenda</p>
             </div>
           </div>
         </div>
 
-        <div className="rounded-md border bg-white p-5 shadow-sm">
-          <h3 className="mb-4 flex items-center gap-2 font-bold text-gray-900">
+        <div className="rounded-lg border bg-card p-5 shadow-sm">
+          <h3 className="mb-4 flex items-center gap-2 font-bold text-foreground">
             <BarChart3 className="h-5 w-5 text-emerald-600" />
-            Definition of done hari ini
+            Prioritas hari ini
           </h3>
           <div className="grid gap-2">
             {qualityChecklist.map((item) => (
-              <div key={item.label} className="flex items-center justify-between rounded-xl border bg-gray-50 px-3 py-2">
+              <div key={item.label} className="flex items-center justify-between rounded-md border bg-muted/30 px-3 py-2">
                 <div>
-                  <p className="text-sm font-bold text-gray-900">{item.label}</p>
-                  <p className="text-xs text-gray-500">{item.value}</p>
+                  <p className="text-sm font-bold text-foreground">{item.label}</p>
+                  <p className="text-xs text-muted-foreground">{item.value}</p>
                 </div>
                 <span className={`rounded-full px-2 py-1 text-[10px] font-bold uppercase ${item.done ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
                   {item.done ? "Ok" : "Cek"}
@@ -248,7 +251,7 @@ export const TeacherDashboard: React.FC = () => {
       </section>
 
       <section>
-        <h3 className="mb-3 px-1 text-sm font-bold text-gray-900">Aksi Cepat</h3>
+        <h3 className="mb-3 px-1 text-sm font-bold text-foreground">Aksi Cepat</h3>
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           {[
             { to: "/teacher/tasks", label: "Tugas Saya", icon: ListTodo, color: "bg-blue-100 text-blue-700" },
@@ -256,11 +259,11 @@ export const TeacherDashboard: React.FC = () => {
             { to: "/teacher/reports", label: "Rapor Digital", icon: FileText, color: "bg-amber-100 text-amber-700" },
             { to: "/teacher/attendance", label: "Absensi Saya", icon: CalendarCheck, color: "bg-green-100 text-green-600" },
           ].map(({ to, label, icon: Icon, color }) => (
-            <Link key={to} to={to} className="flex flex-col items-center justify-center gap-3 rounded-md border bg-white p-4 shadow-sm transition hover:border-primary/50 hover:shadow-md">
-              <div className={`rounded-full p-3 ${color}`}>
+            <Link key={to} to={to} className="flex flex-col items-center justify-center gap-3 rounded-lg border bg-card p-4 shadow-sm transition hover:border-primary/50 hover:shadow-md">
+              <div className={`rounded-md p-3 ${color}`}>
                 <Icon className="h-6 w-6" />
               </div>
-              <span className="text-center text-xs font-bold text-gray-700">{label}</span>
+              <span className="text-center text-xs font-bold text-foreground">{label}</span>
             </Link>
           ))}
         </div>
@@ -269,28 +272,28 @@ export const TeacherDashboard: React.FC = () => {
       <section className="grid gap-6 lg:grid-cols-[1fr_1fr]">
         <div>
           <div className="mb-3 flex items-end justify-between px-1">
-            <h3 className="text-sm font-bold text-gray-900">Informasi Terbaru</h3>
+            <h3 className="text-sm font-bold text-foreground">Informasi Terbaru</h3>
             <Link to="/teacher/announcements" className="flex items-center gap-0.5 text-xs font-bold text-primary hover:underline">
               Semua <ChevronRight className="h-3 w-3" />
             </Link>
           </div>
           {recentAnnouncements.length === 0 ? (
-            <div className="rounded-2xl border border-dashed bg-white p-8 text-center shadow-sm">
-              <Megaphone className="mx-auto mb-3 h-8 w-8 text-gray-300" />
-              <p className="text-sm text-gray-500">Belum ada pengumuman baru untuk Anda.</p>
+            <div className="rounded-lg border border-dashed bg-card p-8 text-center shadow-sm">
+              <Megaphone className="mx-auto mb-3 h-8 w-8 text-muted-foreground/40" />
+              <p className="text-sm text-muted-foreground">Belum ada pengumuman baru untuk Anda.</p>
             </div>
           ) : (
-            <div className="overflow-hidden rounded-2xl border bg-white shadow-sm">
+            <div className="overflow-hidden rounded-lg border bg-card shadow-sm">
               <div className="divide-y">
                 {recentAnnouncements.map((item: any) => (
                   <Link key={item.id} to="/teacher/announcements" className="block p-4 hover:bg-amber-50/40">
                     <div className="mb-1 flex items-center justify-between gap-3">
-                      <p className="line-clamp-1 text-sm font-bold text-gray-900">{item.title}</p>
+                      <p className="line-clamp-1 text-sm font-bold text-foreground">{item.title}</p>
                       <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-700">
                         {item.target_type === "staff" ? "Staf" : item.target_type === "unit" ? "Unit" : item.target_type === "class" ? "Kelas" : "Umum"}
                       </span>
                     </div>
-                    <p className="line-clamp-2 text-xs leading-5 text-gray-500">{item.content}</p>
+                    <p className="line-clamp-2 text-xs leading-5 text-muted-foreground">{item.content}</p>
                   </Link>
                 ))}
               </div>
@@ -300,29 +303,29 @@ export const TeacherDashboard: React.FC = () => {
 
         <div>
           <div className="mb-3 flex items-end justify-between px-1">
-            <h3 className="text-sm font-bold text-gray-900">Jadwal Mengajar Hari Ini</h3>
+            <h3 className="text-sm font-bold text-foreground">{isLeadership ? "Jadwal & Penugasan Hari Ini" : "Jadwal Mengajar Hari Ini"}</h3>
             <Link to="/teacher/schedules" className="flex items-center gap-0.5 text-xs font-bold text-primary hover:underline">
               Semua <ChevronRight className="h-3 w-3" />
             </Link>
           </div>
           {todaySchedules.length === 0 ? (
-            <div className="rounded-2xl border border-dashed bg-white p-8 text-center shadow-sm">
-              <Clock className="mx-auto mb-3 h-8 w-8 text-gray-300" />
-              <p className="text-sm text-gray-500">Tidak ada jadwal mengajar hari ini.</p>
+            <div className="rounded-lg border border-dashed bg-card p-8 text-center shadow-sm">
+              <Clock className="mx-auto mb-3 h-8 w-8 text-muted-foreground/40" />
+              <p className="text-sm text-muted-foreground">{isLeadership ? "Tidak ada jadwal atau penugasan hari ini." : "Tidak ada jadwal mengajar hari ini."}</p>
             </div>
           ) : (
-            <div className="overflow-hidden rounded-2xl border bg-white shadow-sm">
+            <div className="overflow-hidden rounded-lg border bg-card shadow-sm">
               <div className="divide-y">
                 {todaySchedules.map((schedule, index) => (
-                  <div key={index} className="flex items-center justify-between p-4 hover:bg-gray-50">
+                  <div key={index} className="flex items-center justify-between p-4 hover:bg-muted/30">
                     <div className="flex items-center gap-4">
                       <div className="w-14 text-center">
-                        <p className="text-sm font-bold text-gray-900">{schedule.start_time?.substring(0, 5)}</p>
-                        <p className="text-xs text-gray-500">{schedule.end_time?.substring(0, 5)}</p>
+                        <p className="text-sm font-bold text-foreground">{schedule.start_time?.substring(0, 5)}</p>
+                        <p className="text-xs text-muted-foreground">{schedule.end_time?.substring(0, 5)}</p>
                       </div>
                       <div className="h-10 w-px bg-gray-200" />
                       <div>
-                        <h4 className="font-bold text-gray-900">{getScheduleSubjectName(schedule)}</h4>
+                        <h4 className="font-bold text-foreground">{getScheduleSubjectName(schedule)}</h4>
                         <p className="mt-0.5 text-xs font-medium text-primary">{schedule.classes?.name}</p>
                       </div>
                     </div>
@@ -335,24 +338,24 @@ export const TeacherDashboard: React.FC = () => {
 
         <div>
           <div className="mb-3 flex items-end justify-between px-1">
-            <h3 className="text-sm font-bold text-gray-900">Jurnal Qur'an Terakhir</h3>
+            <h3 className="text-sm font-bold text-foreground">Jurnal Qur'an Terakhir</h3>
             <Link to="/teacher/quran" className="flex items-center gap-0.5 text-xs font-bold text-primary hover:underline">
               Input <ChevronRight className="h-3 w-3" />
             </Link>
           </div>
           {recentQuranRecords.length === 0 ? (
-            <div className="rounded-2xl border border-dashed bg-white p-8 text-center shadow-sm">
-              <BookOpen className="mx-auto mb-3 h-8 w-8 text-gray-300" />
-              <p className="text-sm text-gray-500">Belum ada jurnal Qur'an yang Anda input pada semester ini.</p>
+            <div className="rounded-lg border border-dashed bg-card p-8 text-center shadow-sm">
+              <BookOpen className="mx-auto mb-3 h-8 w-8 text-muted-foreground/40" />
+              <p className="text-sm text-muted-foreground">Belum ada jurnal Qur'an yang Anda input pada semester ini.</p>
             </div>
           ) : (
-            <div className="overflow-hidden rounded-2xl border bg-white shadow-sm">
+            <div className="overflow-hidden rounded-lg border bg-card shadow-sm">
               <div className="divide-y">
                 {recentQuranRecords.slice(0, 5).map((record: any) => (
                   <div key={record.id} className="flex items-center justify-between p-4">
                     <div>
-                      <p className="text-sm font-bold text-gray-900">{record.students?.full_name || "Siswa"}</p>
-                      <p className="text-xs text-gray-500">{record.record_type} - {new Date(record.date).toLocaleDateString("id-ID")}</p>
+                      <p className="text-sm font-bold text-foreground">{record.students?.full_name || "Siswa"}</p>
+                      <p className="text-xs text-muted-foreground">{record.record_type} - {new Date(record.date).toLocaleDateString("id-ID")}</p>
                     </div>
                     <span className={`rounded-md px-2 py-1 text-[10px] font-bold uppercase ${record.fluency_score === "Mengulang" ? "bg-red-100 text-red-700" : "bg-emerald-100 text-emerald-700"}`}>
                       {record.fluency_score}

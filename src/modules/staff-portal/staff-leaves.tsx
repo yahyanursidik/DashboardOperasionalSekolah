@@ -1,11 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/set-state-in-effect */
 import React, { useCallback, useEffect, useState } from "react";
-import { Link, useOutletContext } from "react-router-dom";
-import { ArrowLeft, CheckCircle, Clock, Plus, XCircle } from "lucide-react";
+import { useOutletContext } from "react-router-dom";
+import { CheckCircle, Clock, Plus, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { supabaseClient } from "../../lib/supabase/client";
 import { useAcademicYear } from "../../app/providers/AcademicYearProvider";
 import { formatLeaveDate, formatLeaveType, getLeaveDurationDays, leaveStatusConfig, leaveTypes, requiresStrongProof } from "../leaves/leave-utils";
+import { PageHeader } from "../../components/layout/PageHeader";
 
 export const StaffLeaves: React.FC = () => {
   const { employee } = useOutletContext<any>();
@@ -80,51 +81,38 @@ export const StaffLeaves: React.FC = () => {
   };
 
   return (
-    <div className="p-4 space-y-5">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <Link to="/staff" className="p-2 bg-white rounded-full shadow-sm border text-gray-600 hover:text-primary transition">
-            <ArrowLeft className="w-5 h-5" />
-          </Link>
-          <div>
-            <h2 className="font-black text-lg text-gray-900">Izin & Cuti</h2>
-            <p className="text-xs text-gray-500">Ajukan izin operasional untuk diverifikasi HRD.</p>
-          </div>
-        </div>
-        <button onClick={() => setShowForm(!showForm)} className="rounded-xl bg-orange-500 p-2 text-white shadow-sm hover:bg-orange-600">
-          {showForm ? <XCircle className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
-        </button>
-      </div>
+    <div className="space-y-5">
+      <PageHeader title="Izin & Cuti" description="Ajukan izin operasional untuk diverifikasi HRD." action={<button type="button" onClick={() => setShowForm(!showForm)} title={showForm ? "Tutup formulir" : "Ajukan izin"} className="flex h-10 items-center gap-2 rounded-md bg-emerald-700 px-4 text-sm font-bold text-white hover:bg-emerald-800">{showForm ? <XCircle className="h-4 w-4" /> : <Plus className="h-4 w-4" />}<span>{showForm ? "Tutup" : "Ajukan Izin"}</span></button>} />
 
       {showForm && (
-        <div className="rounded-2xl border border-orange-100 bg-white p-5 shadow-sm">
+        <div className="rounded-md border bg-card p-5">
           <h3 className="mb-4 text-sm font-black text-gray-900">Form Pengajuan Baru</h3>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="mb-1 block text-xs font-black text-gray-700">Jenis Izin</label>
-              <select value={leaveType} onChange={(event) => setLeaveType(event.target.value)} className="w-full rounded-xl border bg-white p-3 text-sm outline-none focus:border-orange-500">
+              <select value={leaveType} onChange={(event) => setLeaveType(event.target.value)} className="w-full rounded-md border bg-background p-3 text-sm outline-none focus:ring-2 focus:ring-primary/20">
                 {leaveTypes.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}
               </select>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="mb-1 block text-xs font-black text-gray-700">Mulai</label>
-                <input type="date" required value={startDate} onChange={(event) => setStartDate(event.target.value)} className="w-full rounded-xl border p-3 text-sm outline-none focus:border-orange-500" />
+                <input type="date" required value={startDate} onChange={(event) => setStartDate(event.target.value)} className="w-full rounded-md border bg-background p-3 text-sm outline-none focus:ring-2 focus:ring-primary/20" />
               </div>
               <div>
                 <label className="mb-1 block text-xs font-black text-gray-700">Sampai</label>
-                <input type="date" required value={endDate} onChange={(event) => setEndDate(event.target.value)} className="w-full rounded-xl border p-3 text-sm outline-none focus:border-orange-500" />
+                <input type="date" required value={endDate} onChange={(event) => setEndDate(event.target.value)} className="w-full rounded-md border bg-background p-3 text-sm outline-none focus:ring-2 focus:ring-primary/20" />
               </div>
             </div>
             <div>
               <label className="mb-1 block text-xs font-black text-gray-700">Alasan / Keterangan</label>
-              <textarea value={reason} onChange={(event) => setReason(event.target.value)} rows={3} required placeholder="Jelaskan alasan izin..." className="w-full resize-none rounded-xl border p-3 text-sm outline-none focus:border-orange-500" />
+              <textarea value={reason} onChange={(event) => setReason(event.target.value)} rows={3} required placeholder="Jelaskan alasan izin..." className="w-full resize-none rounded-md border bg-background p-3 text-sm outline-none focus:ring-2 focus:ring-primary/20" />
               <p className="mt-1 text-[11px] text-gray-500">
                 {durationDays > 0 ? `${durationDays} hari pengajuan.` : "Pilih rentang tanggal."}
                 {needsProof ? " Bukti pendukung perlu diserahkan ke HRD." : ""}
               </p>
             </div>
-            <button type="submit" disabled={isSubmitting} className="w-full rounded-xl bg-orange-500 py-3 font-black text-white hover:bg-orange-600 disabled:opacity-50">
+            <button type="submit" disabled={isSubmitting} className="w-full rounded-md bg-emerald-700 py-3 font-bold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-600 disabled:opacity-100">
               {isSubmitting ? "Mengirim..." : "Kirim Pengajuan"}
             </button>
           </form>
@@ -134,11 +122,11 @@ export const StaffLeaves: React.FC = () => {
       {isLoading ? (
         <div className="p-8 text-center text-sm text-gray-400">Memuat riwayat pengajuan...</div>
       ) : leaves.length === 0 ? (
-        <div className="rounded-2xl border border-dashed bg-white p-8 text-center text-sm text-gray-400">Belum ada riwayat pengajuan izin.</div>
+        <div className="rounded-md border border-dashed bg-card p-8 text-center text-sm text-muted-foreground">Belum ada riwayat pengajuan izin.</div>
       ) : (
         <div className="space-y-3 pb-8">
           {leaves.map((leave) => (
-            <div key={leave.id} className="rounded-2xl border bg-white p-4 shadow-sm">
+            <div key={leave.id} className="rounded-md border bg-card p-4">
               <div className="mb-2 flex items-start justify-between">
                 <span className="rounded bg-gray-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-gray-500">{formatLeaveType(leave.leave_type)}</span>
                 {getStatusBadge(leave.status)}

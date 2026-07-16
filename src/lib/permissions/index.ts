@@ -77,6 +77,7 @@ const ResourceAccessMap: Record<string, RoleName[]> = {
   'leave_requests': ['super_admin', 'ketua_yayasan', 'kepsek', 'wakasek', 'kepala_tu', 'admin_tu', 'admin_sekolah', 'admin_unit', 'guru', 'hrd'],
   'substitute_assignments': ['super_admin', 'ketua_yayasan', 'kepsek', 'wakasek', 'kepala_tu', 'admin_tu', 'admin_sekolah', 'admin_unit'],
   'settings': ['super_admin', 'ketua_yayasan'],
+  'master_data': ['super_admin', 'ketua_yayasan', 'kepsek', 'wakasek', 'kepala_tu', 'admin_tu', 'admin_sekolah', 'admin_unit'],
   'admin_tasks': ['super_admin', 'ketua_yayasan', 'kepsek', 'wakasek', 'kepala_tu', 'admin_tu', 'admin_sekolah', 'admin_unit', 'guru'],
   'announcements': ['super_admin', 'ketua_yayasan', 'kepsek', 'wakasek', 'kepala_tu', 'admin_tu', 'admin_sekolah', 'admin_unit'],
   'audit_logs': ['super_admin', 'ketua_yayasan'],
@@ -136,8 +137,9 @@ const ResourceAccessMap: Record<string, RoleName[]> = {
   'room_schedules': ['super_admin', 'ketua_yayasan', 'kepsek', 'kepala_tu', 'admin_tu', 'admin_sekolah', 'admin_unit'],
   'mail_records': ['super_admin', 'ketua_yayasan', 'kepsek', 'kepala_tu', 'admin_tu', 'admin_sekolah', 'admin_unit', 'admin_dokumen'],
   'mail_dispositions': ['super_admin', 'ketua_yayasan', 'kepsek', 'kepala_tu', 'admin_tu', 'admin_sekolah', 'admin_unit', 'admin_dokumen'],
-  'digital_library_books': ['super_admin', 'ketua_yayasan', 'kepsek', 'wakasek', 'kepala_tu', 'admin_tu', 'admin_sekolah', 'admin_unit', 'guru', 'wali_kelas'],
-  'onboarding_materials': ['super_admin', 'ketua_yayasan', 'kepsek', 'kepala_tu', 'admin_sekolah', 'admin_unit', 'hrd'],
+  'digital_library_books': ['super_admin', 'ketua_yayasan', 'kepsek', 'wakasek', 'kepala_tu', 'admin_tu', 'admin_sekolah', 'admin_unit', 'admin_dokumen'],
+  'digital_library_categories': ['super_admin', 'ketua_yayasan', 'kepsek', 'wakasek', 'kepala_tu', 'admin_tu', 'admin_sekolah', 'admin_unit', 'admin_dokumen'],
+  'onboarding_materials': ['super_admin', 'ketua_yayasan', 'kepsek', 'kepala_tu', 'admin_tu', 'admin_sekolah', 'admin_unit', 'admin_dokumen', 'hrd'],
 };
 
 export const canAccessResource = (scopes: UserRoleScope[] | undefined, resource: string): boolean => {
