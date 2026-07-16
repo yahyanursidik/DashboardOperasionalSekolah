@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabaseClient } from "../../../lib/supabase/client";
+import { useAcademicYear } from "../../../app/providers/AcademicYearProvider";
 import { dayMap, formatTime, getScheduleSubjectName } from "../../schedules/schedule-utils";
 import { formatLeaveType, isLeaveActiveOnDate, toDateInputValue } from "../../leaves/leave-utils";
 import { formatShortTime, formatSubstituteStatus } from "../../substitutes/substitute-utils";
@@ -33,12 +34,35 @@ type EmployeeSelfAttendanceProps = {
 type AttendancePolicy = {
   id?: string;
   unit_id?: string | null;
+  name?: string;
   require_geofence: boolean;
   allow_correction_request: boolean;
   max_accuracy_meters: number;
   grace_minutes: number;
   check_in_open?: string;
   check_in_close?: string;
+  default_start_time?: string;
+  default_end_time?: string;
+  early_departure_tolerance_minutes?: number;
+};
+
+type AttendanceRuleContext = {
+  unit_id?: string | null;
+  unit_name?: string | null;
+  schedule_id?: string | null;
+  shift_id?: string | null;
+  policy_id?: string | null;
+  rule_source: "assigned_shift" | "teaching_schedule" | "no_schedule" | "unit_policy" | "global_policy" | "system_default";
+  rule_name: string;
+  start_time: string;
+  end_time: string;
+  check_in_open: string;
+  check_in_close: string;
+  grace_minutes: number;
+  early_departure_tolerance_minutes: number;
+  require_geofence: boolean;
+  allow_correction_request: boolean;
+  max_accuracy_meters: number;
 };
 
 const FALLBACK_POLICY: AttendancePolicy = {
@@ -46,6 +70,11 @@ const FALLBACK_POLICY: AttendancePolicy = {
   allow_correction_request: true,
   max_accuracy_meters: 100,
   grace_minutes: 10,
+  check_in_open: "05:00",
+  check_in_close: "10:00",
+  default_start_time: "07:00",
+  default_end_time: "15:00",
+  early_departure_tolerance_minutes: 0,
 };
 
 function statusLabel(status?: string | null) {
@@ -57,6 +86,12 @@ function statusLabel(status?: string | null) {
     absent: "Alpa",
   };
   return labels[status || ""] ?? status ?? "Belum absen";
+}
+
+function addMinutes(value: string, minutes: number) {
+  const [hour, minute] = String(value || "00:00").split(":").map(Number);
+  const total = ((hour * 60 + minute + minutes) % 1440 + 1440) % 1440;
+  return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
 }
 
 function statusClass(status?: string | null) {
@@ -89,6 +124,7 @@ function formatAttendanceError(error: any) {
   if (message.includes("OUTSIDE_CHECK_IN_WINDOW")) return "Anda berada di luar jam masuk yang diizinkan. Ajukan koreksi bila ada penugasan khusus.";
   if (message.includes("OUTSIDE_SHIFT_CHECK_IN_WINDOW")) return "Anda berada di luar jam absen shift yang ditugaskan. Periksa shift aktif atau ajukan koreksi.";
   if (message.includes("OUTSIDE_SCHEDULE_CHECK_IN_WINDOW")) return "Waktu absen terlalu jauh dari jadwal tugas hari ini. Ajukan koreksi bila ada perubahan penugasan.";
+  if (message.includes("PART_TIME_NO_TEACHING_SCHEDULE")) return "Hari ini tidak ada jadwal mengajar aktif. Absensi tidak diwajibkan; ajukan koreksi bila ada tugas khusus.";
   if (message.includes("LOCATION_INVALID")) return "Koordinat lokasi perangkat tidak valid.";
   if (message.includes("attendance_corrections_one_pending_action_idx")) return "Permohonan untuk aksi dan tanggal ini sudah menunggu tinjauan.";
   if (message.includes("LOCATION_REQUIRED")) return "Lokasi perangkat diperlukan untuk absensi pada unit ini.";
@@ -118,6 +154,7 @@ function getCurrentPosition() {
 }
 
 export const EmployeeSelfAttendance: React.FC<EmployeeSelfAttendanceProps> = ({ employee, portal, showSubstitutes = false }) => {
+  const { activeYearId, activeSemesterId } = useAcademicYear();
   const today = toDateInputValue(new Date());
   const backPath = portal === "teacher" ? "/teacher" : "/staff";
   const [history, setHistory] = useState<any[]>([]);
@@ -125,6 +162,7 @@ export const EmployeeSelfAttendance: React.FC<EmployeeSelfAttendanceProps> = ({ 
   const [schedules, setSchedules] = useState<any[]>([]);
   const [sites, setSites] = useState<any[]>([]);
   const [policies, setPolicies] = useState<AttendancePolicy[]>([]);
+  const [ruleContext, setRuleContext] = useState<AttendanceRuleContext | null>(null);
   const [corrections, setCorrections] = useState<any[]>([]);
   const [substitutes, setSubstitutes] = useState<any[]>([]);
   const [selectedSiteId, setSelectedSiteId] = useState("");
@@ -142,7 +180,7 @@ export const EmployeeSelfAttendance: React.FC<EmployeeSelfAttendanceProps> = ({ 
       const dayName = dayMap[new Date().getDay()] || "Senin";
       const attendancePromise = supabaseClient
         .from("employee_attendance")
-        .select("id,date,status,time_in,time_out,notes,site_id,location_status,verification_status,is_late,late_minutes,is_early_departure,early_departure_minutes,attendance_sites(name)")
+        .select("id,date,status,time_in,time_out,notes,unit_id,site_id,location_status,verification_status,is_late,late_minutes,is_early_departure,early_departure_minutes,attendance_rule_source,expected_start_time,expected_end_time,attendance_sites(name)")
         .eq("employee_id", employee.id)
         .order("date", { ascending: false })
         .limit(30);
@@ -153,12 +191,14 @@ export const EmployeeSelfAttendance: React.FC<EmployeeSelfAttendanceProps> = ({ 
         .eq("status", "approved")
         .lte("start_date", today)
         .gte("end_date", today);
-      const schedulePromise = supabaseClient
+      let schedulePromise = supabaseClient
         .from("employee_schedules")
         .select("id,unit_id,day_of_week,start_time,end_time,schedule_type,subject,subject_id,attendance_shift_id,classes(name),subjects(name),units(name),attendance_shifts(name,check_in_open,check_in_close,grace_minutes,early_departure_tolerance_minutes)")
         .eq("employee_id", employee.id)
         .eq("day_of_week", dayName)
         .order("start_time");
+      if (activeYearId) schedulePromise = schedulePromise.or(`academic_year_id.eq.${activeYearId},academic_year_id.is.null`);
+      if (activeSemesterId) schedulePromise = schedulePromise.or(`semester_id.eq.${activeSemesterId},semester_id.is.null`);
       const sitesPromise = supabaseClient
         .from("attendance_sites")
         .select("id,name,address,radius_meters,accuracy_limit_meters,is_active,attendance_site_units(unit_id,units(name))")
@@ -166,7 +206,7 @@ export const EmployeeSelfAttendance: React.FC<EmployeeSelfAttendanceProps> = ({ 
         .order("name");
       const policiesPromise = supabaseClient
         .from("attendance_policies")
-        .select("id,unit_id,require_geofence,allow_correction_request,max_accuracy_meters,grace_minutes,check_in_open,check_in_close")
+        .select("id,unit_id,name,require_geofence,allow_correction_request,max_accuracy_meters,grace_minutes,check_in_open,check_in_close,default_start_time,default_end_time,early_departure_tolerance_minutes")
         .eq("is_active", true);
       const correctionsPromise = supabaseClient
         .from("attendance_correction_requests")
@@ -183,6 +223,10 @@ export const EmployeeSelfAttendance: React.FC<EmployeeSelfAttendanceProps> = ({ 
             .neq("status", "cancelled")
             .order("start_time")
         : Promise.resolve({ data: [], error: null } as any);
+      const ruleContextPromise = supabaseClient.rpc("resolve_employee_attendance_rule", {
+        p_employee_id: employee.id,
+        p_work_date: today,
+      });
 
       const results = await Promise.all([
         attendancePromise,
@@ -192,8 +236,9 @@ export const EmployeeSelfAttendance: React.FC<EmployeeSelfAttendanceProps> = ({ 
         policiesPromise,
         correctionsPromise,
         substitutePromise,
+        ruleContextPromise,
       ]);
-      const firstError = results.find((result: any) => result.error)?.error;
+      const firstError = results.slice(0, 7).find((result: any) => result.error)?.error;
       if (firstError) throw firstError;
 
       setHistory(results[0].data ?? []);
@@ -203,6 +248,9 @@ export const EmployeeSelfAttendance: React.FC<EmployeeSelfAttendanceProps> = ({ 
       setPolicies((results[4].data ?? []) as unknown as AttendancePolicy[]);
       setCorrections(results[5].data ?? []);
       setSubstitutes(results[6].data ?? []);
+      const contextRows = results[7].data as unknown as AttendanceRuleContext[] | null;
+      setRuleContext(contextRows?.[0] ?? null);
+      if (results[7].error) console.warn("Attendance rule context is not available yet:", results[7].error.message);
     } catch (error) {
       console.error("Employee attendance fetch error:", error);
       toast.error("Data absensi belum dapat dimuat. Pastikan pembaruan database sudah diterapkan.");
@@ -213,7 +261,7 @@ export const EmployeeSelfAttendance: React.FC<EmployeeSelfAttendanceProps> = ({ 
 
   useEffect(() => {
     void fetchData();
-  }, [employee.id]);
+  }, [activeSemesterId, activeYearId, employee.id]);
 
   const currentRecord = history.find((item) => item.date === today) ?? null;
   const openRecord = history.find((item) => item.time_in && !item.time_out) ?? currentRecord;
@@ -221,17 +269,39 @@ export const EmployeeSelfAttendance: React.FC<EmployeeSelfAttendanceProps> = ({ 
     () => new Set(schedules.map((schedule) => schedule.unit_id).filter(Boolean)),
     [schedules]
   );
-  const activeUnitId = schedules.find((schedule) => schedule.unit_id)?.unit_id || employee.unit_id || null;
   const assignedShiftSchedule = schedules.find((schedule) => schedule.attendance_shift_id) || null;
+  const teachingSchedules = schedules.filter((schedule) => schedule.schedule_type === "mengajar" && !schedule.attendance_shift_id);
+  const firstTeachingSchedule = teachingSchedules[0] || null;
+  const lastTeachingSchedule = teachingSchedules.reduce((latest, schedule) => !latest || String(schedule.end_time) > String(latest.end_time) ? schedule : latest, null as any);
+  const followsTeachingSchedule = employee.attendance_mode === "teaching_schedule";
+  const activeUnitId = ruleContext?.unit_id || assignedShiftSchedule?.unit_id || (followsTeachingSchedule ? firstTeachingSchedule?.unit_id : null) || employee.unit_id || null;
   const policy = useMemo(
     () => policies.find((item) => item.unit_id === activeUnitId) || policies.find((item) => !item.unit_id) || FALLBACK_POLICY,
     [activeUnitId, policies]
   );
+  const effectiveRule = useMemo<AttendanceRuleContext>(() => ruleContext || ({
+    unit_id: activeUnitId,
+    unit_name: assignedShiftSchedule?.units?.name || employee.units?.name || null,
+    schedule_id: assignedShiftSchedule?.id || (followsTeachingSchedule ? firstTeachingSchedule?.id : null),
+    shift_id: assignedShiftSchedule?.attendance_shift_id || null,
+    policy_id: policy.id || null,
+    rule_source: assignedShiftSchedule ? "assigned_shift" : followsTeachingSchedule ? firstTeachingSchedule ? "teaching_schedule" : "no_schedule" : policy.unit_id ? "unit_policy" : policy.id ? "global_policy" : "system_default",
+    rule_name: assignedShiftSchedule?.attendance_shifts?.name || (followsTeachingSchedule ? firstTeachingSchedule ? "Jadwal Mengajar Part-time" : "Tidak Ada Jadwal Mengajar" : policy.name || "Aturan Presensi Sistem"),
+    start_time: assignedShiftSchedule?.start_time || (followsTeachingSchedule ? firstTeachingSchedule?.start_time : null) || policy.default_start_time || "07:00",
+    end_time: assignedShiftSchedule?.end_time || (followsTeachingSchedule ? lastTeachingSchedule?.end_time : null) || policy.default_end_time || "15:00",
+    check_in_open: assignedShiftSchedule?.attendance_shifts?.check_in_open || (followsTeachingSchedule && firstTeachingSchedule ? addMinutes(firstTeachingSchedule.start_time, -(employee.attendance_lead_minutes ?? 30)) : null) || policy.check_in_open || "05:00",
+    check_in_close: assignedShiftSchedule?.attendance_shifts?.check_in_close || (followsTeachingSchedule && firstTeachingSchedule ? addMinutes(firstTeachingSchedule.start_time, employee.attendance_close_minutes ?? 120) : null) || policy.check_in_close || "10:00",
+    grace_minutes: assignedShiftSchedule?.attendance_shifts?.grace_minutes ?? policy.grace_minutes ?? 10,
+    early_departure_tolerance_minutes: assignedShiftSchedule?.attendance_shifts?.early_departure_tolerance_minutes ?? policy.early_departure_tolerance_minutes ?? 0,
+    require_geofence: policy.require_geofence,
+    allow_correction_request: policy.allow_correction_request,
+    max_accuracy_meters: policy.max_accuracy_meters,
+  }), [activeUnitId, assignedShiftSchedule, employee.attendance_close_minutes, employee.attendance_lead_minutes, employee.units?.name, firstTeachingSchedule, followsTeachingSchedule, lastTeachingSchedule?.end_time, policy, ruleContext]);
   const validSites = useMemo(() => sites.filter((site) => {
     const mappings = site.attendance_site_units ?? [];
     if (mappings.length === 0) return true;
-    return mappings.some((mapping: any) => mapping.unit_id === employee.unit_id || scheduleUnitIds.has(mapping.unit_id));
-  }), [employee.unit_id, scheduleUnitIds, sites]);
+    return mappings.some((mapping: any) => mapping.unit_id === activeUnitId || mapping.unit_id === employee.unit_id || scheduleUnitIds.has(mapping.unit_id));
+  }), [activeUnitId, employee.unit_id, scheduleUnitIds, sites]);
 
   const effectiveSiteId = validSites.some((site) => site.id === selectedSiteId)
     ? selectedSiteId
@@ -246,7 +316,11 @@ export const EmployeeSelfAttendance: React.FC<EmployeeSelfAttendanceProps> = ({ 
       toast.error("Absen masuk harus dicatat terlebih dahulu.");
       return;
     }
-    if (policy.require_geofence && !effectiveSiteId) {
+    if (action === "check_in" && effectiveRule.rule_source === "no_schedule") {
+      toast.error("Hari ini tidak ada jadwal mengajar aktif. Anda tidak diwajibkan absen kecuali ada tugas khusus.");
+      return;
+    }
+    if (effectiveRule.require_geofence && !effectiveSiteId) {
       toast.error(validSites.length === 0 ? "Lokasi absensi untuk unit Anda belum dikonfigurasi." : "Pilih lokasi kerja terlebih dahulu.");
       return;
     }
@@ -254,7 +328,7 @@ export const EmployeeSelfAttendance: React.FC<EmployeeSelfAttendanceProps> = ({ 
     setIsSaving(true);
     try {
       let coordinates: GeolocationCoordinates | null = null;
-      if (policy.require_geofence) {
+      if (effectiveRule.require_geofence) {
         try {
           coordinates = (await getCurrentPosition()).coords;
         } catch (error: any) {
@@ -323,9 +397,12 @@ export const EmployeeSelfAttendance: React.FC<EmployeeSelfAttendanceProps> = ({ 
     }
   };
 
+  const hasAttendanceDuty = effectiveRule.rule_source !== "no_schedule";
   const todaySummary = activeLeave
     ? `Izin disetujui: ${formatLeaveType(activeLeave.leave_type)}`
-    : statusLabel(currentRecord?.status);
+    : !currentRecord && !hasAttendanceDuty
+      ? "Tidak wajib absen"
+      : statusLabel(currentRecord?.status);
   const selectedSite = validSites.find((site) => site.id === effectiveSiteId);
   const pendingCorrection = corrections.find((item) => item.status === "pending" && item.request_date === today);
 
@@ -352,7 +429,7 @@ export const EmployeeSelfAttendance: React.FC<EmployeeSelfAttendanceProps> = ({ 
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <span className={`rounded-full border px-3 py-1 text-xs font-bold ${statusClass(currentRecord?.status)}`}>{statusLabel(currentRecord?.status)}</span>
+            <span className={`rounded-full border px-3 py-1 text-xs font-bold ${statusClass(currentRecord?.status)}`}>{!currentRecord && !hasAttendanceDuty ? "Tanpa jadwal" : statusLabel(currentRecord?.status)}</span>
             {currentRecord && (
               <span className="rounded-full border bg-gray-50 px-3 py-1 text-xs font-semibold text-gray-600">
                 {verificationLabel(currentRecord.verification_status)}
@@ -368,13 +445,20 @@ export const EmployeeSelfAttendance: React.FC<EmployeeSelfAttendanceProps> = ({ 
           </div>
         )}
 
-        {assignedShiftSchedule?.attendance_shifts && (
-          <div className="mt-4 grid gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm sm:grid-cols-[1fr_auto] sm:items-center">
+        {effectiveRule && (
+          <div className={`mt-4 grid gap-3 rounded-lg border p-3 text-sm sm:grid-cols-[1fr_auto] sm:items-center ${effectiveRule.rule_source === "no_schedule" ? "border-amber-200 bg-amber-50" : "border-emerald-200 bg-emerald-50"}`}>
             <div>
-              <p className="font-bold text-emerald-900">Shift hari ini: {assignedShiftSchedule.attendance_shifts.name}</p>
-              <p className="mt-1 text-xs text-emerald-800">Jam kerja {formatTime(assignedShiftSchedule.start_time)}-{formatTime(assignedShiftSchedule.end_time)} | absen masuk {formatTime(assignedShiftSchedule.attendance_shifts.check_in_open)}-{formatTime(assignedShiftSchedule.attendance_shifts.check_in_close)}</p>
+              <p className={`font-bold ${effectiveRule.rule_source === "no_schedule" ? "text-amber-900" : "text-emerald-900"}`}>Acuan absensi: {effectiveRule.rule_name}</p>
+              {effectiveRule.rule_source === "no_schedule" ? (
+                <p className="mt-1 text-xs text-amber-800">Hari tanpa jadwal mengajar aktif tidak dihitung sebagai belum absen. Ajukan koreksi hanya bila ada tugas khusus dari sekolah.</p>
+              ) : (
+                <>
+                  <p className="mt-1 text-xs text-emerald-800">{effectiveRule.unit_name || "Lintas unit"} | jam kerja {formatTime(effectiveRule.start_time)}-{formatTime(effectiveRule.end_time)} | absen masuk {formatTime(effectiveRule.check_in_open)}-{formatTime(effectiveRule.check_in_close)}</p>
+                  <p className="mt-1 text-[11px] text-emerald-700">{effectiveRule.rule_source === "assigned_shift" ? "Shift khusus pegawai" : effectiveRule.rule_source === "teaching_schedule" ? "Pelajaran pertama sampai pelajaran terakhir" : effectiveRule.rule_source === "unit_policy" ? "Kebijakan unit induk" : effectiveRule.rule_source === "global_policy" ? "Kebijakan lintas unit" : "Default sistem"}.</p>
+                </>
+              )}
             </div>
-            <span className="w-fit rounded-md bg-white px-2 py-1 text-xs font-bold text-emerald-700">Toleransi {assignedShiftSchedule.attendance_shifts.grace_minutes} menit</span>
+            <span className={`w-fit rounded-md bg-white px-2 py-1 text-xs font-bold ${effectiveRule.rule_source === "no_schedule" ? "text-amber-700" : "text-emerald-700"}`}>{effectiveRule.rule_source === "no_schedule" ? "Tidak wajib absen" : `Toleransi ${effectiveRule.grace_minutes} menit`}</span>
           </div>
         )}
 
@@ -386,7 +470,7 @@ export const EmployeeSelfAttendance: React.FC<EmployeeSelfAttendanceProps> = ({ 
               <select
                 value={effectiveSiteId}
                 onChange={(event) => setSelectedSiteId(event.target.value)}
-                disabled={!policy.require_geofence || isSaving}
+                disabled={!hasAttendanceDuty || !effectiveRule.require_geofence || isSaving}
                 className="w-full rounded-md border bg-white py-2.5 pl-10 pr-3 text-sm disabled:bg-gray-50"
               >
                 <option value="">{validSites.length ? "Pilih lokasi kerja" : "Belum ada lokasi untuk unit ini"}</option>
@@ -395,8 +479,10 @@ export const EmployeeSelfAttendance: React.FC<EmployeeSelfAttendanceProps> = ({ 
             </div>
             <div className="mt-2 flex items-start gap-2 text-xs text-gray-500">
               <LocateFixed className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-              <p>{policy.require_geofence
-                ? `Lokasi diminta hanya saat tombol absensi ditekan. Akurasi maksimum ${policy.max_accuracy_meters} meter.`
+              <p>{!hasAttendanceDuty
+                ? "Lokasi tidak diperlukan karena hari ini tidak ada jadwal mengajar aktif."
+                : effectiveRule.require_geofence
+                ? `Lokasi diminta hanya saat tombol absensi ditekan. Akurasi maksimum ${effectiveRule.max_accuracy_meters} meter.`
                 : "Verifikasi lokasi belum diwajibkan pada unit ini. Waktu tetap dicatat oleh server."}</p>
             </div>
             {selectedSite?.address && <p className="mt-2 text-xs text-gray-500">{selectedSite.address}</p>}
@@ -405,7 +491,7 @@ export const EmployeeSelfAttendance: React.FC<EmployeeSelfAttendanceProps> = ({ 
           <div className="grid grid-cols-2 gap-2 self-end">
             <button
               onClick={() => void recordAttendance("check_in")}
-              disabled={isSaving || Boolean(currentRecord?.time_in) || Boolean(activeLeave)}
+              disabled={isSaving || Boolean(currentRecord?.time_in) || Boolean(activeLeave) || effectiveRule.rule_source === "no_schedule"}
               className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-emerald-600 px-3 py-2 text-sm font-bold text-white disabled:opacity-45"
             >
               {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogIn className="h-4 w-4" />}
@@ -464,7 +550,7 @@ export const EmployeeSelfAttendance: React.FC<EmployeeSelfAttendanceProps> = ({ 
             <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
               Permohonan {pendingCorrection.attendance_action === "check_in" ? "jam masuk" : "jam pulang"} hari ini sedang ditinjau.
             </div>
-          ) : policy.allow_correction_request ? (
+          ) : effectiveRule.allow_correction_request ? (
             <button onClick={() => setIsCorrectionOpen((value) => !value)} className="mt-4 inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-semibold text-gray-700">
               <FilePenLine className="h-4 w-4" /> Ajukan Koreksi
             </button>

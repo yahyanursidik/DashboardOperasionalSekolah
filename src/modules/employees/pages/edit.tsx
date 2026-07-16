@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useForm, useSelect } from "@refinedev/core";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { Save, ArrowLeft, User, Briefcase, GraduationCap, Eye, Info } from "lucide-react";
-import { employeePositions, getEmployeePosition } from "../employee-role-config";
+import { attendanceModeOptions, canReceiveAcademicAssignment, employeePositions, employmentTypeOptions, getAttendanceMode, getEmployeePosition } from "../employee-role-config";
 
 function FormSection({ title, icon: Icon, children }: { title: string; icon: React.ElementType; children: React.ReactNode }) {
   return (
@@ -38,6 +38,8 @@ export const EmployeeEdit: React.FC = () => {
   const location = useLocation();
   const basePath = location.pathname.startsWith("/hrd") ? "/hrd/employees" : "/employees";
   const [positionOverride, setPositionOverride] = useState<string | null>(null);
+  const [employmentTypeOverride, setEmploymentTypeOverride] = useState<string | null>(null);
+  const [attendanceModeOverride, setAttendanceModeOverride] = useState<string | null>(null);
 
   const { onFinish, mutationResult, queryResult } = useForm({
     resource: "employees",
@@ -53,6 +55,9 @@ export const EmployeeEdit: React.FC = () => {
   const { options: unitOptions } = useSelect({ resource: "units", optionLabel: "name", optionValue: "id" });
 
   const position = positionOverride ?? employee?.position ?? "";
+  const employmentType = employmentTypeOverride ?? employee?.employment_type ?? "permanent";
+  const attendanceMode = attendanceModeOverride ?? employee?.attendance_mode ?? "unit_hours";
+  const supportsTeachingSchedule = canReceiveAcademicAssignment(position);
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -62,6 +67,8 @@ export const EmployeeEdit: React.FC = () => {
     if (!data.birth_date) delete data.birth_date;
     if (!data.join_date) delete data.join_date;
     if (!data.email) delete data.email;
+    data.attendance_lead_minutes = Number(data.attendance_lead_minutes || employee?.attendance_lead_minutes || 30);
+    data.attendance_close_minutes = Number(data.attendance_close_minutes || employee?.attendance_close_minutes || 120);
     onFinish(data);
   };
 
@@ -144,28 +151,56 @@ export const EmployeeEdit: React.FC = () => {
                 name="position"
                 required
                 value={position}
-                onChange={(e) => setPositionOverride(e.target.value)}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setPositionOverride(value);
+                  if (!canReceiveAcademicAssignment(value)) setAttendanceModeOverride("unit_hours");
+                  else if (employmentType === "part_time") setAttendanceModeOverride("teaching_schedule");
+                }}
                 className={selectCls}
               >
                 <option value="">-- Pilih Jabatan Utama --</option>
                 {employeePositions.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
               </select>
             </Field>
-            <Field label="Status Kepegawaian" required>
+            <Field label="Status Keaktifan" required>
               <select name="status" required defaultValue={employee?.status ?? "active"} className={selectCls}>
                 <option value="active">Aktif</option>
-                <option value="contract">Kontrak</option>
                 <option value="inactive">Nonaktif / Cuti</option>
                 <option value="resigned">Keluar / Resign</option>
               </select>
             </Field>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field label="Hubungan Kerja" required>
+              <select
+                name="employment_type"
+                required
+                value={employmentType}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setEmploymentTypeOverride(value);
+                  if (value === "part_time" && supportsTeachingSchedule) setAttendanceModeOverride("teaching_schedule");
+                  else if (attendanceMode === "teaching_schedule") setAttendanceModeOverride("unit_hours");
+                }}
+                className={selectCls}
+              >
+                {employmentTypeOptions.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+              </select>
+            </Field>
             <Field label="Unit Induk">
               <select name="unit_id" defaultValue={employee?.unit_id ?? ""} className={selectCls}>
                 <option value="">Pusat / Lintas Unit</option>
                 {unitOptions?.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
+            </Field>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field label="Pola Absensi" required>
+              <select name="attendance_mode" required value={attendanceMode} onChange={(event) => setAttendanceModeOverride(event.target.value)} className={selectCls}>
+                {attendanceModeOptions.filter((item) => item.value !== "teaching_schedule" || supportsTeachingSchedule).map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+              </select>
+              <p className="mt-1 text-xs text-muted-foreground">{getAttendanceMode(attendanceMode).description}</p>
             </Field>
             <Field label="Tanggal Bergabung">
               <input
@@ -176,11 +211,23 @@ export const EmployeeEdit: React.FC = () => {
               />
             </Field>
           </div>
+          {attendanceMode === "teaching_schedule" && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 rounded-md border border-amber-200 bg-amber-50 p-3">
+              <Field label="Absen Dibuka Sebelum Pelajaran">
+                <input name="attendance_lead_minutes" type="number" min="0" max="240" defaultValue={employee?.attendance_lead_minutes ?? 30} className={inputCls} />
+                <p className="mt-1 text-xs text-muted-foreground">Menit sebelum pelajaran pertama.</p>
+              </Field>
+              <Field label="Batas Absen Setelah Mulai">
+                <input name="attendance_close_minutes" type="number" min="15" max="480" defaultValue={employee?.attendance_close_minutes ?? 120} className={inputCls} />
+                <p className="mt-1 text-xs text-muted-foreground">Menit setelah pelajaran pertama dimulai.</p>
+              </Field>
+            </div>
+          )}
           <div className="flex items-start gap-3 rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
             <Info className="mt-0.5 h-4 w-4 shrink-0" />
             <div>
-              <p className="font-semibold">Perubahan jabatan memengaruhi portal dan pilihan jadwal.</p>
-              <p className="mt-1 text-xs">{getEmployeePosition(position).description} Penugasan kelas/mapel tetap dikelola pada profil pegawai agar riwayat periode tidak hilang.</p>
+              <p className="font-semibold">Perubahan pola absensi langsung memengaruhi portal dan evaluasi keterlambatan.</p>
+              <p className="mt-1 text-xs">{getEmployeePosition(position).description} {supportsTeachingSchedule ? "Pengajar part-time wajib memiliki jadwal mengajar pada tahun ajaran dan semester aktif." : "Pegawai operasional part-time tetap mengikuti jam unit atau shift khusus."}</p>
             </div>
           </div>
         </FormSection>

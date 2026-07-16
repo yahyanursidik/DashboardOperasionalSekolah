@@ -65,18 +65,32 @@ export const AttendanceSettings: React.FC = () => {
   useEffect(() => {
     const unitId = policyUnitId === "__global__" ? null : policyUnitId;
     const existing = policies.find((policy) => policy.unit_id === unitId);
-    setPolicyForm(existing ? {
-      ...existing,
-      check_in_open: String(existing.check_in_open || "05:00").slice(0, 5),
-      check_in_close: String(existing.check_in_close || "10:00").slice(0, 5),
-      default_start_time: String(existing.default_start_time || "07:00").slice(0, 5),
-      default_end_time: String(existing.default_end_time || "15:00").slice(0, 5),
-    } : { ...DEFAULT_POLICY, unit_id: unitId, name: unitId ? `Kebijakan Presensi ${units.find((unit) => unit.id === unitId)?.name || "Unit"}` : "Kebijakan Presensi Lintas Unit" });
+    const inherited = policies.find((policy) => !policy.unit_id);
+    const source = existing || inherited || DEFAULT_POLICY;
+    setPolicyForm({
+      ...source,
+      id: existing?.id || "",
+      unit_id: unitId,
+      name: existing?.name || (unitId ? `Kebijakan Presensi ${units.find((unit) => unit.id === unitId)?.name || "Unit"}` : "Kebijakan Presensi Lintas Unit"),
+      check_in_open: String(source.check_in_open || "05:00").slice(0, 5),
+      check_in_close: String(source.check_in_close || "10:00").slice(0, 5),
+      default_start_time: String(source.default_start_time || "07:00").slice(0, 5),
+      default_end_time: String(source.default_end_time || "15:00").slice(0, 5),
+    });
   }, [policies, policyUnitId, units]);
 
   const enabledSiteCount = sites.filter((site) => site.is_active).length;
-  const geofenceUnitCount = policies.filter((policy) => policy.is_active && policy.require_geofence).length;
   const mappedUnitCount = useMemo(() => new Set(sites.flatMap((site) => (site.attendance_site_units ?? []).map((mapping: any) => mapping.unit_id))).size, [sites]);
+  const configuredUnitCount = policies.filter((policy) => policy.is_active && policy.unit_id).length;
+  const policyCoverage = useMemo(() => {
+    const globalPolicy = policies.find((policy) => policy.is_active && !policy.unit_id);
+    return units.map((unit) => {
+      const explicitPolicy = policies.find((policy) => policy.is_active && policy.unit_id === unit.id);
+      const effectivePolicy = explicitPolicy || globalPolicy;
+      return { unit, explicitPolicy, effectivePolicy };
+    });
+  }, [policies, units]);
+  const geofenceUnitCount = policyCoverage.filter(({ effectivePolicy }) => effectivePolicy?.require_geofence).length;
 
   const useCurrentLocation = () => {
     if (!navigator.geolocation) return toast.error("Perangkat tidak mendukung layanan lokasi.");
@@ -145,6 +159,8 @@ export const AttendanceSettings: React.FC = () => {
 
   const savePolicy = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (policyForm.default_start_time === policyForm.default_end_time) return toast.error("Jam mulai dan selesai kerja tidak boleh sama.");
+    if (policyForm.check_in_open === policyForm.check_in_close) return toast.error("Jam buka dan tutup absensi tidak boleh sama.");
     if (policyForm.require_geofence) {
       const hasSite = sites.some((site) => site.is_active && ((site.attendance_site_units ?? []).length === 0 || (site.attendance_site_units ?? []).some((mapping: any) => mapping.unit_id === policyForm.unit_id)));
       if (!hasSite) return toast.error("Tambahkan lokasi aktif untuk unit ini sebelum mewajibkan geofence.");
@@ -184,9 +200,24 @@ export const AttendanceSettings: React.FC = () => {
         action={<div className="flex gap-2"><Link to="/attendance/reviews" className="inline-flex items-center gap-2 rounded-md border bg-card px-3 py-2 text-sm font-semibold"><ShieldCheck className="h-4 w-4" /> Tinjauan Koreksi</Link><Link to="/attendance/employees" className="inline-flex items-center gap-2 rounded-md border bg-card px-3 py-2 text-sm font-semibold"><ArrowLeft className="h-4 w-4" /> Presensi</Link></div>}
       />
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        {[{ label: "Lokasi aktif", value: enabledSiteCount, detail: `${sites.length} total`, icon: MapPin }, { label: "Unit dengan geofence", value: geofenceUnitCount, detail: `${policies.length} kebijakan`, icon: ShieldCheck }, { label: "Unit terpetakan", value: mappedUnitCount, detail: "lokasi khusus", icon: Settings2 }].map(({ label, value, detail, icon: Icon }) => <div key={label} className="rounded-lg border bg-card p-4 shadow-sm"><div className="flex items-center gap-3"><div className="rounded-md bg-emerald-50 p-2 text-emerald-700"><Icon className="h-5 w-5" /></div><div><p className="text-2xl font-bold">{value}</p><p className="text-sm font-semibold">{label}</p><p className="text-xs text-muted-foreground">{detail}</p></div></div></div>)}
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {[{ label: "Lokasi aktif", value: enabledSiteCount, detail: `${sites.length} total`, icon: MapPin }, { label: "Aturan unit", value: configuredUnitCount, detail: `${units.length} unit sekolah`, icon: Settings2 }, { label: "Unit dengan geofence", value: geofenceUnitCount, detail: `${policies.length} kebijakan`, icon: ShieldCheck }, { label: "Unit terpetakan", value: mappedUnitCount, detail: "lokasi khusus", icon: Crosshair }].map(({ label, value, detail, icon: Icon }) => <div key={label} className="rounded-lg border bg-card p-4 shadow-sm"><div className="flex items-center gap-3"><div className="rounded-md bg-emerald-50 p-2 text-emerald-700"><Icon className="h-5 w-5" /></div><div><p className="text-2xl font-bold">{value}</p><p className="text-sm font-semibold">{label}</p><p className="text-xs text-muted-foreground">{detail}</p></div></div></div>)}
       </div>
+
+      <section className="overflow-hidden rounded-lg border bg-card shadow-sm">
+        <div className="border-b p-5">
+          <h2 className="font-bold">Cakupan jam kerja per unit</h2>
+          <p className="mt-1 text-xs text-muted-foreground">Urutan acuan: shift khusus, jadwal mengajar khusus part-time, kebijakan unit induk, lalu kebijakan lintas unit. Jadwal pelajaran tidak memengaruhi guru reguler.</p>
+        </div>
+        {policyCoverage.length === 0 ? <div className="p-6 text-center text-sm text-muted-foreground">Belum ada unit sekolah.</div> : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/50 text-left text-xs uppercase text-muted-foreground"><tr><th className="px-5 py-3">Unit</th><th className="px-5 py-3">Acuan</th><th className="px-5 py-3">Jam kerja</th><th className="px-5 py-3">Batas absen masuk</th><th className="px-5 py-3">Toleransi</th></tr></thead>
+              <tbody className="divide-y">{policyCoverage.map(({ unit, explicitPolicy, effectivePolicy }) => <tr key={unit.id}><td className="px-5 py-3 font-semibold">{unit.name}</td><td className="px-5 py-3"><span className={`rounded-md px-2 py-1 text-xs font-semibold ${explicitPolicy ? "bg-emerald-50 text-emerald-700" : effectivePolicy ? "bg-blue-50 text-blue-700" : "bg-amber-50 text-amber-700"}`}>{explicitPolicy ? "Kebijakan unit" : effectivePolicy ? "Mengikuti lintas unit" : "Default sistem"}</span></td><td className="px-5 py-3 font-semibold">{String(effectivePolicy?.default_start_time || "07:00").slice(0, 5)} - {String(effectivePolicy?.default_end_time || "15:00").slice(0, 5)}</td><td className="px-5 py-3">{String(effectivePolicy?.check_in_open || "05:00").slice(0, 5)} - {String(effectivePolicy?.check_in_close || "10:00").slice(0, 5)}</td><td className="px-5 py-3">{effectivePolicy?.grace_minutes ?? 10} menit</td></tr>)}</tbody>
+            </table>
+          </div>
+        )}
+      </section>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
         <form onSubmit={saveSite} className="rounded-lg border bg-card p-5 shadow-sm">
@@ -206,13 +237,13 @@ export const AttendanceSettings: React.FC = () => {
         </form>
 
         <form onSubmit={savePolicy} className="rounded-lg border bg-card p-5 shadow-sm">
-          <h2 className="font-bold">Kebijakan per unit</h2><p className="mb-4 text-xs text-muted-foreground">Jadwal harian menjadi acuan utama; jam default dipakai bila pegawai tidak memiliki jadwal.</p>
+          <h2 className="font-bold">Kebijakan per unit</h2><p className="mb-4 text-xs text-muted-foreground">Atur jam kerja unit induk. Shift khusus pegawai dapat mengganti aturan ini; jadwal mengajar tidak.</p>
           <label className="text-sm font-semibold">Unit<select value={policyUnitId} onChange={(e) => setPolicyUnitId(e.target.value)} className="mt-1.5 w-full rounded-md border bg-background px-3 py-2 font-normal"><option value="__global__">Lintas unit / default</option>{units.map((unit) => <option key={unit.id} value={unit.id}>{unit.name}</option>)}</select></label>
           <div className="mt-4 space-y-3">
             <label className="flex items-start justify-between gap-3 rounded-md border p-3"><span><span className="block text-sm font-semibold">Wajib berada di lokasi</span><span className="block text-xs text-muted-foreground">Aktifkan setelah lokasi unit siap.</span></span><input type="checkbox" checked={policyForm.require_geofence} onChange={(e) => setPolicyForm({ ...policyForm, require_geofence: e.target.checked })} className="mt-1" /></label>
             <label className="flex items-start justify-between gap-3 rounded-md border p-3"><span><span className="block text-sm font-semibold">Izinkan pengajuan koreksi</span><span className="block text-xs text-muted-foreground">Untuk dinas luar, lupa absen, atau GPS gagal.</span></span><input type="checkbox" checked={policyForm.allow_correction_request} onChange={(e) => setPolicyForm({ ...policyForm, allow_correction_request: e.target.checked })} className="mt-1" /></label>
           </div>
-          <div className="mt-4 grid grid-cols-2 gap-3"><label className="text-xs font-semibold">Buka masuk<input type="time" value={policyForm.check_in_open} onChange={(e) => setPolicyForm({ ...policyForm, check_in_open: e.target.value })} className="mt-1 w-full rounded-md border px-2 py-2 font-normal" /></label><label className="text-xs font-semibold">Tutup masuk<input type="time" value={policyForm.check_in_close} onChange={(e) => setPolicyForm({ ...policyForm, check_in_close: e.target.value })} className="mt-1 w-full rounded-md border px-2 py-2 font-normal" /></label><label className="text-xs font-semibold">Jam mulai default<input type="time" value={policyForm.default_start_time} onChange={(e) => setPolicyForm({ ...policyForm, default_start_time: e.target.value })} className="mt-1 w-full rounded-md border px-2 py-2 font-normal" /></label><label className="text-xs font-semibold">Jam selesai default<input type="time" value={policyForm.default_end_time} onChange={(e) => setPolicyForm({ ...policyForm, default_end_time: e.target.value })} className="mt-1 w-full rounded-md border px-2 py-2 font-normal" /></label><label className="text-xs font-semibold">Toleransi terlambat<input type="number" min="0" max="180" value={policyForm.grace_minutes} onChange={(e) => setPolicyForm({ ...policyForm, grace_minutes: e.target.value })} className="mt-1 w-full rounded-md border px-2 py-2 font-normal" /></label><label className="text-xs font-semibold">Akurasi maksimum<input type="number" min="10" max="1000" value={policyForm.max_accuracy_meters} onChange={(e) => setPolicyForm({ ...policyForm, max_accuracy_meters: e.target.value })} className="mt-1 w-full rounded-md border px-2 py-2 font-normal" /></label></div>
+          <div className="mt-4 grid grid-cols-2 gap-3"><label className="text-xs font-semibold">Buka masuk<input required type="time" value={policyForm.check_in_open} onChange={(e) => setPolicyForm({ ...policyForm, check_in_open: e.target.value })} className="mt-1 w-full rounded-md border px-2 py-2 font-normal" /></label><label className="text-xs font-semibold">Tutup masuk<input required type="time" value={policyForm.check_in_close} onChange={(e) => setPolicyForm({ ...policyForm, check_in_close: e.target.value })} className="mt-1 w-full rounded-md border px-2 py-2 font-normal" /></label><label className="text-xs font-semibold">Jam mulai kerja<input required type="time" value={policyForm.default_start_time} onChange={(e) => setPolicyForm({ ...policyForm, default_start_time: e.target.value })} className="mt-1 w-full rounded-md border px-2 py-2 font-normal" /></label><label className="text-xs font-semibold">Jam selesai kerja<input required type="time" value={policyForm.default_end_time} onChange={(e) => setPolicyForm({ ...policyForm, default_end_time: e.target.value })} className="mt-1 w-full rounded-md border px-2 py-2 font-normal" /></label><label className="text-xs font-semibold">Toleransi terlambat<input type="number" min="0" max="180" value={policyForm.grace_minutes} onChange={(e) => setPolicyForm({ ...policyForm, grace_minutes: e.target.value })} className="mt-1 w-full rounded-md border px-2 py-2 font-normal" /></label><label className="text-xs font-semibold">Toleransi pulang awal<input type="number" min="0" max="180" value={policyForm.early_departure_tolerance_minutes} onChange={(e) => setPolicyForm({ ...policyForm, early_departure_tolerance_minutes: e.target.value })} className="mt-1 w-full rounded-md border px-2 py-2 font-normal" /></label><label className="text-xs font-semibold">Akurasi maksimum<input type="number" min="10" max="1000" value={policyForm.max_accuracy_meters} onChange={(e) => setPolicyForm({ ...policyForm, max_accuracy_meters: e.target.value })} className="mt-1 w-full rounded-md border px-2 py-2 font-normal" /></label></div>
           <button disabled={isSaving} className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-bold text-primary-foreground disabled:opacity-50"><Save className="h-4 w-4" /> Simpan Kebijakan</button>
         </form>
       </div>

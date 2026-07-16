@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useOutletContext } from "react-router-dom";
 import {
@@ -22,6 +23,7 @@ import { supabaseClient } from "../../lib/supabase/client";
 import { useAcademicYear } from "../../app/providers/AcademicYearProvider";
 import { getScheduleSubjectName } from "../schedules/schedule-utils";
 import { LessonSchedulePanel } from "../schedules/components/LessonSchedulePanel";
+import { getAttendanceMode, getEmploymentType } from "../employees/employee-role-config";
 
 function formatPosition(position?: string | null) {
   const map: Record<string, string> = {
@@ -162,12 +164,15 @@ export const TeacherProfile: React.FC = () => {
   }, [homeroomClasses, schedules]);
   const presentCount = attendanceRows.filter((item) => item.status === "present" || item.status === "late").length;
   const attendanceValue = attendanceRows.length > 0 ? `${presentCount}/${attendanceRows.length}` : "-";
+  const followsTeachingSchedule = profile?.attendance_mode === "teaching_schedule";
+  const employmentType = getEmploymentType(profile?.employment_type);
+  const attendanceMode = getAttendanceMode(profile?.attendance_mode);
   const checklist = [
     { label: "NIK dan nama lengkap", done: Boolean(profile?.nik && profile?.full_name) },
     { label: "Kontak aktif", done: Boolean(profile?.phone || profile?.email) },
     { label: "Unit dan jabatan", done: Boolean(profile?.unit_id && profile?.position) },
     { label: "Jabatan utama", done: Boolean(profile?.position) },
-    { label: "Penugasan periode aktif", done: teachingSchedules.length > 0 || homeroomClasses.length > 0 || halaqohs.length > 0 },
+    { label: followsTeachingSchedule ? "Jadwal mengajar untuk absensi" : "Penugasan periode aktif", done: followsTeachingSchedule ? teachingSchedules.length > 0 : teachingSchedules.length > 0 || homeroomClasses.length > 0 || halaqohs.length > 0 },
   ];
   const completed = checklist.filter((item) => item.done).length;
 
@@ -239,6 +244,8 @@ export const TeacherProfile: React.FC = () => {
           <InfoRow icon={ShieldCheck} label="NIK" value={profile?.nik} />
           <InfoRow icon={Mail} label="Email Login" value={profile?.email} />
           <InfoRow icon={Phone} label="No. HP / WhatsApp" value={profile?.phone} />
+          <InfoRow icon={Briefcase} label="Hubungan Kerja" value={employmentType?.label} />
+          <InfoRow icon={Clock} label="Pola Absensi" value={attendanceMode?.label} />
           <InfoRow icon={MapPin} label="Alamat" value={profile?.address} />
           <InfoRow icon={Award} label="Pendidikan / Sertifikasi" value={[profile?.education, profile?.certification].filter(Boolean).join(" - ")} />
         </div>

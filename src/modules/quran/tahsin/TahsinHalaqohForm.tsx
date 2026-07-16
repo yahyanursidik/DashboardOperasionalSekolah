@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/set-state-in-effect */
 import React, { useEffect, useState } from "react";
 import { useForm, useSelect } from "@refinedev/core";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -6,6 +7,14 @@ import { PageHeader } from "../../../components/layout/PageHeader";
 import { useAcademicYear } from "../../../app/providers/AcademicYearProvider";
 import { toast } from "sonner";
 import { supabaseClient as supabase } from "../../../lib/supabase/client";
+
+function getScheduleTimes(record?: any) {
+  const legacy = String(record?.schedule_time || "").match(/(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})/);
+  return {
+    start: String(record?.schedule_start_time || legacy?.[1] || "").slice(0, 5),
+    end: String(record?.schedule_end_time || legacy?.[2] || "").slice(0, 5),
+  };
+}
 
 export const TahsinHalaqohForm: React.FC = () => {
   const { id } = useParams();
@@ -20,6 +29,8 @@ export const TahsinHalaqohForm: React.FC = () => {
     semester_id: activeSemesterId || "",
     schedule_day: "",
     schedule_time: "",
+    schedule_start_time: "",
+    schedule_end_time: "",
   });
 
   const { queryResult, formLoading } = useForm({
@@ -33,6 +44,7 @@ export const TahsinHalaqohForm: React.FC = () => {
 
   useEffect(() => {
     if (!record) return;
+    const schedule = getScheduleTimes(record);
     setFormPreview({
       name: record.name || "",
       employee_id: record.employee_id || "",
@@ -40,6 +52,8 @@ export const TahsinHalaqohForm: React.FC = () => {
       semester_id: record.semester_id || activeSemesterId || "",
       schedule_day: record.schedule_day || "",
       schedule_time: record.schedule_time || "",
+      schedule_start_time: schedule.start,
+      schedule_end_time: schedule.end,
     });
   }, [activeSemesterId, activeYearId, record]);
 
@@ -69,19 +83,34 @@ export const TahsinHalaqohForm: React.FC = () => {
     { label: "Nama halaqoh", done: Boolean(formPreview.name), helper: formPreview.name || "Isi nama kelompok tahsin" },
     { label: "Periode aktif", done: Boolean(formPreview.academic_year_id && formPreview.semester_id), helper: "Tahun ajaran dan semester" },
     { label: "Guru pengampu", done: Boolean(formPreview.employee_id), helper: selectedTeacher?.label || "Pilih guru tahsin" },
-    { label: "Jadwal", done: Boolean(formPreview.schedule_day || formPreview.schedule_time), helper: formPreview.schedule_day || formPreview.schedule_time ? `${formPreview.schedule_day || "-"}, ${formPreview.schedule_time || "-"}` : "Isi hari atau waktu" },
+    { label: "Jadwal", done: Boolean(formPreview.schedule_day && formPreview.schedule_start_time && formPreview.schedule_end_time), helper: formPreview.schedule_day && formPreview.schedule_start_time && formPreview.schedule_end_time ? `${formPreview.schedule_day}, ${formPreview.schedule_start_time} - ${formPreview.schedule_end_time}` : "Isi hari, jam mulai, dan jam selesai" },
   ];
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setIsSubmitting(true);
     const formData = new FormData(event.currentTarget);
+    const scheduleStart = String(formData.get("schedule_start_time") || "");
+    const scheduleEnd = String(formData.get("schedule_end_time") || "");
+    const scheduleDay = String(formData.get("schedule_day") || "");
+    if ((scheduleDay || scheduleStart || scheduleEnd) && !(scheduleDay && scheduleStart && scheduleEnd)) {
+      setIsSubmitting(false);
+      toast.error("Lengkapi hari, jam mulai, dan jam selesai halaqoh.");
+      return;
+    }
+    if (scheduleStart && scheduleEnd && scheduleEnd <= scheduleStart) {
+      setIsSubmitting(false);
+      toast.error("Jam selesai harus setelah jam mulai.");
+      return;
+    }
     const data = {
       name: formData.get("name"),
       employee_id: formData.get("employee_id") || null,
       description: formData.get("description"),
-      schedule_day: formData.get("schedule_day") || null,
-      schedule_time: formData.get("schedule_time") || null,
+      schedule_day: scheduleDay || null,
+      schedule_start_time: scheduleStart || null,
+      schedule_end_time: scheduleEnd || null,
+      schedule_time: scheduleStart && scheduleEnd ? `${scheduleStart} - ${scheduleEnd}` : null,
       academic_year_id: formData.get("academic_year_id"),
       semester_id: formData.get("semester_id"),
       program_type: "tahsin",
@@ -241,17 +270,30 @@ export const TahsinHalaqohForm: React.FC = () => {
                   {["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Ahad"].map((day) => <option key={day} value={day}>{day}</option>)}
                 </select>
               </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Waktu / Jam</label>
-                <input
-                  type="text"
-                  name="schedule_time"
-                  defaultValue={record?.schedule_time || ""}
-                  onChange={(event) => setFormPreview((prev) => ({ ...prev, schedule_time: event.target.value }))}
-                  placeholder="Contoh: 07:30 - 08:15"
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-primary/20"
-                />
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Jam Mulai</label>
+                  <input
+                    type="time"
+                    name="schedule_start_time"
+                    value={formPreview.schedule_start_time}
+                    onChange={(event) => setFormPreview((prev) => ({ ...prev, schedule_start_time: event.target.value }))}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Jam Selesai</label>
+                  <input
+                    type="time"
+                    name="schedule_end_time"
+                    value={formPreview.schedule_end_time}
+                    min={formPreview.schedule_start_time || undefined}
+                    onChange={(event) => setFormPreview((prev) => ({ ...prev, schedule_end_time: event.target.value }))}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  />
+                </div>
               </div>
+              <p className="text-xs text-muted-foreground">Jadwal otomatis terhubung ke portal pengajar dan absensi guru part-time.</p>
             </div>
           </section>
 

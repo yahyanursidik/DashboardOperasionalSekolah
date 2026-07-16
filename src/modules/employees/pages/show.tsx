@@ -15,7 +15,9 @@ import { PageHeader } from "../../../components/layout/PageHeader";
 import {
   academicAssignmentTypes,
   canReceiveAcademicAssignment,
+  getAttendanceMode,
   getEmployeePosition,
+  getEmploymentType,
 } from "../employee-role-config";
 import { formatScheduleType, formatTime } from "../../schedules/schedule-utils";
 import { validateTeachingScheduleCurriculum } from "../../schedules/curriculum-schedule-validation";
@@ -122,6 +124,7 @@ function AssignmentModal({
     filters: [
       ...(unitId ? [{ field: "unit_id", operator: "eq" as const, value: unitId }] : []),
       ...(activeYearId ? [{ field: "academic_year_id", operator: "eq" as const, value: activeYearId }] : []),
+      ...(activeSemesterId ? [{ field: "semester_id", operator: "eq" as const, value: activeSemesterId }] : []),
     ],
     queryOptions: { enabled: !!unitId },
   });
@@ -334,9 +337,6 @@ export const EmployeeShow: React.FC = () => {
     resource: "employee_schedules",
     filters: [
       { field: "employee_id", operator: "eq" as const, value: record?.id as string },
-      ...(activeYearId ? [{ field: "academic_year_id", operator: "eq" as const, value: activeYearId }] : []),
-      ...(activeSemesterId ? [{ field: "semester_id", operator: "eq" as const, value: activeSemesterId }] : []),
-      ...(activeSemesterId ? [{ field: "semester_id", operator: "eq" as const, value: activeSemesterId }] : []),
     ],
     sorters: [{ field: "day_of_week", order: "asc" }],
     pagination: { pageSize: 100 },
@@ -383,14 +383,21 @@ export const EmployeeShow: React.FC = () => {
   const positionDefinition = getEmployeePosition(record.position);
   const academicEligible = canReceiveAcademicAssignment(record.position);
   const activeAssignments = assignments.filter((assignment) => assignment.is_active !== false);
-  const schedules = schedulesData?.data ?? [];
+  const schedules = (schedulesData?.data ?? []).filter((schedule) => schedule.attendance_shift_id || (
+    (!activeYearId || !schedule.academic_year_id || schedule.academic_year_id === activeYearId)
+    && (!activeSemesterId || !schedule.semester_id || schedule.semester_id === activeSemesterId)
+  ));
+  const teachingSchedules = schedules.filter((schedule) => schedule.schedule_type === "mengajar");
+  const employmentType = getEmploymentType(record.employment_type);
+  const attendanceMode = getAttendanceMode(record.attendance_mode);
+  const followsTeachingSchedule = record.attendance_mode === "teaching_schedule";
   const portalLabel = positionDefinition.portal === "teacher" ? "Portal Pengajar" : "Portal Staf";
   const profileChecklist = [
     { label: "Identitas inti", done: Boolean(record.full_name && record.nik) },
     { label: "Unit dan jabatan", done: Boolean(record.position && (record.unit_id || record.units?.name)) },
     { label: "Kontak aktif", done: Boolean(record.phone && record.email) },
     { label: `Akses ${portalLabel}`, done: Boolean(record.email && record.user_id) },
-    { label: academicEligible ? "Penugasan akademik periode aktif" : "Jadwal kerja periode aktif", done: academicEligible ? activeAssignments.length > 0 : schedules.length > 0 },
+    { label: followsTeachingSchedule ? "Jadwal mengajar part-time periode aktif" : academicEligible ? "Penugasan akademik periode aktif" : "Jadwal kerja periode aktif", done: followsTeachingSchedule ? teachingSchedules.length > 0 : academicEligible ? activeAssignments.length > 0 : schedules.length > 0 },
   ];
   const completedChecklist = profileChecklist.filter((item) => item.done).length;
 
@@ -450,6 +457,8 @@ export const EmployeeShow: React.FC = () => {
 
             <div className="border-t px-5 py-4 space-y-0.5">
               <InfoRow icon={Building2} label="Unit Induk"         value={record.units?.name || "Pusat / Lintas Unit"} />
+              <InfoRow icon={UserCheck} label="Hubungan Kerja" value={employmentType.label} />
+              <InfoRow icon={Clock} label="Pola Absensi" value={attendanceMode.label} />
               <InfoRow icon={Phone}     label="No. HP / WhatsApp"   value={record.phone} />
               <InfoRow icon={Mail}      label="Email"               value={record.email} />
               <InfoRow icon={MapPin}    label="Alamat Domisili"     value={record.address} />
@@ -467,6 +476,17 @@ export const EmployeeShow: React.FC = () => {
               )}
             </div>
           </div>
+
+          {followsTeachingSchedule && (
+            <div className={`rounded-xl border p-4 shadow-sm ${teachingSchedules.length ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}>
+              <p className={`text-sm font-bold ${teachingSchedules.length ? "text-emerald-900" : "text-amber-900"}`}>Presensi pengajar part-time</p>
+              <p className={`mt-1 text-xs ${teachingSchedules.length ? "text-emerald-800" : "text-amber-800"}`}>
+                {teachingSchedules.length
+                  ? `${teachingSchedules.length} jadwal mengajar menjadi acuan. Hadir dihitung dari pelajaran pertama sampai pelajaran terakhir setiap hari.`
+                  : "Belum ada jadwal mengajar aktif. Portal akan menonaktifkan absensi sampai jadwal periode aktif tersedia."}
+              </p>
+            </div>
+          )}
 
           {/* Stats mini */}
           <div className="bg-card border rounded-xl shadow-sm p-4">
@@ -544,7 +564,7 @@ export const EmployeeShow: React.FC = () => {
             <div className="rounded-lg border bg-card p-4">
               <p className="text-xs font-bold uppercase text-muted-foreground">3. Jadwal Pelaksanaan</p>
               <p className="mt-2 text-sm font-semibold">{schedules.length} jadwal mingguan</p>
-              <p className="mt-1 text-xs text-muted-foreground">Hari, jam, unit kerja, atau jam mengajar.</p>
+              <p className="mt-1 text-xs text-muted-foreground">{followsTeachingSchedule ? "Pelajaran pertama dan terakhir menjadi batas kehadiran harian." : "Hari, jam, unit kerja, atau jam mengajar."}</p>
             </div>
           </div>
           {/* Tabs */}

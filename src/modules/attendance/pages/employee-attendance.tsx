@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/exhaustive-deps */
 import React, { useMemo, useState } from "react";
 import { useTable, useUpdate, useCreate, useSelect, useList } from "@refinedev/core";
 import { Link } from "react-router-dom";
@@ -104,7 +105,7 @@ export const EmployeeAttendanceList: React.FC = () => {
   const [filterPosition, setFilterPosition] = useState("");
   const [filterAttendance, setFilterAttendance] = useState("");
   const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
-  const { activeYearId } = useAcademicYear();
+  const { activeYearId, activeSemesterId } = useAcademicYear();
 
   const dayName = getDateDayName(selectedDate);
   const { options: unitOptions } = useSelect({ resource: "units", optionLabel: "name", optionValue: "id" });
@@ -121,19 +122,24 @@ export const EmployeeAttendanceList: React.FC = () => {
     },
     sorters: { permanent: [{ field: "full_name", order: "asc" }] },
     meta: {
-      select: "*, units(name), employee_attendance(id, status, time_in, time_out, notes, date, verification_status, location_status, site_id, is_late, late_minutes, is_early_departure, early_departure_minutes, attendance_sites(name))"
+      select: "*, units(name), employee_attendance(id, status, time_in, time_out, notes, date, verification_status, location_status, site_id, is_late, late_minutes, is_early_departure, early_departure_minutes, attendance_rule_source, expected_start_time, expected_end_time, applied_grace_minutes, attendance_sites(name))"
     }
   });
 
   const scheduleFilters: any[] = [{ field: "day_of_week", operator: "eq", value: dayName }];
-  if (activeYearId) scheduleFilters.push({ field: "academic_year_id", operator: "eq", value: activeYearId });
-  if (filterUnit) scheduleFilters.push({ field: "unit_id", operator: "eq", value: filterUnit });
 
   const { data: schedulesData } = useList({
     resource: "employee_schedules",
     filters: scheduleFilters,
     pagination: { pageSize: 1000 },
-    meta: { select: "employee_id, day_of_week, start_time, end_time, schedule_type, subject, subject_id, classes(name), subjects(name)" },
+    meta: { select: "employee_id, unit_id, academic_year_id, semester_id, day_of_week, start_time, end_time, schedule_type, subject, subject_id, attendance_shift_id, classes(name), subjects(name), units(name), attendance_shifts(name,check_in_open,check_in_close,grace_minutes)" },
+  });
+
+  const { data: policiesData } = useList({
+    resource: "attendance_policies",
+    filters: [{ field: "is_active", operator: "eq", value: true }],
+    pagination: { pageSize: 1000 },
+    meta: { select: "id,unit_id,name,default_start_time,default_end_time,check_in_open,check_in_close,grace_minutes" },
   });
 
   const leaveFilters: any[] = [
@@ -169,13 +175,25 @@ export const EmployeeAttendanceList: React.FC = () => {
 
   const scheduleMap = useMemo(() => {
     const map: Record<string, any[]> = {};
-    (schedulesData?.data ?? []).forEach((schedule: any) => {
+    (schedulesData?.data ?? []).filter((schedule: any) => schedule.attendance_shift_id || (
+      (!activeYearId || !schedule.academic_year_id || schedule.academic_year_id === activeYearId)
+      && (!activeSemesterId || !schedule.semester_id || schedule.semester_id === activeSemesterId)
+    )).forEach((schedule: any) => {
       if (!map[schedule.employee_id]) map[schedule.employee_id] = [];
       map[schedule.employee_id].push(schedule);
     });
-    Object.values(map).forEach((items) => items.sort((a, b) => (a.start_time || "").localeCompare(b.start_time || "")));
+    Object.values(map).forEach((items) => items.sort((a, b) => {
+      if (Boolean(a.attendance_shift_id) !== Boolean(b.attendance_shift_id)) return a.attendance_shift_id ? -1 : 1;
+      return (a.start_time || "").localeCompare(b.start_time || "");
+    }));
     return map;
-  }, [schedulesData]);
+  }, [activeSemesterId, activeYearId, schedulesData]);
+
+  const policyMap = useMemo(() => {
+    const map: Record<string, any> = {};
+    (policiesData?.data ?? []).forEach((policy: any) => { map[policy.unit_id || "__global__"] = policy; });
+    return map;
+  }, [policiesData]);
 
   const leaveMap = useMemo(() => {
     const map: Record<string, any> = {};
@@ -195,10 +213,31 @@ export const EmployeeAttendanceList: React.FC = () => {
   }, [correctionsData]);
 
   const getRecord = (employee: any) => employee.employee_attendance?.find((a: any) => a.date === selectedDate);
+  const getRulePreview = (employee: any, record: any, schedules: any[]) => {
+    if (record?.expected_start_time) return {
+      name: record.attendance_rule_source === "assigned_shift" ? "Shift khusus" : record.attendance_rule_source === "teaching_schedule" ? "Jadwal mengajar part-time" : record.attendance_rule_source === "no_schedule" ? "Tanpa jadwal mengajar" : record.attendance_rule_source === "unit_policy" ? "Kebijakan unit" : record.attendance_rule_source === "global_policy" ? "Kebijakan lintas unit" : "Acuan tersimpan",
+      start: record.expected_start_time,
+      end: record.expected_end_time,
+      grace: record.applied_grace_minutes,
+      hasDuty: record.attendance_rule_source !== "no_schedule",
+    };
+    const shiftSchedule = schedules.find((schedule) => schedule.attendance_shift_id);
+    if (shiftSchedule) return { name: shiftSchedule.attendance_shifts?.name || "Shift khusus", start: shiftSchedule.start_time, end: shiftSchedule.end_time, grace: shiftSchedule.attendance_shifts?.grace_minutes, hasDuty: true };
+    if (employee.attendance_mode === "teaching_schedule") {
+      const teachingSchedules = schedules.filter((schedule) => schedule.schedule_type === "mengajar");
+      if (!teachingSchedules.length) return { name: "Tidak ada jadwal mengajar", start: null, end: null, grace: 0, hasDuty: false };
+      const firstSchedule = teachingSchedules.reduce((earliest, schedule) => !earliest || String(schedule.start_time) < String(earliest.start_time) ? schedule : earliest, null as any);
+      const lastSchedule = teachingSchedules.reduce((latest, schedule) => !latest || String(schedule.end_time) > String(latest.end_time) ? schedule : latest, null as any);
+      return { name: "Jadwal mengajar part-time", start: firstSchedule.start_time, end: lastSchedule.end_time, grace: (policyMap[firstSchedule.unit_id] || policyMap.__global__)?.grace_minutes ?? 10, hasDuty: true };
+    }
+    const policy = policyMap[employee.unit_id] || policyMap.__global__;
+    return { name: policy ? (policy.unit_id ? "Kebijakan unit" : "Kebijakan lintas unit") : "Default sistem", start: policy?.default_start_time || "07:00", end: policy?.default_end_time || "15:00", grace: policy?.grace_minutes ?? 10, hasDuty: true };
+  };
+  const hasAttendanceDuty = (employee: any) => getRulePreview(employee, getRecord(employee), scheduleMap[employee.id] ?? []).hasDuty;
   const displayedEmployees = employees.filter((employee: any) => {
     if (!filterAttendance) return true;
     const record = getRecord(employee);
-    if (filterAttendance === "unfilled") return !record;
+    if (filterAttendance === "unfilled") return hasAttendanceDuty(employee) && !record;
     if (filterAttendance === "scheduled") return (scheduleMap[employee.id] ?? []).length > 0;
     if (filterAttendance === "leave_approved") return Boolean(leaveMap[employee.id]);
     return record?.status === filterAttendance;
@@ -213,11 +252,11 @@ export const EmployeeAttendanceList: React.FC = () => {
       sick: records.filter((item) => item.record?.status === "sick").length,
       leave: records.filter((item) => item.record?.status === "leave").length,
       absent: records.filter((item) => item.record?.status === "absent").length,
-      unfilled: records.filter((item) => !item.record).length,
+      unfilled: records.filter((item) => hasAttendanceDuty(item.employee) && !item.record).length,
       scheduled: employees.filter((employee: any) => (scheduleMap[employee.id] ?? []).length > 0).length,
       scheduledPending: employees.filter((employee: any) => {
         const record = getRecord(employee);
-        return (scheduleMap[employee.id] ?? []).length > 0 && record?.status !== "present" && record?.status !== "late";
+        return hasAttendanceDuty(employee) && (scheduleMap[employee.id] ?? []).length > 0 && record?.status !== "present" && record?.status !== "late";
       }).length,
       approvedLeaves: employees.filter((employee: any) => Boolean(leaveMap[employee.id])).length,
       pendingReview: employees.filter((employee: any) => (correctionMap[employee.id] ?? []).length > 0 || getRecord(employee)?.verification_status === "pending_review").length,
@@ -431,7 +470,7 @@ export const EmployeeAttendanceList: React.FC = () => {
               <thead className="bg-muted/50 text-muted-foreground text-xs uppercase font-medium border-b">
                 <tr>
                   <th className="px-4 py-3">Pegawai</th>
-                  <th className="px-4 py-3">Jadwal Hari Ini</th>
+                  <th className="px-4 py-3">Jadwal & Acuan Presensi</th>
                   <th className="px-4 py-3 text-center">Status Kehadiran</th>
                   <th className="px-4 py-3 text-center">Jam Masuk</th>
                   <th className="px-4 py-3 text-center">Jam Keluar</th>
@@ -445,6 +484,7 @@ export const EmployeeAttendanceList: React.FC = () => {
                   const schedules = scheduleMap[emp.id] ?? [];
                   const leave = leaveMap[emp.id];
                   const timeEnabled = status === "present" || status === "late";
+                  const rulePreview = getRulePreview(emp, record, schedules);
 
                   return (
                     <tr key={emp.id} className="hover:bg-muted/30 transition-colors">
@@ -468,6 +508,10 @@ export const EmployeeAttendanceList: React.FC = () => {
                         </div>
                       </td>
                       <td className="px-4 py-3 min-w-[220px]">
+                        <div className={`mb-2 rounded-md border px-2.5 py-2 ${rulePreview.hasDuty ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}>
+                          <p className={`text-[11px] font-bold ${rulePreview.hasDuty ? "text-emerald-800" : "text-amber-800"}`}>{rulePreview.hasDuty ? `Acuan masuk ${formatTime(rulePreview.start)}${rulePreview.end ? ` - ${formatTime(rulePreview.end)}` : ""}` : "Tidak wajib absen hari ini"}</p>
+                          <p className={`mt-0.5 text-[10px] ${rulePreview.hasDuty ? "text-emerald-700" : "text-amber-700"}`}>{rulePreview.name}{rulePreview.hasDuty ? ` | toleransi ${rulePreview.grace ?? 10} menit` : ""}</p>
+                        </div>
                         {schedules.length > 0 ? (
                           <div className="space-y-1">
                             {schedules.slice(0, 2).map((schedule: any, index: number) => (
@@ -477,7 +521,7 @@ export const EmployeeAttendanceList: React.FC = () => {
                                   {formatTime(schedule.start_time)} - {formatTime(schedule.end_time)}
                                 </p>
                                 <p className="text-[11px] text-muted-foreground mt-0.5">
-                                  {schedule.schedule_type === "mengajar" ? getScheduleSubjectName(schedule) : String(schedule.schedule_type || "Jadwal").replace(/_/g, " ")}
+                                  {schedule.attendance_shifts?.name || (schedule.schedule_type === "mengajar" ? getScheduleSubjectName(schedule) : String(schedule.schedule_type || "Jadwal").replace(/_/g, " "))}
                                   {schedule.classes?.name ? ` - ${schedule.classes.name}` : ""}
                                 </p>
                               </div>

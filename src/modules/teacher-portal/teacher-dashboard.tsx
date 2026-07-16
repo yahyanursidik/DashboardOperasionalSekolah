@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useMemo, useState } from "react";
 import { useOutletContext, Link } from "react-router-dom";
 import { supabaseClient } from "../../lib/supabase/client";
@@ -7,6 +8,10 @@ import { dayMap, getScheduleSubjectName } from "../schedules/schedule-utils";
 import { isLeaveActiveOnDate, toDateInputValue } from "../leaves/leave-utils";
 
 const READ_ANNOUNCEMENTS_KEY = "teacher_portal_read_announcement_ids";
+
+function isAttendanceReady(value: string) {
+  return value.includes("Hadir") || value.includes("Terlambat") || value.includes("Tidak wajib");
+}
 
 export const TeacherDashboard: React.FC = () => {
   const { employee } = useOutletContext<any>();
@@ -133,11 +138,13 @@ export const TeacherDashboard: React.FC = () => {
         const { data: assessments } = await assessmentQuery;
 
         const myAttendance = myAtt as any;
+        const hasAttendanceDuty = employee.attendance_mode !== "teaching_schedule"
+          || (schedules || []).some((schedule: any) => schedule.attendance_shift_id || schedule.schedule_type === "mengajar");
         const records = quranRecords || [];
         const assessmentList = assessments || [];
         const leaveList = leaves || [];
         setStats({
-          myAttendance: myAttendance ? (myAttendance.status === "present" ? `Hadir (${myAttendance.time_in?.substring(0, 5)})` : myAttendance.status === "late" ? `Terlambat (${myAttendance.time_in?.substring(0, 5)})` : myAttendance.status === "leave" ? "Izin" : myAttendance.status === "sick" ? "Sakit" : myAttendance.status === "absent" ? "Alpa" : myAttendance.status) : "Belum Absen",
+          myAttendance: myAttendance ? (myAttendance.status === "present" ? `Hadir (${myAttendance.time_in?.substring(0, 5)})` : myAttendance.status === "late" ? `Terlambat (${myAttendance.time_in?.substring(0, 5)})` : myAttendance.status === "leave" ? "Izin" : myAttendance.status === "sick" ? "Sakit" : myAttendance.status === "absent" ? "Alpa" : myAttendance.status) : hasAttendanceDuty ? "Belum Absen" : "Tidak wajib absen",
           classesToday: schedules?.length || 0,
           classCount: assignedClassIds.size,
           quranRecords: records.length,
@@ -156,11 +163,11 @@ export const TeacherDashboard: React.FC = () => {
     };
 
     fetchDashboardData();
-  }, [employee.id, employee.unit_id, activeYearId, activeSemesterId]);
+  }, [employee.attendance_mode, employee.id, employee.unit_id, activeYearId, activeSemesterId]);
 
   const hariIni = new Date().toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
   const qualityChecklist = useMemo(() => ([
-    { label: "Kehadiran", done: stats.myAttendance.includes("Hadir") || stats.myAttendance.includes("Terlambat"), value: stats.myAttendance },
+    { label: "Kehadiran", done: isAttendanceReady(stats.myAttendance), value: stats.myAttendance },
     { label: "Izin", done: !stats.activeLeave && stats.pendingLeaves === 0, value: stats.activeLeave ? "Izin aktif" : `${stats.pendingLeaves} pending` },
     { label: "Inval", done: stats.substitutesToday === 0, value: `${stats.substitutesToday} tugas` },
     { label: "Informasi", done: stats.unreadAnnouncements === 0, value: `${stats.unreadAnnouncements} baru` },
@@ -182,7 +189,7 @@ export const TeacherDashboard: React.FC = () => {
       <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
         {[
           { label: "Kelas Hari Ini", value: stats.classesToday, icon: Calendar, color: "text-blue-700 bg-blue-50" },
-          { label: "Absensi", value: stats.myAttendance.includes("Hadir") || stats.myAttendance.includes("Terlambat") ? "OK" : "Cek", icon: CalendarCheck, color: "text-emerald-700 bg-emerald-50" },
+          { label: "Absensi", value: isAttendanceReady(stats.myAttendance) ? "OK" : "Cek", icon: CalendarCheck, color: "text-emerald-700 bg-emerald-50" },
           { label: "Info Baru", value: stats.unreadAnnouncements, icon: Megaphone, color: "text-amber-700 bg-amber-50" },
           { label: "Tugas Aktif", value: stats.pendingTasks, icon: ListTodo, color: "text-blue-700 bg-blue-50" },
         ].map(({ label, value, icon: Icon, color }) => (
@@ -210,7 +217,7 @@ export const TeacherDashboard: React.FC = () => {
           <div className="grid grid-cols-2 gap-3 border-t pt-4">
             <div className="rounded-xl bg-gray-50 p-3">
               <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-gray-500">Kehadiran</p>
-              <p className={`text-sm font-bold ${stats.myAttendance.includes("Hadir") || stats.myAttendance.includes("Terlambat") ? "text-emerald-600" : "text-amber-600"}`}>{stats.myAttendance}</p>
+              <p className={`text-sm font-bold ${isAttendanceReady(stats.myAttendance) ? "text-emerald-600" : "text-amber-600"}`}>{stats.myAttendance}</p>
             </div>
             <div className="rounded-xl bg-gray-50 p-3">
               <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-gray-500">Jadwal</p>

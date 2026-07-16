@@ -41,6 +41,34 @@ export const academicAssignmentTypes = [
   { value: "guru_diniyah", label: "Guru Diniyah", requiresClass: true, requiresSubject: true },
 ];
 
+export const employmentTypeOptions = [
+  { value: "permanent", label: "Pegawai Tetap" },
+  { value: "contract", label: "Pegawai Kontrak" },
+  { value: "part_time", label: "Part-time / Honorer" },
+  { value: "volunteer", label: "Relawan / Mitra" },
+];
+
+export const attendanceModeOptions = [
+  {
+    value: "unit_hours",
+    label: "Mengikuti Jam Unit",
+    description: "Acuan hadir mengikuti kebijakan unit induk atau shift khusus yang ditetapkan.",
+  },
+  {
+    value: "teaching_schedule",
+    label: "Sesuai Jadwal Mengajar",
+    description: "Khusus pengajar part-time: hadir dari pelajaran pertama sampai tugas mengajar terakhir pada hari itu.",
+  },
+];
+
+export function getEmploymentType(value?: string | null) {
+  return employmentTypeOptions.find((option) => option.value === value) || employmentTypeOptions[0];
+}
+
+export function getAttendanceMode(value?: string | null) {
+  return attendanceModeOptions.find((option) => option.value === value) || attendanceModeOptions[0];
+}
+
 export function getEmployeePosition(position?: string | null) {
   return employeePositionMap[position || ""] || {
     value: position || "lainnya",
