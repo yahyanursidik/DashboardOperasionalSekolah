@@ -1,143 +1,51 @@
-import React from "react";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import React, { useEffect, useState } from "react";
 import { useShow } from "@refinedev/core";
-import { useNavigate, Link } from "react-router-dom";
+import { Link } from "react-router-dom";
+import { ArrowLeft, Clock3, Edit3, FileCheck2, Loader2, ShieldCheck, Users } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
-import { ArrowLeft, Edit, ChevronRight } from "lucide-react";
+import { supabaseClient } from "../../../lib/supabase/client";
+import { labelFor, materialAudience, onboardingAudiences, onboardingCategories, onboardingMaterialTypes, type OnboardingMaterial } from "../onboarding-config";
+import { OnboardingViewer } from "../onboarding-viewer";
 
 export const OnboardingShow: React.FC = () => {
-  const navigate = useNavigate();
-  const { queryResult } = useShow({
-    resource: "onboarding_materials",
-  });
-  const { data, isLoading } = queryResult;
+  const { queryResult } = useShow<OnboardingMaterial>({ resource: "onboarding_materials" });
+  const record = queryResult.data?.data;
+  const [unitName, setUnitName] = useState("");
+  const [progress, setProgress] = useState({ opened: 0, completed: 0, acknowledged: 0 });
 
-  const record = data?.data;
-
-  if (isLoading) {
-    return (
-      <div className="p-12 flex justify-center items-center gap-3 text-gray-500">
-        <div className="w-5 h-5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-        Memuat data...
-      </div>
-    );
-  }
-
-  if (!record) {
-    return <div className="p-12 text-center text-gray-500">Data tidak ditemukan.</div>;
-  }
-
-  const renderViewer = () => {
-    const { material_type, file_url } = record;
-
-    const getEmbedUrl = (url: string) => {
-      if (!url) return url;
-      const gdriveMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
-      if (gdriveMatch) {
-        return `https://drive.google.com/file/d/${gdriveMatch[1]}/preview`;
-      }
-      return url;
+  useEffect(() => {
+    if (!record) return;
+    const load = async () => {
+      const [unitResult, progressResult] = await Promise.all([
+        record.unit_id ? supabaseClient.from("units").select("name").eq("id", record.unit_id).maybeSingle() : Promise.resolve({ data: null }),
+        supabaseClient.from("onboarding_progress").select("progress_percent,acknowledged_at").eq("material_id", record.id),
+      ]);
+      setUnitName((unitResult.data as any)?.name || "");
+      if (!progressResult.error) setProgress({ opened: progressResult.data?.length || 0, completed: (progressResult.data || []).filter((item: any) => Number(item.progress_percent) >= 100).length, acknowledged: (progressResult.data || []).filter((item: any) => item.acknowledged_at).length });
     };
+    void load();
+  }, [record]);
 
-    const embedUrl = getEmbedUrl(file_url);
-
-    switch (material_type) {
-      case "pdf":
-        return <iframe src={embedUrl} className="w-full h-[600px] border-0 rounded-lg shadow-inner bg-gray-50" title="PDF Viewer" />;
-      case "audio":
-        return <audio controls src={file_url} className="w-full max-w-2xl" />;
-      case "video":
-        return <video controls src={file_url} className="w-full max-h-[600px] bg-black rounded-lg shadow-inner" />;
-      case "image":
-        return <img src={file_url} alt="Onboarding" className="max-w-full max-h-[600px] object-contain rounded-lg shadow-sm" />;
-      case "youtube":
-        const videoIdMatch = file_url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([^&?]+)/);
-        const videoId = videoIdMatch ? videoIdMatch[1] : null;
-        if (videoId) {
-          return (
-             <iframe 
-               className="w-full h-[600px] border-0 rounded-lg shadow-inner"
-               src={`https://www.youtube.com/embed/${videoId}`} 
-               title="YouTube video player" 
-               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-               allowFullScreen
-             />
-          );
-        }
-        return <p className="text-red-500 text-center">URL YouTube tidak valid</p>;
-      case "gdrive":
-        return <iframe src={embedUrl} className="w-full h-[600px] border-0 rounded-lg shadow-inner bg-gray-50" title="Google Drive Viewer" />;
-      case "s3_link":
-        const isPdf = file_url.toLowerCase().split('?')[0].endsWith('.pdf');
-        const isImage = /\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i.test(file_url);
-        const isVideo = /\.(mp4|webm|ogg)(\?.*)?$/i.test(file_url);
-        const isAudio = /\.(mp3|wav|ogg)(\?.*)?$/i.test(file_url);
-        
-        if (isPdf) return <iframe src={embedUrl} className="w-full h-[600px] border-0 rounded-lg bg-gray-50 shadow-inner" title="S3 PDF Viewer" />;
-        if (isImage) return <img src={file_url} alt="Preview" className="max-w-full max-h-[600px] object-contain rounded-lg shadow-sm" />;
-        if (isVideo) return <video controls src={file_url} className="w-full max-h-[600px] bg-black rounded-lg shadow-inner" />;
-        if (isAudio) return <audio controls src={file_url} className="w-full max-w-2xl" />;
-        return <iframe src={file_url} className="w-full h-[600px] border-0 rounded-lg bg-gray-50 shadow-inner" title="S3 Viewer" />;
-      default:
-        return <p className="text-gray-500 text-center">Tipe materi tidak didukung</p>;
-    }
-  };
+  if (queryResult.isLoading) return <div className="flex min-h-72 items-center justify-center text-sm text-muted-foreground"><Loader2 className="mr-2 h-5 w-5 animate-spin" />Memuat materi...</div>;
+  if (!record) return <div className="rounded-md border border-dashed p-12 text-center"><p className="font-bold">Materi tidak ditemukan</p><Link to="/onboarding" className="mt-3 inline-block text-sm font-semibold text-primary hover:underline">Kembali ke daftar</Link></div>;
 
   return (
     <div className="space-y-6">
-      {/* Breadcrumbs */}
-      <div className="flex items-center text-sm text-gray-500 mb-2">
-        <Link to="/" className="hover:text-primary transition-colors">Dashboard</Link>
-        <ChevronRight className="w-4 h-4 mx-1" />
-        <Link to="/onboarding" className="hover:text-primary transition-colors">Onboarding</Link>
-        <ChevronRight className="w-4 h-4 mx-1" />
-        <span className="text-gray-900 font-medium">Detail Materi</span>
-      </div>
-
-      <PageHeader
-        title="Detail Materi Onboarding"
-        description="Lihat tampilan materi sebelum dipublikasikan ke orang tua dan siswa."
-        action={
-          <div className="flex gap-2">
-            <button
-              onClick={() => navigate("/onboarding")}
-              className="flex items-center gap-2 bg-white text-gray-700 border border-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors shadow-sm font-medium text-sm"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Kembali
-            </button>
-            <button
-              onClick={() => navigate(`/onboarding/edit/${record.id}`)}
-              className="flex items-center gap-2 bg-emerald-50 text-emerald-700 border border-emerald-200 px-4 py-2 rounded-lg hover:bg-emerald-100 transition-colors shadow-sm font-medium text-sm"
-            >
-              <Edit className="w-4 h-4" />
-              Edit Materi
-            </button>
-          </div>
-        }
-      />
-
-      <div className="bg-white rounded-xl border shadow-sm max-w-5xl mx-auto overflow-hidden">
-        <div className="p-6 md:p-8 border-b bg-gray-50/50">
-          <div className="flex justify-between items-start mb-3 gap-4">
-            <h2 className="text-2xl font-bold text-gray-900 leading-tight">{record.title}</h2>
-            <div className="flex gap-2 shrink-0">
-              <span className="px-3 py-1.5 text-xs font-semibold bg-gray-200 text-gray-700 rounded-lg uppercase tracking-wider">
-                {record.material_type === 's3_link' ? 'S3 CONTABO' : record.material_type}
-              </span>
-              <span className={`px-3 py-1.5 text-xs font-semibold rounded-lg ${record.status === 'published' ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' : 'bg-gray-100 text-gray-700 border border-gray-200'}`}>
-                {record.status === 'published' ? 'DIPUBLIKASIKAN' : 'DRAFT'}
-              </span>
-            </div>
-          </div>
-          {record.description && (
-            <p className="text-gray-600 max-w-3xl leading-relaxed">{record.description}</p>
-          )}
-        </div>
-        
-        <div className="p-6 bg-gray-100 min-h-[500px] flex items-center justify-center">
-          {renderViewer()}
-        </div>
-      </div>
+      <PageHeader title="Detail & Pratinjau Materi" description="Tinjau isi, cakupan publikasi, serta penyelesaian pengguna sebelum atau selama materi ditayangkan." action={<div className="flex gap-2"><Link to="/onboarding" className="inline-flex min-h-10 items-center gap-2 rounded-md border bg-card px-3 py-2 text-sm font-semibold"><ArrowLeft className="h-4 w-4" />Kembali</Link><Link to={`/onboarding/edit/${record.id}`} className="inline-flex min-h-10 items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-bold text-primary-foreground"><Edit3 className="h-4 w-4" />Ubah</Link></div>} />
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <Metric label="Status" value={record.status === "published" ? "Dipublikasikan" : "Draf"} detail={`Versi ${record.version_label || "1.0"}`} />
+        <Metric label="Cakupan" value={unitName || "Lintas unit"} detail={materialAudience(record).map((item) => labelFor(onboardingAudiences, item)).join(", ")} />
+        <Metric label="Estimasi" value={`${record.estimated_minutes || 5} menit`} detail={record.is_required ? "Materi wajib" : "Materi pendukung"} />
+        <Metric label="Penyelesaian" value={`${progress.completed}/${progress.opened}`} detail={`${progress.acknowledged} persetujuan`} />
+      </section>
+      <section className="overflow-hidden rounded-md border bg-card">
+        <div className="border-b p-5"><div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><div className="flex flex-wrap gap-2"><span className="rounded-md bg-primary/10 px-2 py-1 text-xs font-bold text-primary">{labelFor(onboardingCategories, record.category || "general")}</span><span className="rounded-md bg-muted px-2 py-1 text-xs font-bold text-muted-foreground">{labelFor(onboardingMaterialTypes, record.material_type)}</span>{record.is_required ? <span className="rounded-md bg-amber-50 px-2 py-1 text-xs font-bold text-amber-700">Wajib</span> : null}</div><h2 className="mt-3 text-xl font-bold">{record.title}</h2><p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">{record.description || "Tidak ada deskripsi tambahan."}</p></div><div className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground"><Clock3 className="h-4 w-4" />Urutan {record.order_index || 0}</div></div>{record.acknowledgement_required ? <div className="mt-4 flex items-start gap-3 rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900"><ShieldCheck className="mt-0.5 h-5 w-5 shrink-0" /><div><p className="font-bold">Persetujuan diwajibkan</p><p className="mt-1">{record.acknowledgement_text}</p></div></div> : null}</div>
+        <OnboardingViewer material={record} />
+      </section>
+      <section className="grid gap-3 sm:grid-cols-3"><div className="rounded-md border bg-card p-4"><Users className="h-5 w-5 text-blue-600" /><p className="mt-3 text-2xl font-bold">{progress.opened}</p><p className="text-xs text-muted-foreground">Pengguna membuka</p></div><div className="rounded-md border bg-card p-4"><FileCheck2 className="h-5 w-5 text-emerald-600" /><p className="mt-3 text-2xl font-bold">{progress.completed}</p><p className="text-xs text-muted-foreground">Materi selesai</p></div><div className="rounded-md border bg-card p-4"><ShieldCheck className="h-5 w-5 text-violet-600" /><p className="mt-3 text-2xl font-bold">{progress.acknowledged}</p><p className="text-xs text-muted-foreground">Persetujuan versi tercatat</p></div></section>
     </div>
   );
 };
+
+const Metric = ({ label, value, detail }: { label: string; value: string; detail: string }) => <div className="rounded-md border bg-card p-4"><p className="text-xs font-bold uppercase text-muted-foreground">{label}</p><p className="mt-2 truncate text-lg font-bold">{value}</p><p className="mt-1 truncate text-xs text-muted-foreground">{detail}</p></div>;

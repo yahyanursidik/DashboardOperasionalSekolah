@@ -1,474 +1,56 @@
-import React, { useState, useMemo } from "react";
-import { Link } from "react-router-dom";
-import { PageHeader } from "../../../components/layout/PageHeader";
-import { Search, Filter, Eye, CheckCircle, XCircle, CalendarDays, ArrowUpDown, ChevronLeft, ChevronRight, Inbox, Trash2, AlertTriangle, Loader2 } from "lucide-react";
-import { getSpmbSettings } from "../mock";
-import { 
-  useReactTable, 
-  getCoreRowModel, 
-  getPaginationRowModel, 
-  getSortedRowModel, 
-  getFilteredRowModel, 
-  flexRender 
-} from "@tanstack/react-table";
-import type { ColumnDef, SortingState } from "@tanstack/react-table";
+/* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/exhaustive-deps */
+import React, { useEffect, useState } from "react";
+import { Archive, ChevronLeft, ChevronRight, Eye, Filter, Inbox, Loader2, Search } from "lucide-react";
+import { Link, useLocation } from "react-router-dom";
 import { toast } from "sonner";
-import { useList, useUpdate, useDelete } from "@refinedev/core";
+import { PageHeader } from "../../../components/layout/PageHeader";
+import { supabaseClient } from "../../../lib/supabase/client";
+import { admissionStatusMeta, admissionStatuses, formatAdmissionDate, getAdmissionStatus } from "../admissions-config";
 
-// Extended interface with database ID
-interface ApplicantData {
-  id: string; // registration_number in DB
-  name: string;
-  nik: string;
-  dob: string;
-  academicYear: string;
-  unit: string;
-  school: string;
-  parentName: string;
-  parentPhone: string;
-  status: string;
-  score: number | '-';
-  dbId: string; // the actual UUID in DB
-}
+const db = supabaseClient as any;
+const PAGE_SIZE = 15;
 
 export const ApplicantsList: React.FC = () => {
-  const currentAcademicYear = getSpmbSettings().academicYear;
-  
-  // Fetch real data from Supabase
-  const { data: tableData, isLoading } = useList({
-    resource: "admissions_applicants",
-    pagination: { mode: "off" } // fetch all for client-side filtering
-  });
-  
-  const rawData = tableData?.data || [];
+  const location = useLocation();
+  const base = location.pathname.startsWith("/admin-spmb") ? "/admin-spmb" : "/admissions";
+  const [rows, setRows] = useState<any[]>([]);
+  const [units, setUnits] = useState<any[]>([]);
+  const [years, setYears] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [count, setCount] = useState(0);
+  const [filters, setFilters] = useState({ search: "", unit: "", year: "", status: "" });
 
-  // Map database format to UI format
-  const data = useMemo<ApplicantData[]>(() => rawData.map(row => ({
-    id: row.registration_number,
-    name: row.name,
-    nik: row.nik,
-    dob: row.dob,
-    academicYear: row.academic_year,
-    unit: row.unit,
-    school: row.previous_school,
-    parentName: row.parent_name,
-    parentPhone: row.parent_phone,
-    status: row.status,
-    score: row.score ?? '-',
-    dbId: row.id as string
-  })), [rawData]);
-  
-  const [selectedYear, setSelectedYear] = useState<string>("Semua");
-  const [selectedStatus, setSelectedStatus] = useState<string>("Semua");
-  const [globalFilter, setGlobalFilter] = useState<string>("");
-  const [sorting, setSorting] = useState<SortingState>([]);
-
-  // Modal State for user-friendly feedback
-  const [modalState, setModalState] = useState<{
-    isOpen: boolean;
-    type: 'verify' | 'reject' | 'remove' | null;
-    appId: string;
-    appName: string;
-  }>({
-    isOpen: false,
-    type: null,
-    appId: '',
-    appName: ''
-  });
-
-  const { mutate: updateApplicant, isLoading: isUpdating } = useUpdate();
-  const { mutate: deleteApplicant, isLoading: isDeleting } = useDelete();
-
-  const isMutating = isUpdating || isDeleting;
-
-  // Apply manual filters before passing to TanStack table
-  const filteredData = useMemo(() => {
-    return data.filter(app => {
-      const matchesYear = selectedYear === "Semua" || app.academicYear === selectedYear;
-      const matchesStatus = selectedStatus === "Semua" || app.status === selectedStatus;
-      return matchesYear && matchesStatus;
-    });
-  }, [data, selectedYear, selectedStatus]);
-
-  // Actions
-  const handleOpenModal = (type: 'verify' | 'reject' | 'remove', id: string, name: string) => {
-    setModalState({ isOpen: true, type, appId: id, appName: name });
+  const load = async () => {
+    setLoading(true);
+    let query = db.from("admissions_applicants").select("*, units(name), academic_years(name), admission_batches(name)", { count: "exact" }).is("archived_at", null).order("registration_date", { ascending: false }).range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
+    if (filters.unit) query = query.eq("unit_id", filters.unit);
+    if (filters.year) query = query.eq("academic_year_id", filters.year);
+    if (filters.status) query = query.eq("workflow_status", filters.status);
+    if (filters.search.trim()) {
+      const search = filters.search.trim().replace(/[,%()]/g, " ");
+      query = query.or(`name.ilike.%${search}%,registration_number.ilike.%${search}%,nik.ilike.%${search}%,parent_name.ilike.%${search}%`);
+    }
+    const { data, count: total, error } = await query;
+    setLoading(false);
+    if (error) { toast.error(`Data pendaftar belum dapat dimuat: ${error.message}`); return; }
+    setRows(data || []); setCount(total || 0);
   };
 
-  const handleConfirmAction = () => {
-    const { type, appId, appName } = modalState;
-    const applicant = data.find(a => a.id === appId);
-    if (!applicant) return;
+  useEffect(() => { Promise.all([db.from("units").select("id,name").order("name"), db.from("academic_years").select("id,name,is_active").order("start_date", { ascending: false })]).then(([unitResult, yearResult]) => { setUnits(unitResult.data || []); setYears(yearResult.data || []); }); }, []);
+  useEffect(() => { const timer = window.setTimeout(() => { void load(); }, 250); return () => window.clearTimeout(timer); }, [page, filters]);
 
-    if (type === 'verify') {
-      updateApplicant({
-        resource: "admissions_applicants",
-        id: applicant.dbId,
-        values: { status: 'Verifikasi Valid' },
-        successNotification: false
-      }, {
-        onSuccess: () => {
-          toast.success(`Berkas pendaftaran ${appName} berhasil diverifikasi!`);
-          
-          // Notifikasi Email Pendaftaran
-          import("../../../lib/email").then(({ sendNotificationEmail }) => {
-            sendNotificationEmail({
-              to: "info@tslabschool.sch.id",
-              subject: `[Notifikasi SPMB] Pendaftaran SMP: ${appName} Diverifikasi`,
-              html: `
-                <h3>Pendaftaran Siswa Baru (SMP) Telah Diverifikasi</h3>
-                <p>Sistem mencatat bahwa berkas pendaftaran atas nama <strong>${appName}</strong> telah diverifikasi dan dinyatakan valid oleh Admin.</p>
-                <ul>
-                  <li><strong>Nomor Registrasi:</strong> ${applicant.id}</li>
-                  <li><strong>Unit Tujuan:</strong> ${applicant.unit}</li>
-                  <li><strong>Asal Sekolah:</strong> ${applicant.school}</li>
-                </ul>
-                <p>Waktu Verifikasi: ${new Date().toLocaleString('id-ID')}</p>
-              `
-            });
-          });
-
-          setModalState({ isOpen: false, type: null, appId: '', appName: '' });
-        }
-      });
-    } else if (type === 'reject') {
-      updateApplicant({
-        resource: "admissions_applicants",
-        id: applicant.dbId,
-        values: { status: 'Ditolak' },
-        successNotification: false
-      }, {
-        onSuccess: () => {
-          toast.error(`Pendaftar ${appName} telah ditolak.`);
-          setModalState({ isOpen: false, type: null, appId: '', appName: '' });
-        }
-      });
-    } else if (type === 'remove') {
-      deleteApplicant({
-        resource: "admissions_applicants",
-        id: applicant.dbId,
-        successNotification: false
-      }, {
-        onSuccess: () => {
-          toast.success(`Data pendaftar ${appName} berhasil dihapus permanen.`);
-          setModalState({ isOpen: false, type: null, appId: '', appName: '' });
-        }
-      });
-    }
+  const setFilter = (key: keyof typeof filters, value: string) => { setPage(1); setFilters((current) => ({ ...current, [key]: value })); };
+  const archive = async (row: any) => {
+    if (!window.confirm(`Arsipkan pendaftaran ${row.name}? Data tetap tersimpan dalam audit dan laporan historis.`)) return;
+    const { error } = await db.from("admissions_applicants").update({ archived_at: new Date().toISOString() }).eq("id", row.id);
+    if (error) toast.error(error.message); else { toast.success("Pendaftaran dipindahkan ke arsip."); void load(); }
   };
+  const pages = Math.max(1, Math.ceil(count / PAGE_SIZE));
 
-  const columns = useMemo<ColumnDef<ApplicantData>[]>(() => [
-    {
-      accessorKey: "id",
-      header: "No. Registrasi",
-      cell: info => <span className="font-medium text-foreground">{info.getValue() as string}</span>
-    },
-    {
-      accessorKey: "name",
-      header: ({ column }) => (
-        <button className="flex items-center gap-1 hover:text-foreground transition-colors outline-none" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-          Nama Pendaftar
-          <ArrowUpDown className="w-3.5 h-3.5" />
-        </button>
-      ),
-    },
-    {
-      accessorKey: "unit",
-      header: "Unit",
-      cell: info => <span className="font-semibold">{info.getValue() as string}</span>
-    },
-    {
-      accessorKey: "school",
-      header: "Asal Sekolah",
-      cell: info => <span className="text-muted-foreground">{info.getValue() as string}</span>
-    },
-    {
-      accessorKey: "status",
-      header: "Status",
-      cell: ({ getValue }) => {
-        const status = getValue() as string;
-        let colorClass = "bg-amber-100 text-amber-700";
-        if (status === 'Lulus Tes') colorClass = "bg-emerald-100 text-emerald-700";
-        if (status === 'Verifikasi Valid') colorClass = "bg-blue-100 text-blue-700";
-        if (status === 'Berkas Lengkap') colorClass = "bg-purple-100 text-purple-700";
-        if (status === 'Ditolak') colorClass = "bg-rose-100 text-rose-700";
-        
-        return (
-          <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${colorClass}`}>
-            {status}
-          </span>
-        );
-      }
-    },
-    {
-      accessorKey: "score",
-      header: ({ column }) => (
-        <button className="flex items-center gap-1 hover:text-foreground transition-colors outline-none" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-          Nilai Tes
-          <ArrowUpDown className="w-3.5 h-3.5" />
-        </button>
-      ),
-      cell: info => <span className="font-bold">{info.getValue() as number}</span>
-    },
-    {
-      id: "actions",
-      header: () => <div className="text-center">Aksi</div>,
-      cell: ({ row }) => {
-        const app = row.original;
-        return (
-          <div className="flex items-center justify-center gap-1">
-            <Link to={`/admissions/applicants/${app.id}`} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md transition-colors" title="Lihat Detail">
-              <Eye className="w-4 h-4" />
-            </Link>
-            <button 
-              onClick={() => handleOpenModal('verify', app.id, app.name)}
-              disabled={app.status === 'Verifikasi Valid' || app.status === 'Lulus Tes' || app.status === 'Ditolak'}
-              className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-md transition-colors disabled:opacity-30 disabled:cursor-not-allowed" 
-              title="Verifikasi"
-            >
-              <CheckCircle className="w-4 h-4" />
-            </button>
-            <button 
-              onClick={() => handleOpenModal('reject', app.id, app.name)}
-              disabled={app.status === 'Ditolak' || app.status === 'Lulus Tes'}
-              className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-md transition-colors disabled:opacity-30 disabled:cursor-not-allowed" 
-              title="Tolak"
-            >
-              <XCircle className="w-4 h-4" />
-            </button>
-            <button 
-              onClick={() => handleOpenModal('remove', app.id, app.name)}
-              className="p-1.5 text-gray-500 hover:bg-red-50 hover:text-red-600 rounded-md transition-colors" 
-              title="Hapus"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-          </div>
-        );
-      }
-    }
-  ], []);
-
-  const table = useReactTable({
-    data: filteredData,
-    columns,
-    state: {
-      sorting,
-      globalFilter,
-    },
-    onSortingChange: setSorting,
-    onGlobalFilterChange: setGlobalFilter,
-    getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    initialState: {
-      pagination: {
-        pageSize: 10,
-      },
-    },
-  });
-
-  const allYears = Array.from(new Set([...data.map(a => a.academicYear), currentAcademicYear])).sort().reverse();
-  const allStatuses = Array.from(new Set(data.map(a => a.status))).sort();
-
-  return (
-    <div className="space-y-6 relative">
-      <PageHeader 
-        title="Daftar Pendaftar SPMB" 
-        description="Kelola dan verifikasi berkas calon siswa baru."
-      />
-
-      <div className="bg-card border rounded-2xl shadow-sm overflow-hidden flex flex-col">
-        {/* Toolbar */}
-        <div className="p-4 border-b flex flex-col sm:flex-row gap-4 justify-between items-center bg-muted/20">
-          <div className="relative w-full sm:w-80">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <input 
-              type="text" 
-              value={globalFilter ?? ''}
-              onChange={(e) => setGlobalFilter(e.target.value)}
-              placeholder="Cari nama, asal sekolah, atau registrasi..." 
-              className="w-full pl-9 pr-4 py-2 border rounded-lg text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all shadow-sm"
-            />
-          </div>
-          <div className="flex gap-2 w-full sm:w-auto">
-            <div className="relative w-full sm:w-auto shadow-sm rounded-lg">
-              <select 
-                value={selectedYear}
-                onChange={(e) => setSelectedYear(e.target.value)}
-                className="w-full sm:w-auto appearance-none bg-background border px-4 py-2 pr-10 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/20"
-              >
-                <option value="Semua">Semua Tahun</option>
-                {allYears.map(year => (
-                  <option key={year} value={year}>{year}</option>
-                ))}
-              </select>
-              <CalendarDays className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-            </div>
-            <div className="relative w-full sm:w-auto shadow-sm rounded-lg">
-              <select 
-                value={selectedStatus}
-                onChange={(e) => setSelectedStatus(e.target.value)}
-                className="w-full sm:w-auto appearance-none bg-background border px-4 py-2 pr-10 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/20"
-              >
-                <option value="Semua">Semua Status</option>
-                {allStatuses.map(status => (
-                  <option key={status} value={status}>{status}</option>
-                ))}
-                {!allStatuses.includes('Ditolak') && <option value="Ditolak">Ditolak</option>}
-              </select>
-              <Filter className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-            </div>
-          </div>
-        </div>
-
-        {/* Table */}
-        <div className="overflow-x-auto relative min-h-[400px]">
-          {isLoading && (
-            <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/50 backdrop-blur-sm">
-              <Loader2 className="w-8 h-8 text-primary animate-spin" />
-            </div>
-          )}
-          <table className="w-full text-sm text-left">
-            <thead className="bg-muted/50 text-muted-foreground uppercase text-xs font-semibold border-b">
-              {table.getHeaderGroups().map(headerGroup => (
-                <tr key={headerGroup.id}>
-                  {headerGroup.headers.map(header => (
-                    <th key={header.id} className="px-6 py-4 whitespace-nowrap">
-                      {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
-                    </th>
-                  ))}
-                </tr>
-              ))}
-            </thead>
-            <tbody className="divide-y">
-              {table.getRowModel().rows.length > 0 ? (
-                table.getRowModel().rows.map(row => (
-                  <tr key={row.id} className="hover:bg-muted/30 transition-colors">
-                    {row.getVisibleCells().map(cell => (
-                      <td key={cell.id} className="px-6 py-4">
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </td>
-                    ))}
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={columns.length} className="px-6 py-20 text-center text-muted-foreground">
-                    {!isLoading && (
-                      <div className="flex flex-col items-center justify-center">
-                        <div className="bg-muted/50 p-4 rounded-full mb-4">
-                          <Inbox className="w-8 h-8 text-muted-foreground" />
-                        </div>
-                        <p className="font-medium text-foreground">Data tidak ditemukan</p>
-                        <p className="text-xs mt-1">Belum ada data pendaftar yang cocok dengan filter atau pencarian Anda.</p>
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination */}
-        {table.getRowModel().rows.length > 0 && (
-          <div className="flex items-center justify-between px-6 py-4 border-t bg-muted/10">
-            <div className="flex items-center gap-3">
-              <span className="text-sm text-muted-foreground">
-                Halaman <span className="font-medium text-foreground">{table.getState().pagination.pageIndex + 1}</span> dari <span className="font-medium text-foreground">{table.getPageCount() || 1}</span>
-                <span className="ml-2 hidden sm:inline">(Total: {table.getFilteredRowModel().rows.length} pendaftar)</span>
-              </span>
-              <select
-                value={table.getState().pagination.pageSize}
-                onChange={e => table.setPageSize(Number(e.target.value))}
-                className="bg-background border rounded-md text-xs px-2 py-1 focus:ring-1 focus:ring-primary outline-none cursor-pointer"
-              >
-                {[10, 20, 30, 40, 50].map(pageSize => (
-                  <option key={pageSize} value={pageSize}>
-                    Tampilkan {pageSize}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => table.previousPage()}
-                disabled={!table.getCanPreviousPage()}
-                className="p-1.5 border rounded-md hover:bg-muted disabled:opacity-50 transition-colors text-foreground bg-background"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => table.nextPage()}
-                disabled={!table.getCanNextPage()}
-                className="p-1.5 border rounded-md hover:bg-muted disabled:opacity-50 transition-colors text-foreground bg-background"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Confirmation Modal */}
-      {modalState.isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-background w-full max-w-md rounded-2xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="p-6">
-              <div className="flex items-center gap-4 mb-4">
-                <div className={`p-3 rounded-full shrink-0 ${
-                  modalState.type === 'remove' ? 'bg-red-100 text-red-600' : 
-                  modalState.type === 'reject' ? 'bg-rose-100 text-rose-600' : 
-                  'bg-emerald-100 text-emerald-600'
-                }`}>
-                  {modalState.type === 'remove' && <Trash2 className="w-6 h-6" />}
-                  {modalState.type === 'reject' && <XCircle className="w-6 h-6" />}
-                  {modalState.type === 'verify' && <CheckCircle className="w-6 h-6" />}
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold">
-                    {modalState.type === 'remove' ? 'Hapus Pendaftar' : 
-                     modalState.type === 'reject' ? 'Tolak Pendaftar' : 
-                     'Verifikasi Berkas'}
-                  </h3>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {modalState.type === 'remove' ? `Anda akan menghapus data pendaftar atas nama ${modalState.appName} secara permanen. Tindakan ini tidak dapat dibatalkan.` : 
-                     modalState.type === 'reject' ? `Apakah Anda yakin ingin menolak pendaftar atas nama ${modalState.appName}?` : 
-                     `Verifikasi bahwa berkas pendaftar atas nama ${modalState.appName} sudah valid dan lengkap.`}
-                  </p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="p-4 bg-muted/30 border-t flex justify-end gap-3">
-              <button
-                onClick={() => setModalState({ isOpen: false, type: null, appId: '', appName: '' })}
-                disabled={isMutating}
-                className="px-4 py-2 rounded-lg text-sm font-medium hover:bg-muted transition-colors border shadow-sm bg-background disabled:opacity-50"
-              >
-                Batal
-              </button>
-              <button
-                onClick={handleConfirmAction}
-                disabled={isMutating}
-                className={`px-4 py-2 rounded-lg text-sm font-bold text-white shadow-sm transition-colors flex items-center gap-2 disabled:opacity-70 ${
-                  modalState.type === 'remove' ? 'bg-red-600 hover:bg-red-700' : 
-                  modalState.type === 'reject' ? 'bg-rose-600 hover:bg-rose-700' : 
-                  'bg-emerald-600 hover:bg-emerald-700'
-                }`}
-              >
-                {isMutating && <Loader2 className="w-4 h-4 animate-spin" />}
-                {modalState.type === 'remove' ? 'Ya, Hapus Data' : 
-                 modalState.type === 'reject' ? 'Ya, Tolak' : 
-                 'Ya, Verifikasi'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-    </div>
-  );
+  return <div className="space-y-6">
+    <PageHeader title="Pendaftar SPMB" description="Periksa kelengkapan, seleksi, keputusan, dan daftar ulang calon murid lintas unit." />
+    <section className="bg-white border rounded-lg p-4"><div className="grid md:grid-cols-[minmax(240px,1fr)_180px_180px_190px] gap-3"><label className="relative"><Search className="absolute w-4 h-4 left-3 top-3 text-slate-400" /><input value={filters.search} onChange={(e) => setFilter("search", e.target.value)} className="w-full h-10 pl-9 pr-3 border rounded-md" placeholder="Cari nama, nomor daftar, NIK, atau wali" /></label><select value={filters.unit} onChange={(e) => setFilter("unit", e.target.value)} className="h-10 px-3 border rounded-md"><option value="">Semua unit</option>{units.map((unit) => <option key={unit.id} value={unit.id}>{unit.name}</option>)}</select><select value={filters.year} onChange={(e) => setFilter("year", e.target.value)} className="h-10 px-3 border rounded-md"><option value="">Semua tahun ajaran</option>{years.map((year) => <option key={year.id} value={year.id}>{year.name}{year.is_active ? " · aktif" : ""}</option>)}</select><select value={filters.status} onChange={(e) => setFilter("status", e.target.value)} className="h-10 px-3 border rounded-md"><option value="">Semua status</option>{admissionStatuses.map((status) => <option key={status} value={status}>{admissionStatusMeta[status].label}</option>)}</select></div><p className="text-xs text-slate-500 mt-3 flex items-center gap-2"><Filter className="w-3.5 h-3.5" />{count} pendaftaran sesuai filter</p></section>
+    <section className="bg-white border rounded-lg overflow-hidden"><div className="overflow-x-auto"><table className="w-full text-sm"><thead className="bg-slate-50 border-b text-slate-600"><tr><th className="text-left px-5 py-3">Calon murid</th><th className="text-left px-5 py-3">Unit / tujuan</th><th className="text-left px-5 py-3">Orang tua / wali</th><th className="text-left px-5 py-3">Status</th><th className="text-left px-5 py-3">Masuk</th><th className="text-right px-5 py-3">Aksi</th></tr></thead><tbody className="divide-y">{loading ? <tr><td colSpan={6} className="py-16 text-center"><Loader2 className="w-7 h-7 animate-spin text-emerald-700 mx-auto" /></td></tr> : rows.length === 0 ? <tr><td colSpan={6} className="py-16 text-center text-slate-500"><Inbox className="w-9 h-9 mx-auto mb-3 text-slate-300" />Belum ada pendaftar sesuai filter.</td></tr> : rows.map((row) => { const status = getAdmissionStatus(row); return <tr key={row.id} className="hover:bg-slate-50"><td className="px-5 py-4"><p className="font-bold text-slate-900">{row.name}</p><p className="text-xs text-slate-500 mt-1">{row.registration_number || "Nomor dibuat otomatis"}</p></td><td className="px-5 py-4"><p className="font-medium">{row.units?.name || row.unit || "-"}</p><p className="text-xs text-slate-500 mt-1">Kelas {row.desired_grade ?? "-"} · {row.academic_years?.name || row.academic_year || "-"}</p></td><td className="px-5 py-4"><p>{row.parent_name || "-"}</p><p className="text-xs text-slate-500 mt-1">{row.parent_phone || "-"}</p></td><td className="px-5 py-4"><span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold ${admissionStatusMeta[status].tone}`}>{admissionStatusMeta[status].label}</span></td><td className="px-5 py-4 text-slate-600">{formatAdmissionDate(row.registration_date)}</td><td className="px-5 py-4"><div className="flex justify-end gap-1"><Link to={`${base}/applicants/${row.registration_number || row.id}`} title="Buka pendaftaran" className="w-9 h-9 grid place-items-center rounded-md border hover:bg-emerald-50 hover:text-emerald-700"><Eye className="w-4 h-4" /></Link><button onClick={() => archive(row)} title="Arsipkan pendaftaran" className="w-9 h-9 grid place-items-center rounded-md border hover:bg-amber-50 hover:text-amber-700"><Archive className="w-4 h-4" /></button></div></td></tr>; })}</tbody></table></div><div className="border-t px-5 py-3 flex items-center justify-between text-sm"><span className="text-slate-600">Halaman {page} dari {pages}</span><div className="flex gap-2"><button title="Halaman sebelumnya" disabled={page <= 1} onClick={() => setPage((value) => value - 1)} className="w-9 h-9 border rounded-md grid place-items-center disabled:opacity-40"><ChevronLeft className="w-4 h-4" /></button><button title="Halaman berikutnya" disabled={page >= pages} onClick={() => setPage((value) => value + 1)} className="w-9 h-9 border rounded-md grid place-items-center disabled:opacity-40"><ChevronRight className="w-4 h-4" /></button></div></div></section>
+  </div>;
 };

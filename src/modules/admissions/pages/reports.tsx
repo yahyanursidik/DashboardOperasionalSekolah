@@ -1,9 +1,11 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useMemo } from "react";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, LineChart, Line } from "recharts";
 import { Users, UserCheck, UserX, TrendingUp, Download, Loader2, Link as LinkIcon, BarChart3 } from "lucide-react";
 import { useList } from "@refinedev/core";
 import { Link } from "react-router-dom";
+import { getAdmissionStatus } from "../admissions-config";
 
 export const AdmissionsReports: React.FC = () => {
   const { data: tableData, isLoading } = useList({
@@ -25,9 +27,10 @@ export const AdmissionsReports: React.FC = () => {
       
       grouped[year].totalApplicants += 1;
       
-      if (app.status === 'Lulus Tes') {
+      const status = getAdmissionStatus(app);
+      if (status === 'accepted' || status === 'enrolled') {
         grouped[year].accepted += 1;
-      } else if (app.status === 'Ditolak') {
+      } else if (status === 'rejected') {
         grouped[year].rejected += 1;
       } else {
         grouped[year].processing += 1; // Termasuk Menunggu Verifikasi, Berkas Lengkap, dll

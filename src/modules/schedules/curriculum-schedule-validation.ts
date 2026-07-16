@@ -5,6 +5,27 @@ type TeachingScheduleValidation = {
   message?: string;
 };
 
+interface ScheduleClassRecord {
+  id: string;
+  name: string;
+  grade_level: number | null;
+  unit_id: string | null;
+  academic_year_id: string | null;
+}
+
+interface ScheduleSubjectRecord {
+  id: string;
+  name: string;
+  unit_id: string | null;
+  grade_levels: number[] | null;
+  semesters: string[] | null;
+}
+
+interface SemesterRecord {
+  id: string;
+  name: string;
+}
+
 export async function validateTeachingScheduleCurriculum({
   classId,
   subjectId,
@@ -24,7 +45,7 @@ export async function validateTeachingScheduleCurriculum({
       .maybeSingle(),
     supabaseClient
       .from("subjects")
-      .select("id, name, unit_id, semesters")
+      .select("id, name, unit_id, grade_levels, semesters")
       .eq("id", subjectId)
       .maybeSingle(),
   ]);
@@ -33,8 +54,8 @@ export async function validateTeachingScheduleCurriculum({
   if (subjectError) throw subjectError;
   if (!classRecord) return { valid: false, message: "Kelas yang dipilih tidak ditemukan." };
   if (!subjectRecord) return { valid: false, message: "Mata pelajaran yang dipilih tidak ditemukan." };
-  const selectedClass = classRecord as any;
-  const selectedSubject = subjectRecord as any;
+  const selectedClass = classRecord as unknown as ScheduleClassRecord;
+  const selectedSubject = subjectRecord as unknown as ScheduleSubjectRecord;
 
   if (selectedClass.academic_year_id && selectedClass.academic_year_id !== academicYearId) {
     return { valid: false, message: `Kelas ${selectedClass.name} bukan bagian dari tahun ajaran aktif.` };
@@ -58,7 +79,7 @@ export async function validateTeachingScheduleCurriculum({
   if (!semesterRecord) {
     return { valid: false, message: "Semester aktif tidak sesuai dengan tahun ajaran aktif." };
   }
-  const selectedSemester = semesterRecord as any;
+  const selectedSemester = semesterRecord as unknown as SemesterRecord;
 
   const enabledSemesters = Array.isArray(selectedSubject.semesters) && selectedSubject.semesters.length > 0
     ? selectedSubject.semesters
@@ -76,16 +97,22 @@ export async function validateTeachingScheduleCurriculum({
     .maybeSingle();
   if (curriculumError) throw curriculumError;
   if (!curriculumRecord) {
+    const configuredGrades = Array.isArray(selectedSubject.grade_levels)
+      ? selectedSubject.grade_levels.map(Number)
+      : [];
+    if (configuredGrades.includes(gradeLevel)) {
+      return { valid: true };
+    }
     return {
       valid: false,
-      message: `Kurikulum ${selectedSubject.name} untuk kelas ${gradeLevel} belum dibuat pada tahun ajaran aktif.`,
+      message: `${selectedSubject.name} belum dikaitkan dengan kelas ${gradeLevel} pada konfigurasi mata pelajaran.`,
     };
   }
 
   const { data: semesterPlan, error: semesterPlanError } = await supabaseClient
     .from("subject_curriculum_semesters")
     .select("id")
-    .eq("subject_curriculum_id", (curriculumRecord as any).id)
+    .eq("subject_curriculum_id", (curriculumRecord as unknown as { id: string }).id)
     .eq("semester_id", semesterId)
     .maybeSingle();
   if (semesterPlanError) throw semesterPlanError;

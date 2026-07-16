@@ -1,164 +1,112 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabaseClient } from "../../lib/supabase/client";
-import { ArrowRight, Mail, Building, Lock } from "lucide-react";
+import { ArrowRight, BriefcaseBusiness, Eye, EyeOff, LockKeyhole, Mail, User } from "lucide-react";
 import { toast } from "sonner";
 import { useSystemSettings } from "../../app/providers/SettingsProvider";
+import { supabaseClient } from "../../lib/supabase/client";
+
+function roleName(value: any) {
+  const role = Array.isArray(value?.roles) ? value.roles[0] : value?.roles;
+  return role?.name;
+}
 
 export const HrdPortalLogin: React.FC = () => {
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { appName, logoUrl, loginCoverUrl } = useSystemSettings();
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!navigator.onLine) {
-      toast.error("Tidak ada koneksi internet. Periksa jaringan Anda.");
-      return;
-    }
+  const handleLogin = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!navigator.onLine) return toast.error("Tidak ada koneksi internet. Periksa jaringan Anda.");
 
     setIsLoading(true);
-
     try {
-      // 1. Standar Login Auth Supabase dengan Email dan Password
-      const { data: authData, error: authError } = await supabaseClient.auth.signInWithPassword({
-        email,
-        password,
-      });
+      const normalizedIdentifier = identifier.trim();
+      let email = normalizedIdentifier.includes("@") ? normalizedIdentifier : null;
+      if (!email) {
+        const lookup = await supabaseClient.rpc("get_login_email_by_identifier", { p_identifier: normalizedIdentifier });
+        if (lookup.error || !lookup.data) {
+          toast.error("Akun HRD tidak ditemukan atau belum diaktifkan.");
+          return;
+        }
+        email = String(lookup.data);
+      }
 
-      if (authError || !authData.user) {
-        toast.error("Gagal masuk. Pastikan email dan kata sandi benar.");
-        setIsLoading(false);
+      const { data: authData, error: authError } = await supabaseClient.auth.signInWithPassword({ email, password });
+      if (authError || !authData.session) {
+        toast.error("NIK/email atau kata sandi tidak sesuai.");
         return;
       }
 
-      // 2. Verifikasi Hak Akses (Role)
-      const { data: userRoles } = await supabaseClient
-        .from("user_roles")
-        .select("roles(name)")
-        .eq("user_id", authData.user.id);
-
-      const rolesArray = userRoles as any[] | null;
-
-      const hasHrdAccess = rolesArray?.some(ur => 
-        ['hrd', 'super_admin', 'ketua_yayasan'].includes(ur.roles?.name)
-      );
-
-      if (!hasHrdAccess) {
+      const [{ data: userRoles }, { data: employee }] = await Promise.all([
+        supabaseClient.from("user_roles").select("roles(name)").eq("user_id", authData.session.user.id),
+        supabaseClient.from("employees").select("id,status").eq("user_id", authData.session.user.id).eq("status", "active").maybeSingle(),
+      ]);
+      const hasAccess = Boolean(employee) && (userRoles || []).some((value: any) => ["hrd", "super_admin", "ketua_yayasan"].includes(roleName(value)));
+      if (!hasAccess) {
         await supabaseClient.auth.signOut();
-        toast.error("Akses Ditolak. Anda tidak memiliki role HRD.");
-        setIsLoading(false);
+        toast.error("Akun aktif, tetapi belum memiliki kewenangan HRD.");
         return;
       }
 
-      toast.success(`Selamat datang di Portal HRD!`);
-      navigate("/hrd");
-    } catch (err: any) {
-      console.error("Login Error Catch:", err);
-      toast.error(err.message || "Terjadi kesalahan sistem saat login.");
+      toast.success("Berhasil masuk ke Portal HRD.");
+      navigate("/hrd", { replace: true });
+    } catch (error: any) {
+      console.error("HRD login error:", error);
+      toast.error(error?.message || "Login belum dapat diproses.");
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div 
-      className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-100 via-gray-200 to-slate-300 relative overflow-hidden font-sans"
-      style={loginCoverUrl ? {
-        backgroundImage: `url(${loginCoverUrl})`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat'
-      } : {}}
-    >
-      {loginCoverUrl && <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] z-0"></div>}
-
-      {!loginCoverUrl && (
-        <>
-          <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-primary/20 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob"></div>
-          <div className="absolute top-[20%] right-[-10%] w-72 h-72 bg-slate-400 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000"></div>
-          <div className="absolute bottom-[-20%] left-[20%] w-80 h-80 bg-gray-400 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-4000"></div>
-        </>
-      )}
-      
-      <div className="relative z-10 w-full max-w-md bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl overflow-hidden border border-white/50">
-        
-        <div className="bg-primary p-8 text-center relative overflow-hidden border-b border-primary/20">
-          <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 rounded-full bg-white/10 blur-2xl"></div>
-          <div className="absolute bottom-0 left-0 -ml-8 -mb-8 w-24 h-24 rounded-full bg-black/10 blur-xl"></div>
-          
-          <div className="relative z-10 flex flex-col items-center">
-            {logoUrl ? (
-              <img src={logoUrl} alt="Logo" className="w-20 h-20 object-contain bg-white rounded-2xl p-2 mb-4 shadow-lg" />
-            ) : (
-              <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mb-4 shadow-lg">
-                <Building className="w-8 h-8 text-primary" />
-              </div>
-            )}
-            <h1 className="text-2xl font-bold text-primary-foreground mb-1">Portal HRD Yayasan</h1>
-            <p className="text-primary-foreground/80 text-sm font-medium">{appName || "Sistem Informasi Yayasan"}</p>
+    <div className="min-h-screen bg-muted/40 px-4 py-8 sm:flex sm:items-center sm:justify-center" style={loginCoverUrl ? { backgroundImage: `linear-gradient(rgba(15, 23, 42, .72), rgba(15, 23, 42, .82)), url(${loginCoverUrl})`, backgroundPosition: "center", backgroundSize: "cover" } : undefined}>
+      <div className="mx-auto grid w-full max-w-4xl overflow-hidden rounded-lg border bg-card shadow-2xl md:grid-cols-[.85fr_1.15fr]">
+        <section className="hidden bg-primary p-10 text-primary-foreground md:flex md:flex-col md:justify-between">
+          <div>
+            {logoUrl ? <img src={logoUrl} alt={appName || "Logo sekolah"} className="h-16 max-w-40 rounded-md bg-white p-2 object-contain" /> : <div className="flex h-14 w-14 items-center justify-center rounded-md bg-white text-primary"><BriefcaseBusiness className="h-7 w-7" /></div>}
+            <h1 className="mt-8 text-3xl font-bold">Portal HRD</h1>
+            <p className="mt-3 max-w-xs text-sm leading-6 text-primary-foreground/80">Kelola siklus SDM, kehadiran, hak pegawai, kinerja, dan rekrutmen dalam satu pusat kerja.</p>
           </div>
-        </div>
+          <p className="text-xs text-primary-foreground/70">{appName || "Sistem Informasi Sekolah"}</p>
+        </section>
 
-        <div className="p-8">
-          <div className="text-center mb-8">
-            <h2 className="text-xl font-bold text-gray-900">Masuk ke Sistem</h2>
-            <p className="text-gray-500 text-sm mt-1">Gunakan Email dan Kata Sandi Anda</p>
+        <section className="min-w-0 p-6 sm:p-10">
+          <div className="mb-8 flex items-center gap-3 md:hidden">
+            {logoUrl ? <img src={logoUrl} alt="Logo sekolah" className="h-11 w-11 rounded-md border object-contain p-1" /> : <BriefcaseBusiness className="h-8 w-8 text-primary" />}
+            <div><p className="font-bold">Portal HRD</p><p className="text-xs text-muted-foreground">{appName || "Sistem Informasi Sekolah"}</p></div>
           </div>
 
-          <form onSubmit={handleLogin} className="space-y-5">
+          <h2 className="text-2xl font-bold">Masuk ke akun Anda</h2>
+          <p className="mt-2 text-sm text-muted-foreground">Gunakan NIK atau email resmi dan kata sandi pribadi.</p>
+
+          <form onSubmit={handleLogin} className="mt-8 min-w-0 space-y-5">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email Karyawan</label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
-                  <Mail className="w-5 h-5" />
-                </div>
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="hrd@yayasan.com"
-                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all text-sm"
-                />
+              <label htmlFor="hrd-identifier" className="mb-1.5 block text-sm font-semibold">NIK / Email</label>
+              <div className="relative min-w-0">
+                {identifier.includes("@") ? <Mail className="absolute left-3 top-3.5 h-5 w-5 text-muted-foreground" /> : <User className="absolute left-3 top-3.5 h-5 w-5 text-muted-foreground" />}
+                <input id="hrd-identifier" autoComplete="username" required value={identifier} onChange={(event) => setIdentifier(event.target.value)} placeholder="NIK atau email resmi" className="h-12 w-full rounded-md border bg-background pl-10 pr-3 text-sm outline-none focus:border-primary/60 focus:ring-2 focus:ring-primary/15" />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Kata Sandi</label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
-                  <Lock className="w-5 h-5" />
-                </div>
-                <input
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all text-sm"
-                />
+              <label htmlFor="hrd-password" className="mb-1.5 block text-sm font-semibold">Kata Sandi</label>
+              <div className="relative min-w-0">
+                <LockKeyhole className="absolute left-3 top-3.5 h-5 w-5 text-muted-foreground" />
+                <input id="hrd-password" type={showPassword ? "text" : "password"} autoComplete="current-password" required value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Masukkan kata sandi" className="h-12 w-full rounded-md border bg-background pl-10 pr-11 text-sm outline-none focus:border-primary/60 focus:ring-2 focus:ring-primary/15" />
+                <button type="button" onClick={() => setShowPassword((value) => !value)} title={showPassword ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"} className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted">{showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button>
               </div>
             </div>
 
-            <button
-              type="submit"
-              disabled={isLoading || !email || !password}
-              className="w-full py-3.5 bg-primary text-primary-foreground font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-primary/90 transition-all disabled:opacity-70 shadow-md shadow-primary/20 mt-2"
-            >
-              {isLoading ? "Memeriksa..." : "Masuk"}
-              {!isLoading && <ArrowRight className="w-5 h-5" />}
-            </button>
+            <button type="submit" disabled={isLoading || !identifier.trim() || !password} className="flex h-12 w-full items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-bold text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60">{isLoading ? "Memeriksa akun..." : "Masuk ke Portal"}{!isLoading ? <ArrowRight className="h-4 w-4" /> : null}</button>
           </form>
-          
-          <div className="mt-8 text-center">
-            <p className="text-xs text-gray-400">
-              Butuh bantuan? Hubungi Administrator.
-            </p>
-          </div>
-        </div>
+
+          <p className="mt-6 break-words border-t pt-5 text-center text-xs leading-5 text-muted-foreground">Belum memiliki kata sandi atau kewenangan HRD? Hubungi administrator untuk aktivasi akun dan penetapan peran.</p>
+        </section>
       </div>
     </div>
   );

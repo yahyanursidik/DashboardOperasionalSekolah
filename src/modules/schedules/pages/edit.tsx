@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import React, { useState } from "react";
-import { useUpdate, useSelect, useOne } from "@refinedev/core";
+import { useSelect, useOne } from "@refinedev/core";
 import { useNavigate, useParams } from "react-router-dom";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { ArrowLeft, Save, Calendar, Clock, MapPin, AlertTriangle, CheckCircle2 } from "lucide-react";
@@ -8,9 +8,11 @@ import { useAcademicYear } from "../../../app/providers/AcademicYearProvider";
 import { useCurrentUnit } from "../../../app/providers/UnitProvider";
 import { toast } from "sonner";
 import { supabaseClient } from "../../../lib/supabase/client";
+import { isMissingSupabaseColumn } from "../../../lib/supabase/schema-errors";
 import { daysOfWeek, formatTime, hasTimeOverlap, isValidTimeRange, scheduleTypes } from "../schedule-utils";
 import { validateTeachingScheduleCurriculum } from "../curriculum-schedule-validation";
 import { canReceiveAcademicAssignment, getEmployeePosition } from "../../employees/employee-role-config";
+import { useClassSubjectOptions } from "../use-class-subject-options";
 
 const CROSS_UNIT_VALUE = "__cross_unit__";
 
@@ -29,7 +31,7 @@ export const ScheduleEdit: React.FC = () => {
   const { activeYearId, activeSemesterId } = useAcademicYear();
   const { activeUnitId } = useCurrentUnit();
   
-  const { mutate: updateSchedule, isLoading: isSaving } = useUpdate();
+  const [isSaving, setIsSaving] = useState(false);
   const { data: scheduleData, isLoading } = useOne({
     resource: "employee_schedules",
     id: id as string
@@ -96,15 +98,18 @@ export const ScheduleEdit: React.FC = () => {
     ]
   });
 
-  const { options: subjectOptions } = useSelect({
-    resource: "subjects",
-    optionLabel: "name",
-    optionValue: "id",
-    filters: [
-      { field: "is_active", operator: "eq", value: true },
-      ...(selectedUnitId && !isCrossUnit ? [{ field: "unit_id", operator: "eq" as const, value: selectedUnitId }] : [])
-    ]
+  const { options: subjectOptions, isLoading: subjectsLoading, message: subjectsMessage, error: subjectsError, assignmentSupported } = useClassSubjectOptions({
+    classId,
+    employeeId,
+    academicYearId: activeYearId,
+    semesterId: activeSemesterId,
   });
+
+  React.useEffect(() => {
+    if (isInit && !subjectsLoading && subjectId && !subjectOptions.some((option) => option.value === subjectId && option.assigned)) {
+      setSubjectId("");
+    }
+  }, [isInit, subjectId, subjectOptions, subjectsLoading]);
 
   const selectedSubjectName = subjectOptions?.find((option) => option.value === subjectId)?.label as string | undefined;
   const formChecklist = [
@@ -181,24 +186,26 @@ export const ScheduleEdit: React.FC = () => {
           toast.error("Jadwal belum dapat disimpan", { description: curriculumValidation.message });
           return;
         }
-        const { data: assignment, error: assignmentError } = await supabaseClient
-          .from("teacher_assignments")
-          .select("id")
-          .eq("employee_id", employeeId)
-          .eq("unit_id", selectedUnitId)
-          .eq("class_id", classId)
-          .eq("subject_id", subjectId)
-          .eq("academic_year_id", activeYearId)
-          .eq("semester_id", activeSemesterId)
-          .eq("is_active", true)
-          .limit(1)
-          .maybeSingle();
-        if (assignmentError) throw assignmentError;
-        if (!assignment) {
-          toast.error("Penugasan akademik belum tersedia", { description: "Tambahkan penugasan kelas dan mata pelajaran pada profil pegawai sebelum memperbarui jadwal mengajar." });
-          return;
+        if (assignmentSupported) {
+          const { data: assignment, error: assignmentError } = await supabaseClient
+            .from("teacher_assignments")
+            .select("id")
+            .eq("employee_id", employeeId)
+            .eq("unit_id", selectedUnitId)
+            .eq("class_id", classId)
+            .eq("subject_id", subjectId)
+            .eq("academic_year_id", activeYearId)
+            .eq("semester_id", activeSemesterId)
+            .eq("is_active", true)
+            .limit(1)
+            .maybeSingle();
+          if (assignmentError) throw assignmentError;
+          if (!assignment) {
+            toast.error("Penugasan akademik belum tersedia", { description: "Tambahkan penugasan kelas dan mata pelajaran pada profil pegawai sebelum memperbarui jadwal mengajar." });
+            return;
+          }
+          assignmentId = (assignment as unknown as { id: string }).id;
         }
-        assignmentId = (assignment as unknown as { id: string }).id;
       }
       const conflictMessage = await findBlockingConflict();
       if (conflictMessage) {
@@ -210,10 +217,8 @@ export const ScheduleEdit: React.FC = () => {
       return;
     }
 
-    updateSchedule({
-      resource: "employee_schedules",
-      id: id as string,
-      values: {
+    setIsSaving(true);
+    const scheduleValues = {
         employee_id: employeeId,
         day_of_week: dayOfWeek,
         start_time: startTime,
@@ -224,13 +229,22 @@ export const ScheduleEdit: React.FC = () => {
         subject: scheduleType === 'mengajar' ? (selectedSubjectName || null) : null,
         academic_year_id: activeYearId,
         semester_id: activeSemesterId,
-        assignment_id: assignmentId,
-        unit_id: isCrossUnit ? null : (selectedUnitId || activeUnitId || null)
-      },
-      successNotification: () => ({ message: "Jadwal berhasil diperbarui", type: "success" })
-    }, {
-      onSuccess: () => navigate("/schedules")
-    });
+        ...(assignmentSupported ? { assignment_id: assignmentId } : {}),
+        unit_id: isCrossUnit ? null : (selectedUnitId || activeUnitId || null),
+      };
+    let { error } = await supabaseClient.from("employee_schedules").update(scheduleValues).eq("id", id as string);
+    if (error && isMissingSupabaseColumn(error, "assignment_id", "employee_schedules")) {
+      const compatibleValues = { ...scheduleValues } as Record<string, unknown>;
+      delete compatibleValues.assignment_id;
+      ({ error } = await supabaseClient.from("employee_schedules").update(compatibleValues).eq("id", id as string));
+    }
+    setIsSaving(false);
+    if (error) {
+      toast.error("Jadwal belum dapat diperbarui", { description: error.message });
+      return;
+    }
+    toast.success("Jadwal berhasil diperbarui.");
+    navigate("/schedules");
   };
 
   if (isLoading) return <div className="p-8 text-center animate-pulse">Memuat...</div>;
@@ -251,7 +265,7 @@ export const ScheduleEdit: React.FC = () => {
             <select
               required
               value={employeeId}
-              onChange={(e) => setEmployeeId(e.target.value)}
+              onChange={(e) => { setEmployeeId(e.target.value); setSubjectId(""); }}
               className="w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-primary/50 outline-none bg-background"
             >
               <option value="">-- Pilih Pegawai --</option>
@@ -344,7 +358,7 @@ export const ScheduleEdit: React.FC = () => {
                   <select
                     required
                     value={classId}
-                    onChange={(e) => setClassId(e.target.value)}
+                    onChange={(e) => { setClassId(e.target.value); setSubjectId(""); }}
                     className="w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-primary/50 outline-none bg-background"
                   >
                     <option value="">-- Pilih Kelas --</option>
@@ -354,14 +368,18 @@ export const ScheduleEdit: React.FC = () => {
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Mata Pelajaran <span className="text-destructive">*</span></label>
                   <select
+                    key={`${classId}:${activeYearId || ""}:${activeSemesterId || ""}`}
                     required={scheduleType === 'mengajar'}
                     value={subjectId}
                     onChange={(e) => setSubjectId(e.target.value)}
+                    disabled={!classId || subjectsLoading || subjectOptions.length === 0}
                     className="w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-primary/50 outline-none bg-background"
                   >
-                    <option value="">-- Pilih Mata Pelajaran --</option>
-                    {subjectOptions?.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    {subjectId && !subjectOptions.some((option) => option.value === subjectId) ? <option value={subjectId}>Mata pelajaran jadwal lama - pilih ulang</option> : null}
+                    <option value="">{!classId ? "-- Pilih kelas dahulu --" : subjectsLoading ? "Memuat mata pelajaran..." : "-- Pilih Mata Pelajaran --"}</option>
+                    {subjectOptions.map((option) => <option key={option.value} value={option.value} disabled={!option.assigned}>{option.label}{option.assigned ? "" : " - belum ditugaskan"}</option>)}
                   </select>
+                  <p className={`text-xs leading-5 ${subjectsError ? "text-destructive" : "text-muted-foreground"}`}>{subjectsError || subjectsMessage}</p>
                 </div>
               </>
             )}

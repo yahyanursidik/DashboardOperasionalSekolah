@@ -1,281 +1,40 @@
-import React, { useState } from "react";
-import { useTable } from "@refinedev/react-table";
-import { flexRender } from "@tanstack/react-table";
-import type { ColumnDef } from "@tanstack/react-table";
-import { useNavigate } from "react-router-dom";
-import { Plus, Search, Edit, Trash2, AlertTriangle, Loader2, ChevronLeft, ChevronRight, BookOpen } from "lucide-react";
-import { PageHeader } from "../../components/layout/PageHeader";
-import { Link } from "react-router-dom";
-import { useDelete } from "@refinedev/core";
+/* eslint-disable react-hooks/set-state-in-effect */
+import React, { useEffect, useMemo, useState } from "react";
+import { ArrowLeft, Edit, FolderTree, Loader2, Plus, Search, Trash2 } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { PageHeader } from "../../components/layout/PageHeader";
+import { supabaseClient } from "../../lib/supabase/client";
 
-// --- DELETE CONFIRM MODAL ---
-const DeleteConfirmModal: React.FC<{
-  isOpen: boolean;
-  name: string;
-  isDeleting: boolean;
-  onConfirm: () => void;
-  onCancel: () => void;
-}> = ({ isOpen, name, isDeleting, onConfirm, onCancel }) => {
-  if (!isOpen) return null;
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="bg-card rounded-xl shadow-2xl w-full max-w-md border overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-        <div className="p-6 text-center space-y-4">
-          <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-2">
-            <AlertTriangle className="w-8 h-8" />
-          </div>
-          <h3 className="text-xl font-bold text-foreground">Hapus Kategori?</h3>
-          <p className="text-sm text-muted-foreground">
-            Anda akan menghapus kategori <span className="font-bold text-foreground">"{name}"</span> secara permanen.
-          </p>
-        </div>
-        <div className="flex bg-muted/30 p-4 gap-3 justify-end border-t">
-          <button onClick={onCancel} disabled={isDeleting} className="px-4 py-2 border rounded-md text-sm font-medium hover:bg-muted transition-colors">Batal</button>
-          <button onClick={onConfirm} disabled={isDeleting} className="px-4 py-2 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700 transition-colors flex items-center gap-2">
-            {isDeleting && <Loader2 className="w-4 h-4 animate-spin" />}
-            Hapus Permanen
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// --- TABLE PAGINATION ---
-const TablePagination: React.FC<{
-  currentPage: number;
-  totalPages: number;
-  totalItems: number;
-  itemsPerPage: number;
-  onPageChange: (page: number) => void;
-}> = ({ currentPage, totalPages, totalItems, itemsPerPage, onPageChange }) => {
-  const actualTotalPages = Math.max(1, totalPages);
-  const start = totalItems === 0 ? 0 : ((currentPage - 1) * itemsPerPage) + 1;
-  const end = Math.min(currentPage * itemsPerPage, totalItems);
-  return (
-    <div className="flex items-center justify-between px-6 py-3 border-t bg-muted/20">
-      <p className="text-sm text-muted-foreground">
-        Menampilkan <span className="font-medium text-foreground">{start}-{end}</span> dari <span className="font-medium text-foreground">{totalItems}</span> data
-      </p>
-      <div className="flex items-center gap-1">
-        <button
-          onClick={() => onPageChange(currentPage - 1)}
-          disabled={currentPage === 1}
-          className="p-1.5 rounded-md hover:bg-muted text-muted-foreground disabled:opacity-30 transition-colors"
-        >
-          <ChevronLeft className="w-5 h-5" />
-        </button>
-        <span className="text-sm font-medium px-2">{currentPage} / {actualTotalPages}</span>
-        <button
-          onClick={() => onPageChange(currentPage + 1)}
-          disabled={currentPage >= actualTotalPages}
-          className="p-1.5 rounded-md hover:bg-muted text-muted-foreground disabled:opacity-30 transition-colors"
-        >
-          <ChevronRight className="w-5 h-5" />
-        </button>
-      </div>
-    </div>
-  );
-};
+type Category = { id: string; name: string; code?: string | null; description?: string | null; unit_id?: string | null; sort_order?: number; is_active?: boolean; units?: { name?: string } | null; digital_library_books?: Array<{ count: number }> };
 
 export const DigitalLibraryCategoriesList: React.FC = () => {
   const navigate = useNavigate();
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [query, setQuery] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState<Category | null>(null);
 
-  const [q, setQ] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
+  const load = async () => {
+    setLoading(true);
+    const result = await supabaseClient.from("digital_library_categories").select("*,units(name),digital_library_books(count)").order("sort_order").order("name");
+    if (result.error) {
+      const fallback = await supabaseClient.from("digital_library_categories").select("*").order("name");
+      if (fallback.error) toast.error("Kategori belum dapat dimuat.");
+      setCategories((fallback.data || []) as unknown as Category[]);
+    } else setCategories((result.data || []) as unknown as Category[]);
+    setLoading(false);
+  };
+  useEffect(() => { void load(); }, []);
+  const filtered = useMemo(() => categories.filter((item) => [item.name, item.code, item.description, item.units?.name].filter(Boolean).join(" ").toLowerCase().includes(query.toLowerCase())), [categories, query]);
 
-  const { mutate: deleteMutate, isLoading: isDeleting } = useDelete();
-  const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; id: string; name: string }>({ isOpen: false, id: "", name: "" });
-
-  const handleDelete = (id: string, name: string) => {
-    setDeleteModal({ isOpen: true, id, name });
+  const remove = async () => {
+    if (!deleting) return;
+    const { error } = await supabaseClient.from("digital_library_categories").delete().eq("id", deleting.id);
+    if (error) return toast.error(error.message || "Kategori belum dapat dihapus.");
+    toast.success("Kategori berhasil dihapus. Koleksi di dalamnya tetap tersimpan tanpa kategori.");
+    setDeleting(null); await load();
   };
 
-  const confirmDelete = () => {
-    deleteMutate(
-      { resource: "digital_library_categories", id: deleteModal.id },
-      {
-        onSuccess: () => {
-          toast.success(`Kategori ${deleteModal.name} berhasil dihapus!`);
-          setDeleteModal({ isOpen: false, id: "", name: "" });
-        },
-        onError: (error) => {
-          console.error(error);
-          toast.error(`Gagal menghapus Kategori ${deleteModal.name}.`);
-          setDeleteModal({ isOpen: false, id: "", name: "" });
-        }
-      }
-    );
-  };
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    setSearchQuery(q);
-  };
-
-  const columns = React.useMemo<ColumnDef<any>[]>(
-    () => [
-      {
-        id: "name",
-        accessorKey: "name",
-        header: "Nama Kategori",
-        cell: function render({ getValue }) {
-          return <span className="font-medium">{getValue<string>()}</span>;
-        },
-      },
-      {
-        id: "description",
-        accessorKey: "description",
-        header: "Deskripsi",
-        cell: function render({ getValue }) {
-          const val = getValue<string>();
-          return val ? <span className="text-muted-foreground">{val}</span> : "-";
-        },
-      },
-      {
-        id: "actions",
-        accessorKey: "id",
-        header: "Aksi",
-        cell: function render({ row }) {
-          return (
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => navigate(`/digital-library/categories/edit/${row.original.id}`)}
-                className="p-2 text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
-                title="Edit Kategori"
-              >
-                <Edit className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => handleDelete(row.original.id, row.original.name)}
-                className="p-2 text-red-600 hover:bg-red-50 rounded-md transition-colors"
-                title="Hapus Kategori"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </div>
-          );
-        },
-      },
-    ],
-    []
-  );
-
-  const filters = [];
-  if (searchQuery) {
-    filters.push({ field: "name", operator: "contains", value: searchQuery });
-  }
-
-  const {
-    getHeaderGroups,
-    getRowModel,
-    getState,
-    setPageIndex,
-    getCanPreviousPage,
-    getPageCount,
-    getCanNextPage,
-    nextPage,
-    previousPage,
-    refineCore: { setCurrent, pageCount, current },
-  } = useTable({
-    columns,
-    refineCoreProps: {
-      resource: "digital_library_categories",
-      filters: {
-        initial: filters as any,
-        permanent: [],
-      },
-      pagination: { pageSize: 10 },
-    }
-  });
-
-  return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
-      <DeleteConfirmModal
-        isOpen={deleteModal.isOpen}
-        name={deleteModal.name}
-        isDeleting={isDeleting}
-        onConfirm={confirmDelete}
-        onCancel={() => setDeleteModal({ isOpen: false, id: "", name: "" })}
-      />
-
-      <PageHeader
-        title="Kategori Perpustakaan"
-        description="Kelola kategori perpustakaan digital."
-      />
-
-      <div className="bg-card border rounded-xl shadow-sm overflow-hidden flex flex-col h-[calc(100vh-200px)]">
-        {/* Toolbar */}
-        <div className="p-4 border-b flex flex-col sm:flex-row gap-4 justify-between bg-muted/10 shrink-0">
-          <form onSubmit={handleSearch} className="relative w-full sm:w-96">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <input
-              type="text"
-              placeholder="Cari kategori..."
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 bg-white border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
-            />
-          </form>
-
-          <Link
-            to="/digital-library/categories/create"
-            className="flex items-center justify-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium whitespace-nowrap shadow-sm"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Kategori Baru</span>
-          </Link>
-        </div>
-
-        {/* Table Area */}
-        <div className="flex-1 overflow-auto">
-          <table className="w-full text-sm text-left">
-            <thead className="text-xs text-muted-foreground uppercase bg-muted/50 sticky top-0 z-10">
-              {getHeaderGroups().map((headerGroup) => (
-                <tr key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => (
-                    <th key={header.id} className="px-6 py-4 font-semibold whitespace-nowrap">
-                      {flexRender(
-                        header.column.columnDef.header,
-                        header.getContext()
-                      )}
-                    </th>
-                  ))}
-                </tr>
-              ))}
-            </thead>
-            <tbody className="divide-y">
-              {getRowModel().rows.length > 0 ? (
-                getRowModel().rows.map((row) => (
-                  <tr key={row.id} className="hover:bg-muted/30 transition-colors">
-                    {row.getVisibleCells().map((cell) => (
-                      <td key={cell.id} className="px-6 py-4">
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </td>
-                    ))}
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={columns.length} className="px-6 py-12 text-center text-muted-foreground">
-                    Belum ada kategori yang ditambahkan.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination */}
-        <TablePagination
-          currentPage={current}
-          totalPages={pageCount}
-          totalItems={pageCount * 10} // Approximation since refine doesn't give total count directly in useTable easily
-          itemsPerPage={10}
-          onPageChange={setCurrent}
-        />
-      </div>
-    </div>
-  );
+  return <div className="mx-auto max-w-6xl space-y-6 p-4 md:p-6"><div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start"><div className="flex items-start gap-3"><button onClick={() => navigate("/digital-library")} title="Kembali ke katalog" className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-md border hover:bg-muted"><ArrowLeft className="h-5 w-5" /></button><PageHeader title="Kategori Perpustakaan" description="Atur kelompok koleksi, cakupan unit, dan urutan yang tampil di portal." /></div><Link to="/digital-library/categories/create" className="flex h-10 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-bold text-primary-foreground"><Plus className="h-4 w-4" />Tambah Kategori</Link></div><section className="overflow-hidden rounded-lg border bg-card"><div className="border-b p-4"><label className="relative block max-w-md"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Cari kategori, kode, atau unit" className="h-10 w-full rounded-md border bg-background pl-9 pr-3 text-sm" /></label></div>{loading ? <div className="flex min-h-64 items-center justify-center text-sm text-muted-foreground"><Loader2 className="mr-2 h-5 w-5 animate-spin" />Memuat kategori...</div> : filtered.length === 0 ? <div className="flex min-h-64 flex-col items-center justify-center text-center"><FolderTree className="h-10 w-10 text-muted-foreground/40" /><h2 className="mt-3 font-bold">Belum ada kategori</h2><p className="mt-1 text-sm text-muted-foreground">Tambahkan kategori agar koleksi lebih mudah ditemukan.</p></div> : <div className="divide-y">{filtered.map((item) => <article key={item.id} className="flex flex-col gap-4 p-4 hover:bg-muted/20 sm:flex-row sm:items-center"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary"><FolderTree className="h-5 w-5" /></div><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h2 className="font-bold">{item.name}</h2>{item.code && <span className="rounded bg-muted px-2 py-0.5 text-[10px] font-bold">{item.code}</span>}<span className={`rounded px-2 py-0.5 text-[10px] font-bold ${item.is_active === false ? "bg-gray-100 text-gray-600" : "bg-emerald-50 text-emerald-700"}`}>{item.is_active === false ? "Nonaktif" : "Aktif"}</span></div><p className="mt-1 text-xs text-muted-foreground">{item.units?.name || "Lintas unit"} · {item.digital_library_books?.[0]?.count || 0} koleksi · Urutan {item.sort_order ?? 0}</p>{item.description && <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{item.description}</p>}</div><div className="flex justify-end gap-1"><Link to={`/digital-library/categories/edit/${item.id}`} title="Ubah kategori" className="flex h-9 w-9 items-center justify-center rounded-md text-blue-600 hover:bg-blue-50"><Edit className="h-4 w-4" /></Link><button onClick={() => setDeleting(item)} title="Hapus kategori" className="flex h-9 w-9 items-center justify-center rounded-md text-red-600 hover:bg-red-50"><Trash2 className="h-4 w-4" /></button></div></article>)}</div>}</section>{deleting && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"><section className="w-full max-w-md rounded-lg bg-card p-6 shadow-xl"><h2 className="text-lg font-bold">Hapus kategori?</h2><p className="mt-2 text-sm text-muted-foreground">Koleksi dalam “{deleting.name}” tidak ikut terhapus dan akan menjadi tanpa kategori.</p><div className="mt-6 flex justify-end gap-2"><button onClick={() => setDeleting(null)} className="h-10 rounded-md border px-4 text-sm font-semibold">Batal</button><button onClick={() => void remove()} className="h-10 rounded-md bg-red-600 px-4 text-sm font-bold text-white">Hapus</button></div></section></div>}</div>;
 };

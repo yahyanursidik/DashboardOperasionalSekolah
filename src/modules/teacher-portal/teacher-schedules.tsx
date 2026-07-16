@@ -1,17 +1,21 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useState } from "react";
-import { useOutletContext, Link } from "react-router-dom";
+import { useOutletContext } from "react-router-dom";
 import { supabaseClient } from "../../lib/supabase/client";
-import { AlertTriangle, ArrowLeft, Clock3 } from "lucide-react";
+import { AlertTriangle, Clock3 } from "lucide-react";
 import { useAcademicYear } from "../../app/providers/AcademicYearProvider";
 import { LessonSchedulePanel } from "../schedules/components/LessonSchedulePanel";
+import { canUseTeachingScheduleAttendance } from "../employees/employee-role-config";
+import { getEmployeePosition } from "../employees/employee-role-config";
+import { PageHeader } from "../../components/layout/PageHeader";
 
 export const TeacherSchedules: React.FC = () => {
   const { employee } = useOutletContext<any>();
   const { activeYearId, activeSemesterId } = useAcademicYear();
   const [schedules, setSchedules] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const followsTeachingSchedule = employee.attendance_mode === "teaching_schedule";
+  const followsTeachingSchedule = employee.attendance_mode === "teaching_schedule" && canUseTeachingScheduleAttendance(employee.position);
+  const isLeadership = getEmployeePosition(employee.position).category === "leadership";
   const activeTeachingSchedules = schedules.filter((schedule) => schedule.schedule_type === "mengajar");
 
   useEffect(() => {
@@ -39,16 +43,8 @@ export const TeacherSchedules: React.FC = () => {
   }, [employee.id, activeSemesterId, activeYearId]);
 
   return (
-    <div className="p-4 space-y-6">
-      <div className="flex items-center gap-3 mb-2">
-        <Link to="/teacher" className="p-2 bg-white rounded-full shadow-sm border text-gray-600 hover:text-primary transition">
-          <ArrowLeft className="w-5 h-5" />
-        </Link>
-        <div>
-          <h2 className="font-bold text-lg text-gray-900">Jadwal Pelajaran</h2>
-          <p className="text-xs text-gray-500">Lintas unit, kelas, mata pelajaran, dan tugas pendukung.</p>
-        </div>
-      </div>
+    <div className="space-y-6 p-4 md:p-0">
+      <PageHeader title={isLeadership ? "Jadwal & Penugasan" : "Jadwal Pelajaran"} description="Lintas unit, kelas, mata pelajaran, dan tugas pendukung pada periode aktif." />
 
       {followsTeachingSchedule && !loading && (
         <section className={`flex items-start gap-3 rounded-lg border p-4 ${activeTeachingSchedules.length > 0 ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}>
@@ -61,7 +57,7 @@ export const TeacherSchedules: React.FC = () => {
             </p>
             <p className={`mt-1 text-xs leading-5 ${activeTeachingSchedules.length > 0 ? "text-emerald-800" : "text-amber-800"}`}>
               {activeTeachingSchedules.length > 0
-                ? "Pada hari mengajar, batas kehadiran dihitung dari pelajaran pertama hingga pelajaran terakhir. Hari tanpa jadwal tidak dihitung sebagai belum absen."
+                ? "Pada hari mengajar, keterlambatan dihitung dari pelajaran pertama dan kewajiban hadir berakhir pada tugas terakhir. Datang lebih awal tetap diterima; hari tanpa jadwal tidak dihitung sebagai belum absen."
                 : "Pola absensi part-time sudah aktif, tetapi belum ada jadwal mengajar pada tahun ajaran dan semester aktif. Hubungi admin kurikulum sebelum mulai mengajar."}
             </p>
           </div>

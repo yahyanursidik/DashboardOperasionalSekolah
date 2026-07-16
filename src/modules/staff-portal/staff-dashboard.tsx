@@ -61,18 +61,19 @@ export const StaffDashboard: React.FC = () => {
   }, [activeSemesterId, activeYearId, employee.id, employee.unit_id]);
 
   const todayText = new Date().toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  const attendanceReady = stats.activeLeave || stats.attendance.includes("Hadir") || stats.attendance.includes("Terlambat");
   const checklist = useMemo(() => [
-    { label: "Absensi", done: stats.attendance.includes("Hadir") || stats.attendance.includes("Terlambat"), value: stats.attendance },
+    { label: "Absensi", done: attendanceReady, value: stats.activeLeave ? "Izin aktif" : stats.attendance },
     { label: "Tugas aktif", done: stats.pendingTasks === 0, value: `${stats.pendingTasks} tugas` },
     { label: "Jadwal kerja", done: stats.schedulesToday > 0, value: `${stats.schedulesToday} agenda` },
     { label: "Laporan operasional", done: stats.openReports === 0, value: `${stats.openReports} diproses` },
     { label: "Informasi", done: stats.unreadAnnouncements === 0, value: `${stats.unreadAnnouncements} belum dibaca` },
-  ], [stats]);
+  ], [attendanceReady, stats]);
 
-  return <div className="space-y-6 p-4 md:p-0">
-    <section className="rounded-md bg-gray-900 p-6 text-white"><p className="text-sm text-emerald-200">Assalamu'alaikum,</p><h1 className="mt-1 text-2xl font-bold">{employee.full_name}</h1><p className="mt-2 text-sm text-gray-300">{formatStaffPosition(employee.position)} - {todayText}</p></section>
+  return <div className="space-y-6">
+    <section className="rounded-md border border-emerald-200 bg-emerald-50 p-6 text-slate-900"><p className="text-sm font-semibold text-emerald-700">Assalamu'alaikum,</p><h1 className="mt-1 text-2xl font-bold">{employee.full_name}</h1><p className="mt-2 text-sm text-slate-600">{formatStaffPosition(employee.position)} - {todayText}</p></section>
     <section className="grid grid-cols-2 gap-3 md:grid-cols-4">{[
-      { label: "Absensi", value: stats.attendance.includes("Hadir") || stats.attendance.includes("Terlambat") ? "OK" : "Cek", icon: CalendarCheck, tone: "bg-emerald-50 text-emerald-700" },
+      { label: "Absensi", value: attendanceReady ? "OK" : "Cek", icon: CalendarCheck, tone: "bg-emerald-50 text-emerald-700" },
       { label: "Tugas Aktif", value: stats.pendingTasks, icon: ListTodo, tone: "bg-blue-50 text-blue-700" },
       { label: "Jadwal Hari Ini", value: stats.schedulesToday, icon: Clock, tone: "bg-amber-50 text-amber-700" },
       { label: "Laporan Aktif", value: stats.openReports, icon: FileWarning, tone: "bg-purple-50 text-purple-700" },

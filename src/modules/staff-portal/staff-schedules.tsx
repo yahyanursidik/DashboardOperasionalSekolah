@@ -1,9 +1,10 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useState } from "react";
-import { Link, useOutletContext } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
+import { useOutletContext } from "react-router-dom";
 import { supabaseClient } from "../../lib/supabase/client";
 import { useAcademicYear } from "../../app/providers/AcademicYearProvider";
 import { LessonSchedulePanel } from "../schedules/components/LessonSchedulePanel";
+import { PageHeader } from "../../components/layout/PageHeader";
 import { toast } from "sonner";
 
 export const StaffSchedules: React.FC = () => {
@@ -38,16 +39,10 @@ export const StaffSchedules: React.FC = () => {
   }, [activeSemesterId, activeYearId, employee.id]);
 
   return (
-    <div className="p-4 space-y-6">
-      <div className="flex items-center gap-3">
-        <Link to="/staff" className="p-2 bg-white rounded-full shadow-sm border text-gray-600 hover:text-primary transition">
-          <ArrowLeft className="w-5 h-5" />
-        </Link>
-        <div>
-          <h2 className="font-black text-lg text-gray-900">Jadwal Kerja</h2>
-          <p className="text-xs text-gray-500">Shift, piket, standby, dan tugas operasional lintas unit.</p>
-        </div>
-      </div>
+    <div className="space-y-6">
+      <PageHeader title="Jadwal Kerja" description="Shift, piket, standby, dan tugas operasional lintas unit." />
+
+      {employee.attendance_mode === "work_schedule" ? <div className="rounded-md border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900"><p className="font-bold">Jadwal ini menjadi acuan absensi Anda</p><p className="mt-1 text-xs leading-5 text-emerald-800">Jam masuk mengikuti tugas pertama dan jam pulang mengikuti tugas terakhir pada hari tersebut. Kedatangan lebih awal tetap diterima.</p></div> : null}
 
       <LessonSchedulePanel
         schedules={schedules}

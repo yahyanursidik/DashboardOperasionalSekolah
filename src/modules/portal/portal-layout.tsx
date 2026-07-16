@@ -117,10 +117,11 @@ export const PortalLayout: React.FC = () => {
       { name: "Ekstrakurikuler", path: "/portal/extracurricular", icon: Target },
     ]},
     { label: "Layanan Sekolah", items: [
+      { name: "Pengumuman", path: "/portal/announcements", icon: Bell },
       { name: "Keuangan", path: "/portal/finance", icon: Wallet },
       { name: "Pengajuan", path: "/portal/requests", icon: LifeBuoy },
-      { name: "Perpustakaan", path: "/portal/library", icon: Library },
-      { name: "Panduan Keluarga", path: "/portal/onboarding", icon: Target },
+      { name: "Perpustakaan Keluarga", path: "/portal/library", icon: Library },
+      { name: "Panduan Keluarga", path: "/portal/onboarding", icon: BookOpen },
     ]},
   ];
 

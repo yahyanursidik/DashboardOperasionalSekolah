@@ -11,6 +11,7 @@ import {
 import { toast } from "sonner";
 import { useAcademicYear } from "../../../app/providers/AcademicYearProvider";
 import { dayMap, formatTime, getScheduleSubjectName } from "../../schedules/schedule-utils";
+import { canUseTeachingScheduleAttendance } from "../../employees/employee-role-config";
 
 const STATUS_OPTIONS = [
   { value: "present", label: "Hadir", active: "bg-emerald-500 text-white", idle: "bg-slate-100 text-slate-500 hover:bg-emerald-100 hover:text-emerald-700" },
@@ -215,20 +216,27 @@ export const EmployeeAttendanceList: React.FC = () => {
   const getRecord = (employee: any) => employee.employee_attendance?.find((a: any) => a.date === selectedDate);
   const getRulePreview = (employee: any, record: any, schedules: any[]) => {
     if (record?.expected_start_time) return {
-      name: record.attendance_rule_source === "assigned_shift" ? "Shift khusus" : record.attendance_rule_source === "teaching_schedule" ? "Jadwal mengajar part-time" : record.attendance_rule_source === "no_schedule" ? "Tanpa jadwal mengajar" : record.attendance_rule_source === "unit_policy" ? "Kebijakan unit" : record.attendance_rule_source === "global_policy" ? "Kebijakan lintas unit" : "Acuan tersimpan",
+      name: record.attendance_rule_source === "assigned_shift" ? "Shift khusus" : record.attendance_rule_source === "teaching_schedule" ? "Jadwal mengajar part-time" : record.attendance_rule_source === "work_schedule" ? "Jadwal kerja fleksibel" : record.attendance_rule_source === "no_schedule" ? "Tanpa jadwal mengajar" : record.attendance_rule_source === "no_work_schedule" ? "Tanpa jadwal kerja" : record.attendance_rule_source === "unit_policy" ? "Kebijakan unit" : record.attendance_rule_source === "global_policy" ? "Kebijakan lintas unit" : "Acuan tersimpan",
       start: record.expected_start_time,
       end: record.expected_end_time,
       grace: record.applied_grace_minutes,
-      hasDuty: record.attendance_rule_source !== "no_schedule",
+      hasDuty: !["no_schedule", "no_work_schedule"].includes(record.attendance_rule_source),
     };
     const shiftSchedule = schedules.find((schedule) => schedule.attendance_shift_id);
     if (shiftSchedule) return { name: shiftSchedule.attendance_shifts?.name || "Shift khusus", start: shiftSchedule.start_time, end: shiftSchedule.end_time, grace: shiftSchedule.attendance_shifts?.grace_minutes, hasDuty: true };
-    if (employee.attendance_mode === "teaching_schedule") {
+    if (employee.attendance_mode === "teaching_schedule" && canUseTeachingScheduleAttendance(employee.position)) {
       const teachingSchedules = schedules.filter((schedule) => schedule.schedule_type === "mengajar");
       if (!teachingSchedules.length) return { name: "Tidak ada jadwal mengajar", start: null, end: null, grace: 0, hasDuty: false };
       const firstSchedule = teachingSchedules.reduce((earliest, schedule) => !earliest || String(schedule.start_time) < String(earliest.start_time) ? schedule : earliest, null as any);
       const lastSchedule = teachingSchedules.reduce((latest, schedule) => !latest || String(schedule.end_time) > String(latest.end_time) ? schedule : latest, null as any);
       return { name: "Jadwal mengajar part-time", start: firstSchedule.start_time, end: lastSchedule.end_time, grace: (policyMap[firstSchedule.unit_id] || policyMap.__global__)?.grace_minutes ?? 10, hasDuty: true };
+    }
+    if (employee.attendance_mode === "work_schedule") {
+      const workSchedules = schedules.filter((schedule) => schedule.schedule_type !== "mengajar");
+      if (!workSchedules.length) return { name: "Tidak ada jadwal kerja", start: null, end: null, grace: 0, hasDuty: false };
+      const firstSchedule = workSchedules.reduce((earliest, schedule) => !earliest || String(schedule.start_time) < String(earliest.start_time) ? schedule : earliest, null as any);
+      const lastSchedule = workSchedules.reduce((latest, schedule) => !latest || String(schedule.end_time) > String(latest.end_time) ? schedule : latest, null as any);
+      return { name: "Jadwal kerja fleksibel", start: firstSchedule.start_time, end: lastSchedule.end_time, grace: (policyMap[firstSchedule.unit_id] || policyMap.__global__)?.grace_minutes ?? 10, hasDuty: true };
     }
     const policy = policyMap[employee.unit_id] || policyMap.__global__;
     return { name: policy ? (policy.unit_id ? "Kebijakan unit" : "Kebijakan lintas unit") : "Default sistem", start: policy?.default_start_time || "07:00", end: policy?.default_end_time || "15:00", grace: policy?.grace_minutes ?? 10, hasDuty: true };
@@ -350,6 +358,12 @@ export const EmployeeAttendanceList: React.FC = () => {
             </Link>
             <Link to="/leaves" className="flex items-center gap-2 border px-3 py-2 rounded-lg hover:bg-muted text-sm font-medium">
               <FileText className="w-4 h-4" /> Izin/Cuti
+            </Link>
+            <Link to="/attendance/events" className="flex items-center gap-2 border px-3 py-2 rounded-lg hover:bg-muted text-sm font-medium">
+              <CalendarDays className="w-4 h-4" /> Rapat & Kegiatan
+            </Link>
+            <Link to="/attendance/overtime" className="flex items-center gap-2 border px-3 py-2 rounded-lg hover:bg-muted text-sm font-medium">
+              <Clock className="w-4 h-4" /> Lembur
             </Link>
             <Link to="/attendance/reviews" className="flex items-center gap-2 border px-3 py-2 rounded-lg hover:bg-muted text-sm font-medium">
               <ShieldCheck className="w-4 h-4" /> Tinjauan
@@ -511,6 +525,7 @@ export const EmployeeAttendanceList: React.FC = () => {
                         <div className={`mb-2 rounded-md border px-2.5 py-2 ${rulePreview.hasDuty ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}>
                           <p className={`text-[11px] font-bold ${rulePreview.hasDuty ? "text-emerald-800" : "text-amber-800"}`}>{rulePreview.hasDuty ? `Acuan masuk ${formatTime(rulePreview.start)}${rulePreview.end ? ` - ${formatTime(rulePreview.end)}` : ""}` : "Tidak wajib absen hari ini"}</p>
                           <p className={`mt-0.5 text-[10px] ${rulePreview.hasDuty ? "text-emerald-700" : "text-amber-700"}`}>{rulePreview.name}{rulePreview.hasDuty ? ` | toleransi ${rulePreview.grace ?? 10} menit` : ""}</p>
+                          {rulePreview.hasDuty ? <p className="mt-0.5 text-[10px] text-emerald-700">Datang lebih awal tetap diterima sebagai hadir.</p> : null}
                         </div>
                         {schedules.length > 0 ? (
                           <div className="space-y-1">

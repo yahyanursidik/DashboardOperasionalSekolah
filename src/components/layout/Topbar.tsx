@@ -151,17 +151,17 @@ export const Topbar: React.FC<TopbarProps> = ({ onMenuClick }) => {
       </div>
 
       <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-        <label className="hidden h-10 items-center gap-2 rounded-md border bg-background px-2 xl:flex" title="Tahun ajaran aktif">
+        <label className="hidden h-10 items-center gap-2 rounded-md border bg-background px-2 xl:flex" title="Konteks tahun ajaran yang sedang dilihat">
           <CalendarDays className="h-4 w-4 shrink-0 text-muted-foreground" />
-          <select value={activeYearId || ""} onChange={(event) => setActiveYearId(event.target.value || null)} aria-label="Tahun ajaran aktif" className="max-w-32 cursor-pointer border-0 bg-transparent text-sm font-semibold outline-none">
+          <select value={activeYearId || ""} onChange={(event) => { setActiveSemesterId?.(null); setActiveYearId(event.target.value || null); }} aria-label="Konteks tahun ajaran" className="max-w-32 cursor-pointer border-0 bg-transparent text-sm font-semibold outline-none">
             <option value="">Tahun ajaran</option>
             {yearOptions?.map((year) => <option key={year.value} value={year.value}>{year.label}</option>)}
           </select>
         </label>
 
-        <label className="hidden h-10 items-center gap-2 rounded-md border bg-background px-2 xl:flex" title="Semester aktif">
+        <label className="hidden h-10 items-center gap-2 rounded-md border bg-background px-2 xl:flex" title="Konteks semester yang sedang dilihat">
           <GraduationCap className="h-4 w-4 shrink-0 text-muted-foreground" />
-          <select value={activeSemesterId || ""} onChange={(event) => setActiveSemesterId?.(event.target.value || null)} aria-label="Semester aktif" className="max-w-28 cursor-pointer border-0 bg-transparent text-sm font-semibold outline-none">
+          <select value={activeSemesterId || ""} onChange={(event) => setActiveSemesterId?.(event.target.value || null)} aria-label="Konteks semester" className="max-w-28 cursor-pointer border-0 bg-transparent text-sm font-semibold outline-none">
             <option value="">Semester</option>
             {semesterOptions?.map((semester) => <option key={semester.value} value={semester.value}>{semester.label}</option>)}
           </select>

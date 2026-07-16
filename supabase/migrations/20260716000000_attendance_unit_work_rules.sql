@@ -248,7 +248,9 @@ begin
   v_close_ts := v_work_date + v_rule.check_in_close;
   if v_close_ts < v_open_ts then v_close_ts := v_close_ts + interval '1 day'; end if;
 
-  if p_action = 'check_in' and (v_local_ts < v_open_ts or v_local_ts > v_close_ts) then
+  -- Menerima kedatangan lebih awal pada hari kerja yang sah. Waktu buka
+  -- tetap dikembalikan sebagai panduan UI, bukan batas penolakan.
+  if p_action = 'check_in' and v_local_ts > v_close_ts then
     raise exception 'OUTSIDE_CHECK_IN_WINDOW:%:%', v_rule.check_in_open, v_rule.check_in_close;
   end if;
 
@@ -382,7 +384,7 @@ begin
     if v_close_ts < v_open_ts then v_close_ts := v_close_ts + interval '1 day'; end if;
 
     if coalesce(new.check_in_method, 'legacy') in ('portal', 'geofence')
-      and (v_check_ts < v_open_ts or v_check_ts > v_close_ts) then
+      and v_check_ts > v_close_ts then
       raise exception 'OUTSIDE_CHECK_IN_WINDOW:%:%', v_rule.check_in_open, v_rule.check_in_close;
     end if;
 
@@ -415,4 +417,3 @@ $$;
 
 comment on function public.resolve_employee_attendance_rule(uuid, date) is
   'Resolves attendance timing in order: assigned shift, employee primary-unit policy, global policy, system default.';
-

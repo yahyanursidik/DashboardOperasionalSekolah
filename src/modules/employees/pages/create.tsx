@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useForm, useSelect } from "@refinedev/core";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Save, ArrowLeft, User, GraduationCap, Briefcase, Info } from "lucide-react";
-import { attendanceModeOptions, canReceiveAcademicAssignment, employeePositions, employmentTypeOptions, getAttendanceMode, getEmployeePosition } from "../employee-role-config";
+import { attendanceModeOptions, canFollowWorkSchedule, canUseTeachingScheduleAttendance, employeePositions, employmentTypeOptions, getAttendanceMode, getEmployeePosition, getRecommendedAttendanceMode } from "../employee-role-config";
 
 function FormSection({ title, icon: Icon, children }: { title: string; icon: React.ElementType; children: React.ReactNode }) {
   return (
@@ -39,7 +39,8 @@ export const EmployeeCreate: React.FC = () => {
   const [position, setPosition] = useState("guru");
   const [employmentType, setEmploymentType] = useState("permanent");
   const [attendanceMode, setAttendanceMode] = useState("unit_hours");
-  const supportsTeachingSchedule = canReceiveAcademicAssignment(position);
+  const supportsTeachingSchedule = canUseTeachingScheduleAttendance(position);
+  const supportsWorkSchedule = canFollowWorkSchedule(position);
 
   const { onFinish, mutationResult } = useForm({
     resource: "employees",
@@ -126,8 +127,7 @@ export const EmployeeCreate: React.FC = () => {
                 onChange={(e) => {
                   const value = e.target.value;
                   setPosition(value);
-                  if (!canReceiveAcademicAssignment(value)) setAttendanceMode("unit_hours");
-                  else if (employmentType === "part_time") setAttendanceMode("teaching_schedule");
+                  setAttendanceMode(getRecommendedAttendanceMode(value, employmentType));
                 }}
                 className={selectCls}
               >
@@ -152,8 +152,7 @@ export const EmployeeCreate: React.FC = () => {
                 onChange={(event) => {
                   const value = event.target.value;
                   setEmploymentType(value);
-                  if (value === "part_time" && supportsTeachingSchedule) setAttendanceMode("teaching_schedule");
-                  else if (attendanceMode === "teaching_schedule") setAttendanceMode("unit_hours");
+                  setAttendanceMode(getRecommendedAttendanceMode(position, value));
                 }}
                 className={selectCls}
               >
@@ -170,7 +169,7 @@ export const EmployeeCreate: React.FC = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label="Pola Absensi" required>
               <select name="attendance_mode" required value={attendanceMode} onChange={(event) => setAttendanceMode(event.target.value)} className={selectCls}>
-                {attendanceModeOptions.filter((item) => item.value !== "teaching_schedule" || supportsTeachingSchedule).map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+                {attendanceModeOptions.filter((item) => (item.value !== "teaching_schedule" || supportsTeachingSchedule) && (item.value !== "work_schedule" || supportsWorkSchedule)).map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
               </select>
               <p className="mt-1 text-xs text-muted-foreground">{getAttendanceMode(attendanceMode).description}</p>
             </Field>
@@ -178,15 +177,15 @@ export const EmployeeCreate: React.FC = () => {
               <input name="join_date" type="date" className={inputCls} />
             </Field>
           </div>
-          {attendanceMode === "teaching_schedule" && (
+          {["teaching_schedule", "work_schedule"].includes(attendanceMode) && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 rounded-md border border-amber-200 bg-amber-50 p-3">
-              <Field label="Absen Dibuka Sebelum Pelajaran">
+              <Field label={attendanceMode === "teaching_schedule" ? "Panduan Absen Sebelum Pelajaran" : "Panduan Absen Sebelum Tugas"}>
                 <input name="attendance_lead_minutes" type="number" min="0" max="240" defaultValue="30" className={inputCls} />
-                <p className="mt-1 text-xs text-muted-foreground">Menit sebelum pelajaran pertama.</p>
+                <p className="mt-1 text-xs text-muted-foreground">Waktu normal mulai absen sebelum pelajaran pertama; datang lebih awal tetap diterima.</p>
               </Field>
-              <Field label="Batas Absen Setelah Mulai">
+              <Field label="Batas Akhir Absen Setelah Mulai">
                 <input name="attendance_close_minutes" type="number" min="15" max="480" defaultValue="120" className={inputCls} />
-                <p className="mt-1 text-xs text-muted-foreground">Menit setelah pelajaran pertama dimulai.</p>
+                <p className="mt-1 text-xs text-muted-foreground">Menit setelah pelajaran atau tugas pertama dimulai.</p>
               </Field>
             </div>
           )}
@@ -194,7 +193,7 @@ export const EmployeeCreate: React.FC = () => {
             <Info className="mt-0.5 h-4 w-4 shrink-0" />
             <div>
               <p className="font-semibold">Jabatan, hubungan kerja, dan pola absensi memiliki fungsi berbeda.</p>
-              <p className="mt-1 text-xs">{getEmployeePosition(position).description} {supportsTeachingSchedule ? "Pengajar part-time wajib memiliki jadwal mengajar aktif agar dapat absen pada hari tersebut." : "Pegawai operasional part-time tetap mengikuti jam unit atau shift khusus."}</p>
+              <p className="mt-1 text-xs">{getEmployeePosition(position).description} {getEmployeePosition(position).category === "leadership" ? "Jabatan pimpinan mengikuti jam unit meskipun menerima tugas mengajar." : supportsTeachingSchedule ? "Pengajar part-time wajib memiliki jadwal mengajar aktif agar dapat absen pada hari tersebut." : "Staf operasional dapat mengikuti jadwal kerja pagi, siang, sore, atau shift khusus yang ditetapkan."}</p>
             </div>
           </div>
         </FormSection>
