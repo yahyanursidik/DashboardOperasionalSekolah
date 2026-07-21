@@ -21,6 +21,7 @@ export const StaffSchedules: React.FC = () => {
           .from("employee_schedules")
           .select("*, classes(name, unit_id, units(name)), units(name), subjects(name), attendance_shifts(name,check_in_open,check_in_close)")
           .eq("employee_id", employee.id)
+          .neq("schedule_type", "mengajar")
           .order("start_time");
         if (activeYearId) query = query.or(`academic_year_id.eq.${activeYearId},academic_year_id.is.null`);
         if (activeSemesterId) query = query.or(`semester_id.eq.${activeSemesterId},semester_id.is.null`);

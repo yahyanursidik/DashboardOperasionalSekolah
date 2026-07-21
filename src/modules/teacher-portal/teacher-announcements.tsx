@@ -3,6 +3,7 @@ import { Link, useOutletContext } from "react-router-dom";
 import { ArrowLeft, Bell, Building2, Calendar, CheckCircle2, Clock, Megaphone, Search, Users } from "lucide-react";
 import { supabaseClient } from "../../lib/supabase/client";
 import { useAcademicYear } from "../../app/providers/AcademicYearProvider";
+import { loadTeacherAssignedUnitIds } from "../schedules/schedule-data";
 
 const READ_KEY = "teacher_portal_read_announcement_ids";
 
@@ -52,7 +53,7 @@ export const TeacherAnnouncements: React.FC = () => {
         if (activeYearId) scheduleQuery = scheduleQuery.eq("academic_year_id", activeYearId);
         if (activeSemesterId) scheduleQuery = scheduleQuery.eq("semester_id", activeSemesterId);
 
-        const [{ data: scheduleRows }, { data: homeroomRows }, { data: announcementRows }, readsResult] = await Promise.all([
+        const [{ data: scheduleRows }, { data: homeroomRows }, { data: announcementRows }, readsResult, assignedUnitIds] = await Promise.all([
           scheduleQuery,
           supabaseClient
             .from("classes")
@@ -69,17 +70,19 @@ export const TeacherAnnouncements: React.FC = () => {
             .from("employee_announcement_reads")
             .select("announcement_id")
             .eq("employee_id", employee.id),
+          loadTeacherAssignedUnitIds(employee.id, activeYearId, activeSemesterId),
         ]);
 
         const classIds = new Set<string>();
         (scheduleRows || []).forEach((row: any) => row.class_id && classIds.add(row.class_id));
         (homeroomRows || []).forEach((row: any) => row.id && classIds.add(row.id));
         const now = Date.now();
+        const accessibleUnitIds = new Set([employee.unit_id, ...assignedUnitIds].filter(Boolean));
 
         const scopedAnnouncements = (announcementRows || []).filter((item: any) => {
           if (item.publish_at && new Date(item.publish_at).getTime() > now) return false;
           if (item.target_type === "all" || item.target_type === "staff") return true;
-          if (item.target_type === "unit") return !item.unit_id || item.unit_id === employee.unit_id;
+          if (item.target_type === "unit") return !item.unit_id || accessibleUnitIds.has(item.unit_id);
           if (item.target_type === "class") return item.class_id && classIds.has(item.class_id);
           return false;
         });

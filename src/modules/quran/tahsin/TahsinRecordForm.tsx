@@ -88,9 +88,11 @@ export const TahsinRecordForm: React.FC = () => {
       ...(activeYearId ? [{ field: "academic_year_id", operator: "eq" as const, value: activeYearId }] : []),
       ...(activeSemesterId ? [{ field: "semester_id", operator: "eq" as const, value: activeSemesterId }] : [])
     ],
+    meta: { select: "id, name, subject_id, program_type, subjects(id, name, unit_id, quran_program_type, units(name))" },
     pagination: { mode: "off" }
   });
   const halaqohs = halaqohsData?.data || [];
+  const selectedHalaqoh = halaqohs.find((halaqoh: any) => halaqoh.id === currentHalaqohId);
   const tahsinHalaqohIds = useMemo(() => new Set(halaqohs.map((halaqoh: any) => halaqoh.id)), [halaqohs]);
 
   const { data: allMembersData } = useList({
@@ -142,6 +144,7 @@ export const TahsinRecordForm: React.FC = () => {
       ...values,
       employee_id: values.employee_id || null,
       class_id: member?.students?.class_id || record?.class_id || null,
+      subject_id: selectedHalaqoh?.subject_id || record?.subject_id || null,
     });
   };
 
@@ -246,6 +249,12 @@ export const TahsinRecordForm: React.FC = () => {
                   })}
                 </select>
                 {errors.student_id && <p className="text-sm text-destructive">{errors.student_id.message as string}</p>}
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <label className="text-sm font-medium">Mata Pelajaran</label>
+                <div className="rounded-md border bg-background px-3 py-2 text-sm">
+                  {selectedHalaqoh?.subjects?.name || "Pilih halaqoh yang sudah dihubungkan ke mapel Tahsin"}
+                </div>
               </div>
               <div className="space-y-2 md:col-span-2">
                 <label className="text-sm font-medium">Guru / Penguji</label>

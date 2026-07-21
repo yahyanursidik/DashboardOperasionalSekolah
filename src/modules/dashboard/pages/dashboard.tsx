@@ -188,7 +188,7 @@ const QuickActions = ({ roles }: { roles?: UserRoleScope[] }) => {
     { label: "Absensi siswa", description: "Input kehadiran kelas", href: "/attendance", resource: "attendance_records", icon: CalendarCheck },
     { label: "Monitor pegawai", description: "Presensi harian pegawai", href: "/attendance/employees", resource: "employee_attendance", icon: ClipboardCheck },
     { label: "Rapat & kegiatan", description: "Presensi kegiatan insidental", href: "/attendance/events", resource: "employee_attendance", icon: Users },
-    { label: "Jadwal pegawai", description: "Mengajar dan operasional", href: "/schedules", resource: "employee_schedules", icon: CalendarCheck },
+    { label: "Jadwal pelajaran & kerja", description: "Kelas, mapel, shift, dan tugas", href: "/schedules", resource: "employee_schedules", icon: CalendarCheck },
     { label: "Buat pengumuman", description: "Informasi lintas portal", href: "/announcements/create", resource: "announcements", icon: Megaphone },
     { label: "Tagihan siswa", description: "Kelola tagihan per unit", href: "/finance/invoices", resource: "student_invoices", icon: Wallet },
     { label: "Kurikulum", description: "Mapel per tahun dan semester", href: "/curriculum", resource: "subjects", icon: BookOpenCheck },

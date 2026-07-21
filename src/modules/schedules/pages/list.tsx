@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useMemo, useState } from "react";
 import { useList, useDelete, useSelect } from "@refinedev/core";
 import { Link, useNavigate } from "react-router-dom";
@@ -13,9 +14,11 @@ import { CopyScheduleModal } from "../components/CopyScheduleModal";
 import {
   daysOfWeek,
   findScheduleConflicts,
-  formatScheduleType,
+  formatScheduleEntryType,
   formatTime,
   getScheduleSubjectName,
+  getScheduleVisual,
+  isUnitLearningSchedule,
 } from "../schedule-utils";
 
 export const SchedulesList: React.FC = () => {
@@ -27,13 +30,17 @@ export const SchedulesList: React.FC = () => {
   const [filterDay, setFilterDay] = useState("");
   const [filterType, setFilterType] = useState("");
   const [filterEmployee, setFilterEmployee] = useState("");
-  const [viewMode, setViewMode] = useState<"list" | "board">("list");
+  const [filterClass, setFilterClass] = useState("");
+  const [filterSubject, setFilterSubject] = useState("");
+  const [viewMode, setViewMode] = useState<"list" | "board">("board");
   const [isCopyModalOpen, setIsCopyModalOpen] = useState(false);
 
   const filters: any[] = [];
   if (filterDay) filters.push({ field: "day_of_week", operator: "eq", value: filterDay });
   if (filterType) filters.push({ field: "schedule_type", operator: "eq", value: filterType });
   if (filterEmployee) filters.push({ field: "employee_id", operator: "eq", value: filterEmployee });
+  if (filterClass) filters.push({ field: "class_id", operator: "eq", value: filterClass });
+  if (filterSubject) filters.push({ field: "subject_id", operator: "eq", value: filterSubject });
   if (activeUnitId) filters.push({ field: "unit_id", operator: "eq", value: activeUnitId });
   if (activeYearId) filters.push({ field: "academic_year_id", operator: "eq", value: activeYearId });
   if (activeSemesterId) filters.push({ field: "semester_id", operator: "eq", value: activeSemesterId });
@@ -54,6 +61,23 @@ export const SchedulesList: React.FC = () => {
     optionLabel: "full_name",
     optionValue: "id",
     filters: activeUnitId ? [{ field: "unit_id", operator: "eq", value: activeUnitId }] : [],
+  });
+
+  const { options: classOptions } = useSelect({
+    resource: "classes",
+    optionLabel: "name",
+    optionValue: "id",
+    filters: [
+      ...(activeUnitId ? [{ field: "unit_id", operator: "eq" as const, value: activeUnitId }] : []),
+      ...(activeYearId ? [{ field: "academic_year_id", operator: "eq" as const, value: activeYearId }] : []),
+    ],
+  });
+
+  const { options: subjectOptions } = useSelect({
+    resource: "subjects",
+    optionLabel: "name",
+    optionValue: "id",
+    pagination: { pageSize: 500 },
   });
 
   const renderScheduleIcon = (type: string) => {
@@ -83,8 +107,9 @@ export const SchedulesList: React.FC = () => {
   const stats = useMemo(() => {
     const employeeIds = new Set(schedules.map((schedule) => schedule.employee_id).filter(Boolean));
     const teaching = schedules.filter((schedule) => schedule.schedule_type === "mengajar");
-    const withoutSubject = teaching.filter((schedule) => !schedule.subject_id && !schedule.subject && !schedule.subjects?.name).length;
-    const withoutClass = teaching.filter((schedule) => !schedule.class_id).length;
+    const subjectSchedules = teaching.filter((schedule) => !schedule.schedule_kind || schedule.schedule_kind === "subject");
+    const withoutSubject = subjectSchedules.filter((schedule) => !schedule.subject_id && !schedule.subject && !schedule.subjects?.name).length;
+    const withoutClass = subjectSchedules.filter((schedule) => !isUnitLearningSchedule(schedule) && !schedule.class_id).length;
     return {
       total: schedules.length,
       employees: employeeIds.size,
@@ -105,10 +130,16 @@ export const SchedulesList: React.FC = () => {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Jadwal Operasional Pegawai"
-        description="Kelola jadwal mengajar, piket, shift, standby, dan kesiapan jadwal semester aktif."
+        title="Jadwal Pelajaran & Kerja"
+        description="Kelola jadwal mengajar berwarna per mata pelajaran, piket, shift, dan tugas pada semester aktif."
         action={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              to="/schedules/patterns"
+              className="flex items-center gap-2 bg-card text-foreground px-4 py-2 rounded-md hover:bg-muted transition-colors shadow-sm font-medium text-sm border"
+            >
+              <Calendar className="w-4 h-4" /> Pola Unit
+            </Link>
             <button
               onClick={() => setIsCopyModalOpen(true)}
               className="flex items-center gap-2 bg-secondary text-secondary-foreground px-4 py-2 rounded-md hover:bg-secondary/80 transition-colors shadow-sm font-medium text-sm border"
@@ -127,23 +158,23 @@ export const SchedulesList: React.FC = () => {
 
       <CopyScheduleModal isOpen={isCopyModalOpen} onClose={() => setIsCopyModalOpen(false)} />
 
-      <section className="bg-card border rounded-xl shadow-sm p-5">
+      <section className="bg-card border rounded-lg shadow-sm p-5">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
-            <p className="text-xs font-semibold text-primary uppercase tracking-wide">Workflow Jadwal Mutu</p>
+            <p className="text-xs font-semibold text-primary uppercase">Kendali Jadwal</p>
             <h2 className="text-lg font-bold text-foreground mt-1">Jadwal menjadi dasar presensi, substitusi, dan portal pengajar</h2>
             <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
               Pastikan setiap jadwal punya pegawai, waktu valid, unit, mata pelajaran/kelas untuk mengajar, dan tidak bentrok.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Link to="/employees" className="inline-flex items-center gap-2 border rounded-lg px-3 py-2 text-sm font-medium hover:bg-muted">
+            <Link to="/employees" className="inline-flex items-center gap-2 border rounded-md px-3 py-2 text-sm font-medium hover:bg-muted">
               <Users className="w-4 h-4" /> Pegawai
             </Link>
-            <Link to="/attendance/employees" className="inline-flex items-center gap-2 border rounded-lg px-3 py-2 text-sm font-medium hover:bg-muted">
+            <Link to="/attendance/employees" className="inline-flex items-center gap-2 border rounded-md px-3 py-2 text-sm font-medium hover:bg-muted">
               <Clock className="w-4 h-4" /> Presensi
             </Link>
-            <Link to="/substitutes" className="inline-flex items-center gap-2 border rounded-lg px-3 py-2 text-sm font-medium hover:bg-muted">
+            <Link to="/substitutes" className="inline-flex items-center gap-2 border rounded-md px-3 py-2 text-sm font-medium hover:bg-muted">
               <ClipboardList className="w-4 h-4" /> Guru Inval
             </Link>
           </div>
@@ -157,8 +188,8 @@ export const SchedulesList: React.FC = () => {
           { icon: BookOpen, label: "Jadwal Mengajar", value: stats.teaching, detail: `${stats.withoutSubject} tanpa mapel`, tone: "bg-purple-100 text-purple-700" },
           { icon: Shield, label: "Piket & Shift", value: stats.operations, detail: "non-akademik", tone: "bg-amber-100 text-amber-700" },
         ].map((item) => (
-          <div key={item.label} className="bg-card border rounded-xl p-4 shadow-sm flex items-center gap-3">
-            <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${item.tone}`}>
+          <div key={item.label} className="bg-card border rounded-lg p-4 shadow-sm flex items-center gap-3">
+            <div className={`w-11 h-11 rounded-md flex items-center justify-center ${item.tone}`}>
               <item.icon className="w-5 h-5" />
             </div>
             <div>
@@ -171,7 +202,7 @@ export const SchedulesList: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="bg-card border rounded-xl p-4 shadow-sm lg:col-span-2">
+        <div className="bg-card border rounded-lg p-4 shadow-sm lg:col-span-2">
           <div className="flex items-center gap-2 mb-3">
             <AlertTriangle className="w-4 h-4 text-amber-600" />
             <p className="font-semibold text-sm">Perlu tindak lanjut jadwal</p>
@@ -194,8 +225,8 @@ export const SchedulesList: React.FC = () => {
             </div>
           </div>
         </div>
-        <div className="bg-card border rounded-xl p-4 shadow-sm">
-          <p className="font-semibold text-sm mb-3">Definition of done jadwal</p>
+        <div className="bg-card border rounded-lg p-4 shadow-sm">
+          <p className="font-semibold text-sm mb-3">Kesiapan jadwal</p>
           <div className="space-y-2 text-xs text-muted-foreground">
             {["Pegawai dan unit/lintas unit valid", "Hari dan jam selesai benar", "Mapel/kelas terisi untuk mengajar", "Tidak bentrok dengan jadwal lain", "Siap tampil di portal pengajar"].map((item) => (
               <div key={item} className="flex items-center gap-2">
@@ -207,8 +238,8 @@ export const SchedulesList: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between bg-card p-3 rounded-xl border shadow-sm">
-        <div className="flex gap-4 items-center flex-wrap">
+      <div className="flex flex-col xl:flex-row gap-4 items-start xl:items-center justify-between bg-card p-3 rounded-lg border shadow-sm">
+        <div className="flex gap-2 items-center flex-wrap">
           <Filter className="w-4 h-4 text-muted-foreground ml-2" />
           <select 
             value={filterDay}
@@ -240,9 +271,25 @@ export const SchedulesList: React.FC = () => {
             <option value="">Semua Pegawai</option>
             {employeeOptions?.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
           </select>
-          {(filterDay || filterType || filterEmployee) && (
+          <select
+            value={filterClass}
+            onChange={(e) => setFilterClass(e.target.value)}
+            className="border rounded-md px-3 py-1.5 text-sm bg-background outline-none"
+          >
+            <option value="">Semua Kelas</option>
+            {classOptions?.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+          </select>
+          <select
+            value={filterSubject}
+            onChange={(e) => setFilterSubject(e.target.value)}
+            className="border rounded-md px-3 py-1.5 text-sm bg-background outline-none"
+          >
+            <option value="">Semua Mata Pelajaran</option>
+            {subjectOptions?.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+          </select>
+          {(filterDay || filterType || filterEmployee || filterClass || filterSubject) && (
             <button
-              onClick={() => { setFilterDay(""); setFilterType(""); setFilterEmployee(""); }}
+              onClick={() => { setFilterDay(""); setFilterType(""); setFilterEmployee(""); setFilterClass(""); setFilterSubject(""); }}
               className="text-xs text-red-600 hover:underline font-medium"
             >
               Reset Filter
@@ -250,7 +297,7 @@ export const SchedulesList: React.FC = () => {
           )}
         </div>
 
-        <div className="flex bg-muted p-1 rounded-lg">
+        <div className="flex bg-muted p-1 rounded-md">
           <button 
             onClick={() => setViewMode('list')}
             className={`flex items-center gap-2 px-3 py-1.5 text-sm rounded-md transition-all ${viewMode === 'list' ? 'bg-background shadow-sm font-medium' : 'text-muted-foreground hover:text-foreground'}`}
@@ -261,7 +308,7 @@ export const SchedulesList: React.FC = () => {
             onClick={() => setViewMode('board')}
             className={`flex items-center gap-2 px-3 py-1.5 text-sm rounded-md transition-all ${viewMode === 'board' ? 'bg-background shadow-sm font-medium' : 'text-muted-foreground hover:text-foreground'}`}
           >
-            <LayoutGrid className="w-4 h-4" /> Papan
+            <LayoutGrid className="w-4 h-4" /> Kartu
           </button>
         </div>
       </div>
@@ -285,6 +332,8 @@ export const SchedulesList: React.FC = () => {
               <tbody className="divide-y divide-border">
                 {schedules.map((sch) => {
                   const hasConflict = conflictIds.has(String(sch.id));
+                  const visual = getScheduleVisual(sch, sch.schedule_type === "mengajar" ? "lesson" : "work");
+                  const canDirectEdit = !isUnitLearningSchedule(sch) && (!sch.schedule_kind || sch.schedule_kind === "subject");
                   return (
                     <tr key={sch.id} className={`hover:bg-muted/30 transition-colors ${hasConflict ? "bg-amber-50/50" : ""}`}>
                       <td className="px-6 py-4">
@@ -313,14 +362,14 @@ export const SchedulesList: React.FC = () => {
                           <div className="w-6 h-6 rounded bg-slate-100 flex items-center justify-center border">
                             {renderScheduleIcon(sch.schedule_type)}
                           </div>
-                          <span className="capitalize text-xs font-semibold">{formatScheduleType(sch.schedule_type)}</span>
+                          <span className="capitalize text-xs font-semibold">{formatScheduleEntryType(sch)}</span>
                         </div>
                       </td>
                       <td className="px-6 py-4">
                         {sch.schedule_type === 'mengajar' ? (
-                          <div>
-                            <p className="font-medium">{getScheduleSubjectName(sch)}</p>
-                            <p className="text-xs flex items-center gap-1 text-muted-foreground"><MapPin className="w-3 h-3"/> Kelas: {sch.classes?.name || "Lintas kelas"}</p>
+                          <div className={`rounded-md border px-2.5 py-2 ${visual.border} ${visual.background}`}>
+                            <p className={`font-semibold ${visual.text}`}>{getScheduleSubjectName(sch)}</p>
+                            <p className="text-xs flex items-center gap-1 text-muted-foreground"><MapPin className="w-3 h-3"/> Kelas: {isUnitLearningSchedule(sch) ? "Semua kelas" : sch.classes?.name || "Belum dipilih"}</p>
                           </div>
                         ) : (
                           <span className="text-muted-foreground italic text-xs">Penugasan Umum</span>
@@ -328,10 +377,10 @@ export const SchedulesList: React.FC = () => {
                       </td>
                       <td className="px-6 py-4 text-right">
                         <button
-                          onClick={() => navigate(`/schedules/edit/${sch.id}`)}
+                          onClick={() => navigate(canDirectEdit ? `/schedules/edit/${sch.id}` : "/schedules/patterns")}
                           className="p-1.5 text-muted-foreground hover:text-primary transition-colors"
-                          title="Edit Jadwal"
-                        ><Edit className="w-4 h-4"/></button>
+                          title={canDirectEdit ? "Edit jadwal" : "Kelola melalui Pola Jadwal Unit"}
+                        >{canDirectEdit ? <Edit className="w-4 h-4"/> : <Calendar className="w-4 h-4"/>}</button>
                         <button
                           onClick={() => { if(confirm('Hapus jadwal ini?')) deleteSchedule({ resource: "employee_schedules", id: sch.id as string }) }}
                           className="p-1.5 text-muted-foreground hover:text-destructive transition-colors ml-2"
@@ -351,52 +400,58 @@ export const SchedulesList: React.FC = () => {
       ) : (
         <div className="flex gap-4 overflow-x-auto pb-4 snap-x">
           {daysOfWeek.map(day => (
-            <div key={day} className="flex-none w-[280px] bg-muted/30 rounded-xl border flex flex-col snap-start">
-              <div className="p-3 border-b bg-muted/50 rounded-t-xl">
+            <div key={day} className="flex-none w-[292px] bg-muted/30 rounded-lg border flex flex-col snap-start">
+              <div className="p-3 border-b bg-muted/50 rounded-t-lg">
                 <h3 className="font-semibold text-sm flex items-center justify-between">
                   {day}
-                  <span className="bg-background px-2 py-0.5 rounded-full text-xs border text-muted-foreground">
+                  <span className="bg-background px-2 py-0.5 rounded text-xs border text-muted-foreground">
                     {schedulesByDay[day]?.length || 0}
                   </span>
                 </h3>
               </div>
               <div className="p-3 space-y-3 overflow-y-auto max-h-[600px] flex-1 custom-scrollbar">
-                {schedulesByDay[day]?.map(sch => (
-                  <div key={sch.id} className="bg-card p-3 rounded-lg border shadow-sm relative group">
+                {schedulesByDay[day]?.map(sch => {
+                  const visual = getScheduleVisual(sch, sch.schedule_type === "mengajar" ? "lesson" : "work");
+                  const canDirectEdit = !isUnitLearningSchedule(sch) && (!sch.schedule_kind || sch.schedule_kind === "subject");
+                  return (
+                  <article key={sch.id} className={`p-3 rounded-lg border shadow-sm relative overflow-hidden group ${visual.border} ${visual.background}`}>
+                    <span className={`absolute inset-y-0 left-0 w-1 ${visual.accent}`} aria-hidden="true" />
                     <div className="flex justify-between items-start mb-2">
-                      <div className="flex items-center gap-1.5 text-xs font-medium text-primary bg-primary/10 px-2 py-0.5 rounded border border-primary/20">
+                      <div className={`flex items-center gap-1.5 text-xs font-semibold px-2 py-0.5 rounded border ${visual.border} ${visual.softBackground} ${visual.text}`}>
                         <Clock className="w-3 h-3" />
                         {formatTime(sch.start_time)} - {formatTime(sch.end_time)}
                       </div>
-                      <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                        <button onClick={() => navigate(`/schedules/edit/${sch.id}`)} className="text-muted-foreground hover:text-primary"><Edit className="w-3.5 h-3.5"/></button>
+                      <div className="flex gap-1">
+                        <button title={canDirectEdit ? "Edit jadwal" : "Kelola melalui Pola Jadwal Unit"} onClick={() => navigate(canDirectEdit ? `/schedules/edit/${sch.id}` : "/schedules/patterns")} className="flex h-7 w-7 items-center justify-center rounded bg-white/80 text-muted-foreground hover:text-primary">{canDirectEdit ? <Edit className="w-3.5 h-3.5"/> : <Calendar className="w-3.5 h-3.5"/>}</button>
+                        <button title="Hapus jadwal" onClick={() => { if(confirm('Hapus jadwal ini?')) deleteSchedule({ resource: "employee_schedules", id: sch.id as string }) }} className="flex h-7 w-7 items-center justify-center rounded bg-white/80 text-muted-foreground hover:text-destructive"><Trash2 className="w-3.5 h-3.5"/></button>
                       </div>
                     </div>
                     
                     <div className="flex items-start justify-between gap-2">
                       <div>
-                        <p className="font-semibold text-sm leading-tight mb-1">{sch.employees?.full_name || "-"}</p>
+                         <p className="font-semibold text-sm leading-tight mb-1 pl-1">{sch.employees?.full_name || "-"}</p>
                         <p className="text-[10px] text-muted-foreground uppercase mb-2">{sch.employees?.position?.replace('_', ' ') || "-"}</p>
                       </div>
                       {conflictIds.has(String(sch.id)) && (
-                        <span className="text-[10px] bg-amber-100 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded">Bentrok</span>
+                        <span className="text-[10px] bg-red-100 text-red-700 border border-red-200 px-1.5 py-0.5 rounded">Bentrok</span>
                       )}
                     </div>
                     
                     <div className="flex items-center gap-1.5 mt-2 text-xs text-muted-foreground">
                       {renderScheduleIcon(sch.schedule_type)}
-                      <span className="capitalize">{formatScheduleType(sch.schedule_type)}</span>
+                      <span className="capitalize">{formatScheduleEntryType(sch)}</span>
                     </div>
 
                     {sch.schedule_type === 'mengajar' && (
                       <div className="mt-2 pt-2 border-t text-xs">
-                        <p className="font-medium text-foreground truncate" title={getScheduleSubjectName(sch)}>{getScheduleSubjectName(sch)}</p>
-                        <p className="text-muted-foreground">Kelas: {sch.classes?.name || "Lintas kelas"}</p>
+                        <p className={`font-bold truncate ${visual.text}`} title={getScheduleSubjectName(sch)}>{getScheduleSubjectName(sch)}</p>
+                        <p className="text-muted-foreground">Kelas: {isUnitLearningSchedule(sch) ? "Semua kelas" : sch.classes?.name || "Belum dipilih"}</p>
                         <p className="text-muted-foreground">Unit: {sch.units?.name || "Lintas Unit"}</p>
                       </div>
                     )}
-                  </div>
-                ))}
+                  </article>
+                  );
+                })}
                 {(!schedulesByDay[day] || schedulesByDay[day].length === 0) && (
                   <div className="text-center p-4 text-xs text-muted-foreground italic border-2 border-dashed rounded-lg">
                     Kosong

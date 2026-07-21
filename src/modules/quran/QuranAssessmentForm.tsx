@@ -45,6 +45,7 @@ export const QuranAssessmentForm: React.FC = () => {
   const [score, setScore] = useState<number | "">("");
   const [status, setStatus] = useState("Lulus");
   const [employeeId, setEmployeeId] = useState("");
+  const [selectedSubjectId, setSelectedSubjectId] = useState("");
 
   const { onFinish, queryResult, formLoading } = useForm({
     resource: "quran_assessments",
@@ -66,6 +67,7 @@ export const QuranAssessmentForm: React.FC = () => {
     setScore(record.score ?? "");
     setStatus(record.status || "Lulus");
     setEmployeeId(record.employee_id || "");
+    setSelectedSubjectId(record.subject_id || "");
   }, [record]);
 
   const { options: unitOptions } = useSelect({
@@ -90,10 +92,24 @@ export const QuranAssessmentForm: React.FC = () => {
       ...(activeYearId ? [{ field: "academic_year_id", operator: "eq" as const, value: activeYearId }] : []),
       ...(activeSemesterId ? [{ field: "semester_id", operator: "eq" as const, value: activeSemesterId }] : []),
     ],
+    meta: { select: "id, name, subject_id, program_type, subjects(id, name, unit_id, quran_program_type, units(name))" },
     sorters: [{ field: "name", order: "asc" }],
     pagination: { mode: "off" },
   });
   const halaqohs = halaqohsData?.data || [];
+  const selectedHalaqoh = halaqohs.find((halaqoh: any) => halaqoh.id === selectedHalaqohId);
+
+  const { data: subjectsData } = useList({
+    resource: "subjects",
+    filters: [{ field: "is_active", operator: "eq", value: true }],
+    sorters: [{ field: "name", order: "asc" }],
+    meta: { select: "id, name, unit_id, quran_program_type, units(name)" },
+    pagination: { mode: "off" },
+  });
+  const subjectOptions = (subjectsData?.data || []).filter((subject: any) =>
+    (subject.quran_program_type === "tahfidz" || subject.quran_program_type === "both")
+    && (!selectedUnitId || subject.unit_id === selectedUnitId)
+  );
 
   const { data: membersData, isLoading: isLoadingMembers } = useList({
     resource: "tahfidz_halaqoh_members",
@@ -170,6 +186,8 @@ export const QuranAssessmentForm: React.FC = () => {
     onFinish({
       student_id: studentId,
       class_id: classId,
+      halaqoh_id: selectedHalaqohId || record?.halaqoh_id || null,
+      subject_id: selectedHalaqoh?.subject_id || selectedSubjectId || record?.subject_id || null,
       employee_id: formData.get("employee_id") || null,
       examiner_2_id: formData.get("examiner_2_id") || null,
       date: formData.get("date"),
@@ -255,6 +273,7 @@ export const QuranAssessmentForm: React.FC = () => {
                     setSelectedClassId("");
                     setSelectedStudentId("");
                     setSelectedHalaqohId("");
+                    setSelectedSubjectId("");
                   }}
                   disabled={isEdit}
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background disabled:cursor-not-allowed disabled:opacity-50"
@@ -273,6 +292,7 @@ export const QuranAssessmentForm: React.FC = () => {
                     setSelectedClassId(event.target.value);
                     setSelectedStudentId("");
                     setSelectedHalaqohId("");
+                    setSelectedSubjectId("");
                   }}
                   disabled={isEdit}
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background disabled:cursor-not-allowed disabled:opacity-50"
@@ -290,6 +310,8 @@ export const QuranAssessmentForm: React.FC = () => {
                   onChange={(event) => {
                     setSelectedHalaqohId(event.target.value);
                     setSelectedStudentId("");
+                    const halaqoh = halaqohs.find((item: any) => item.id === event.target.value);
+                    setSelectedSubjectId(halaqoh?.subject_id || "");
                   }}
                   disabled={isEdit}
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background disabled:cursor-not-allowed disabled:opacity-50"
@@ -300,6 +322,22 @@ export const QuranAssessmentForm: React.FC = () => {
                   ))}
                 </select>
                 <p className="text-xs text-muted-foreground">Pilih halaqoh untuk daftar siswa binaan, atau pilih kelas untuk ujian klasikal.</p>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Mata Pelajaran <span className="text-destructive">*</span></label>
+                <select
+                  value={selectedSubjectId}
+                  onChange={(event) => setSelectedSubjectId(event.target.value)}
+                  required
+                  disabled={isEdit || Boolean(selectedHalaqohId)}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  <option value="">-- Pilih Mapel Tahfidz --</option>
+                  {subjectOptions.map((subject: any) => (
+                    <option key={subject.id} value={subject.id}>{subject.name} - {subject.units?.name || "Unit belum diisi"}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-muted-foreground">Jika memakai halaqoh, mapel mengikuti konfigurasi halaqoh secara otomatis.</p>
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Siswa <span className="text-destructive">*</span></label>

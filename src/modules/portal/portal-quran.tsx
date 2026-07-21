@@ -43,7 +43,7 @@ export const PortalQuran: React.FC = () => {
 
         let recordsQuery = supabaseClient
           .from("quran_records")
-          .select("*, employees(full_name), tahfidz_halaqohs(name)")
+          .select("*, employees(full_name), tahfidz_halaqohs(name), subjects(id, name, quran_program_type)")
           .eq("student_id", student.id)
           .order("date", { ascending: false });
         if (activeYearId) recordsQuery = recordsQuery.eq("academic_year_id", activeYearId);
@@ -54,7 +54,7 @@ export const PortalQuran: React.FC = () => {
         if (student.class_id && activeYearId && activeSemesterId) {
           const { data: targetsData } = await supabaseClient
             .from("quran_targets")
-            .select("*")
+            .select("*, subjects(id, name, quran_program_type)")
             .eq("class_id", student.class_id)
             .eq("academic_year_id", activeYearId)
             .eq("semester_id", activeSemesterId);
@@ -65,7 +65,7 @@ export const PortalQuran: React.FC = () => {
 
         let tahfidzTargetQuery = supabaseClient
           .from("tahfidz_student_targets")
-          .select("*")
+          .select("*, subjects(id, name, quran_program_type), tahfidz_halaqohs(id, name)")
           .eq("student_id", student.id)
           .eq("target_type", "tahfidz")
           .order("created_at", { ascending: false });
@@ -76,7 +76,7 @@ export const PortalQuran: React.FC = () => {
 
         let tahsinTargetQuery = supabaseClient
           .from("tahsin_student_targets")
-          .select("*")
+          .select("*, subjects(id, name, quran_program_type), tahfidz_halaqohs(id, name)")
           .eq("student_id", student.id)
           .eq("target_type", "tahsin")
           .order("created_at", { ascending: false });
@@ -87,7 +87,7 @@ export const PortalQuran: React.FC = () => {
 
         let assessmentsQuery = supabaseClient
           .from("quran_assessments")
-          .select("*, employees(full_name)")
+          .select("*, employees(full_name), subjects(id, name, quran_program_type)")
           .eq("student_id", student.id)
           .order("date", { ascending: false });
         if (activeYearId) assessmentsQuery = assessmentsQuery.eq("academic_year_id", activeYearId);
@@ -125,7 +125,12 @@ export const PortalQuran: React.FC = () => {
 
   const getProgress = (target: any) => {
     const units = estimateTargetUnits(target);
-    return Math.min(100, Math.round((target.records.length / Math.max(units, 1)) * 100));
+    const linkedRecords = target.records.filter((record: any) => {
+      if (target.halaqoh_id) return record.halaqoh_id === target.halaqoh_id;
+      if (target.subject_id) return record.subject_id === target.subject_id;
+      return true;
+    });
+    return Math.min(100, Math.round((linkedRecords.length / Math.max(units, 1)) * 100));
   };
 
   if (isLoading) return <div className="p-6 text-center text-gray-500 animate-pulse">Memuat data Al-Qur'an...</div>;
@@ -201,6 +206,8 @@ export const PortalQuran: React.FC = () => {
                             {target.source}
                           </span>
                           <h4 className="mt-2 font-bold text-gray-800">{target.description}</h4>
+                          {target.subjects?.name && <p className="mt-1 text-xs font-semibold text-gray-500">{target.subjects.name}</p>}
+                          {target.tahfidz_halaqohs?.name && <p className="mt-0.5 text-xs text-gray-500">Halaqoh: {target.tahfidz_halaqohs.name}</p>}
                         </div>
                         <span className="text-sm font-bold text-gray-700">{target.target_amount} {target.amount_unit}</span>
                       </div>
@@ -261,6 +268,7 @@ export const PortalQuran: React.FC = () => {
                         <p className="text-xs font-medium text-purple-600 mt-0.5">
                           {isTahsin ? "Ujian Kenaikan Jilid Tahsin" : "Munaqosyah Tahfidz"}
                         </p>
+                        {assessment.subjects?.name && <p className="mt-1 text-xs font-semibold text-gray-500">Mapel: {assessment.subjects.name}</p>}
                       </div>
                       <div className="text-right">
                         <div className="text-2xl font-black text-purple-700">{assessment.score}</div>
@@ -319,6 +327,7 @@ const RecordList: React.FC<{ title: string; records: any[]; empty: string }> = (
                 <div>
                   <h4 className="font-bold text-lg text-emerald-700">{record.surah_or_jilid}</h4>
                   <p className="text-sm text-gray-600 font-medium">Ayat/Hal: {record.ayat_or_page}</p>
+                  {record.subjects?.name && <p className="mt-1 text-xs font-semibold text-gray-500">Mapel: {record.subjects.name}</p>}
                 </div>
                 <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border ${fluencyClass(record.fluency_score)}`}>
                   {record.fluency_score}

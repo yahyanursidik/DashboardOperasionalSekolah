@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/set-state-in-effect */
 import React, { useEffect, useState } from "react";
-import { useForm, useSelect } from "@refinedev/core";
+import { useForm, useList, useSelect } from "@refinedev/core";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Award, BookOpen, CheckCircle2, ClipboardCheck, Clock, Save, ShieldCheck, Target, Users } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
@@ -25,6 +25,7 @@ export const TahsinHalaqohForm: React.FC = () => {
   const [formPreview, setFormPreview] = useState({
     name: "",
     employee_id: "",
+    subject_id: "",
     academic_year_id: activeYearId || "",
     semester_id: activeSemesterId || "",
     schedule_day: "",
@@ -48,6 +49,7 @@ export const TahsinHalaqohForm: React.FC = () => {
     setFormPreview({
       name: record.name || "",
       employee_id: record.employee_id || "",
+      subject_id: record.subject_id || "",
       academic_year_id: record.academic_year_id || activeYearId || "",
       semester_id: record.semester_id || activeSemesterId || "",
       schedule_day: record.schedule_day || "",
@@ -78,11 +80,23 @@ export const TahsinHalaqohForm: React.FC = () => {
     sorters: [{ field: "name", order: "asc" }],
   });
 
+  const { data: subjectsData } = useList({
+    resource: "subjects",
+    filters: [{ field: "is_active", operator: "eq", value: true }],
+    sorters: [{ field: "name", order: "asc" }],
+    meta: { select: "id, name, code, unit_id, quran_program_type, units(name)" },
+    pagination: { mode: "off" },
+  });
+  const subjectOptions = (subjectsData?.data || []).filter((subject: any) =>
+    subject.quran_program_type === "tahsin" || subject.quran_program_type === "both"
+  );
+
   const selectedTeacher = employeeOptions?.find((option) => option.value === formPreview.employee_id);
   const checklist = [
     { label: "Nama halaqoh", done: Boolean(formPreview.name), helper: formPreview.name || "Isi nama kelompok tahsin" },
     { label: "Periode aktif", done: Boolean(formPreview.academic_year_id && formPreview.semester_id), helper: "Tahun ajaran dan semester" },
     { label: "Guru pengampu", done: Boolean(formPreview.employee_id), helper: selectedTeacher?.label || "Pilih guru tahsin" },
+    { label: "Mapel Tahsin", done: Boolean(formPreview.subject_id), helper: "Relasi kurikulum, jadwal, portal, dan rapor" },
     { label: "Jadwal", done: Boolean(formPreview.schedule_day && formPreview.schedule_start_time && formPreview.schedule_end_time), helper: formPreview.schedule_day && formPreview.schedule_start_time && formPreview.schedule_end_time ? `${formPreview.schedule_day}, ${formPreview.schedule_start_time} - ${formPreview.schedule_end_time}` : "Isi hari, jam mulai, dan jam selesai" },
   ];
 
@@ -106,6 +120,7 @@ export const TahsinHalaqohForm: React.FC = () => {
     const data = {
       name: formData.get("name"),
       employee_id: formData.get("employee_id") || null,
+      subject_id: formData.get("subject_id") || null,
       description: formData.get("description"),
       schedule_day: scheduleDay || null,
       schedule_start_time: scheduleStart || null,
@@ -219,6 +234,22 @@ export const TahsinHalaqohForm: React.FC = () => {
                   <option value="">-- Pilih Semester --</option>
                   {semesterOptions?.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                 </select>
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <label className="text-sm font-medium">Mata Pelajaran Tahsin <span className="text-red-500">*</span></label>
+                <select
+                  name="subject_id"
+                  required
+                  value={formPreview.subject_id}
+                  onChange={(event) => setFormPreview((prev) => ({ ...prev, subject_id: event.target.value }))}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-primary/20"
+                >
+                  <option value="">-- Pilih Mapel Tahsin --</option>
+                  {subjectOptions.map((subject: any) => (
+                    <option key={subject.id} value={subject.id}>{subject.name} - {subject.units?.name || "Unit belum diisi"}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-muted-foreground">Belum tersedia? Tandai mapel sebagai Tahsin atau Tahsin & Tahfidz pada master mata pelajaran.</p>
               </div>
             </div>
           </section>

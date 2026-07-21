@@ -42,7 +42,7 @@ export const TahsinHalaqohsList: React.FC = () => {
       { field: "program_type", operator: "eq" as const, value: "tahsin" },
     ],
     sorters: [{ field: "name", order: "asc" }],
-    meta: { select: "*, employees(full_name)" },
+    meta: { select: "*, employees(full_name), subjects(id, name, quran_program_type, units(name))" },
   });
 
   const { data: membersData } = useList({
@@ -92,7 +92,7 @@ export const TahsinHalaqohsList: React.FC = () => {
   const getHalaqohStats = (halaqohId: string) => {
     const halaqohMembers = members.filter((member: any) => member.halaqoh_id === halaqohId);
     const memberIds = new Set(halaqohMembers.map((member: any) => member.student_id));
-    const halaqohTargets = targets.filter((target: any) => memberIds.has(target.student_id));
+    const halaqohTargets = targets.filter((target: any) => target.halaqoh_id === halaqohId || (!target.halaqoh_id && memberIds.has(target.student_id)));
     const halaqohRecords = recordsDataList.filter((record: any) => record.halaqoh_id === halaqohId || memberIds.has(record.student_id));
     const halaqohAssessments = assessments.filter((assessment: any) => memberIds.has(assessment.student_id));
     const completedTargets = halaqohTargets.filter((target: any) => target.status === "completed").length;
@@ -281,6 +281,9 @@ export const TahsinHalaqohsList: React.FC = () => {
                       <td className="px-6 py-4">
                         <Link to={`/tahsin-halaqohs/show/${record.id}`} className="font-bold text-gray-900 hover:text-primary">
                           {record.name}
+                          <p className={`mt-1 text-xs font-semibold ${record.subjects?.name ? "text-primary" : "text-amber-700"}`}>
+                            {record.subjects?.name ? `${record.subjects.name} - ${record.subjects.units?.name || "Unit"}` : "Mapel Tahsin belum ditautkan"}
+                          </p>
                         </Link>
                         <p className="mt-0.5 text-xs text-muted-foreground">{record.description || "Belum ada deskripsi"}</p>
                       </td>

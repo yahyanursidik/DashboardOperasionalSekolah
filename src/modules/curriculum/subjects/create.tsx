@@ -1,19 +1,16 @@
 import React from "react";
 import { useForm } from "@refinedev/react-hook-form";
-import { Controller } from "react-hook-form";
 import { useList } from "@refinedev/core";
-import { useNavigate, Link } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { ArrowLeft, Save } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
 
 export const SubjectCreate: React.FC = () => {
-  const navigate = useNavigate();
   const { data: unitsData } = useList({ resource: "units", pagination: { mode: "off" } });
 
   const {
     register,
     handleSubmit,
-    control,
     formState: { errors },
     refineCore: { onFinish, formLoading },
   } = useForm({
@@ -35,7 +32,8 @@ export const SubjectCreate: React.FC = () => {
       <form onSubmit={handleSubmit((data) => {
         const payload = {
           ...data,
-          grade_levels: data.grade_levels ? data.grade_levels.map(Number) : []
+          grade_levels: data.grade_levels ? data.grade_levels.map(Number) : [],
+          quran_program_type: data.quran_program_type || null,
         };
         onFinish(payload);
       })} className="bg-card rounded-xl border shadow-sm p-6 space-y-6">
@@ -86,6 +84,22 @@ export const SubjectCreate: React.FC = () => {
               <option value="Lainnya">Lainnya</option>
             </select>
             {errors.category && <span className="text-xs text-rose-500 mt-1">{errors.category.message as string}</span>}
+          </div>
+
+          <div className="rounded-lg border bg-muted/20 p-4">
+            <label className="text-sm font-medium mb-1.5 block">Integrasi Program Al-Qur'an</label>
+            <select
+              {...register("quran_program_type")}
+              className="w-full border rounded-md bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-primary/50"
+            >
+              <option value="">Mata pelajaran umum / tidak terhubung</option>
+              <option value="tahsin">Tahsin</option>
+              <option value="tahfidz">Tahfidz</option>
+              <option value="both">Tahsin dan Tahfidz</option>
+            </select>
+            <p className="mt-2 text-xs leading-5 text-muted-foreground">
+              Pilihan ini menghubungkan mapel dengan halaqoh, jurnal, target, asesmen, jadwal, portal, dan rekomendasi rapor.
+            </p>
           </div>
 
           <div className="flex items-center gap-2 mt-4">

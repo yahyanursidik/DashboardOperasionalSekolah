@@ -1,6 +1,5 @@
-import React from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useForm } from "@refinedev/react-hook-form";
-import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useSelect, useList } from "@refinedev/core";
@@ -23,6 +22,7 @@ const quranSchema = z.object({
   notes: z.string().optional().nullable(),
   class_id: z.string().optional().nullable(),
   halaqoh_id: z.string().optional().nullable(),
+  subject_id: z.string().optional().nullable(),
 });
 
 type QuranFormValues = z.infer<typeof quranSchema>;
@@ -60,6 +60,7 @@ export const QuranRecordForm: React.FC = () => {
       student_id: initialStudentId,
       class_id: initialClassId || null,
       halaqoh_id: initialHalaqohId || null,
+      subject_id: null,
     }
   });
 
@@ -71,6 +72,7 @@ export const QuranRecordForm: React.FC = () => {
   const selectedTajwid = watch("tajwid_score");
   const selectedMakhroj = watch("makhroj_score");
   const selectedDate = watch("date");
+  const selectedSubjectId = watch("subject_id");
 
   const [inputMode, setInputMode] = useState<"kelas" | "halaqoh">(initialHalaqohId ? "halaqoh" : (initialClassId || initialStudentId ? "kelas" : "halaqoh"));
   const [selectedUnitId, setSelectedUnitId] = useState<string>("");
@@ -97,9 +99,43 @@ export const QuranRecordForm: React.FC = () => {
     resource: "tahfidz_halaqohs",
     optionLabel: "name",
     optionValue: "id",
-    filters: [{ field: "program_type", operator: "eq", value: "tahfidz" }],
+    filters: [{ field: "program_type", operator: "eq", value: recordType }],
     sorters: [{ field: "name", order: "asc" }],
   });
+
+  const { data: halaqohData } = useList({
+    resource: "tahfidz_halaqohs",
+    filters: [
+      { field: "program_type", operator: "eq", value: recordType },
+      ...(activeYearId ? [{ field: "academic_year_id", operator: "eq" as const, value: activeYearId }] : []),
+      ...(activeSemesterId ? [{ field: "semester_id", operator: "eq" as const, value: activeSemesterId }] : []),
+    ],
+    meta: { select: "id, name, subject_id, subjects(id, name, unit_id, quran_program_type, units(name))" },
+    pagination: { mode: "off" },
+  });
+  const selectedHalaqoh = (halaqohData?.data || []).find((item: any) => item.id === selectedHalaqohId);
+
+  const { data: subjectsData } = useList({
+    resource: "subjects",
+    filters: [{ field: "is_active", operator: "eq", value: true }],
+    sorters: [{ field: "name", order: "asc" }],
+    meta: { select: "id, name, unit_id, quran_program_type, units(name)" },
+    pagination: { mode: "off" },
+  });
+  const compatibleSubjects = useMemo(() => (subjectsData?.data || []).filter((subject: any) => {
+    const supportsProgram = subject.quran_program_type === recordType || subject.quran_program_type === "both";
+    return supportsProgram && (!selectedUnitId || subject.unit_id === selectedUnitId);
+  }), [recordType, selectedUnitId, subjectsData?.data]);
+
+  useEffect(() => {
+    if (inputMode === "halaqoh") {
+      setValue("subject_id", selectedHalaqoh?.subject_id || null);
+      return;
+    }
+    if (selectedSubjectId && !compatibleSubjects.some((subject: any) => subject.id === selectedSubjectId)) {
+      setValue("subject_id", null);
+    }
+  }, [compatibleSubjects, inputMode, selectedHalaqoh?.subject_id, selectedSubjectId, setValue]);
 
   const { data: halaqohMembers, isLoading: loadingMembers } = useList({
     resource: "tahfidz_halaqoh_members",
@@ -150,8 +186,14 @@ export const QuranRecordForm: React.FC = () => {
       setValue("class_id", null);
     } else {
       setValue("halaqoh_id", null);
+      setValue("subject_id", null);
     }
   };
+
+  const handleFinish = (values: QuranFormValues) => onFinish({
+    ...values,
+    subject_id: inputMode === "halaqoh" ? selectedHalaqoh?.subject_id || null : values.subject_id || null,
+  });
 
   const activeTarget = studentTargetsData?.data?.[0];
   const latestRecord = latestRecordsData?.data?.[0];
@@ -206,7 +248,7 @@ export const QuranRecordForm: React.FC = () => {
         </div>
       </section>
 
-      <form onSubmit={handleSubmit(onFinish as any)} className="bg-card rounded-xl border shadow-sm overflow-hidden">
+      <form onSubmit={handleSubmit(handleFinish as any)} className="bg-card rounded-xl border shadow-sm overflow-hidden">
         
         {/* Tipe Penilaian */}
         <div className="p-6 border-b bg-muted/20">
@@ -254,6 +296,8 @@ export const QuranRecordForm: React.FC = () => {
                     onChange={(e) => {
                       setSelectedHalaqohId(e.target.value);
                       setValue("halaqoh_id", e.target.value);
+                      const halaqoh = (halaqohData?.data || []).find((item: any) => item.id === e.target.value);
+                      setValue("subject_id", halaqoh?.subject_id || null);
                     }}
                     className="w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-primary/50 outline-none bg-background"
                   >
@@ -277,9 +321,15 @@ export const QuranRecordForm: React.FC = () => {
                   </select>
                   {errors.student_id && <p className="text-xs text-destructive">{errors.student_id.message as string}</p>}
                 </div>
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-sm font-medium">Mata Pelajaran</label>
+                  <div className="rounded-md border bg-background px-3 py-2 text-sm">
+                    {selectedHalaqoh?.subjects?.name || "Pilih halaqoh yang sudah dihubungkan ke mapel Tahfidz"}
+                  </div>
+                </div>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-muted/30 p-4 rounded-lg">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 bg-muted/30 p-4 rounded-lg">
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Unit</label>
                   <select
@@ -326,6 +376,20 @@ export const QuranRecordForm: React.FC = () => {
                     ))}
                   </select>
                   {errors.student_id && <p className="text-xs text-destructive">{errors.student_id.message as string}</p>}
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Mata Pelajaran <span className="text-destructive">*</span></label>
+                  <select
+                    {...register("subject_id")}
+                    required={inputMode === "kelas"}
+                    disabled={!selectedUnitId}
+                    className="w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-primary/50 outline-none bg-background disabled:opacity-50"
+                  >
+                    <option value="">-- Pilih Mapel {recordType === "tahfidz" ? "Tahfidz" : "Tahsin"} --</option>
+                    {compatibleSubjects.map((subject: any) => (
+                      <option key={subject.id} value={subject.id}>{subject.name}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
             )}

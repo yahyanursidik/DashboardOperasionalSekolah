@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useForm, useSelect } from "@refinedev/core";
+import { useForm, useList, useSelect } from "@refinedev/core";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Award, BookOpen, CheckCircle2, ClipboardCheck, Save, ShieldCheck, Target, Users } from "lucide-react";
 import { PageHeader } from "../../components/layout/PageHeader";
@@ -28,6 +28,7 @@ export const QuranTargetForm: React.FC = () => {
   const [description, setDescription] = useState<string>("");
   const [formPreview, setFormPreview] = useState({
     class_id: record?.class_id || searchParams.get("class_id") || "",
+    subject_id: record?.subject_id || "",
     target_amount: record?.target_amount || 1,
     amount_unit: record?.amount_unit || "halaman",
   });
@@ -38,6 +39,7 @@ export const QuranTargetForm: React.FC = () => {
       setDescription(record.description);
       setFormPreview({
         class_id: record.class_id || "",
+        subject_id: record.subject_id || "",
         target_amount: record.target_amount || 1,
         amount_unit: record.amount_unit || "halaman",
       });
@@ -51,9 +53,35 @@ export const QuranTargetForm: React.FC = () => {
     sorters: [{ field: "name", order: "asc" }],
   });
   const selectedClass = classOptions?.find((option) => option.value === formPreview.class_id);
+  const { data: classesData } = useList({
+    resource: "classes",
+    meta: { select: "id, name, unit_id, grade_level, units(name)" },
+    pagination: { mode: "off" },
+  });
+  const selectedClassRecord = (classesData?.data || []).find((item: any) => item.id === formPreview.class_id);
+  const { data: subjectsData } = useList({
+    resource: "subjects",
+    filters: [{ field: "is_active", operator: "eq", value: true }],
+    sorters: [{ field: "name", order: "asc" }],
+    meta: { select: "id, name, unit_id, grade_levels, quran_program_type, units(name)" },
+    pagination: { mode: "off" },
+  });
+  const subjectOptions = (subjectsData?.data || []).filter((subject: any) => {
+    const supportsProgram = subject.quran_program_type === targetType || subject.quran_program_type === "both";
+    const supportsUnit = !selectedClassRecord?.unit_id || subject.unit_id === selectedClassRecord.unit_id;
+    const grades = Array.isArray(subject.grade_levels) ? subject.grade_levels.map(Number) : [];
+    const supportsGrade = !selectedClassRecord?.grade_level || grades.length === 0 || grades.includes(Number(selectedClassRecord.grade_level));
+    return supportsProgram && supportsUnit && supportsGrade;
+  });
+  useEffect(() => {
+    if (formPreview.subject_id && !subjectOptions.some((subject: any) => subject.id === formPreview.subject_id)) {
+      setFormPreview((current) => ({ ...current, subject_id: "" }));
+    }
+  }, [formPreview.subject_id, subjectOptions]);
   const checklist = [
     { label: "Kelas terpilih", done: Boolean(formPreview.class_id), helper: selectedClass?.label || "Pilih kelas target" },
     { label: "Tipe program", done: Boolean(targetType), helper: targetType === "tahfidz" ? "Tahfidz hafalan" : "Tahsin bacaan" },
+    { label: "Mapel terhubung", done: Boolean(formPreview.subject_id), helper: "Mengikuti unit dan tingkat kelas" },
     { label: "Deskripsi jelas", done: Boolean(description), helper: "Contoh: Hafalan Surah Al-Mulk atau Tahsin jilid 4" },
     { label: "Jumlah terukur", done: Number(formPreview.target_amount || 0) > 0, helper: `${formPreview.target_amount || 0} ${formPreview.amount_unit}` },
   ];
@@ -65,6 +93,7 @@ export const QuranTargetForm: React.FC = () => {
     const data = {
       class_id: formData.get("class_id"),
       target_type: targetType,
+      subject_id: formData.get("subject_id"),
       description: description,
       target_amount: parseInt(formData.get("target_amount") as string),
       amount_unit: formData.get("amount_unit"),
@@ -134,7 +163,7 @@ export const QuranTargetForm: React.FC = () => {
       <form key={record?.id || "create-quran-target"} onSubmit={handleSubmit} className="bg-card border rounded-xl shadow-sm overflow-hidden">
         <div className="p-6 space-y-6">
           
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-4 md:grid-cols-3">
             <div className="space-y-2">
               <label className="text-sm font-medium">Kelas</label>
               <select
@@ -162,6 +191,19 @@ export const QuranTargetForm: React.FC = () => {
               >
                 <option value="tahfidz">Tahfidz (Hafalan)</option>
                 <option value="tahsin">Tahsin (Bacaan)</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Mata Pelajaran</label>
+              <select
+                name="subject_id"
+                required
+                value={formPreview.subject_id}
+                onChange={(event) => setFormPreview((prev) => ({ ...prev, subject_id: event.target.value }))}
+                className="w-full flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+              >
+                <option value="">-- Pilih Mapel {targetType === "tahfidz" ? "Tahfidz" : "Tahsin"} --</option>
+                {subjectOptions.map((subject: any) => <option key={subject.id} value={subject.id}>{subject.name}</option>)}
               </select>
             </div>
           </div>

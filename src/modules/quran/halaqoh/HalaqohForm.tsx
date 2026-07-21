@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/set-state-in-effect */
 import React, { useEffect, useState } from "react";
-import { useForm, useSelect } from "@refinedev/core";
+import { useForm, useList, useSelect } from "@refinedev/core";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { ArrowLeft, Award, BookOpen, CheckCircle2, ClipboardCheck, Clock, Save, ShieldCheck, Target, Users } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
@@ -36,6 +36,7 @@ export const HalaqohForm: React.FC = () => {
   const [formPreview, setFormPreview] = useState({
     name: record?.name || "",
     employee_id: record?.employee_id || "",
+    subject_id: record?.subject_id || "",
     schedule_day: record?.schedule_day || "",
     schedule_time: record?.schedule_time || "",
     schedule_start_time: initialSchedule.start,
@@ -46,6 +47,7 @@ export const HalaqohForm: React.FC = () => {
   const checklist = [
     { label: "Nama halaqoh jelas", done: Boolean(formPreview.name), helper: "Mudah dikenali oleh guru, admin, dan laporan" },
     { label: "Muhaffizh terisi", done: Boolean(formPreview.employee_id), helper: "Penanggung jawab target dan setoran" },
+    { label: "Mapel Tahfidz terhubung", done: Boolean(formPreview.subject_id), helper: "Menghubungkan jadwal, asesmen, portal, dan rapor" },
     { label: "Periode akademik", done: Boolean(formPreview.academic_year_id && formPreview.semester_id), helper: "Memisahkan capaian setiap semester" },
     { label: "Jadwal halaqoh", done: Boolean(formPreview.schedule_day && formPreview.schedule_start_time && formPreview.schedule_end_time), helper: "Menjadi acuan jadwal portal dan absensi guru part-time" },
   ];
@@ -56,6 +58,7 @@ export const HalaqohForm: React.FC = () => {
     setFormPreview({
       name: record.name || "",
       employee_id: record.employee_id || "",
+      subject_id: record.subject_id || "",
       schedule_day: record.schedule_day || "",
       schedule_time: record.schedule_time || "",
       schedule_start_time: schedule.start,
@@ -87,6 +90,17 @@ export const HalaqohForm: React.FC = () => {
     sorters: [{ field: "name", order: "asc" }],
   });
 
+  const { data: subjectsData } = useList({
+    resource: "subjects",
+    filters: [{ field: "is_active", operator: "eq", value: true }],
+    sorters: [{ field: "name", order: "asc" }],
+    meta: { select: "id, name, code, unit_id, quran_program_type, units(name)" },
+    pagination: { mode: "off" },
+  });
+  const subjectOptions = (subjectsData?.data || []).filter((subject: any) =>
+    subject.quran_program_type === "tahfidz" || subject.quran_program_type === "both"
+  );
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -107,6 +121,7 @@ export const HalaqohForm: React.FC = () => {
     const data = {
       name: formData.get("name"),
       employee_id: formData.get("employee_id") || null,
+      subject_id: formData.get("subject_id") || null,
       description: formData.get("description"),
       schedule_day: scheduleDay || null,
       schedule_start_time: scheduleStart || null,
@@ -232,6 +247,23 @@ export const HalaqohForm: React.FC = () => {
                     ))}
                   </select>
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Mata Pelajaran Tahfidz <span className="text-red-500">*</span></label>
+                <select
+                  name="subject_id"
+                  required
+                  value={formPreview.subject_id}
+                  onChange={(event) => setFormPreview((prev) => ({ ...prev, subject_id: event.target.value }))}
+                  className="w-full flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-primary/20 focus:outline-none transition-shadow"
+                >
+                  <option value="">-- Pilih Mapel Tahfidz --</option>
+                  {subjectOptions.map((subject: any) => (
+                    <option key={subject.id} value={subject.id}>{subject.name} - {subject.units?.name || "Unit belum diisi"}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-muted-foreground">Belum tersedia? Tandai mapel sebagai Tahfidz atau Tahsin & Tahfidz pada master mata pelajaran.</p>
               </div>
               
               <div className="space-y-2">

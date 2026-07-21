@@ -27,6 +27,7 @@ import { Link } from "react-router-dom";
 import { useSelect, useDelete, useList } from "@refinedev/core";
 import { toast } from "sonner";
 import { useAcademicYear } from "../../../app/providers/AcademicYearProvider";
+import { isUnitLearningSchedule } from "../../schedules/schedule-utils";
 
 const DeleteConfirmModal: React.FC<{
   isOpen: boolean;
@@ -122,7 +123,7 @@ const getClassReadiness = (
   const capacity = Number(klass.capacity || 30);
   const grade = getClassGradeLevel(klass);
   const hasHomeroom = Boolean(getHomeroomAssignment(klass)?.employees?.full_name);
-  const hasSchedule = schedules.some((schedule: any) => schedule.class_id === klass.id);
+  const hasSchedule = schedules.some((schedule: any) => schedule.class_id === klass.id || (isUnitLearningSchedule(schedule) && schedule.unit_id === klass.unit_id));
   const hasCurriculum = curriculums.some((record: any) => Number(record.grade_level) === grade);
   const missing: string[] = [];
 

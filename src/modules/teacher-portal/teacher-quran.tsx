@@ -28,6 +28,7 @@ export const TeacherQuran: React.FC = () => {
   const [programType, setProgramType] = useState<"tahfidz" | "tahsin">("tahfidz");
   const [units, setUnits] = useState<any[]>([]);
   const [classes, setClasses] = useState<any[]>([]);
+  const [classSubjects, setClassSubjects] = useState<Record<string, any>>({});
   const [halaqohs, setHalaqohs] = useState<any[]>([]);
   const [members, setMembers] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
@@ -56,20 +57,23 @@ export const TeacherQuran: React.FC = () => {
     const fetchInitialData = async () => {
       let scheduleQuery = supabaseClient
         .from("employee_schedules")
-        .select("class_id, classes(id, name, unit_id, units(id, name))")
+        .select("class_id, subject_id, classes(id, name, unit_id, units(id, name)), subjects(id, name, unit_id, quran_program_type)")
         .eq("employee_id", employee.id)
         .not("class_id", "is", null);
       if (activeYearId) scheduleQuery = scheduleQuery.eq("academic_year_id", activeYearId);
       if (activeSemesterId) scheduleQuery = scheduleQuery.eq("semester_id", activeSemesterId);
       const { data: scheduleClasses } = await scheduleQuery;
 
-      const { data: homeroomClasses } = await supabaseClient
-        .from("classes")
-        .select("id, name, unit_id, units(id, name)")
-        .eq("homeroom_teacher_id", employee.id);
-
+      const quranSchedules = (scheduleClasses || []).filter((item: any) =>
+        item.subjects?.quran_program_type === programType || item.subjects?.quran_program_type === "both"
+      );
+      const nextClassSubjects: Record<string, any> = {};
+      quranSchedules.forEach((item: any) => {
+        if (item.class_id && item.subjects) nextClassSubjects[item.class_id] = item.subjects;
+      });
+      setClassSubjects(nextClassSubjects);
       const classMap = new Map<string, any>();
-      [...(scheduleClasses || []).map((item: any) => item.classes), ...(homeroomClasses || [])]
+      quranSchedules.map((item: any) => item.classes)
         .filter(Boolean)
         .forEach((cls: any) => classMap.set(cls.id, cls));
       const assignedClasses = Array.from(classMap.values()).sort((a, b) => String(a.name).localeCompare(String(b.name)));
@@ -85,7 +89,7 @@ export const TeacherQuran: React.FC = () => {
 
       let halaqohQuery = supabaseClient
         .from("tahfidz_halaqohs")
-        .select("id, name, program_type, employee_id")
+        .select("id, name, program_type, employee_id, subject_id, subjects(id, name, unit_id, quran_program_type)")
         .eq("employee_id", employee.id)
         .eq("program_type", programType)
         .order("name");
@@ -146,6 +150,8 @@ export const TeacherQuran: React.FC = () => {
   }, [members, sourceMode, students]);
 
   const selectedStudent = studentOptions.find((student: any) => student.id === formData.student_id);
+  const selectedHalaqoh = halaqohs.find((halaqoh: any) => halaqoh.id === selectedHalaqohId);
+  const selectedSubject = sourceMode === "halaqoh" ? selectedHalaqoh?.subjects : classSubjects[selectedClassId];
 
   useEffect(() => {
     if (!formData.student_id) {
@@ -203,11 +209,16 @@ export const TeacherQuran: React.FC = () => {
       toast.error("Lengkapi siswa, materi, dan halaman/ayat");
       return;
     }
+    if (!selectedSubject?.id) {
+      toast.error("Mapel Tahsin/Tahfidz belum terhubung", { description: "Perbarui halaqoh atau jadwal mapel sebelum mengisi jurnal." });
+      return;
+    }
 
     const { error } = await supabaseClient.from("quran_records").insert({
       student_id: formData.student_id,
       class_id: selectedStudent?.class_id || selectedClassId || null,
       halaqoh_id: sourceMode === "halaqoh" ? selectedHalaqohId : null,
+      subject_id: selectedSubject?.id || null,
       employee_id: employee.id,
       academic_year_id: activeYearId,
       semester_id: activeSemesterId,
@@ -232,10 +243,16 @@ export const TeacherQuran: React.FC = () => {
       toast.error("Lengkapi siswa, judul ujian, dan nilai");
       return;
     }
+    if (!selectedSubject?.id) {
+      toast.error("Mapel Tahsin/Tahfidz belum terhubung", { description: "Perbarui halaqoh atau jadwal mapel sebelum mengisi ujian." });
+      return;
+    }
 
     const { error } = await supabaseClient.from("quran_assessments").insert({
       student_id: formData.student_id,
       class_id: selectedStudent?.class_id || selectedClassId || null,
+      halaqoh_id: sourceMode === "halaqoh" ? selectedHalaqohId : null,
+      subject_id: selectedSubject?.id || null,
       employee_id: employee.id,
       date: toDateInputValue(new Date()),
       assessment_type: programType === "tahsin" ? "tahsin_jilid" : "tahfidz_juz",
@@ -268,6 +285,7 @@ export const TeacherQuran: React.FC = () => {
 
   const checklist = [
     { label: "Sumber siswa", done: sourceMode === "halaqoh" ? Boolean(selectedHalaqohId) : Boolean(selectedClassId) },
+    { label: "Mata pelajaran", done: Boolean(selectedSubject?.id) },
     { label: "Siswa", done: Boolean(formData.student_id) },
     { label: mode === "record" ? "Materi" : "Judul ujian", done: mode === "record" ? Boolean(formData.surah_or_jilid && formData.ayat_or_page) : Boolean(formData.title) },
     { label: mode === "record" ? "Kelancaran" : "Nilai", done: mode === "record" ? Boolean(formData.fluency_score) : Boolean(formData.score) },
@@ -285,7 +303,7 @@ export const TeacherQuran: React.FC = () => {
         </div>
       </section>
 
-      <section className="grid gap-3 md:grid-cols-4">
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         {checklist.map((item) => (
           <div key={item.label} className="rounded-2xl border bg-white p-4 shadow-sm">
             <ShieldCheck className={`mb-2 h-5 w-5 ${item.done ? "text-emerald-600" : "text-gray-300"}`} />
@@ -352,6 +370,11 @@ export const TeacherQuran: React.FC = () => {
             )}
           </div>
 
+          <div className={`rounded-xl border px-3 py-2 text-sm ${selectedSubject?.id ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-200 bg-amber-50 text-amber-800"}`}>
+            <span className="font-bold">Mata pelajaran: </span>
+            {selectedSubject?.name || "Belum terhubung. Admin perlu mengatur mapel pada halaqoh atau jadwal kelas."}
+          </div>
+
           <div className="space-y-1.5">
             <label className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Siswa</label>
             <select value={formData.student_id} onChange={(event) => setFormData({ ...formData, student_id: event.target.value })} className="h-11 w-full rounded-xl border bg-gray-50 px-3 text-sm outline-none focus:ring-2 focus:ring-emerald-500/30">
@@ -362,7 +385,7 @@ export const TeacherQuran: React.FC = () => {
               <p className="mt-1 text-xs text-amber-600">Belum ada halaqoh {programType} yang ditugaskan kepada Anda.</p>
             )}
             {sourceMode === "class" && classes.length === 0 && (
-              <p className="mt-1 text-xs text-amber-600">Belum ada kelas yang tertaut ke jadwal/wali kelas Anda.</p>
+              <p className="mt-1 text-xs text-amber-600">Belum ada kelas dengan jadwal mapel {programType} yang ditugaskan kepada Anda.</p>
             )}
           </div>
 

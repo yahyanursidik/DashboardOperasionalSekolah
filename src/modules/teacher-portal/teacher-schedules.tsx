@@ -1,13 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useState } from "react";
 import { useOutletContext } from "react-router-dom";
-import { supabaseClient } from "../../lib/supabase/client";
 import { AlertTriangle, Clock3 } from "lucide-react";
 import { useAcademicYear } from "../../app/providers/AcademicYearProvider";
 import { LessonSchedulePanel } from "../schedules/components/LessonSchedulePanel";
 import { canUseTeachingScheduleAttendance } from "../employees/employee-role-config";
 import { getEmployeePosition } from "../employees/employee-role-config";
 import { PageHeader } from "../../components/layout/PageHeader";
+import { loadTeacherLearningSchedules } from "../schedules/schedule-data";
 
 export const TeacherSchedules: React.FC = () => {
   const { employee } = useOutletContext<any>();
@@ -16,21 +16,13 @@ export const TeacherSchedules: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const followsTeachingSchedule = employee.attendance_mode === "teaching_schedule" && canUseTeachingScheduleAttendance(employee.position);
   const isLeadership = getEmployeePosition(employee.position).category === "leadership";
-  const activeTeachingSchedules = schedules.filter((schedule) => schedule.schedule_type === "mengajar");
+  const activeTeachingSchedules = schedules.filter((schedule) => schedule.schedule_type === "mengajar" && schedule.employee_id === employee.id);
 
   useEffect(() => {
     const fetchSchedules = async () => {
       try {
-        let query = supabaseClient
-          .from("employee_schedules")
-          .select("*, classes(name, unit_id, units(name)), units(name), subjects(name), attendance_shifts(name,check_in_open,check_in_close)")
-          .eq("employee_id", employee.id)
-          .order("start_time");
-
-        if (activeYearId) query = query.or(`academic_year_id.eq.${activeYearId},academic_year_id.is.null`);
-        if (activeSemesterId) query = query.or(`semester_id.eq.${activeSemesterId},semester_id.is.null`);
-        const { data } = await query;
-
+        const { data, error } = await loadTeacherLearningSchedules({ employeeId: employee.id, homeUnitId: employee.unit_id, academicYearId: activeYearId, semesterId: activeSemesterId });
+        if (error) throw error;
         setSchedules(data || []);
       } catch (err) {
         console.error("Error fetching schedules:", err);
@@ -40,7 +32,7 @@ export const TeacherSchedules: React.FC = () => {
     };
 
     fetchSchedules();
-  }, [employee.id, activeSemesterId, activeYearId]);
+  }, [employee.id, employee.unit_id, activeSemesterId, activeYearId]);
 
   return (
     <div className="space-y-6 p-4 md:p-0">

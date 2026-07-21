@@ -30,7 +30,7 @@ export const HalaqohsList: React.FC = () => {
       pageSize: 500
     },
     meta: {
-      select: "*, employees(full_name)"
+      select: "*, employees(full_name), subjects(id, name, quran_program_type, units(name))"
     }
   });
 
@@ -68,9 +68,10 @@ export const HalaqohsList: React.FC = () => {
     const halaqohMembers = members.filter((member: any) => member.halaqoh_id === halaqoh.id);
     const memberIds = new Set(halaqohMembers.map((member: any) => member.student_id));
     const halaqohRecords = quranRecords.filter((record: any) => record.halaqoh_id === halaqoh.id || memberIds.has(record.student_id));
-    const halaqohTargets = targets.filter((target: any) => memberIds.has(target.student_id));
+    const halaqohTargets = targets.filter((target: any) => target.halaqoh_id === halaqoh.id || (!target.halaqoh_id && memberIds.has(target.student_id)));
     const missing: string[] = [];
 
+    if (!halaqoh.subject_id) missing.push("mapel");
     if (!halaqoh.employee_id) missing.push("muhaffizh");
     if (!halaqoh.schedule_day && !halaqoh.schedule_time) missing.push("jadwal");
     if (halaqohMembers.length === 0) missing.push("anggota");
@@ -263,6 +264,9 @@ export const HalaqohsList: React.FC = () => {
                     <td className="px-6 py-4">
                       <Link to={`/tahfidz-halaqohs/show/${record.id}`} className="font-bold text-gray-900 hover:text-primary transition-colors">
                         {record.name}
+                        <p className={`mt-1 text-xs font-semibold ${record.subjects?.name ? "text-primary" : "text-amber-700"}`}>
+                          {record.subjects?.name ? `${record.subjects.name} - ${record.subjects.units?.name || "Unit"}` : "Mapel Tahfidz belum ditautkan"}
+                        </p>
                       </Link>
                       {record.description && <p className="mt-1 max-w-[260px] truncate text-xs text-muted-foreground">{record.description}</p>}
                     </td>

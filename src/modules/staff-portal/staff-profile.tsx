@@ -68,6 +68,7 @@ export const StaffProfile: React.FC = () => {
           .from("employee_schedules")
           .select("*, classes(name, unit_id, units(name)), units(name), subjects(name)")
           .eq("employee_id", employee.id)
+          .neq("schedule_type", "mengajar")
           .order("day_of_week")
           .order("start_time");
         if (activeYearId) scheduleQuery = scheduleQuery.or(`academic_year_id.eq.${activeYearId},academic_year_id.is.null`);

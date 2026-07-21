@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useList } from "@refinedev/core";
 import { PageHeader } from "../../../components/layout/PageHeader";
-import { Save, FilterX, FileBadge } from "lucide-react";
+import { Save, FilterX, FileBadge, WandSparkles } from "lucide-react";
 import { supabaseClient } from "../../../lib/supabase/client";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
@@ -24,6 +24,7 @@ export const ReportCards: React.FC = () => {
   });
 
   const [reportCards, setReportCards] = useState<Record<string, any>>({});
+  const [quranRecommendations, setQuranRecommendations] = useState<Record<string, { tahsin?: string; tahfidz?: string }>>({});
   const [isSaving, setIsSaving] = useState(false);
   const currentSemester = semesters?.data?.find((semester: any) => String(semester.id) === String(selectedSemester));
   const availableClasses = useMemo(
@@ -47,7 +48,10 @@ export const ReportCards: React.FC = () => {
 
   useEffect(() => {
     const fetchReportCards = async () => {
-      if (!selectedSemester || !selectedClass) return;
+      if (!selectedSemester || !selectedClass) {
+        setQuranRecommendations({});
+        return;
+      }
       
       const response = await supabaseClient
         .from("academic_report_cards")
@@ -63,6 +67,25 @@ export const ReportCards: React.FC = () => {
         });
         setReportCards(rcMap);
       }
+
+      const assessmentResponse = await supabaseClient
+        .from("quran_assessments")
+        .select("student_id, assessment_type, predicate, score, status, date, subject_id, subjects(name, quran_program_type)")
+        .eq("semester_id", selectedSemester)
+        .eq("class_id", selectedClass)
+        .not("subject_id", "is", null)
+        .in("status", ["Lulus", "Lulus Bersyarat"])
+        .order("date", { ascending: false })
+        .order("created_at", { ascending: false });
+
+      const recommendationMap: Record<string, { tahsin?: string; tahfidz?: string }> = {};
+      (assessmentResponse.data || []).forEach((assessment: any) => {
+        const program = assessment.assessment_type === "tahsin_jilid" ? "tahsin" : "tahfidz";
+        const current = recommendationMap[assessment.student_id] || {};
+        if (!current[program]) current[program] = assessment.predicate || String(assessment.score || "");
+        recommendationMap[assessment.student_id] = current;
+      });
+      setQuranRecommendations(recommendationMap);
     };
     fetchReportCards();
   }, [selectedSemester, selectedClass]);
@@ -75,6 +98,29 @@ export const ReportCards: React.FC = () => {
         [field]: value
       }
     }));
+  };
+
+  const applyQuranRecommendations = () => {
+    let applied = 0;
+    setReportCards((current) => {
+      const next = { ...current };
+      Object.entries(quranRecommendations).forEach(([studentId, recommendation]) => {
+        const row = { ...(next[studentId] || {}) };
+        if (!row.tahsin_predicate && recommendation.tahsin) {
+          row.tahsin_predicate = recommendation.tahsin;
+          applied += 1;
+        }
+        if (!row.tahfidz_predicate && recommendation.tahfidz) {
+          row.tahfidz_predicate = recommendation.tahfidz;
+          applied += 1;
+        }
+        next[studentId] = row;
+      });
+      return next;
+    });
+    toast.success(applied ? `${applied} rekomendasi Qur'an diterapkan.` : "Tidak ada kolom kosong yang perlu diisi.", {
+      description: "Data yang sudah diisi sebelumnya tidak ditimpa.",
+    });
   };
 
   const handleSaveAll = async () => {
@@ -145,18 +191,28 @@ export const ReportCards: React.FC = () => {
 
       {selectedSemester && selectedClass ? (
         <div className="bg-card rounded-xl border shadow-sm overflow-hidden flex flex-col">
-          <div className="p-4 border-b flex justify-between items-center bg-muted/20">
+          <div className="p-4 border-b flex flex-wrap justify-between items-center gap-3 bg-muted/20">
             <div>
               <h3 className="font-bold">Form Kelengkapan Rapor</h3>
               <p className="text-xs text-muted-foreground">Pilihan Predikat: A (Sangat Baik), B (Baik), C (Cukup), D (Kurang). Untuk PAUD gunakan BB, MB, BSH, BSB.</p>
             </div>
-            <button
-              onClick={handleSaveAll}
-              disabled={isSaving}
-              className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition-colors text-sm font-medium disabled:opacity-70"
-            >
-              <Save className="w-4 h-4" /> {isSaving ? "Menyimpan..." : "Simpan Data Rapor"}
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={applyQuranRecommendations}
+                disabled={Object.keys(quranRecommendations).length === 0}
+                className="flex items-center gap-2 rounded-md border bg-background px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50"
+              >
+                <WandSparkles className="h-4 w-4 text-emerald-600" /> Terapkan Hasil Qur'an
+              </button>
+              <button
+                onClick={handleSaveAll}
+                disabled={isSaving}
+                className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition-colors text-sm font-medium disabled:opacity-70"
+              >
+                <Save className="w-4 h-4" /> {isSaving ? "Menyimpan..." : "Simpan Data Rapor"}
+              </button>
+            </div>
           </div>
 
           <div className="overflow-x-auto">
@@ -212,6 +268,7 @@ export const ReportCards: React.FC = () => {
                           className="w-full border rounded text-center px-2 py-1.5 focus:ring-1 focus:ring-primary outline-none"
                           placeholder="Predikat"
                         />
+                        {quranRecommendations[studentId]?.tahsin && <p className="mt-1 text-[10px] font-semibold text-emerald-700">Saran: {quranRecommendations[studentId].tahsin}</p>}
                       </td>
                       <td className="px-4 py-2">
                         <input
@@ -221,6 +278,7 @@ export const ReportCards: React.FC = () => {
                           className="w-full border rounded text-center px-2 py-1.5 focus:ring-1 focus:ring-primary outline-none"
                           placeholder="Predikat"
                         />
+                        {quranRecommendations[studentId]?.tahfidz && <p className="mt-1 text-[10px] font-semibold text-emerald-700">Saran: {quranRecommendations[studentId].tahfidz}</p>}
                       </td>
                       <td className="px-4 py-2">
                         <input

@@ -4,7 +4,8 @@ import { useOutletContext, Link } from "react-router-dom";
 import { supabaseClient } from "../../lib/supabase/client";
 import { Calendar, Clock, BookOpen, ChevronRight, UserCheck, BarChart3, CalendarCheck, FileText, Megaphone, ListTodo } from "lucide-react";
 import { useAcademicYear } from "../../app/providers/AcademicYearProvider";
-import { dayMap, getScheduleSubjectName } from "../schedules/schedule-utils";
+import { dayMap, getScheduleSubjectName, isUnitLearningSchedule } from "../schedules/schedule-utils";
+import { loadTeacherAssignedUnitIds, loadTeacherLearningSchedules } from "../schedules/schedule-data";
 import { isLeaveActiveOnDate, toDateInputValue } from "../leaves/leave-utils";
 import { canUseTeachingScheduleAttendance, getEmployeePosition } from "../employees/employee-role-config";
 
@@ -63,16 +64,18 @@ export const TeacherDashboard: React.FC = () => {
           .neq("status", "cancelled");
 
         const dayOfWeek = dayMap[new Date().getDay()] || "Senin";
-        let todayScheduleQuery = supabaseClient
-          .from("employee_schedules")
-          .select("*, classes(id, name), subjects(name)")
-          .eq("employee_id", employee.id)
-          .eq("day_of_week", dayOfWeek)
-          .order("start_time");
-        if (activeYearId) todayScheduleQuery = todayScheduleQuery.or(`academic_year_id.eq.${activeYearId},academic_year_id.is.null`);
-        if (activeSemesterId) todayScheduleQuery = todayScheduleQuery.or(`semester_id.eq.${activeSemesterId},semester_id.is.null`);
-        const { data: schedules } = await todayScheduleQuery;
+        const [{ data: allSchedules }, assignedUnitRows] = await Promise.all([
+          loadTeacherLearningSchedules({
+            employeeId: employee.id,
+            homeUnitId: employee.unit_id,
+            academicYearId: activeYearId,
+            semesterId: activeSemesterId,
+          }),
+          loadTeacherAssignedUnitIds(employee.id, activeYearId, activeSemesterId),
+        ]);
+        const schedules = (allSchedules || []).filter((schedule: any) => schedule.day_of_week === dayOfWeek);
         setTodaySchedules(schedules || []);
+        const accessibleUnitIds = new Set([employee.unit_id, ...assignedUnitRows].filter(Boolean));
 
         let assignmentQuery = supabaseClient
           .from("employee_schedules")
@@ -105,7 +108,7 @@ export const TeacherDashboard: React.FC = () => {
         const scopedAnnouncements = (announcementRows || []).filter((item: any) => {
           if (item.publish_at && new Date(item.publish_at).getTime() > now) return false;
           if (item.target_type === "all" || item.target_type === "staff") return true;
-          if (item.target_type === "unit") return !item.unit_id || item.unit_id === employee.unit_id;
+          if (item.target_type === "unit") return !item.unit_id || accessibleUnitIds.has(item.unit_id);
           if (item.target_type === "class") return item.class_id && assignedClassIds.has(item.class_id);
           return false;
         });
@@ -142,7 +145,7 @@ export const TeacherDashboard: React.FC = () => {
         const myAttendance = myAtt as any;
         const hasAttendanceDuty = employee.attendance_mode !== "teaching_schedule"
           || !canUseTeachingScheduleAttendance(employee.position)
-          || (schedules || []).some((schedule: any) => schedule.attendance_shift_id || schedule.schedule_type === "mengajar");
+          || (schedules || []).some((schedule: any) => schedule.employee_id === employee.id);
         const records = quranRecords || [];
         const assessmentList = assessments || [];
         const leaveList = leaves || [];
@@ -326,7 +329,7 @@ export const TeacherDashboard: React.FC = () => {
                       <div className="h-10 w-px bg-gray-200" />
                       <div>
                         <h4 className="font-bold text-foreground">{getScheduleSubjectName(schedule)}</h4>
-                        <p className="mt-0.5 text-xs font-medium text-primary">{schedule.classes?.name}</p>
+                        <p className="mt-0.5 text-xs font-medium text-primary">{isUnitLearningSchedule(schedule) ? `Semua kelas${schedule.units?.name ? ` · ${schedule.units.name}` : ""}` : schedule.classes?.name}</p>
                       </div>
                     </div>
                   </div>

@@ -21,6 +21,7 @@ import { useAcademicYear } from "../../app/providers/AcademicYearProvider";
 import { RolePortalShell, type RolePortalNavGroup } from "../../components/layout/RolePortalShell";
 import { supabaseClient } from "../../lib/supabase/client";
 import { getEmployeePosition } from "../employees/employee-role-config";
+import { loadTeacherAssignedUnitIds } from "../schedules/schedule-data";
 
 const localReadKey = "teacher_portal_read_announcement_ids";
 
@@ -73,7 +74,7 @@ export const TeacherLayout: React.FC = () => {
       if (activeSemesterId) scheduledClassQuery = scheduledClassQuery.eq("semester_id", activeSemesterId);
 
       const today = new Date().toLocaleDateString("en-CA");
-      const [tasksResult, announcementsResult, readsResult, scheduledResult, homeroomResult, eventsResult, overtimeResult, leaveResult] = await Promise.all([
+      const [tasksResult, announcementsResult, readsResult, scheduledResult, homeroomResult, eventsResult, overtimeResult, leaveResult, assignedUnitIds] = await Promise.all([
         supabaseClient.from("admin_tasks").select("id,status").eq("assigned_to", session.user.id),
         supabaseClient.from("announcements").select("id,target_type,unit_id,class_id,publish_at").eq("status", "terkirim"),
         supabaseClient.from("employee_announcement_reads").select("announcement_id").eq("employee_id", currentEmployee.id),
@@ -82,6 +83,7 @@ export const TeacherLayout: React.FC = () => {
         supabaseClient.from("attendance_event_participants").select("id,attendance_events(event_date,status)").eq("employee_id", currentEmployee.id),
         supabaseClient.from("employee_overtime").select("id,status,overtime_date").eq("employee_id", currentEmployee.id).in("status", ["pending", "approved"]),
         supabaseClient.from("leave_requests").select("id").eq("employee_id", currentEmployee.id).eq("status", "pending"),
+        loadTeacherAssignedUnitIds(currentEmployee.id, activeYearId, activeSemesterId),
       ]);
 
       setPendingTasks((tasksResult.data || []).filter((task: any) => !["selesai", "completed", "cancelled"].includes(task.status)).length);
@@ -94,10 +96,11 @@ export const TeacherLayout: React.FC = () => {
         ...(homeroomResult.data || []).map((row: any) => row.id),
       ].filter(Boolean));
       const now = Date.now();
+      const accessibleUnitIds = new Set([currentEmployee.unit_id, ...assignedUnitIds].filter(Boolean));
       const scopedAnnouncements = (announcementsResult.data || []).filter((item: any) => {
         if (item.publish_at && new Date(item.publish_at).getTime() > now) return false;
         if (["all", "staff"].includes(item.target_type)) return true;
-        if (item.target_type === "unit") return !item.unit_id || item.unit_id === currentEmployee.unit_id;
+        if (item.target_type === "unit") return !item.unit_id || accessibleUnitIds.has(item.unit_id);
         if (item.target_type === "class") return item.class_id && classIds.has(item.class_id);
         return false;
       });

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useOutletContext } from "react-router-dom";
 import { BookOpen, Download } from "lucide-react";
@@ -5,6 +6,7 @@ import { useAcademicYear } from "../../app/providers/AcademicYearProvider";
 import { supabaseClient } from "../../lib/supabase/client";
 import { calculateFinalScore, getAssessmentGradeTypes, getFinalAssessmentType } from "../curriculum/assessment-policy";
 import { LessonSchedulePanel } from "../schedules/components/LessonSchedulePanel";
+import { loadStudentLearningSchedules } from "../schedules/schedule-data";
 
 const LEGACY_GRADE_TYPES: Record<string, string> = {
   tugas_1: "formatif",
@@ -44,15 +46,13 @@ export const PortalAcademic: React.FC = () => {
           setSchedules([]);
           return;
         }
-        let query = supabaseClient
-          .from("employee_schedules")
-          .select("id, day_of_week, start_time, end_time, schedule_type, subject, subject_id, unit_id, class_id, classes(name, unit_id, units(name)), units(name), subjects(name), employees(full_name)")
-          .eq("class_id", student.class_id)
-          .eq("schedule_type", "mengajar")
-          .order("start_time");
-        if (activeYearId) query = query.eq("academic_year_id", activeYearId);
-        if (activeSemesterId) query = query.eq("semester_id", activeSemesterId);
-        const { data } = await query;
+        const { data, error } = await loadStudentLearningSchedules({
+          classId: student.class_id,
+          unitId: student.unit_id || student.classes?.unit_id,
+          academicYearId: activeYearId,
+          semesterId: activeSemesterId,
+        });
+        if (error) console.error("Portal academic schedules error:", error);
         setSchedules(data || []);
       } catch (error) {
         console.error("Portal academic schedules error:", error);
@@ -61,7 +61,7 @@ export const PortalAcademic: React.FC = () => {
       }
     };
     void fetchSchedules();
-  }, [activeSemesterId, activeYearId, student?.class_id]);
+  }, [activeSemesterId, activeYearId, student?.class_id, student?.classes?.unit_id, student?.unit_id]);
 
   const periods = useMemo(() => {
     const periodMap = new Map<string, any>();
