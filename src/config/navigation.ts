@@ -123,6 +123,13 @@ export const navigationConfig: NavigationGroup[] = [
         keywords: ["mata pelajaran", "mapel", "cp", "atp", "prota", "promes"],
       },
       {
+        title: "Pola Jadwal Unit",
+        href: "/schedules/patterns",
+        icon: CalendarCheck,
+        resource: "employee_schedules",
+        keywords: ["jadwal pelajaran", "serentak", "preschool", "slot kelas"],
+      },
+      {
         title: "Absensi Siswa",
         href: "/attendance",
         icon: CalendarCheck,
@@ -354,7 +361,7 @@ export const navigationConfig: NavigationGroup[] = [
         resource: "employees",
       },
       {
-        title: "Jadwal Pegawai",
+        title: "Jadwal Pelajaran & Kerja",
         href: "/schedules",
         icon: CalendarCheck,
         resource: "employee_schedules",

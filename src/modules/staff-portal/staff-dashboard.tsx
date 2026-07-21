@@ -30,7 +30,7 @@ export const StaffDashboard: React.FC = () => {
     const load = async () => {
       const today = toDateInputValue(new Date());
       const day = dayMap[new Date().getDay()] || "Senin";
-      let scheduleQuery = supabaseClient.from("employee_schedules").select("id,day_of_week,start_time,end_time,schedule_type,subject,classes(name),units(name),subjects(name)").eq("employee_id", employee.id).eq("day_of_week", day).order("start_time");
+      let scheduleQuery = supabaseClient.from("employee_schedules").select("id,day_of_week,start_time,end_time,schedule_type,subject,classes(name),units(name),subjects(name)").eq("employee_id", employee.id).neq("schedule_type", "mengajar").eq("day_of_week", day).order("start_time");
       if (activeYearId) scheduleQuery = scheduleQuery.or(`academic_year_id.eq.${activeYearId},academic_year_id.is.null`);
       if (activeSemesterId) scheduleQuery = scheduleQuery.or(`semester_id.eq.${activeSemesterId},semester_id.is.null`);
       const { data: { user } } = await supabaseClient.auth.getUser();

@@ -49,9 +49,11 @@ export const TahsinTargetForm: React.FC = () => {
       ...(activeSemesterId ? [{ field: "semester_id", operator: "eq" as const, value: activeSemesterId }] : []),
     ],
     sorters: [{ field: "name", order: "asc" }],
+    meta: { select: "id, name, subject_id, program_type, subjects(id, name, unit_id, quran_program_type, units(name))" },
     pagination: { mode: "off" },
   });
   const halaqohs = halaqohsData?.data || [];
+  const selectedHalaqohRecord = halaqohs.find((halaqoh: any) => halaqoh.id === selectedHalaqoh);
   const tahsinHalaqohIds = useMemo(() => new Set(halaqohs.map((halaqoh: any) => halaqoh.id)), [halaqohs]);
 
   const { data: allMembersData } = useList({
@@ -113,6 +115,8 @@ export const TahsinTargetForm: React.FC = () => {
       status: formData.get("status") || "in_progress",
       academic_year_id: activeYearId,
       semester_id: activeSemesterId,
+      subject_id: selectedHalaqohRecord?.subject_id || record?.subject_id || null,
+      halaqoh_id: selectedHalaqoh || record?.halaqoh_id || null,
     });
   };
 

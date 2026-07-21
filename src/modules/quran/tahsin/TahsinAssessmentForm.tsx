@@ -66,9 +66,11 @@ export const TahsinAssessmentForm: React.FC = () => {
       ...(activeYearId ? [{ field: "academic_year_id", operator: "eq" as const, value: activeYearId }] : []),
       ...(activeSemesterId ? [{ field: "semester_id", operator: "eq" as const, value: activeSemesterId }] : []),
     ],
+    meta: { select: "id, name, subject_id, program_type, subjects(id, name, unit_id, quran_program_type, units(name))" },
     pagination: { mode: "off" },
   });
   const halaqohs = halaqohsData?.data || [];
+  const selectedHalaqohRecord = halaqohs.find((halaqoh: any) => halaqoh.id === selectedHalaqoh);
   const tahsinHalaqohIds = useMemo(() => new Set(halaqohs.map((halaqoh: any) => halaqoh.id)), [halaqohs]);
 
   const { data: allMembersData } = useList({
@@ -157,6 +159,8 @@ export const TahsinAssessmentForm: React.FC = () => {
     onFinish({
       student_id: studentId,
       class_id: studentMember?.students?.class_id || record?.class_id || record?.students?.class_id || null,
+      halaqoh_id: selectedHalaqoh || record?.halaqoh_id || null,
+      subject_id: selectedHalaqohRecord?.subject_id || record?.subject_id || null,
       employee_id: formData.get("employee_id") || record?.employee_id || null,
       examiner_2_id: formData.get("examiner_2_id") || null,
       date: formData.get("date"),
@@ -272,6 +276,12 @@ export const TahsinAssessmentForm: React.FC = () => {
                     );
                   })}
                 </select>
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <label className="text-sm font-medium">Mata Pelajaran</label>
+                <div className="rounded-md border bg-background px-3 py-2 text-sm">
+                  {selectedHalaqohRecord?.subjects?.name || record?.subjects?.name || "Pilih halaqoh yang sudah dihubungkan ke mapel Tahsin"}
+                </div>
               </div>
             </div>
           </div>

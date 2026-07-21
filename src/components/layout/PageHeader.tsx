@@ -8,6 +8,20 @@ interface PageHeaderProps {
   action?: React.ReactNode;
 }
 
+const breadcrumbLabels: Record<string, string> = {
+  schedules: "Jadwal Pelajaran & Kerja",
+  patterns: "Pola Jadwal Unit",
+  create: "Tambah",
+  edit: "Ubah",
+  show: "Detail",
+};
+
+function getBreadcrumbLabel(path: string) {
+  return breadcrumbLabels[path] || path
+    .replace(/[-_]+/g, " ")
+    .replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
 export const PageHeader: React.FC<PageHeaderProps> = ({ title, description, action }) => {
   const location = useLocation();
   const paths = location.pathname.split("/").filter(Boolean);
@@ -28,7 +42,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({ title, description, acti
           {paths.map((path, index) => {
             const isLast = index === paths.length - 1;
             const routeTo = `/${paths.slice(0, index + 1).join("/")}`;
-            const label = path.charAt(0).toUpperCase() + path.slice(1).replace("-", " ");
+            const label = getBreadcrumbLabel(path);
             
             return (
               <React.Fragment key={path}>

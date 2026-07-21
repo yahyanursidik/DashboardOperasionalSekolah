@@ -366,6 +366,11 @@ export const SubjectsList: React.FC = () => {
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <p className="truncate text-lg font-bold">{subject.name}</p>
+                          {subject.quran_program_type && (
+                            <span className="mt-1 inline-flex rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold uppercase text-emerald-700">
+                              {subject.quran_program_type === "both" ? "Tahsin & Tahfidz" : subject.quran_program_type}
+                            </span>
+                          )}
                           <p className="mt-1 text-xs text-muted-foreground">{subject.code || "Tanpa kode"} | {subject.units?.name || "Unit belum dipilih"}</p>
                         </div>
                         <span className={`shrink-0 rounded-md border px-2 py-1 text-[10px] font-bold ${categoryClass}`}>{subject.category || "Lainnya"}</span>
@@ -449,6 +454,11 @@ export const SubjectsList: React.FC = () => {
                       <td className="px-5 py-4">
                         <p className="font-semibold">{subject.name}</p>
                         <p className="text-xs text-muted-foreground">{subject.code || "Tanpa kode"}</p>
+                        {subject.quran_program_type && (
+                          <span className="mt-1 inline-flex rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold uppercase text-emerald-700">
+                            {subject.quran_program_type === "both" ? "Tahsin & Tahfidz" : subject.quran_program_type}
+                          </span>
+                        )}
                       </td>
                       <td className="px-5 py-4">
                         <span className={`rounded-md border px-2.5 py-1 text-xs font-semibold ${categoryClass}`}>{subject.category || "Lainnya"}</span>

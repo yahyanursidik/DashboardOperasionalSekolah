@@ -1,6 +1,25 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useMemo, useState } from "react";
-import { BookOpen, BriefcaseBusiness, Building2, CalendarDays, Clock, GraduationCap, MapPin, Users } from "lucide-react";
-import { daysOfWeek, dayMap, formatScheduleType, formatTime, getScheduleSubjectName } from "../schedule-utils";
+import {
+  BookOpen,
+  BriefcaseBusiness,
+  Building2,
+  CalendarDays,
+  Clock,
+  Grid2X2,
+  List,
+  MapPin,
+  Users,
+} from "lucide-react";
+import {
+  daysOfWeek,
+  dayMap,
+  formatScheduleType,
+  formatTime,
+  getScheduleSubjectName,
+  getScheduleVisual,
+  isUnitLearningSchedule,
+} from "../schedule-utils";
 
 type SchedulePanelProps = {
   schedules: any[];
@@ -11,6 +30,7 @@ type SchedulePanelProps = {
   showStats?: boolean;
   compact?: boolean;
   defaultType?: "all" | "mengajar" | "non_mengajar";
+  defaultView?: "day" | "week";
   mode?: "lesson" | "work";
 };
 
@@ -28,8 +48,13 @@ function getScheduleWorkName(schedule: any) {
   return formatScheduleType(schedule.schedule_type) || "Tugas Kerja";
 }
 
+function getDisplayName(schedule: any, mode: "lesson" | "work") {
+  return mode === "work" ? getScheduleWorkName(schedule) : getScheduleSubjectName(schedule);
+}
+
 function getLocationName(schedule: any, mode: "lesson" | "work") {
   if (schedule.classes?.name) return schedule.classes.name;
+  if (isUnitLearningSchedule(schedule)) return "Semua kelas";
   return mode === "work" ? getUnitName(schedule) : "Tanpa kelas";
 }
 
@@ -66,12 +91,15 @@ export const LessonSchedulePanel: React.FC<SchedulePanelProps> = ({
   showStats = true,
   compact = false,
   defaultType = "all",
+  defaultView,
   mode = "lesson",
 }) => {
   const today = dayMap[new Date().getDay()] || "Senin";
+  const isWorkMode = mode === "work";
   const [activeDay, setActiveDay] = useState(today);
   const [selectedUnitId, setSelectedUnitId] = useState("all");
   const [typeFilter, setTypeFilter] = useState<"all" | "mengajar" | "non_mengajar">(defaultType);
+  const [view, setView] = useState<"day" | "week">(defaultView || (compact || isWorkMode ? "day" : "week"));
 
   const sortedSchedules = useMemo(() => [...(schedules || [])].sort(sortSchedules), [schedules]);
   const units = useMemo(() => {
@@ -91,191 +119,176 @@ export const LessonSchedulePanel: React.FC<SchedulePanelProps> = ({
     });
   }, [selectedUnitId, sortedSchedules, typeFilter]);
 
-  const activeDaySchedules = filteredSchedules.filter((schedule) => schedule.day_of_week === activeDay);
+  const schedulesByDay = useMemo(() => {
+    return daysOfWeek.reduce<Record<string, any[]>>((result, day) => {
+      result[day] = filteredSchedules.filter((schedule) => schedule.day_of_week === day);
+      return result;
+    }, {});
+  }, [filteredSchedules]);
+
+  const activeDaySchedules = schedulesByDay[activeDay] || [];
   const teachingCount = filteredSchedules.filter((schedule) => schedule.schedule_type === "mengajar").length;
   const workCount = filteredSchedules.filter((schedule) => schedule.schedule_type !== "mengajar").length;
   const classCount = new Set(filteredSchedules.map((schedule) => schedule.class_id).filter(Boolean)).size;
   const activeDayCount = new Set(filteredSchedules.map((schedule) => schedule.day_of_week).filter(Boolean)).size;
   const weeklyHours = filteredSchedules.reduce((total, schedule) => total + getDurationHours(schedule), 0);
-  const displayName = (schedule: any) => (mode === "work" ? getScheduleWorkName(schedule) : getScheduleSubjectName(schedule));
-  const isWorkMode = mode === "work";
+  const legend = useMemo(() => {
+    const entries = new Map<string, any>();
+    filteredSchedules.forEach((schedule) => {
+      const name = getDisplayName(schedule, mode);
+      if (!entries.has(name)) entries.set(name, schedule);
+    });
+    return Array.from(entries.entries()).slice(0, 12);
+  }, [filteredSchedules, mode]);
 
   if (isLoading) {
-    return (
-      <div className="rounded-2xl border border-dashed bg-white p-8 text-center text-sm text-gray-500 shadow-sm">
-        {isWorkMode ? "Memuat jadwal kerja..." : "Memuat jadwal pelajaran..."}
-      </div>
-    );
+    return <div className="rounded-lg border border-dashed bg-card p-8 text-center text-sm text-muted-foreground">Memuat jadwal...</div>;
   }
+
+  const ScheduleCard = ({ schedule, dense = false }: { schedule: any; dense?: boolean }) => {
+    const visual = getScheduleVisual(schedule, mode);
+    return (
+      <article className={`relative overflow-hidden rounded-lg border ${visual.border} ${visual.background} ${dense ? "p-2.5" : "p-4"}`}>
+        <span className={`absolute inset-y-0 left-0 w-1 ${visual.accent}`} aria-hidden="true" />
+        <div className="flex items-start justify-between gap-2 pl-1">
+          <div className="min-w-0">
+            <p className={`${dense ? "text-xs" : "text-sm"} font-bold leading-5 ${visual.text}`}>{getDisplayName(schedule, mode)}</p>
+            <p className="mt-0.5 flex items-center gap-1 text-[11px] font-semibold text-foreground/70">
+              <Clock className="h-3 w-3 shrink-0" />
+              {formatTime(schedule.start_time)} - {formatTime(schedule.end_time)}
+            </p>
+          </div>
+          {!dense && (
+            <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md ${visual.softBackground} ${visual.text}`}>
+              {schedule.schedule_type === "mengajar" ? <BookOpen className="h-4 w-4" /> : <BriefcaseBusiness className="h-4 w-4" />}
+            </span>
+          )}
+        </div>
+        <div className={`${dense ? "mt-2 space-y-0.5" : "mt-3 flex flex-wrap gap-x-3 gap-y-1.5"} pl-1 text-[11px] text-foreground/70`}>
+          <span className="flex min-w-0 items-center gap-1">
+            <MapPin className="h-3 w-3 shrink-0" />
+            <span className="truncate">{getLocationName(schedule, mode)}</span>
+          </span>
+          {!dense && (
+            <span className="flex min-w-0 items-center gap-1">
+              <Building2 className="h-3 w-3 shrink-0" />
+              <span className="truncate">{getUnitName(schedule)}</span>
+            </span>
+          )}
+        </div>
+      </article>
+    );
+  };
 
   return (
     <section className="space-y-4">
-      <div className="rounded-3xl border bg-white p-5 shadow-sm">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      <div className="rounded-lg border bg-card p-4 shadow-sm sm:p-5">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
           <div className="flex items-start gap-3">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-700">
-              <CalendarDays className="h-6 w-6" />
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+              <CalendarDays className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-xl font-black text-gray-900">{title}</h2>
-              <p className="mt-1 max-w-2xl text-sm leading-5 text-gray-500">{description}</p>
+              <h2 className="text-lg font-bold text-foreground">{title}</h2>
+              <p className="mt-1 max-w-2xl text-sm leading-5 text-muted-foreground">{description}</p>
             </div>
           </div>
 
-          <div className="grid gap-2 sm:grid-cols-2">
-            <select
-              value={selectedUnitId}
-              onChange={(event) => setSelectedUnitId(event.target.value)}
-              className="h-10 rounded-xl border bg-white px-3 text-sm font-semibold outline-none focus:ring-2 focus:ring-primary/20"
-            >
-              <option value="all">Semua Unit</option>
-              {units.map((unit) => (
-                <option key={unit.id} value={unit.id}>{unit.name}</option>
-              ))}
-            </select>
-            <select
-              value={typeFilter}
-              onChange={(event) => setTypeFilter(event.target.value as "all" | "mengajar" | "non_mengajar")}
-              className="h-10 rounded-xl border bg-white px-3 text-sm font-semibold outline-none focus:ring-2 focus:ring-primary/20"
-            >
-              <option value="all">{isWorkMode ? "Semua Tugas" : "Semua Jadwal"}</option>
-              {!isWorkMode && <option value="mengajar">Pelajaran Saja</option>}
-              <option value="non_mengajar">{isWorkMode ? "Operasional" : "Tugas Non Mengajar"}</option>
-            </select>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            {units.length > 1 && (
+              <select value={selectedUnitId} onChange={(event) => setSelectedUnitId(event.target.value)} className="h-10 rounded-md border bg-background px-3 text-sm font-semibold outline-none focus:ring-2 focus:ring-primary/20">
+                <option value="all">Semua Unit</option>
+                {units.map((unit) => <option key={unit.id} value={unit.id}>{unit.name}</option>)}
+              </select>
+            )}
+            {!isWorkMode && (
+              <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value as "all" | "mengajar" | "non_mengajar")} className="h-10 rounded-md border bg-background px-3 text-sm font-semibold outline-none focus:ring-2 focus:ring-primary/20">
+                <option value="all">Semua Jadwal</option>
+                <option value="mengajar">Pembelajaran & Kegiatan</option>
+                <option value="non_mengajar">Tugas Tambahan</option>
+              </select>
+            )}
+            <div className="flex h-10 rounded-md bg-muted p-1" aria-label="Pilihan tampilan jadwal">
+              <button type="button" onClick={() => setView("day")} title="Tampilan per hari" className={`inline-flex items-center gap-1.5 rounded px-3 text-xs font-bold ${view === "day" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"}`}><List className="h-4 w-4" /> Hari</button>
+              <button type="button" onClick={() => setView("week")} title="Tampilan kartu mingguan" className={`inline-flex items-center gap-1.5 rounded px-3 text-xs font-bold ${view === "week" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"}`}><Grid2X2 className="h-4 w-4" /> Minggu</button>
+            </div>
           </div>
         </div>
 
-        {showStats && (
-          <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {showStats && !compact && (
+          <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
             {(isWorkMode
               ? [
                   { label: "Total Jadwal", value: filteredSchedules.length, icon: CalendarDays, tone: "bg-blue-50 text-blue-700" },
                   { label: "Tugas Kerja", value: workCount, icon: BriefcaseBusiness, tone: "bg-emerald-50 text-emerald-700" },
-                  { label: "Unit", value: units.length, icon: Building2, tone: "bg-amber-50 text-amber-700" },
+                  { label: "Hari Aktif", value: activeDayCount, icon: CalendarDays, tone: "bg-amber-50 text-amber-700" },
                   { label: "Jam/Minggu", value: formatHours(weeklyHours), icon: Clock, tone: "bg-cyan-50 text-cyan-700" },
                 ]
               : [
                   { label: "Total Jadwal", value: filteredSchedules.length, icon: CalendarDays, tone: "bg-blue-50 text-blue-700" },
-                  { label: "Pelajaran", value: teachingCount, icon: BookOpen, tone: "bg-emerald-50 text-emerald-700" },
-                  { label: "Unit", value: units.length, icon: Building2, tone: "bg-amber-50 text-amber-700" },
-                  { label: "Kelas", value: classCount, icon: Users, tone: "bg-purple-50 text-purple-700" },
+                  { label: "Pembelajaran", value: teachingCount, icon: BookOpen, tone: "bg-emerald-50 text-emerald-700" },
+                  { label: "Unit", value: new Set(filteredSchedules.map(getUnitId)).size, icon: Building2, tone: "bg-amber-50 text-amber-700" },
+                  { label: "Kelas", value: classCount, icon: Users, tone: "bg-violet-50 text-violet-700" },
                 ]).map(({ label, value, icon: Icon, tone }) => (
-              <div key={label} className="rounded-2xl border bg-gray-50 p-3">
-                <div className={`mb-2 flex h-8 w-8 items-center justify-center rounded-xl ${tone}`}>
-                  <Icon className="h-4 w-4" />
-                </div>
-                <p className="text-xl font-black text-gray-900">{value}</p>
-                <p className="text-[11px] font-bold uppercase tracking-wide text-gray-500">{label}</p>
+              <div key={label} className="flex items-center gap-3 rounded-md border bg-background p-3">
+                <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-md ${tone}`}><Icon className="h-4 w-4" /></span>
+                <div><p className="text-lg font-bold leading-5 text-foreground">{value}</p><p className="text-[11px] font-semibold text-muted-foreground">{label}</p></div>
               </div>
             ))}
           </div>
         )}
       </div>
 
-      <div className="flex gap-2 overflow-x-auto pb-1">
-        {daysOfWeek.map((day) => {
-          const count = filteredSchedules.filter((schedule) => schedule.day_of_week === day).length;
-          return (
-            <button
-              key={day}
-              onClick={() => setActiveDay(day)}
-              className={`min-w-[92px] rounded-2xl border px-3 py-2 text-sm font-black transition ${
-                activeDay === day ? "border-primary bg-primary text-primary-foreground shadow-sm" : "bg-white text-gray-600 hover:bg-gray-50"
-              }`}
-            >
-              {day}
-              <span className={`ml-1 text-[10px] ${activeDay === day ? "text-primary-foreground/80" : "text-gray-400"}`}>({count})</span>
-            </button>
-          );
-        })}
-      </div>
-
-      {activeDaySchedules.length === 0 ? (
-        <div className="rounded-2xl border border-dashed bg-white p-8 text-center shadow-sm">
-          <CalendarDays className="mx-auto mb-3 h-9 w-9 text-gray-300" />
-          <p className="text-sm font-semibold text-gray-500">{emptyMessage}</p>
-          <p className="mt-1 text-xs text-gray-400">Hari {activeDay} belum memiliki jadwal sesuai filter.</p>
-        </div>
-      ) : (
-        <div className={compact ? "space-y-2" : "space-y-3"}>
-          {activeDaySchedules.map((schedule, index) => (
-            <div key={schedule.id || `${schedule.day_of_week}-${schedule.start_time}-${index}`} className="rounded-2xl border bg-white p-4 shadow-sm hover:border-primary/40">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex min-w-0 gap-3">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                    {schedule.schedule_type === "mengajar" ? <BookOpen className="h-5 w-5" /> : <Clock className="h-5 w-5" />}
-                  </div>
-                  <div className="min-w-0">
-                    <h3 className="line-clamp-1 font-black text-gray-900">{displayName(schedule)}</h3>
-                    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs font-semibold text-gray-500">
-                      <span className="inline-flex items-center gap-1 rounded-lg bg-gray-50 px-2 py-1">
-                        <Clock className="h-3.5 w-3.5" />
-                        {formatTime(schedule.start_time)} - {formatTime(schedule.end_time)}
-                      </span>
-                      <span className="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-2 py-1 text-blue-700">
-                        <MapPin className="h-3.5 w-3.5" />
-                        {getLocationName(schedule, mode)}
-                      </span>
-                      <span className="inline-flex items-center gap-1 rounded-lg bg-amber-50 px-2 py-1 text-amber-700">
-                        <Building2 className="h-3.5 w-3.5" />
-                        {getUnitName(schedule)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <span className="shrink-0 rounded-full bg-gray-100 px-2.5 py-1 text-[10px] font-black uppercase text-gray-600">
-                  {formatScheduleType(schedule.schedule_type)}
-                </span>
-              </div>
-            </div>
-          ))}
+      {legend.length > 1 && (
+        <div className="flex items-center gap-3 overflow-x-auto border-y bg-background px-1 py-2 text-xs">
+          <span className="shrink-0 font-semibold text-muted-foreground">{isWorkMode ? "Jenis tugas" : "Mapel / kegiatan"}</span>
+          {legend.map(([name, schedule]) => {
+            const visual = getScheduleVisual(schedule, mode);
+            return <span key={name} className="inline-flex shrink-0 items-center gap-1.5 font-medium text-foreground"><span className={`h-2.5 w-2.5 rounded-sm ${visual.accent}`} />{name}</span>;
+          })}
         </div>
       )}
 
-      {!compact && filteredSchedules.length > 0 && (
-        <div className="rounded-2xl border bg-white p-4 shadow-sm">
-          <h3 className="mb-3 flex items-center gap-2 text-sm font-black text-gray-900">
-            <GraduationCap className="h-4 w-4 text-primary" />
-            {isWorkMode ? "Ringkasan Mingguan" : "Tampilan Mingguan"}
-          </h3>
-          {isWorkMode && (
-            <div className="mb-3 grid gap-3 sm:grid-cols-3">
-              <div className="rounded-2xl bg-emerald-50 p-3">
-                <p className="text-[11px] font-bold uppercase text-emerald-700">Hari Aktif</p>
-                <p className="mt-1 text-xl font-black text-emerald-950">{activeDayCount}</p>
-              </div>
-              <div className="rounded-2xl bg-blue-50 p-3">
-                <p className="text-[11px] font-bold uppercase text-blue-700">Estimasi Jam</p>
-                <p className="mt-1 text-xl font-black text-blue-950">{formatHours(weeklyHours)}</p>
-              </div>
-              <div className="rounded-2xl bg-amber-50 p-3">
-                <p className="text-[11px] font-bold uppercase text-amber-700">Unit Terkait</p>
-                <p className="mt-1 text-xl font-black text-amber-950">{units.length}</p>
-              </div>
-            </div>
-          )}
-          <div className="grid gap-3 lg:grid-cols-7">
+      {view === "day" ? (
+        <>
+          <div className="flex gap-2 overflow-x-auto pb-1">
             {daysOfWeek.map((day) => {
-              const rows = filteredSchedules.filter((schedule) => schedule.day_of_week === day);
+              const count = schedulesByDay[day]?.length || 0;
               return (
-                <div key={day} className="rounded-2xl border bg-gray-50 p-3">
-                  <p className="mb-2 text-sm font-black text-gray-900">{day}</p>
-                  {rows.length === 0 ? (
-                    <p className="text-xs text-gray-400">Kosong</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {rows.map((schedule, index) => (
-                        <div key={schedule.id || `${day}-${index}`} className="rounded-xl bg-white p-2 shadow-sm">
-                          <p className="line-clamp-1 text-xs font-black text-gray-900">{displayName(schedule)}</p>
-                          <p className="mt-0.5 text-[10px] font-semibold text-gray-500">{formatTime(schedule.start_time)} - {formatTime(schedule.end_time)}</p>
-                          <p className="line-clamp-1 text-[10px] text-primary">{getLocationName(schedule, mode)}</p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                <button key={day} onClick={() => setActiveDay(day)} className={`min-w-[92px] rounded-md border px-3 py-2 text-sm font-bold transition ${activeDay === day ? "border-primary bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:bg-muted"}`}>
+                  {day}<span className={`ml-1 text-[10px] ${activeDay === day ? "text-primary-foreground/80" : "text-muted-foreground"}`}>({count})</span>
+                </button>
               );
             })}
+          </div>
+          {activeDaySchedules.length === 0 ? (
+            <div className="rounded-lg border border-dashed bg-card p-8 text-center">
+              <CalendarDays className="mx-auto mb-3 h-8 w-8 text-muted-foreground/40" />
+              <p className="text-sm font-semibold text-muted-foreground">{emptyMessage}</p>
+              <p className="mt-1 text-xs text-muted-foreground">Hari {activeDay} belum memiliki jadwal sesuai filter.</p>
+            </div>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {activeDaySchedules.map((schedule, index) => <ScheduleCard key={schedule.id || `${activeDay}-${index}`} schedule={schedule} />)}
+            </div>
+          )}
+        </>
+      ) : filteredSchedules.length === 0 ? (
+        <div className="rounded-lg border border-dashed bg-card p-8 text-center text-sm font-semibold text-muted-foreground">{emptyMessage}</div>
+      ) : (
+        <div className="overflow-x-auto rounded-lg border bg-card">
+          <div className="grid min-w-[1120px] grid-cols-7 divide-x">
+            {daysOfWeek.map((day) => (
+              <div key={day} className={day === today ? "bg-primary/[0.03]" : "bg-card"}>
+                <div className="flex h-11 items-center justify-between border-b px-3">
+                  <p className="text-sm font-bold text-foreground">{day}</p>
+                  <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-bold text-muted-foreground">{schedulesByDay[day]?.length || 0}</span>
+                </div>
+                <div className="min-h-40 space-y-2 p-2.5">
+                  {schedulesByDay[day]?.length ? schedulesByDay[day].map((schedule, index) => <ScheduleCard key={schedule.id || `${day}-${index}`} schedule={schedule} dense />) : <p className="py-5 text-center text-xs text-muted-foreground">Kosong</p>}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}

@@ -75,7 +75,7 @@ export const TahsinAssessmentsList: React.FC = () => {
     filters,
     sorters: [{ field: "date", order: "desc" }],
     meta: {
-      select: "*, students(id, full_name, nis, class_id, classes(name, unit_id, units(name))), classes(name, unit_id, units(name)), employees(full_name)",
+      select: "*, students(id, full_name, nis, class_id, classes(name, unit_id, units(name))), classes(name, unit_id, units(name)), employees(full_name), subjects(id, name, quran_program_type), tahfidz_halaqohs(id, name)",
     },
     pagination: { pageSize: 500 },
   });
@@ -314,6 +314,7 @@ export const TahsinAssessmentsList: React.FC = () => {
                     </td>
                     <td className="px-6 py-4">
                       <p className="font-semibold text-gray-900">{record.title}</p>
+                      {record.subjects?.name && <p className="mt-1 text-xs font-semibold text-primary">{record.subjects.name}</p>}
                       <p className="text-xs text-muted-foreground">Kenaikan jilid</p>
                     </td>
                     <td className="px-6 py-4">

@@ -39,6 +39,7 @@ export const StaffOperationalReports: React.FC = () => {
       .from("employee_schedules")
       .select("unit_id,units(name)")
       .eq("employee_id", employee.id)
+      .neq("schedule_type", "mengajar")
       .not("unit_id", "is", null);
     if (activeYearId) scheduleQuery = scheduleQuery.eq("academic_year_id", activeYearId);
     if (activeSemesterId) scheduleQuery = scheduleQuery.eq("semester_id", activeSemesterId);

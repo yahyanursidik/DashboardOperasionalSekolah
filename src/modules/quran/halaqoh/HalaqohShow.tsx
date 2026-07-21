@@ -24,9 +24,10 @@ export const HalaqohShow: React.FC = () => {
   const { queryResult } = useShow({
     resource: "tahfidz_halaqohs",
     id,
-    meta: { select: "*, employees(full_name)" }
+    meta: { select: "*, employees(full_name), subjects(id, name, unit_id, quran_program_type, units(id, name))" }
   });
   const halaqoh = queryResult?.data?.data;
+  const subjectUnitId = halaqoh?.subjects?.unit_id || "";
 
   // Fetch current members
   const { data: membersData, isLoading: isLoadingMembers, refetch: refetchMembers } = useList({
@@ -74,7 +75,7 @@ export const HalaqohShow: React.FC = () => {
       ...(activeSemesterId ? [{ field: "semester_id", operator: "eq" as const, value: activeSemesterId }] : []),
       { field: "target_type", operator: "eq", value: "tahfidz" },
     ],
-    meta: { select: "id, student_id, status" },
+    meta: { select: "id, student_id, halaqoh_id, subject_id, status, subjects(name)" },
     pagination: { mode: "off" },
   });
 
@@ -85,21 +86,21 @@ export const HalaqohShow: React.FC = () => {
       ...(activeSemesterId ? [{ field: "semester_id", operator: "eq" as const, value: activeSemesterId }] : []),
       { field: "assessment_type", operator: "in", value: ["tahfidz_juz", "tasmi"] },
     ],
-    meta: { select: "id, student_id, status" },
+    meta: { select: "id, student_id, halaqoh_id, subject_id, status, subjects(name)" },
     pagination: { mode: "off" },
   });
 
   // Extract unique units and classes for filter dropdowns
   const availableUnits = useMemo(() => {
     const unitsMap = new Map();
-    allStudents?.data?.forEach(s => {
+    allStudents?.data?.filter((student: any) => !subjectUnitId || student.classes?.unit_id === subjectUnitId).forEach(s => {
       const u = s.classes?.units;
       if (u && !unitsMap.has(u.id)) {
         unitsMap.set(u.id, { id: u.id, name: u.name });
       }
     });
     return Array.from(unitsMap.values());
-  }, [allStudents?.data]);
+  }, [allStudents?.data, subjectUnitId]);
 
   const availableClasses = useMemo(() => {
     const classesMap = new Map();
@@ -114,6 +115,9 @@ export const HalaqohShow: React.FC = () => {
 
   const availableStudents = useMemo(() => {
     let list = allStudents?.data?.filter(s => !memberStudentIds.includes(s.id)) || [];
+    if (subjectUnitId) {
+      list = list.filter((student: any) => student.classes?.unit_id === subjectUnitId);
+    }
     
     if (filterUnit) {
       list = list.filter(s => s.classes?.unit_id === filterUnit);
@@ -126,16 +130,17 @@ export const HalaqohShow: React.FC = () => {
     }
     
     return list;
-  }, [allStudents?.data, memberStudentIds, filterUnit, filterClass, studentSearch]);
+  }, [allStudents?.data, memberStudentIds, filterUnit, filterClass, studentSearch, subjectUnitId]);
 
   const { mutate: createMutate, isLoading: isCreating } = useCreate();
   const { mutate: deleteMutate } = useDelete();
   const halaqohRecords = (recordsData?.data || []).filter((record: any) => record.halaqoh_id === id || memberIdSet.has(record.student_id));
-  const halaqohTargets = (targetsData?.data || []).filter((target: any) => memberIdSet.has(target.student_id));
-  const halaqohAssessments = (assessmentsData?.data || []).filter((assessment: any) => memberIdSet.has(assessment.student_id));
+  const halaqohTargets = (targetsData?.data || []).filter((target: any) => target.halaqoh_id === id || (!target.halaqoh_id && memberIdSet.has(target.student_id)));
+  const halaqohAssessments = (assessmentsData?.data || []).filter((assessment: any) => assessment.halaqoh_id === id || (!assessment.halaqoh_id && memberIdSet.has(assessment.student_id)));
   const completedTargets = halaqohTargets.filter((target: any) => target.status === "completed").length;
   const passedAssessments = halaqohAssessments.filter((assessment: any) => assessment.status === "Lulus").length;
   const readinessItems = [
+    { label: "Mata pelajaran", done: Boolean(halaqoh?.subject_id), detail: halaqoh?.subjects?.name || "Belum terhubung" },
     { label: "Muhaffizh", done: Boolean(halaqoh?.employee_id), detail: halaqoh?.employees?.full_name || "Belum ditentukan" },
     { label: "Jadwal halaqoh", done: Boolean(halaqoh?.schedule_day || halaqoh?.schedule_time), detail: halaqoh?.schedule_day || halaqoh?.schedule_time ? `${halaqoh?.schedule_day || "-"}, ${halaqoh?.schedule_time || "-"}` : "Belum diatur" },
     { label: "Anggota aktif", done: members.length > 0, detail: `${members.length} siswa` },
@@ -162,8 +167,8 @@ export const HalaqohShow: React.FC = () => {
         setSelectedStudent("");
         refetchMembers();
       },
-      onError: () => {
-        toast.error("Gagal menambahkan siswa");
+      onError: (error: any) => {
+        toast.error("Gagal menambahkan siswa", { description: error?.message || "Periksa unit dan keanggotaan halaqoh siswa." });
       }
     });
   };
@@ -204,7 +209,7 @@ export const HalaqohShow: React.FC = () => {
         </Link>
         <PageHeader
           title={`Halaqoh: ${halaqoh?.name || "Memuat..."}`}
-          description={`Muhaffizh: ${halaqoh?.employees?.full_name || "Belum ditentukan"}`}
+          description={`${halaqoh?.subjects?.name || "Mapel belum terhubung"} | Muhaffizh: ${halaqoh?.employees?.full_name || "Belum ditentukan"}`}
         />
       </div>
 

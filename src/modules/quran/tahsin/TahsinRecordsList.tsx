@@ -77,7 +77,7 @@ export const TahsinRecordsList: React.FC = () => {
     filters,
     sorters: [{ field: "date", order: "desc" }],
     meta: {
-      select: "*, students(id, full_name, nis, class_id, classes(name, unit_id, units(name))), classes(name), employees(full_name), tahfidz_halaqohs(name)",
+      select: "*, students(id, full_name, nis, class_id, classes(name, unit_id, units(name))), classes(name), employees(full_name), tahfidz_halaqohs(name), subjects(id, name, quran_program_type)",
     },
     pagination: { pageSize: 500 },
   });
@@ -306,6 +306,7 @@ export const TahsinRecordsList: React.FC = () => {
                         <span className="rounded-md border bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600">{record.classes?.name || record.students?.classes?.name || "-"}</span>
                       )}
                       <p className="mt-1 text-[11px] text-muted-foreground">{record.students?.classes?.units?.name || "-"}</p>
+                      {record.subjects?.name && <p className="mt-1 text-[11px] font-semibold text-primary">{record.subjects.name}</p>}
                     </td>
                     <td className="px-6 py-4">
                       <p className="font-bold text-emerald-700">{record.surah_or_jilid}</p>

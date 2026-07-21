@@ -31,7 +31,7 @@ export const TahfidzTargetsList: React.FC = () => {
       { field: "created_at", order: "desc" }
     ],
     meta: {
-      select: "*, students(id, full_name, nis, classes(id, name, units(name)))"
+      select: "*, students(id, full_name, nis, classes(id, name, units(name))), tahfidz_halaqohs(id, name), subjects(id, name)"
     }
   });
 
@@ -55,7 +55,7 @@ export const TahfidzTargetsList: React.FC = () => {
       ...(activeSemesterId ? [{ field: "semester_id", operator: "eq" as const, value: activeSemesterId }] : []),
       { field: "record_type", operator: "eq" as const, value: "tahfidz" },
     ],
-    meta: { select: "id, student_id, halaqoh_id, fluency_score, date" },
+    meta: { select: "id, student_id, halaqoh_id, subject_id, fluency_score, date" },
     pagination: { mode: "off" },
   });
 
@@ -66,13 +66,19 @@ export const TahfidzTargetsList: React.FC = () => {
     return members.find((member: any) => member.student_id === studentId);
   };
   const getProgress = (target: any) => {
-    const halaqohMember = getStudentHalaqoh(target.student_id);
-    const setoran = quranRecords.filter((record: any) => record.student_id === target.student_id);
+    const fallbackMembership = getStudentHalaqoh(target.student_id);
+    const halaqohId = target.halaqoh_id || fallbackMembership?.halaqoh_id || "";
+    const setoran = quranRecords.filter((record: any) => {
+      if (record.student_id !== target.student_id) return false;
+      if (target.halaqoh_id) return record.halaqoh_id === target.halaqoh_id;
+      if (target.subject_id) return record.subject_id === target.subject_id;
+      return true;
+    });
     const estimatedTotal = estimateTargetUnits(target);
     const percentage = Math.min(100, Math.round((setoran.length / Math.max(estimatedTotal, 1)) * 100));
     return {
-      halaqohId: halaqohMember?.halaqoh_id || "",
-      halaqohName: halaqohMember?.tahfidz_halaqohs?.name || "Tanpa halaqoh",
+      halaqohId,
+      halaqohName: target.tahfidz_halaqohs?.name || fallbackMembership?.tahfidz_halaqohs?.name || "Tanpa halaqoh",
       setoranCount: setoran.length,
       percentage,
     };
@@ -260,7 +266,7 @@ export const TahfidzTargetsList: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 font-medium max-w-[260px]">
                       <p className="truncate">{record.description}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">{record.target_type === "tahfidz" ? "Tahfidz" : "Tahsin"}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">{record.subjects?.name || "Mapel Tahfidz belum ditautkan"}</p>
                     </td>
                     <td className="px-6 py-4 font-semibold">{record.target_amount} {record.amount_unit}</td>
                     <td className="px-6 py-4 min-w-[160px]">

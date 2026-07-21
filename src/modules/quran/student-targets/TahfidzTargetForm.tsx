@@ -52,9 +52,11 @@ export const TahfidzTargetForm: React.FC = () => {
   const { data: halaqohsData } = useList({
     resource: "tahfidz_halaqohs",
     filters: [{ field: "program_type", operator: "eq", value: "tahfidz" }],
+    meta: { select: "id, name, subject_id, program_type, subjects(id, name, unit_id, quran_program_type, units(name))" },
     pagination: { mode: "off" }
   });
   const halaqohs = halaqohsData?.data || [];
+  const selectedHalaqohRecord = halaqohs.find((halaqoh: any) => halaqoh.id === selectedHalaqoh);
 
   const { data: membersData, isLoading: isLoadingStudents } = useList({
     resource: "tahfidz_halaqoh_members",
@@ -120,6 +122,8 @@ export const TahfidzTargetForm: React.FC = () => {
       status: formData.get("status") || "in_progress",
       academic_year_id: activeYearId,
       semester_id: activeSemesterId,
+      subject_id: selectedHalaqohRecord?.subject_id || record?.subject_id || null,
+      halaqoh_id: selectedHalaqoh || record?.halaqoh_id || null,
     };
 
     onFinish(data);

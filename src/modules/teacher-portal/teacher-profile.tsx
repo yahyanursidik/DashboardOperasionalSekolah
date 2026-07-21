@@ -24,6 +24,7 @@ import { supabaseClient } from "../../lib/supabase/client";
 import { useAcademicYear } from "../../app/providers/AcademicYearProvider";
 import { getScheduleSubjectName } from "../schedules/schedule-utils";
 import { LessonSchedulePanel } from "../schedules/components/LessonSchedulePanel";
+import { loadTeacherLearningSchedules } from "../schedules/schedule-data";
 import { canUseTeachingScheduleAttendance, getAttendanceMode, getEmploymentType } from "../employees/employee-role-config";
 import { changeOwnPortalPassword, validatePortalPassword } from "../employees/change-own-password";
 
@@ -110,15 +111,6 @@ export const TeacherProfile: React.FC = () => {
     const fetchProfile = async () => {
       setIsLoading(true);
       try {
-        let scheduleQuery = supabaseClient
-          .from("employee_schedules")
-          .select("id, day_of_week, start_time, end_time, schedule_type, subject, subject_id, unit_id, classes(name, unit_id, units(name)), units(name), subjects(name)")
-          .eq("employee_id", employee.id)
-          .order("day_of_week")
-          .order("start_time");
-        if (activeYearId) scheduleQuery = scheduleQuery.or(`academic_year_id.eq.${activeYearId},academic_year_id.is.null`);
-        if (activeSemesterId) scheduleQuery = scheduleQuery.or(`semester_id.eq.${activeSemesterId},semester_id.is.null`);
-
         let homeroomQuery = supabaseClient
           .from("classes")
           .select("id, name, level, unit_id, academic_year_id, units(name)")
@@ -136,7 +128,7 @@ export const TeacherProfile: React.FC = () => {
 
         const [{ data: employeeData }, { data: scheduleData }, { data: homeroomData }, { data: halaqohData }, { data: attendanceData }] = await Promise.all([
           supabaseClient.from("employees").select("*, units(name)").eq("id", employee.id).single(),
-          scheduleQuery,
+          loadTeacherLearningSchedules({ employeeId: employee.id, homeUnitId: employee.unit_id, academicYearId: activeYearId, semesterId: activeSemesterId }),
           homeroomQuery,
           halaqohQuery,
           supabaseClient.from("employee_attendance").select("id, date, status, time_in, time_out").eq("employee_id", employee.id).order("date", { ascending: false }).limit(10),
@@ -155,7 +147,7 @@ export const TeacherProfile: React.FC = () => {
     };
 
     fetchProfile();
-  }, [activeSemesterId, activeYearId, employee.id]);
+  }, [activeSemesterId, activeYearId, employee.id, employee.unit_id]);
 
   const teachingSchedules = useMemo(() => schedules.filter((schedule) => schedule.schedule_type === "mengajar"), [schedules]);
   const supportSchedules = useMemo(() => schedules.filter((schedule) => schedule.schedule_type !== "mengajar"), [schedules]);

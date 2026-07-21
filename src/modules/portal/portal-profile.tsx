@@ -1,9 +1,10 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useState } from "react";
 import { Link, useOutletContext } from "react-router-dom";
 import { BookOpen, CalendarDays, CheckCircle2, GraduationCap, IdCard, Mail, MapPin, Phone, School, UserRound } from "lucide-react";
-import { supabaseClient } from "../../lib/supabase/client";
 import { useAcademicYear } from "../../app/providers/AcademicYearProvider";
 import { LessonSchedulePanel } from "../schedules/components/LessonSchedulePanel";
+import { loadStudentLearningSchedules } from "../schedules/schedule-data";
 import type { ParentPortalContext } from "./portal-context";
 
 function formatGender(gender?: string | null) {
@@ -37,16 +38,13 @@ export const PortalProfile: React.FC = () => {
           return;
         }
 
-        let query = supabaseClient
-          .from("employee_schedules")
-          .select("id, day_of_week, start_time, end_time, schedule_type, subject, subject_id, unit_id, class_id, classes(name, unit_id, units(name)), units(name), subjects(name), employees(full_name)")
-          .eq("class_id", student.class_id)
-          .eq("schedule_type", "mengajar")
-          .order("start_time");
-        if (activeYearId) query = query.eq("academic_year_id", activeYearId);
-        if (activeSemesterId) query = query.eq("semester_id", activeSemesterId);
-
-        const { data } = await query;
+        const { data, error } = await loadStudentLearningSchedules({
+          classId: student.class_id,
+          unitId: student.unit_id || student.classes?.unit_id,
+          academicYearId: activeYearId,
+          semesterId: activeSemesterId,
+        });
+        if (error) console.error("Portal profile schedules error:", error);
         setSchedules(data || []);
       } catch (error) {
         console.error("Portal profile schedules error:", error);
@@ -56,7 +54,7 @@ export const PortalProfile: React.FC = () => {
     };
 
     fetchSchedules();
-  }, [activeSemesterId, activeYearId, student?.class_id]);
+  }, [activeSemesterId, activeYearId, student?.class_id, student?.classes?.unit_id, student?.unit_id]);
 
   const readiness = [
     { label: "Identitas siswa", done: Boolean(student?.full_name && student?.nis) },

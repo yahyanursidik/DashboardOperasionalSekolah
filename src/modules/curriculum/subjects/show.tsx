@@ -96,6 +96,29 @@ export const SubjectShow: React.FC = () => {
       </div>
       <CurriculumSectionNav />
 
+      {subject.quran_program_type ? (
+        <section className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-900">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-bold">
+                Terhubung ke Program {subject.quran_program_type === "both" ? "Tahsin & Tahfidz" : subject.quran_program_type === "tahsin" ? "Tahsin" : "Tahfidz"}
+              </p>
+              <p className="mt-1 text-xs leading-5 text-emerald-800">
+                Mapel ini tersedia untuk halaqoh, jurnal, target, asesmen, jadwal pengajar, portal orang tua, dan rekomendasi rapor.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {(subject.quran_program_type === "tahfidz" || subject.quran_program_type === "both") && (
+                <Link to="/tahfidz-halaqohs" className="rounded-md border border-emerald-300 bg-white px-3 py-2 text-xs font-bold hover:bg-emerald-100">Buka Tahfidz</Link>
+              )}
+              {(subject.quran_program_type === "tahsin" || subject.quran_program_type === "both") && (
+                <Link to="/tahsin-halaqohs" className="rounded-md border border-emerald-300 bg-white px-3 py-2 text-xs font-bold hover:bg-emerald-100">Buka Tahsin</Link>
+              )}
+            </div>
+          </div>
+        </section>
+      ) : null}
+
       {!activeYearId ? (
         <div className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
           Tahun ajaran belum aktif. Pilih tahun ajaran agar dokumen kelas tidak tercampur dengan periode lain.

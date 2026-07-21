@@ -92,7 +92,7 @@ export const TahsinTargetsList: React.FC = () => {
     ],
     sorters: [{ field: "created_at", order: "desc" }],
     meta: {
-      select: "*, students(id, full_name, nis, class_id, classes(name, unit_id, units(name)))",
+      select: "*, students(id, full_name, nis, class_id, classes(name, unit_id, units(name))), tahfidz_halaqohs(id, name), subjects(id, name)",
     },
     pagination: { pageSize: 500 },
   });
@@ -105,7 +105,7 @@ export const TahsinTargetsList: React.FC = () => {
       { field: "record_type", operator: "eq" as const, value: "tahsin" },
       ...(selectedHalaqohId ? [{ field: "halaqoh_id", operator: "eq" as const, value: selectedHalaqohId }] : []),
     ],
-    meta: { select: "id, student_id, halaqoh_id, fluency_score, date" },
+    meta: { select: "id, student_id, halaqoh_id, subject_id, fluency_score, date" },
     pagination: { mode: "off" },
   });
 
@@ -116,7 +116,7 @@ export const TahsinTargetsList: React.FC = () => {
       ...(activeSemesterId ? [{ field: "semester_id", operator: "eq" as const, value: activeSemesterId }] : []),
       { field: "assessment_type", operator: "eq" as const, value: "tahsin_jilid" },
     ],
-    meta: { select: "id, student_id, status, date" },
+    meta: { select: "id, student_id, halaqoh_id, subject_id, status, date" },
     pagination: { mode: "off" },
   });
 
@@ -124,8 +124,14 @@ export const TahsinTargetsList: React.FC = () => {
   const assessments = assessmentsData?.data || [];
 
   const getTargetProgress = (target: any) => {
-    const studentRecords = quranRecords.filter((record: any) => record.student_id === target.student_id);
-    const studentAssessments = assessments.filter((assessment: any) => assessment.student_id === target.student_id);
+    const belongsToTarget = (item: any) => {
+      if (item.student_id !== target.student_id) return false;
+      if (target.halaqoh_id) return item.halaqoh_id === target.halaqoh_id;
+      if (target.subject_id) return item.subject_id === target.subject_id;
+      return true;
+    };
+    const studentRecords = quranRecords.filter(belongsToTarget);
+    const studentAssessments = assessments.filter(belongsToTarget);
     const repeatRecords = studentRecords.filter((record: any) => record.fluency_score === "Mengulang").length;
     const estimatedTotal = estimateTargetUnits(target);
     const percentage = Math.min(100, Math.round((studentRecords.length / Math.max(estimatedTotal, 1)) * 100));
@@ -148,7 +154,9 @@ export const TahsinTargetsList: React.FC = () => {
         String(record.students?.nis || "").toLowerCase().includes(lowered) ||
         record.description?.toLowerCase().includes(lowered);
       const matchesUnit = !selectedUnitId || record.students?.classes?.unit_id === selectedUnitId;
-      const matchesHalaqoh = !selectedHalaqohId || selectedHalaqohStudentIds.has(record.student_id);
+      const matchesHalaqoh = !selectedHalaqohId ||
+        record.halaqoh_id === selectedHalaqohId ||
+        (!record.halaqoh_id && selectedHalaqohStudentIds.has(record.student_id));
       return matchesSearch && matchesUnit && matchesHalaqoh;
     });
   }, [data?.data, search, selectedHalaqohId, selectedHalaqohStudentIds, selectedUnitId]);
@@ -352,7 +360,12 @@ export const TahsinTargetsList: React.FC = () => {
                           {record.students?.nis ? `NIS: ${record.students.nis} - ` : ""}{record.students?.classes?.units?.name || "-"} / {record.students?.classes?.name || "-"}
                         </p>
                       </td>
-                      <td className="px-6 py-4 font-semibold text-emerald-700">{record.description}</td>
+                      <td className="px-6 py-4">
+                        <p className="font-semibold text-emerald-700">{record.description}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {record.subjects?.name || "Mapel Tahsin belum ditautkan"} · {record.tahfidz_halaqohs?.name || "Tanpa halaqoh"}
+                        </p>
+                      </td>
                       <td className="px-6 py-4 font-medium">{record.target_amount} {record.amount_unit}</td>
                       <td className="px-6 py-4 min-w-[190px]">
                         <div className="flex items-center justify-between text-xs">

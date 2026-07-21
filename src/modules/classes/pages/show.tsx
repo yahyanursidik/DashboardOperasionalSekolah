@@ -1,12 +1,13 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useShow, useList, useUpdate } from "@refinedev/core";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { AlertTriangle, ArrowLeft, BarChart3, BookOpen, CalendarCheck, CheckCircle2, ClipboardCheck, Edit, GraduationCap, Plus, ShieldCheck, UserCheck, UserMinus, Users, X } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAcademicYear } from "../../../app/providers/AcademicYearProvider";
+import { loadStudentLearningSchedules } from "../../schedules/schedule-data";
 
 export const ClassShow: React.FC = () => {
-  const { activeSemesterId } = useAcademicYear();
+  const { activeYearId, activeSemesterId } = useAcademicYear();
   const { queryResult } = useShow({
     meta: { select: "*, units(name), academic_years(name)" }
   });
@@ -33,15 +34,20 @@ export const ClassShow: React.FC = () => {
     queryOptions: { enabled: !!record?.id }
   });
 
-  const { data: schedulesData } = useList({
-    resource: "employee_schedules",
-    filters: [
-      { field: "class_id", operator: "eq", value: record?.id },
-      { field: "schedule_type", operator: "eq", value: "mengajar" },
-      ...(activeSemesterId ? [{ field: "semester_id", operator: "eq", value: activeSemesterId }] : []),
-    ] as any,
-    queryOptions: { enabled: !!record?.id },
-  });
+  const [classSchedules, setClassSchedules] = useState<any[]>([]);
+  useEffect(() => {
+    let active = true;
+    if (!record?.id || !record?.unit_id) return () => { active = false; };
+    void loadStudentLearningSchedules({
+      classId: String(record.id),
+      unitId: String(record.unit_id),
+      academicYearId: activeYearId || (record.academic_year_id ? String(record.academic_year_id) : null),
+      semesterId: activeSemesterId,
+    }).then(({ data: scheduleRows }) => {
+      if (active) setClassSchedules(scheduleRows || []);
+    });
+    return () => { active = false; };
+  }, [activeSemesterId, activeYearId, record?.academic_year_id, record?.id, record?.unit_id]);
 
   const classGrade = Number(record?.grade_level || record?.level || 0);
   const { data: curriculumsData } = useList({
@@ -120,7 +126,7 @@ export const ClassShow: React.FC = () => {
   
   const homeroomAssignment = assignmentsData?.data?.find((a: any) => a.role_type === 'homeroom' || a.role_type === 'wali_kelas');
   const homeroomName = homeroomAssignment?.employees?.full_name;
-  const scheduleCount = schedulesData?.data?.length || 0;
+  const scheduleCount = classSchedules.length;
   const curriculumCount = curriculumsData?.data?.length || 0;
   const todayIso = new Date().toISOString().split("T")[0];
   const students = studentsData?.data || [];
@@ -379,7 +385,7 @@ export const ClassShow: React.FC = () => {
             ) : assignmentsData?.data?.length === 0 ? (
               <div className="bg-muted/30 border border-dashed rounded-lg p-8 text-center">
                 <p className="text-sm text-muted-foreground">Belum ada penugasan guru mata pelajaran untuk kelas ini.</p>
-                <p className="text-xs text-muted-foreground mt-1">Atur jadwal mengajar dari menu Jadwal Pegawai.</p>
+                <p className="text-xs text-muted-foreground mt-1">Atur jadwal mengajar dari menu Jadwal Pelajaran & Kerja.</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -35,7 +35,7 @@ import { AttendanceReviews } from "../modules/attendance/pages/attendance-review
 import { AttendanceEvents } from "../modules/attendance/pages/attendance-events";
 import { AttendanceOvertime } from "../modules/attendance/pages/attendance-overtime";
 import { StaffOperationalReportsAdmin } from "../modules/attendance/pages/staff-operational-reports";
-import { SchedulesList, ScheduleCreate, ScheduleEdit } from "../modules/schedules";
+import { SchedulesList, ScheduleCreate, ScheduleEdit, UnitSchedulePatterns } from "../modules/schedules";
 import { LeavesList, LeaveCreate, LeaveShow } from "../modules/leaves";
 import { SubstitutesList, SubstituteCreate, SubstituteEdit } from "../modules/substitutes";
 import { DashboardPage } from "../modules/dashboard";
@@ -538,7 +538,7 @@ export default function App() {
             list: "/schedules",
             create: "/schedules/create",
             edit: "/schedules/edit/:id",
-            meta: { canDelete: true },
+            meta: { canDelete: true, label: "Jadwal Pelajaran & Kerja" },
           },
           {
             name: "leave_requests",
@@ -841,6 +841,7 @@ export default function App() {
 
                 <Route path="schedules">
                   <Route index element={<SchedulesList />} />
+                  <Route path="patterns" element={<UnitSchedulePatterns />} />
                   <Route path="create" element={<ScheduleCreate />} />
                   <Route path="edit/:id" element={<ScheduleEdit />} />
                 </Route>

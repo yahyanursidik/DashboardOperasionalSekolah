@@ -74,7 +74,7 @@ export const QuranRecordsList: React.FC = () => {
       { field: "date", order: "desc" }
     ],
     meta: {
-      select: "*, students(id, full_name, nis, classes(name, units(name))), classes(name), employees(full_name), tahfidz_halaqohs(name)"
+      select: "*, students(id, full_name, nis, classes(name, units(name))), classes(name), employees(full_name), tahfidz_halaqohs(name), subjects(id, name, quran_program_type)"
     },
     pagination: { pageSize: 500 },
   });
@@ -324,6 +324,7 @@ export const QuranRecordsList: React.FC = () => {
                         record.classes?.name || '-'
                       )}
                       {record.students?.classes?.units?.name && <p className="mt-1 text-[11px] text-muted-foreground">{record.students.classes.units.name}</p>}
+                      {record.subjects?.name && <p className="mt-1 text-[11px] font-semibold text-primary">{record.subjects.name}</p>}
                     </td>
                     <td className="px-6 py-4 font-bold text-primary">{record.surah_or_jilid}</td>
                     <td className="px-6 py-4">{record.ayat_or_page}</td>
