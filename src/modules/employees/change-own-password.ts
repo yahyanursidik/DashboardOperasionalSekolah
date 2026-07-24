@@ -1,4 +1,5 @@
 import { supabaseClient } from "../../lib/supabase/client";
+import { requestEmployeeAccess } from "./employee-access-api";
 
 export function validatePortalPassword(password: string) {
   if (password.length < 10) return "Kata sandi minimal 10 karakter.";
@@ -12,14 +13,10 @@ export function validatePortalPassword(password: string) {
 export async function changeOwnPortalPassword(newPassword: string) {
   const { data: { session } } = await supabaseClient.auth.getSession();
   if (!session) throw new Error("Sesi login tidak ditemukan. Silakan masuk kembali.");
-  const response = await fetch("/api/manage-employee-access", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
-    body: JSON.stringify({ action: "change_own_password", newPassword }),
-  });
-  const contentType = response.headers.get("content-type") || "";
-  const result = contentType.includes("application/json") ? await response.json() as { error?: string; message?: string } : null;
-  if (!response.ok || !result) throw new Error(result?.error || "Layanan keamanan akun belum dapat dihubungi.");
+  const result = await requestEmployeeAccess<{ error?: string; message?: string }>(
+    { action: "change_own_password", newPassword },
+    session.access_token,
+  );
   await supabaseClient.auth.refreshSession();
   return result.message || "Kata sandi pribadi berhasil disimpan.";
 }
