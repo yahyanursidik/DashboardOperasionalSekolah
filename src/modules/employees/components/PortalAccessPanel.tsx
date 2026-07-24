@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Ban, CheckCircle2, Copy, Eye, EyeOff, KeyRound, Loader2, LockKeyhole, Mail, RefreshCw, ShieldCheck, UserCheck, X, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { supabaseClient } from "../../../lib/supabase/client";
+import { requestEmployeeAccess } from "../employee-access-api";
 
 type AccessAction = "provision" | "reset_password" | "disable" | "enable";
 
@@ -42,15 +43,7 @@ function formatDate(value?: string | null) {
 async function requestAccess(employeeId: string, action: "status" | AccessAction): Promise<ApiResponse> {
   const { data: { session } } = await supabaseClient.auth.getSession();
   if (!session) throw new Error("Sesi admin tidak ditemukan. Silakan masuk kembali.");
-  const response = await fetch("/api/manage-employee-access", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
-    body: JSON.stringify({ employeeId, action }),
-  });
-  const contentType = response.headers.get("content-type") || "";
-  const result = contentType.includes("application/json") ? await response.json() as ApiResponse : null;
-  if (!response.ok || !result) throw new Error(result?.error || "Layanan akun portal belum dapat dihubungi. Periksa konfigurasi server.");
-  return result;
+  return requestEmployeeAccess<ApiResponse>({ employeeId, action }, session.access_token);
 }
 
 export function PortalAccessPanel({ employeeId, employeeName, employeeEmail, employeeNik, onAccessChanged }: {

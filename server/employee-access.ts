@@ -127,7 +127,7 @@ async function writeAudit(
   });
 }
 
-export async function handleEmployeeAccess(context: EmployeeAccessContext): Promise<EmployeeAccessResponse> {
+async function processEmployeeAccess(context: EmployeeAccessContext): Promise<EmployeeAccessResponse> {
   const { authorization, body, supabaseUrl, serviceRoleKey, userAgent } = context;
   if (!supabaseUrl || !serviceRoleKey) return json(500, { error: "Konfigurasi layanan autentikasi belum lengkap." });
 
@@ -267,4 +267,16 @@ export async function handleEmployeeAccess(context: EmployeeAccessContext): Prom
     access,
     ...(temporaryPassword ? { temporaryPassword } : {}),
   });
+}
+
+export async function handleEmployeeAccess(context: EmployeeAccessContext): Promise<EmployeeAccessResponse> {
+  try {
+    return await processEmployeeAccess(context);
+  } catch (error) {
+    console.error("[employee-access] Unexpected server error", error);
+    return json(500, {
+      error: "Layanan autentikasi mengalami gangguan saat memeriksa akun. Silakan coba kembali.",
+      code: "EMPLOYEE_ACCESS_UNEXPECTED",
+    });
+  }
 }
