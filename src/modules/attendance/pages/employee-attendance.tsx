@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/exhaustive-deps */
 import React, { useMemo, useState } from "react";
 import { useTable, useUpdate, useCreate, useSelect, useList } from "@refinedev/core";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import {
   Users, Clock, Loader2, Play, ChevronLeft, ChevronRight, CalendarCheck,
@@ -101,6 +101,8 @@ const TablePagination: React.FC<{
 
 export const EmployeeAttendanceList: React.FC = () => {
   const today = toLocalDateInput();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedEmployeeId = searchParams.get("employee_id") || "";
   const [selectedDate, setSelectedDate] = useState(today);
   const [filterUnit, setFilterUnit] = useState("");
   const [filterPosition, setFilterPosition] = useState("");
@@ -117,6 +119,7 @@ export const EmployeeAttendanceList: React.FC = () => {
     filters: {
       permanent: [
         { field: "status", operator: "eq", value: "active" },
+        ...(requestedEmployeeId ? [{ field: "id", operator: "eq", value: requestedEmployeeId }] : []),
         ...(filterUnit ? [{ field: "unit_id", operator: "eq", value: filterUnit }] : []),
         ...(filterPosition ? [{ field: "position", operator: "eq", value: filterPosition }] : []),
       ] as any[]
@@ -250,6 +253,14 @@ export const EmployeeAttendanceList: React.FC = () => {
     if (filterAttendance === "leave_approved") return Boolean(leaveMap[employee.id]);
     return record?.status === filterAttendance;
   });
+  const selectedEmployee = requestedEmployeeId ? employees.find((employee: any) => employee.id === requestedEmployeeId) : null;
+
+  const clearEmployeeContext = () => {
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete("employee_id");
+    setSearchParams(nextParams, { replace: true });
+    setCurrent(1);
+  };
 
   const stats = useMemo(() => {
     const records = employees.map((employee: any) => ({ employee, record: getRecord(employee) }));
@@ -377,6 +388,20 @@ export const EmployeeAttendanceList: React.FC = () => {
           </div>
         }
       />
+
+      {requestedEmployeeId && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
+          <div>
+            <p className="text-xs font-semibold uppercase text-primary">Presensi Pegawai Terpilih</p>
+            <p className="mt-0.5 text-sm font-semibold text-foreground">
+              {selectedEmployee?.full_name || (isLoading ? "Memuat data pegawai..." : "Pegawai tidak ditemukan atau tidak aktif")}
+            </p>
+          </div>
+          <button type="button" onClick={clearEmployeeContext} className="rounded-md border bg-background px-3 py-2 text-xs font-semibold hover:bg-muted">
+            Tampilkan Semua Pegawai
+          </button>
+        </div>
+      )}
 
       <section className="bg-card border rounded-xl shadow-sm p-5">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">

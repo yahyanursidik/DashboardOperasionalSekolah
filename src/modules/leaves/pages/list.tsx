@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
-import { useList, useDelete } from "@refinedev/core";
-import { Link, useNavigate } from "react-router-dom";
+import { useList, useDelete, useOne } from "@refinedev/core";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import {
   AlertTriangle,
@@ -28,6 +28,8 @@ import {
 
 export const LeavesList: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedEmployeeId = searchParams.get("employee_id") || "";
   const { mutate: deleteLeave } = useDelete();
   const [filterStatus, setFilterStatus] = useState("");
   const [filterType, setFilterType] = useState("");
@@ -35,6 +37,7 @@ export const LeavesList: React.FC = () => {
   const today = toDateInputValue(new Date());
 
   const filters: any[] = [];
+  if (requestedEmployeeId) filters.push({ field: "employee_id", operator: "eq", value: requestedEmployeeId });
   if (filterStatus) filters.push({ field: "status", operator: "eq", value: filterStatus });
   if (filterType) filters.push({ field: "leave_type", operator: "eq", value: filterType });
 
@@ -45,6 +48,20 @@ export const LeavesList: React.FC = () => {
     sorters: [{ field: "start_date", order: "desc" }],
     pagination: { pageSize: 50 },
   });
+
+  const { data: selectedEmployeeData, isLoading: selectedEmployeeLoading } = useOne({
+    resource: "employees",
+    id: requestedEmployeeId,
+    meta: { select: "id, full_name, nik, position" },
+    queryOptions: { enabled: Boolean(requestedEmployeeId) },
+  });
+  const selectedEmployee = selectedEmployeeData?.data;
+
+  const clearEmployeeContext = () => {
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete("employee_id");
+    setSearchParams(nextParams, { replace: true });
+  };
 
   const { data: substitutesData } = useList({
     resource: "substitute_assignments",
@@ -116,6 +133,21 @@ export const LeavesList: React.FC = () => {
           </Link>
         }
       />
+
+      {requestedEmployeeId && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
+          <div>
+            <p className="text-xs font-semibold uppercase text-primary">Riwayat Izin/Cuti Pegawai</p>
+            <p className="mt-0.5 text-sm font-semibold text-foreground">
+              {selectedEmployee?.full_name || (selectedEmployeeLoading ? "Memuat data pegawai..." : "Pegawai tidak ditemukan")}
+              {selectedEmployee?.nik ? <span className="ml-2 font-normal text-muted-foreground">NIK {selectedEmployee.nik}</span> : null}
+            </p>
+          </div>
+          <button type="button" onClick={clearEmployeeContext} className="rounded-md border bg-background px-3 py-2 text-xs font-semibold hover:bg-muted">
+            Tampilkan Semua Pengajuan
+          </button>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
         {[
