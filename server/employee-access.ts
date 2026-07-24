@@ -67,12 +67,30 @@ function readRoleName(value: unknown) {
 
 async function findUserByEmail(admin: SupabaseClient, email: string): Promise<User | null> {
   const normalizedEmail = email.trim().toLowerCase();
-  for (let page = 1; page <= 10; page += 1) {
-    const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
-    if (error) throw error;
-    const found = data.users.find((user) => user.email?.toLowerCase() === normalizedEmail);
-    if (found) return found;
-    if (data.users.length < 1000) break;
+  const batchSize = 10;
+
+  for (let page = 1; page <= 50; page += 1) {
+    const { data, error } = await admin.auth.admin.listUsers({ page, perPage: batchSize });
+    if (!error) {
+      const found = data.users.find((user) => user.email?.toLowerCase() === normalizedEmail);
+      if (found) return found;
+      if (data.users.length < batchSize) return null;
+      continue;
+    }
+
+    // A malformed Auth record can make a whole batch fail. Scan the same range
+    // one record at a time so valid accounts after that record remain reachable.
+    const rangeStart = ((page - 1) * batchSize) + 1;
+    const rangeEnd = rangeStart + batchSize;
+    for (let singlePage = rangeStart; singlePage < rangeEnd; singlePage += 1) {
+      const { data: singleData, error: singleError } = await admin.auth.admin.listUsers({
+        page: singlePage,
+        perPage: 1,
+      });
+      if (singleError) continue;
+      if (singleData.users.length === 0) return null;
+      if (singleData.users[0]?.email?.toLowerCase() === normalizedEmail) return singleData.users[0];
+    }
   }
   return null;
 }
