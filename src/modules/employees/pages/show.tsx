@@ -312,6 +312,7 @@ export const EmployeeShow: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
+  const tabPanelRef = React.useRef<HTMLDivElement>(null);
   const basePath = location.pathname.startsWith("/hrd") ? "/hrd/employees" : "/employees";
   const requestedTab = searchParams.get("tab") as TabType | null;
   const activeTab: TabType = requestedTab && EMPLOYEE_TAB_KEYS.includes(requestedTab) ? requestedTab : "assignments";
@@ -323,6 +324,9 @@ export const EmployeeShow: React.FC = () => {
     if (tab === "assignments") nextParams.delete("tab");
     else nextParams.set("tab", tab);
     setSearchParams(nextParams, { replace: true });
+    window.requestAnimationFrame(() => {
+      tabPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
   };
 
   const { queryResult } = useShow({
@@ -561,14 +565,14 @@ export const EmployeeShow: React.FC = () => {
               <Link to={`/schedules?employee_id=${record.id}`} className="text-xs border rounded-lg px-3 py-2 hover:bg-muted flex items-center gap-2">
                 <Calendar className="w-3.5 h-3.5" /> Jadwal
               </Link>
-              <Link to="/attendance/employees" className="text-xs border rounded-lg px-3 py-2 hover:bg-muted flex items-center gap-2">
+              <Link to={`/attendance/employees?employee_id=${record.id}`} className="text-xs border rounded-lg px-3 py-2 hover:bg-muted flex items-center gap-2">
                 <Clock className="w-3.5 h-3.5" /> Presensi
               </Link>
-              <Link to="/leaves" className="text-xs border rounded-lg px-3 py-2 hover:bg-muted flex items-center gap-2">
+              <Link to={`/leaves?employee_id=${record.id}`} className="text-xs border rounded-lg px-3 py-2 hover:bg-muted flex items-center gap-2">
                 <History className="w-3.5 h-3.5" /> Izin/Cuti
               </Link>
-              <Link to="/pkg" className="text-xs border rounded-lg px-3 py-2 hover:bg-muted flex items-center gap-2">
-                <ClipboardList className="w-3.5 h-3.5" /> PKG
+              <Link to={`/pkg/history/${record.id}`} className="text-xs border rounded-lg px-3 py-2 hover:bg-muted flex items-center gap-2">
+                <ClipboardList className="w-3.5 h-3.5" /> Riwayat PKG
               </Link>
             </div>
           </div>
@@ -594,7 +598,7 @@ export const EmployeeShow: React.FC = () => {
             </div>
           </div>
           {/* Tabs */}
-          <div className="bg-card border rounded-xl shadow-sm overflow-hidden">
+          <div ref={tabPanelRef} className="scroll-mt-4 bg-card border rounded-xl shadow-sm overflow-hidden">
             <div className="flex overflow-x-auto border-b">
               {TABS.map((tab) => (
                 <button
@@ -780,7 +784,7 @@ export const EmployeeShow: React.FC = () => {
                   <p className="text-sm font-medium mb-1">Data Presensi</p>
                   <p className="text-xs text-muted-foreground">
                     Lihat riwayat lengkap di halaman{" "}
-                    <Link to="/attendance/employees" className="text-primary hover:underline font-medium">
+                    <Link to={`/attendance/employees?employee_id=${record.id}`} className="text-primary hover:underline font-medium">
                       Presensi Pegawai
                     </Link>
                   </p>

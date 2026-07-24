@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useMemo, useState } from "react";
 import { useList, useDelete, useSelect } from "@refinedev/core";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import {
   Calendar, Plus, Filter, Clock, MapPin, Trash2, Edit, BookOpen, Shield, Copy,
@@ -23,13 +23,15 @@ import {
 
 export const SchedulesList: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedEmployeeId = searchParams.get("employee_id") || "";
   const { activeYearId, activeSemesterId } = useAcademicYear();
   const { activeUnitId } = useCurrentUnit();
   const { mutate: deleteSchedule } = useDelete();
   
   const [filterDay, setFilterDay] = useState("");
   const [filterType, setFilterType] = useState("");
-  const [filterEmployee, setFilterEmployee] = useState("");
+  const [filterEmployee, setFilterEmployee] = useState(requestedEmployeeId);
   const [filterClass, setFilterClass] = useState("");
   const [filterSubject, setFilterSubject] = useState("");
   const [viewMode, setViewMode] = useState<"list" | "board">("board");
@@ -41,7 +43,7 @@ export const SchedulesList: React.FC = () => {
   if (filterEmployee) filters.push({ field: "employee_id", operator: "eq", value: filterEmployee });
   if (filterClass) filters.push({ field: "class_id", operator: "eq", value: filterClass });
   if (filterSubject) filters.push({ field: "subject_id", operator: "eq", value: filterSubject });
-  if (activeUnitId) filters.push({ field: "unit_id", operator: "eq", value: activeUnitId });
+  if (activeUnitId && !filterEmployee) filters.push({ field: "unit_id", operator: "eq", value: activeUnitId });
   if (activeYearId) filters.push({ field: "academic_year_id", operator: "eq", value: activeYearId });
   if (activeSemesterId) filters.push({ field: "semester_id", operator: "eq", value: activeSemesterId });
 
@@ -60,8 +62,20 @@ export const SchedulesList: React.FC = () => {
     resource: "employees",
     optionLabel: "full_name",
     optionValue: "id",
-    filters: activeUnitId ? [{ field: "unit_id", operator: "eq", value: activeUnitId }] : [],
+    filters: activeUnitId && !filterEmployee ? [{ field: "unit_id", operator: "eq", value: activeUnitId }] : [],
   });
+
+  React.useEffect(() => {
+    setFilterEmployee(requestedEmployeeId);
+  }, [requestedEmployeeId]);
+
+  const updateEmployeeFilter = (employeeId: string) => {
+    setFilterEmployee(employeeId);
+    const nextParams = new URLSearchParams(searchParams);
+    if (employeeId) nextParams.set("employee_id", employeeId);
+    else nextParams.delete("employee_id");
+    setSearchParams(nextParams, { replace: true });
+  };
 
   const { options: classOptions } = useSelect({
     resource: "classes",
@@ -265,7 +279,7 @@ export const SchedulesList: React.FC = () => {
           </select>
           <select
             value={filterEmployee}
-            onChange={(e) => setFilterEmployee(e.target.value)}
+            onChange={(e) => updateEmployeeFilter(e.target.value)}
             className="border rounded-md px-3 py-1.5 text-sm bg-background outline-none"
           >
             <option value="">Semua Pegawai</option>
@@ -289,7 +303,7 @@ export const SchedulesList: React.FC = () => {
           </select>
           {(filterDay || filterType || filterEmployee || filterClass || filterSubject) && (
             <button
-              onClick={() => { setFilterDay(""); setFilterType(""); setFilterEmployee(""); setFilterClass(""); setFilterSubject(""); }}
+              onClick={() => { setFilterDay(""); setFilterType(""); updateEmployeeFilter(""); setFilterClass(""); setFilterSubject(""); }}
               className="text-xs text-red-600 hover:underline font-medium"
             >
               Reset Filter
