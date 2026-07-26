@@ -36,6 +36,10 @@ export function formatScheduleEntryType(schedule: any) {
     play: "Bermain / Kegiatan Luar",
     other: "Kegiatan Pembelajaran",
   };
+  if (isHalaqohLearningSchedule(schedule)) {
+    const program = schedule?.tahfidz_halaqohs?.program_type;
+    return program === "tahsin" ? "Halaqoh Tahsin" : program === "tahfidz" ? "Halaqoh Tahfidz" : "Halaqoh Al-Qur'an";
+  }
   if (isUnitLearningSchedule(schedule)) return labels[schedule?.schedule_kind || "unit_activity"];
   if (schedule?.schedule_type === "mengajar" && schedule?.schedule_kind) return labels[schedule.schedule_kind] || "Pembelajaran";
   return formatScheduleType(schedule?.schedule_type);
@@ -158,6 +162,34 @@ export function hasTimeOverlap(
   return aStart < bEnd && bStart < aEnd;
 }
 
+export function isHalaqohLearningSchedule(schedule: any) {
+  return schedule?.schedule_type === "mengajar" && Boolean(schedule?.halaqoh_id);
+}
+
+function normalizedSubjectIdentity(schedule: any) {
+  const subjectId = schedule?.subject_id || schedule?.subjects?.id;
+  if (subjectId) return `id:${subjectId}`;
+  return `name:${String(getScheduleSubjectName(schedule)).trim().toLowerCase()}`;
+}
+
+export function isParallelTeachingAssignment(first: any, second: any) {
+  const sameSubject = normalizedSubjectIdentity(first) === normalizedSubjectIdentity(second);
+  const distinctHalaqohs = Boolean(first?.halaqoh_id)
+    && Boolean(second?.halaqoh_id)
+    && first.halaqoh_id !== second.halaqoh_id;
+  return first?.schedule_type === "mengajar"
+    && second?.schedule_type === "mengajar"
+    && Boolean(first?.class_id)
+    && first.class_id === second.class_id
+    && Boolean(first?.employee_id)
+    && Boolean(second?.employee_id)
+    && first.employee_id !== second.employee_id
+    && first.day_of_week === second.day_of_week
+    && formatTime(first.start_time) === formatTime(second.start_time)
+    && formatTime(first.end_time) === formatTime(second.end_time)
+    && (sameSubject || distinctHalaqohs);
+}
+
 export function findScheduleConflicts(schedules: any[]) {
   const conflicts: Array<{ type: "employee" | "class" | "unit"; first: any; second: any }> = [];
 
@@ -168,7 +200,10 @@ export function findScheduleConflicts(schedules: any[]) {
 
       if (first.employee_id && first.employee_id === second.employee_id) {
         conflicts.push({ type: "employee", first, second });
+        return;
       }
+
+      if (isParallelTeachingAssignment(first, second)) return;
 
       if (
         first.schedule_type === "mengajar" &&
@@ -177,6 +212,7 @@ export function findScheduleConflicts(schedules: any[]) {
         first.class_id === second.class_id
       ) {
         conflicts.push({ type: "class", first, second });
+        return;
       }
 
       if (

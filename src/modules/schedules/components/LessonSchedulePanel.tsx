@@ -18,6 +18,7 @@ import {
   formatTime,
   getScheduleSubjectName,
   getScheduleVisual,
+  isHalaqohLearningSchedule,
   isUnitLearningSchedule,
 } from "../schedule-utils";
 
@@ -53,6 +54,7 @@ function getDisplayName(schedule: any, mode: "lesson" | "work") {
 }
 
 function getLocationName(schedule: any, mode: "lesson" | "work") {
+  if (isHalaqohLearningSchedule(schedule)) return schedule.tahfidz_halaqohs?.name || "Halaqoh Al-Qur'an";
   if (schedule.classes?.name) return schedule.classes.name;
   if (isUnitLearningSchedule(schedule)) return "Semua kelas";
   return mode === "work" ? getUnitName(schedule) : "Tanpa kelas";
@@ -161,6 +163,12 @@ export const LessonSchedulePanel: React.FC<SchedulePanelProps> = ({
           {!dense && (
             <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md ${visual.softBackground} ${visual.text}`}>
               {schedule.schedule_type === "mengajar" ? <BookOpen className="h-4 w-4" /> : <BriefcaseBusiness className="h-4 w-4" />}
+            </span>
+          )}
+          {!isWorkMode && schedule.employees?.full_name && (
+            <span className="flex min-w-0 items-center gap-1">
+              <Users className="h-3 w-3 shrink-0" />
+              <span className="truncate">{schedule.employees.full_name}</span>
             </span>
           )}
         </div>

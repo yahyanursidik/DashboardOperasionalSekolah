@@ -1,12 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { supabaseClient } from "../../lib/supabase/client";
 
-const extendedSelect = "id, employee_id, day_of_week, start_time, end_time, schedule_type, schedule_scope, schedule_kind, activity_name, schedule_group_id, is_synchronized, subject, subject_id, unit_id, class_id, academic_year_id, semester_id, classes(name, unit_id, units(name)), units(name), subjects(name), employees(full_name)";
+const extendedSelect = "id, employee_id, day_of_week, start_time, end_time, schedule_type, schedule_scope, schedule_kind, activity_name, schedule_group_id, is_synchronized, subject, subject_id, unit_id, class_id, halaqoh_id, academic_year_id, semester_id, classes(name, unit_id, units(name)), units(name), subjects(name), employees(full_name), tahfidz_halaqohs(id,name,program_type)";
 const legacySelect = "id, employee_id, day_of_week, start_time, end_time, schedule_type, subject, subject_id, unit_id, class_id, academic_year_id, semester_id, classes(name, unit_id, units(name)), units(name), subjects(name), employees(full_name)";
 
 function missingPatternColumns(error: any) {
   const message = String(error?.message || "").toLowerCase();
-  return ["schedule_scope", "schedule_kind", "activity_name", "schedule_group_id", "is_synchronized"]
+  return ["schedule_scope", "schedule_kind", "activity_name", "schedule_group_id", "is_synchronized", "halaqoh_id"]
     .some((column) => message.includes(column));
 }
 
@@ -24,6 +24,26 @@ function mergeRows(...groups: any[][]) {
   const merged = new Map<string, any>();
   groups.flat().forEach((row) => merged.set(String(row.id), row));
   return Array.from(merged.values());
+}
+
+function replaceGenericQuranSlots(classRows: any[], halaqohRows: any[]) {
+  if (halaqohRows.length === 0) return classRows;
+  const specificSlots = new Set(halaqohRows.map((row) => [
+    row.day_of_week,
+    String(row.start_time || "").slice(0, 5),
+    String(row.end_time || "").slice(0, 5),
+    row.subject_id || String(row.subject || "").trim().toLowerCase(),
+  ].join(":")));
+  return classRows.filter((row) => {
+    if (row.halaqoh_id) return true;
+    const key = [
+      row.day_of_week,
+      String(row.start_time || "").slice(0, 5),
+      String(row.end_time || "").slice(0, 5),
+      row.subject_id || String(row.subject || "").trim().toLowerCase(),
+    ].join(":");
+    return !specificSlots.has(key);
+  });
 }
 
 function applyExactPeriod(query: any, academicYearId?: string | null, semesterId?: string | null) {
@@ -62,11 +82,13 @@ export async function loadTeacherAssignedUnitIds(employeeId: string, academicYea
 export async function loadStudentLearningSchedules({
   classId,
   unitId,
+  studentId,
   academicYearId,
   semesterId,
 }: {
   classId: string;
   unitId?: string | null;
+  studentId?: string | null;
   academicYearId?: string | null;
   semesterId?: string | null;
 }) {
@@ -79,21 +101,44 @@ export async function loadStudentLearningSchedules({
     ? query.or(`class_id.eq.${classId},and(schedule_scope.eq.unit,unit_id.eq.${unitId})`)
     : query.eq("class_id", classId);
   const result = await applyExactPeriod(query, academicYearId, semesterId);
-  if (!result.error || !missingPatternColumns(result.error)) return result;
+  let classRows: any[];
+  if (!result.error) {
+    classRows = result.data || [];
+  } else {
+    if (!missingPatternColumns(result.error)) return result;
+    let legacyQuery = supabaseClient
+      .from("employee_schedules")
+      .select(legacySelect)
+      .eq("schedule_type", "mengajar")
+      .order("start_time");
+    legacyQuery = unitId
+      ? legacyQuery.or(`class_id.eq.${classId},and(class_id.is.null,unit_id.eq.${unitId})`)
+      : legacyQuery.eq("class_id", classId);
+    legacyQuery = applyExactPeriod(legacyQuery, academicYearId, semesterId);
+    const legacyResult = await legacyQuery;
+    if (legacyResult.error) return legacyResult;
+    classRows = normalizeLegacyRows(legacyResult.data);
+  }
 
-  let legacyQuery = supabaseClient
+  if (!studentId) return { data: classRows, error: null };
+  const membershipResult = await supabaseClient
+    .from("tahfidz_halaqoh_members")
+    .select("halaqoh_id")
+    .eq("student_id", studentId);
+  const halaqohIds = Array.from(new Set((membershipResult.data || []).map((row: any) => row.halaqoh_id).filter(Boolean))) as string[];
+  if (membershipResult.error || halaqohIds.length === 0) return { data: classRows, error: null };
+
+  let halaqohQuery = supabaseClient
     .from("employee_schedules")
-    .select(legacySelect)
+    .select(extendedSelect)
     .eq("schedule_type", "mengajar")
+    .in("halaqoh_id", halaqohIds)
     .order("start_time");
-  legacyQuery = unitId
-    ? legacyQuery.or(`class_id.eq.${classId},and(class_id.is.null,unit_id.eq.${unitId})`)
-    : legacyQuery.eq("class_id", classId);
-  legacyQuery = applyExactPeriod(legacyQuery, academicYearId, semesterId);
-  const legacyResult = await legacyQuery;
-  return legacyResult.error
-    ? legacyResult
-    : { data: normalizeLegacyRows(legacyResult.data), error: null };
+  halaqohQuery = applyExactPeriod(halaqohQuery, academicYearId, semesterId);
+  const halaqohResult = await halaqohQuery;
+  if (halaqohResult.error) return { data: classRows, error: null };
+  const halaqohRows = halaqohResult.data || [];
+  return { data: mergeRows(replaceGenericQuranSlots(classRows, halaqohRows), halaqohRows), error: null };
 }
 
 export async function loadTeacherLearningSchedules({

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useMemo, useState } from "react";
 import { useList } from "@refinedev/core";
 import { Link, useNavigate } from "react-router-dom";
@@ -37,6 +38,7 @@ import {
 
 type ViewMode = "grid" | "list";
 type DirectoryFilter = "all" | "needs_teacher" | "needs_curriculum" | "ready";
+const GRADE_OPTIONS = [1, 2, 3, 4, 5, 6] as const;
 
 const CATEGORY_CFG: Record<string, { color: string; bg: string }> = {
   Nasional: { color: "text-blue-700", bg: "bg-blue-50 border-blue-200" },
@@ -124,6 +126,44 @@ const StatusPill: React.FC<{ done: boolean; label: string }> = ({ done, label })
   </span>
 );
 
+const GradeCoverageChips: React.FC<{
+  metrics: ReturnType<typeof getSubjectMetrics>;
+  compact?: boolean;
+}> = ({ metrics, compact = false }) => (
+  <div className="flex flex-wrap gap-1.5">
+    {metrics.targetGrades.map((grade) => {
+      const hasTeacher = metrics.assignedGrades.has(grade);
+      const hasCurriculum = metrics.curriculumGrades.has(grade);
+      const isReady = metrics.readyGrades.has(grade);
+      const status = isReady
+        ? "Siap"
+        : !hasTeacher && !hasCurriculum
+          ? "Guru dan kurikulum belum lengkap"
+          : !hasTeacher
+            ? "Guru belum lengkap"
+            : !hasCurriculum
+              ? "Kurikulum belum lengkap"
+              : "Perangkat ajar belum siap";
+      const tone = isReady
+        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+        : hasTeacher && hasCurriculum
+          ? "border-blue-200 bg-blue-50 text-blue-700"
+          : "border-amber-200 bg-amber-50 text-amber-800";
+
+      return (
+        <span
+          key={grade}
+          title={`Kelas ${grade}: ${status}`}
+          className={`inline-flex items-center gap-1 rounded-md border font-bold ${tone} ${compact ? "px-1.5 py-0.5 text-[10px]" : "px-2 py-1 text-xs"}`}
+        >
+          <span>Kelas {grade}</span>
+          {isReady ? <CheckCircle2 className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
+        </span>
+      );
+    })}
+  </div>
+);
+
 const TeacherAvatarStack: React.FC<{ assignments: any[] }> = ({ assignments }) => {
   const teachers = uniqueBy(assignments, (assignment) => assignment.employees?.id);
   if (teachers.length === 0) {
@@ -199,8 +239,12 @@ function SubjectCard({
       </div>
 
       <div className="mt-4 flex flex-wrap gap-1.5">
+        <GradeCoverageChips metrics={metrics} />
+      </div>
+
+      <div className="mt-2 flex flex-wrap gap-1.5">
         {SD_PHASES.filter((phase) => phase.grades.some((grade) => metrics.targetGrades.includes(grade))).map((phase) => (
-          <span key={phase.id} className="rounded-md bg-primary/10 px-2 py-1 text-xs font-semibold text-primary">
+          <span key={phase.id} className="rounded-md border bg-muted/40 px-2 py-1 text-[11px] font-semibold text-muted-foreground">
             {phase.label}
           </span>
         ))}
@@ -382,6 +426,7 @@ export const SubjectTeacherDirectory: React.FC = () => {
   const [search, setSearch] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
   const [filterUnit, setFilterUnit] = useState("");
+  const [filterGrade, setFilterGrade] = useState("");
   const [filterStatus, setFilterStatus] = useState("active");
   const [workflowFilter, setWorkflowFilter] = useState<DirectoryFilter>("all");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
@@ -430,10 +475,10 @@ export const SubjectTeacherDirectory: React.FC = () => {
     meta: { select: "*, subject_curriculum_semesters(*)" },
   });
 
-  const allSubjects = subjectsData?.data ?? [];
-  const allAssignments = assignmentsData?.data ?? [];
-  const allCurriculums = curriculumsData?.data ?? [];
-  const allClasses = classesData?.data ?? [];
+  const allSubjects = useMemo(() => subjectsData?.data ?? [], [subjectsData?.data]);
+  const allAssignments = useMemo(() => assignmentsData?.data ?? [], [assignmentsData?.data]);
+  const allCurriculums = useMemo(() => curriculumsData?.data ?? [], [curriculumsData?.data]);
+  const allClasses = useMemo(() => classesData?.data ?? [], [classesData?.data]);
 
   const assignmentsBySubjectId = useMemo(() => {
     const map: Record<string, any[]> = {};
@@ -466,15 +511,16 @@ export const SubjectTeacherDirectory: React.FC = () => {
       const matchesSearch = !term || subject.name?.toLowerCase().includes(term) || subject.code?.toLowerCase().includes(term);
       const matchesCategory = !filterCategory || subject.category === filterCategory;
       const matchesUnit = !filterUnit ? (!activeUnitId || subject.unit_id === activeUnitId) : subject.unit_id === filterUnit;
+      const matchesGrade = !filterGrade || metrics.targetGrades.includes(Number(filterGrade));
       const matchesStatus = filterStatus === "active" ? subject.is_active !== false : filterStatus === "inactive" ? subject.is_active === false : true;
       const matchesWorkflow =
         workflowFilter === "all" ||
         (workflowFilter === "needs_teacher" && metrics.missingTeacherGrades.length > 0) ||
         (workflowFilter === "needs_curriculum" && metrics.missingCurriculumGrades.length > 0) ||
         (workflowFilter === "ready" && metrics.isReady);
-      return matchesSearch && matchesCategory && matchesUnit && matchesStatus && matchesWorkflow;
+      return matchesSearch && matchesCategory && matchesUnit && matchesGrade && matchesStatus && matchesWorkflow;
     });
-  }, [activeSemesterId, activeUnitId, allClasses, allSubjects, assignmentsBySubjectId, curriculumsBySubjectId, filterCategory, filterStatus, filterUnit, search, workflowFilter]);
+  }, [activeSemesterId, activeUnitId, allClasses, allSubjects, assignmentsBySubjectId, curriculumsBySubjectId, filterCategory, filterGrade, filterStatus, filterUnit, search, workflowFilter]);
 
   const stats = useMemo(() => {
     const withTeachers = filteredSubjects.filter((subject) => {
@@ -499,7 +545,7 @@ export const SubjectTeacherDirectory: React.FC = () => {
     };
   }, [activeSemesterId, allAssignments, allClasses, assignmentsBySubjectId, curriculumsBySubjectId, filteredSubjects]);
 
-  const selectedSubject = allSubjects.find((subject) => String(subject.id) === selectedSubjectId);
+  const selectedSubject = filteredSubjects.find((subject) => String(subject.id) === selectedSubjectId);
   const selectedAssignments = selectedSubject ? assignmentsBySubjectId[String(selectedSubject.id)] || [] : [];
   const selectedCurriculums = selectedSubject ? curriculumsBySubjectId[String(selectedSubject.id)] || [] : [];
   const isLoading = subjectsLoading || assignmentsLoading || curriculumsLoading || classesLoading;
@@ -570,6 +616,29 @@ export const SubjectTeacherDirectory: React.FC = () => {
       </div>
 
       <section className="rounded-xl border bg-card p-4 shadow-sm">
+        <div className="mb-4 flex items-center gap-2 overflow-x-auto border-b pb-4">
+          <span className="inline-flex shrink-0 items-center gap-2 pr-2 text-sm font-bold">
+            <GraduationCap className="h-4 w-4 text-primary" />
+            Tingkat Kelas
+          </span>
+          <button
+            type="button"
+            onClick={() => setFilterGrade("")}
+            className={`h-9 shrink-0 rounded-md border px-3 text-xs font-bold ${filterGrade === "" ? "border-primary bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted"}`}
+          >
+            Semua
+          </button>
+          {GRADE_OPTIONS.map((grade) => (
+            <button
+              key={grade}
+              type="button"
+              onClick={() => setFilterGrade(String(grade))}
+              className={`h-9 shrink-0 rounded-md border px-3 text-xs font-bold ${filterGrade === String(grade) ? "border-primary bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted"}`}
+            >
+              Kelas {grade}
+            </button>
+          ))}
+        </div>
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -618,13 +687,15 @@ export const SubjectTeacherDirectory: React.FC = () => {
           <Filter className="h-3.5 w-3.5" />
           <span>{isLoading ? "Memuat data..." : `${filteredSubjects.length} mata pelajaran tampil`}</span>
           <span>Guru unik: {stats.totalTeachers}</span>
-          {(search || filterCategory || filterUnit || filterStatus !== "active" || workflowFilter !== "all") ? (
+          {filterGrade ? <span className="rounded-md bg-primary/10 px-2 py-1 font-semibold text-primary">Kelas {filterGrade}</span> : null}
+          {(search || filterCategory || filterUnit || filterGrade || filterStatus !== "active" || workflowFilter !== "all") ? (
             <button
               type="button"
               onClick={() => {
                 setSearch("");
                 setFilterCategory("");
                 setFilterUnit("");
+                setFilterGrade("");
                 setFilterStatus("active");
                 setWorkflowFilter("all");
               }}
@@ -636,7 +707,7 @@ export const SubjectTeacherDirectory: React.FC = () => {
         </div>
       </section>
 
-      <div className={selectedSubjectId ? "grid gap-6 xl:grid-cols-[1fr_420px]" : ""}>
+      <div className={selectedSubject ? "grid gap-6 xl:grid-cols-[1fr_420px]" : ""}>
         <main>
           {isLoading ? (
             <div className={`grid gap-4 ${viewMode === "grid" ? "md:grid-cols-2 xl:grid-cols-3" : "grid-cols-1"}`}>
@@ -655,7 +726,7 @@ export const SubjectTeacherDirectory: React.FC = () => {
               </Link>
             </div>
           ) : viewMode === "grid" ? (
-            <div className={`grid gap-4 ${selectedSubjectId ? "md:grid-cols-2" : "md:grid-cols-2 xl:grid-cols-3"}`}>
+            <div className={`grid gap-4 ${selectedSubject ? "md:grid-cols-2" : "md:grid-cols-2 xl:grid-cols-3"}`}>
               {filteredSubjects.map((subject) => (
                 <SubjectCard
                   key={subject.id}
@@ -670,8 +741,8 @@ export const SubjectTeacherDirectory: React.FC = () => {
               ))}
             </div>
           ) : (
-            <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
-              <table className="w-full text-left text-sm">
+            <div className="overflow-x-auto rounded-xl border bg-card shadow-sm">
+              <table className="min-w-[920px] w-full text-left text-sm">
                 <thead className="border-b bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
                   <tr>
                     <th className="px-5 py-3">Mata Pelajaran</th>
@@ -695,7 +766,7 @@ export const SubjectTeacherDirectory: React.FC = () => {
                           <p className="text-xs text-muted-foreground">{subject.code || "Tanpa kode"}</p>
                         </td>
                         <td className="px-5 py-4"><TeacherAvatarStack assignments={assignments} /></td>
-                        <td className="px-5 py-4 text-sm">{metrics.assignedGrades.size}/{metrics.targetGrades.length}</td>
+                        <td className="px-5 py-4"><GradeCoverageChips metrics={metrics} compact /></td>
                         <td className="px-5 py-4 text-sm">{metrics.curriculumGrades.size}/{metrics.targetGrades.length}</td>
                         <td className="px-5 py-4">
                           <StatusPill done={metrics.isReady} label={metrics.isReady ? "Siap" : "Perlu tindak lanjut"} />
