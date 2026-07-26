@@ -31,6 +31,7 @@ export const TeacherLayout: React.FC = () => {
   const [pendingTasks, setPendingTasks] = useState(0);
   const [unreadAnnouncements, setUnreadAnnouncements] = useState(0);
   const [attendanceActions, setAttendanceActions] = useState(0);
+  const [hasPaudAssignment, setHasPaudAssignment] = useState(false);
   const navigate = useNavigate();
   const { activeYearId, activeSemesterId } = useAcademicYear();
 
@@ -97,6 +98,16 @@ export const TeacherLayout: React.FC = () => {
       ].filter(Boolean));
       const now = Date.now();
       const accessibleUnitIds = new Set([currentEmployee.unit_id, ...assignedUnitIds].filter(Boolean));
+      const { data: assignedUnits } = accessibleUnitIds.size
+        ? await supabaseClient
+            .from("units")
+            .select("id,name,education_level")
+            .in("id", [...accessibleUnitIds] as string[])
+        : { data: [] as any[] };
+      setHasPaudAssignment((assignedUnits || []).some((unit: any) => {
+        const name = String(unit.name || "").toLowerCase();
+        return unit.education_level === "preschool" || ["paud", "tk", "kb", "preschool"].some((term) => name.includes(term));
+      }));
       const scopedAnnouncements = (announcementsResult.data || []).filter((item: any) => {
         if (item.publish_at && new Date(item.publish_at).getTime() > now) return false;
         if (["all", "staff"].includes(item.target_type)) return true;
@@ -115,8 +126,6 @@ export const TeacherLayout: React.FC = () => {
 
   const navGroups = useMemo<RolePortalNavGroup[]>(() => {
     if (!employee) return [];
-    const unitName = String(employee.units?.name || "").toLowerCase();
-    const isPaud = ["paud", "tk", "kb", "preschool"].some((name) => unitName.includes(name));
     const isLeadership = getEmployeePosition(employee.position).category === "leadership";
     return [
       { label: "Ringkasan", items: [{ to: "/teacher", label: "Beranda", icon: Home, exact: true }] },
@@ -124,7 +133,7 @@ export const TeacherLayout: React.FC = () => {
         { to: "/teacher/classes", label: "Kelas, Absensi & Nilai", icon: CheckSquare, keywords: ["siswa", "penilaian"] },
         { to: "/teacher/reports", label: "Rapor Digital", icon: FileText, keywords: ["sas", "asat", "semester"] },
         { to: "/teacher/quran", label: "Pembelajaran Qur'an", icon: BookOpen, keywords: ["tahfidz", "tahsin", "mutabaah"] },
-        ...(isPaud ? [{ to: "/teacher/paud", label: "Perkembangan KB/TK", icon: Star }] : []),
+        ...(hasPaudAssignment ? [{ to: "/teacher/paud", label: "Perkembangan KB/TK", icon: Star }] : []),
         { to: "/teacher/journals", label: "Jurnal & Tindak Lanjut Siswa", icon: ClipboardList },
         { to: "/teacher/library", label: "Perpustakaan Digital", icon: Library },
       ] },
@@ -141,7 +150,7 @@ export const TeacherLayout: React.FC = () => {
       ] },
       { label: "Akun", items: [{ to: "/teacher/profile", label: "Profil & Keamanan", icon: UserRound }] },
     ];
-  }, [attendanceActions, employee, pendingTasks, unreadAnnouncements]);
+  }, [attendanceActions, employee, hasPaudAssignment, pendingTasks, unreadAnnouncements]);
 
   const handleLogout = async () => {
     await supabaseClient.auth.signOut();

@@ -1,263 +1,270 @@
-import React, { useState } from "react";
+/* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/set-state-in-effect */
+import React from "react";
 import { useForm, useSelect } from "@refinedev/core";
-import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Save, CheckCircle2 } from "lucide-react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { ArrowLeft, HeartHandshake, Ruler, Save } from "lucide-react";
+import { toast } from "sonner";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { useAcademicYear } from "../../app/providers/AcademicYearProvider";
-
-const ASPECTS = [
-  { id: 'agama_moral', title: 'Nilai Agama & Moral', desc: 'Mengenal agama, ibadah, perilaku jujur, sopan santun.' },
-  { id: 'fisik_motorik', title: 'Fisik Motorik', desc: 'Motorik kasar, motorik halus, kesehatan & keselamatan.' },
-  { id: 'kognitif', title: 'Kognitif', desc: 'Memecahkan masalah, berpikir logis, mengenal lingkungan.' },
-  { id: 'bahasa', title: 'Bahasa', desc: 'Memahami bahasa, mengekspresikan bahasa, keaksaraan.' },
-  { id: 'sosial_emosional', title: 'Sosial Emosional', desc: 'Kesadaran diri, rasa tanggung jawab, perilaku prososial.' },
-  { id: 'seni', title: 'Seni', desc: 'Mengeksplorasi dan mengekspresikan diri dalam karya seni.' },
-];
-
-const SCALES = ['BB', 'MB', 'BSH', 'BSB'];
-const SCALE_LABELS: any = {
-  'BB': 'Belum Berkembang',
-  'MB': 'Mulai Berkembang',
-  'BSH': 'Berkembang Sesuai Harapan',
-  'BSB': 'Berkembang Sangat Baik'
-};
+import { useCurrentUnit } from "../../app/providers/UnitProvider";
+import {
+  PAUD_ASPECTS,
+  PAUD_SCALES,
+  PAUD_SCALE_LABELS,
+  PAUD_SCALE_TONES,
+} from "./paud-config";
 
 export const StppaAssessmentForm: React.FC = () => {
   const { id } = useParams();
-  const isEdit = !!id;
+  const isEdit = Boolean(id);
   const navigate = useNavigate();
+  const { activeUnitId } = useCurrentUnit();
   const { activeYearId, activeSemesterId } = useAcademicYear();
-
-  const [selectedClassId, setSelectedClassId] = useState<string>("");
+  const [selectedClassId, setSelectedClassId] = React.useState("");
+  const [selectedStudentId, setSelectedStudentId] = React.useState("");
 
   const { onFinish, queryResult, formLoading } = useForm({
     resource: "paud_stppa_assessments",
     action: isEdit ? "edit" : "create",
     id,
   });
-
-  const record = queryResult?.data?.data;
+  const record = queryResult?.data?.data as any;
 
   React.useEffect(() => {
-    if (record?.class_id && !selectedClassId) {
-      // In full implementation, we might join class_id or fetch it via student. 
-      // For now, if we don't have it directly on record, we rely on user re-selecting or we just skip disable if it's tricky.
-    }
-  }, [record, selectedClassId]);
+    if (!record) return;
+    setSelectedClassId(record.class_id || "");
+    setSelectedStudentId(record.student_id || "");
+  }, [record]);
 
   const { options: classOptions } = useSelect({
     resource: "classes",
     optionLabel: "name",
     optionValue: "id",
+    filters: [
+      ...(activeUnitId ? [{ field: "unit_id", operator: "eq" as const, value: activeUnitId }] : []),
+      ...(activeYearId ? [{ field: "academic_year_id", operator: "eq" as const, value: activeYearId }] : []),
+    ],
     sorters: [{ field: "name", order: "asc" }],
   });
-
   const { options: studentOptions, queryResult: studentQuery } = useSelect({
     resource: "students",
     optionLabel: "full_name",
     optionValue: "id",
-    filters: selectedClassId ? [
-      { field: "class_id", operator: "eq", value: selectedClassId },
-      { field: "status", operator: "eq", value: "active" }
-    ] : [],
-    queryOptions: { enabled: !!selectedClassId },
+    filters: selectedClassId
+      ? [
+          { field: "class_id", operator: "eq", value: selectedClassId },
+          { field: "status", operator: "eq", value: "active" },
+        ]
+      : [],
+    queryOptions: { enabled: Boolean(selectedClassId) },
     sorters: [{ field: "full_name", order: "asc" }],
   });
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    
-    const data: any = {
-      student_id: formData.get("student_id"),
-      date: formData.get("date"),
-      period_name: formData.get("period_name"),
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!activeYearId || !activeSemesterId) {
+      toast.error("Tahun ajaran dan semester aktif wajib tersedia.");
+      return;
+    }
+    const formData = new FormData(event.currentTarget);
+    const values: Record<string, unknown> = {
+      student_id: selectedStudentId,
+      class_id: selectedClassId,
       academic_year_id: activeYearId,
       semester_id: activeSemesterId,
-      growth_weight: formData.get("growth_weight") ? parseFloat(formData.get("growth_weight") as string) : null,
-      growth_height: formData.get("growth_height") ? parseFloat(formData.get("growth_height") as string) : null,
-      growth_head: formData.get("growth_head") ? parseFloat(formData.get("growth_head") as string) : null,
+      period_name: formData.get("period_name"),
+      date: formData.get("date"),
+      strengths: formData.get("strengths") || null,
+      follow_up: formData.get("follow_up") || null,
+      parent_partnership: formData.get("parent_partnership") || null,
+      growth_weight: numberOrNull(formData.get("growth_weight")),
+      growth_height: numberOrNull(formData.get("growth_height")),
+      growth_head: numberOrNull(formData.get("growth_head")),
+      status: formData.get("status"),
+      is_parent_visible: formData.get("is_parent_visible") === "true",
     };
-
-    ASPECTS.forEach(aspect => {
-      data[`${aspect.id}_scale`] = formData.get(`${aspect.id}_scale`);
-      data[`${aspect.id}_desc`] = formData.get(`${aspect.id}_desc`);
+    PAUD_ASPECTS.forEach((aspect) => {
+      values[`${aspect.id}_scale`] = formData.get(`${aspect.id}_scale`);
+      values[`${aspect.id}_desc`] = formData.get(`${aspect.id}_desc`);
     });
-
-    onFinish(data);
+    try {
+      await onFinish(values);
+      toast.success(isEdit ? "Asesmen perkembangan diperbarui." : "Asesmen perkembangan disimpan.");
+    } catch (error: any) {
+      toast.error(`Asesmen gagal disimpan: ${error.message || "periksa kelengkapan data"}`);
+    }
   };
 
+  const isReady = Boolean(activeYearId && activeSemesterId);
+
   return (
-    <div className="space-y-6 max-w-4xl mx-auto pb-10">
-      <div className="flex items-center gap-4">
-        <button
-          onClick={() => navigate("/stppa-assessments")}
-          className="p-2 hover:bg-muted rounded-full transition-colors"
-        >
-          <ArrowLeft className="w-5 h-5" />
+    <div className="mx-auto max-w-6xl space-y-6 pb-10">
+      <div className="flex items-start gap-3">
+        <button title="Kembali" onClick={() => navigate("/stppa-assessments")} className="mt-1 rounded-full border p-2 hover:bg-muted">
+          <ArrowLeft className="h-5 w-5" />
         </button>
         <PageHeader
-          title={isEdit ? "Edit Evaluasi STPPA" : "Input Evaluasi Perkembangan Anak (STPPA)"}
-          description="Lengkapi checklist skala pencapaian dan deskripsi narasinya."
+          title={isEdit ? "Ubah Asesmen Perkembangan" : "Isi Asesmen Perkembangan Anak"}
+          description="Gunakan kumpulan bukti observasi, bukan satu kejadian tunggal, untuk menentukan capaian STPPA."
         />
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        
-        {/* Info Siswa */}
-        <div className="bg-card border rounded-xl shadow-sm p-6">
-          <h3 className="font-bold text-lg mb-4 flex items-center gap-2"><CheckCircle2 className="w-5 h-5 text-emerald-500"/> Informasi Umum</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="space-y-2 md:col-span-2">
-              <label className="text-sm font-medium">Kelas</label>
-              <select
-                value={selectedClassId}
-                onChange={(e) => setSelectedClassId(e.target.value)}
-                disabled={isEdit}
-                className="w-full flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm disabled:opacity-50"
-              >
-                <option value="">-- Pilih Kelas --</option>
-                {classOptions?.map(opt => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-2 md:col-span-2">
-              <label className="text-sm font-medium">Siswa <span className="text-red-500">*</span></label>
-              <select
-                name="student_id"
-                required
-                defaultValue={record?.student_id || ""}
-                disabled={!selectedClassId && !isEdit}
-                className="w-full flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm disabled:opacity-50"
-              >
-                <option value="">{selectedClassId ? "-- Pilih Siswa --" : "-- Pilih Kelas Dulu --"}</option>
-                {studentOptions?.map(opt => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-2 md:col-span-2">
-              <label className="text-sm font-medium">Nama Periode Evaluasi <span className="text-red-500">*</span></label>
-              <input
-                type="text"
-                name="period_name"
-                required
-                placeholder="Contoh: Rapor Bulan Juli 2026 atau Akhir Semester"
-                defaultValue={record?.period_name}
-                className="w-full flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
-              />
-            </div>
-            <div className="space-y-2 md:col-span-2">
-              <label className="text-sm font-medium">Tanggal Evaluasi <span className="text-red-500">*</span></label>
-              <input
-                type="date"
-                name="date"
-                required
-                defaultValue={record ? new Date(record.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]}
-                className="w-full flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
-              />
-            </div>
-          </div>
+      {!isReady && (
+        <div className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+          Tahun ajaran atau semester aktif belum tersedia. Atur konteks akademik terlebih dahulu.
         </div>
+      )}
 
-        {/* 6 Aspek Perkembangan */}
-        <div className="bg-card border rounded-xl shadow-sm overflow-hidden">
-          <div className="p-6 border-b bg-muted/20">
-            <h3 className="font-bold text-lg">6 Aspek Perkembangan</h3>
-            <p className="text-sm text-muted-foreground">Silakan pilih skala dan tulis narasi perkembangan anak.</p>
+      <form key={record?.updated_at || "new"} onSubmit={handleSubmit} className="space-y-6">
+        <section className="rounded-lg border bg-card p-5 sm:p-6">
+          <h2 className="font-bold">1. Identitas asesmen</h2>
+          <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
+            <Field label="Kelas" required>
+              <select
+                required
+                value={selectedClassId}
+                onChange={(event) => {
+                  setSelectedClassId(event.target.value);
+                  setSelectedStudentId("");
+                }}
+                className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+              >
+                <option value="">Pilih kelas</option>
+                {classOptions?.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+              </select>
+            </Field>
+            <Field label="Anak" required>
+              <select
+                required
+                value={selectedStudentId}
+                onChange={(event) => setSelectedStudentId(event.target.value)}
+                disabled={!selectedClassId || studentQuery.isLoading}
+                className="h-10 w-full rounded-md border bg-background px-3 text-sm disabled:opacity-50"
+              >
+                <option value="">{selectedClassId ? "Pilih anak" : "Pilih kelas terlebih dahulu"}</option>
+                {studentOptions?.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+              </select>
+            </Field>
+            <Field label="Nama periode" required>
+              <input name="period_name" required defaultValue={record?.period_name || ""} placeholder="Contoh: Tengah Semester Ganjil" className="h-10 w-full rounded-md border bg-background px-3 text-sm" />
+            </Field>
+            <Field label="Tanggal asesmen" required>
+              <input name="date" type="date" required defaultValue={record?.date || new Date().toLocaleDateString("en-CA")} className="h-10 w-full rounded-md border bg-background px-3 text-sm" />
+            </Field>
+          </div>
+        </section>
+
+        <section className="overflow-hidden rounded-lg border bg-card">
+          <div className="border-b p-5 sm:p-6">
+            <h2 className="font-bold">2. Enam aspek perkembangan</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Pilih skala dan tulis narasi yang menunjukkan kemampuan, proses, serta konteks dukungan.</p>
           </div>
           <div className="divide-y">
-            {ASPECTS.map(aspect => (
-              <div key={aspect.id} className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="md:col-span-1">
-                  <h4 className="font-bold text-gray-900 mb-1">{aspect.title}</h4>
-                  <p className="text-xs text-muted-foreground mb-4">{aspect.desc}</p>
-                  
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold uppercase tracking-wide text-gray-500">Skala Capaian</label>
-                    <div className="flex flex-col gap-2">
-                      {SCALES.map(scale => (
-                        <label key={scale} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted p-1 rounded transition-colors">
-                          <input 
-                            type="radio" 
-                            name={`${aspect.id}_scale`} 
-                            value={scale} 
-                            required
-                            defaultChecked={record?.[`${aspect.id}_scale`] === scale}
-                            className="accent-primary"
-                          />
-                          <span className="font-medium">{scale}</span> <span className="text-muted-foreground text-xs">({SCALE_LABELS[scale]})</span>
-                        </label>
-                      ))}
-                    </div>
+            {PAUD_ASPECTS.map((aspect, index) => (
+              <div key={aspect.id} className="grid grid-cols-1 gap-5 p-5 sm:p-6 lg:grid-cols-[300px_1fr]">
+                <div>
+                  <p className="text-xs font-bold text-primary">ASPEK {index + 1}</p>
+                  <h3 className="mt-1 font-bold">{aspect.title}</h3>
+                  <p className="mt-1 text-sm leading-6 text-muted-foreground">{aspect.description}</p>
+                  <div className="mt-4 grid grid-cols-2 gap-2">
+                    {PAUD_SCALES.map((scale) => (
+                      <label key={scale} className="cursor-pointer">
+                        <input
+                          type="radio"
+                          name={`${aspect.id}_scale`}
+                          value={scale}
+                          required
+                          defaultChecked={(record?.[`${aspect.id}_scale`] || "BSH") === scale}
+                          className="peer sr-only"
+                        />
+                        <span className={`flex rounded-md border px-2 py-2 text-xs font-semibold peer-checked:ring-2 peer-checked:ring-primary ${PAUD_SCALE_TONES[scale]}`}>
+                          {scale} · {PAUD_SCALE_LABELS[scale]}
+                        </span>
+                      </label>
+                    ))}
                   </div>
                 </div>
-                <div className="md:col-span-2">
-                  <label className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2 block">Narasi Deskriptif</label>
+                <Field label={`Narasi ${aspect.shortTitle}`} required>
                   <textarea
                     name={`${aspect.id}_desc`}
                     required
-                    rows={6}
-                    defaultValue={record?.[`${aspect.id}_desc`]}
-                    className="w-full p-3 rounded-lg border border-input bg-background text-sm resize-none focus:ring-2 focus:ring-primary/50 outline-none"
-                    placeholder={`Contoh: Ananda sudah mampu mengenali huruf hijaiyah dan membaca doa harian dengan baik...`}
-                  ></textarea>
-                </div>
+                    rows={7}
+                    defaultValue={record?.[`${aspect.id}_desc`] || ""}
+                    placeholder="Tuliskan kemampuan yang sudah tampak, contoh buktinya, serta dukungan yang masih diperlukan."
+                    className="w-full rounded-md border bg-background px-3 py-2 text-sm leading-6"
+                  />
+                </Field>
               </div>
             ))}
           </div>
-        </div>
+        </section>
 
-        {/* Pertumbuhan */}
-        <div className="bg-card border rounded-xl shadow-sm p-6">
-          <h3 className="font-bold text-lg mb-1">Catatan Pertumbuhan Anak (Opsional)</h3>
-          <p className="text-sm text-muted-foreground mb-4">Diisi untuk laporan akhir semester atau cek kesehatan berkala.</p>
-          <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Berat Badan (kg)</label>
-              <input
-                type="number"
-                step="0.1"
-                name="growth_weight"
-                defaultValue={record?.growth_weight}
-                className="w-full flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Tinggi Badan (cm)</label>
-              <input
-                type="number"
-                step="0.1"
-                name="growth_height"
-                defaultValue={record?.growth_height}
-                className="w-full flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Lingkar Kepala (cm)</label>
-              <input
-                type="number"
-                step="0.1"
-                name="growth_head"
-                defaultValue={record?.growth_head}
-                className="w-full flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
-              />
-            </div>
+        <section className="rounded-lg border bg-card p-5 sm:p-6">
+          <div className="flex items-center gap-2">
+            <HeartHandshake className="h-5 w-5 text-primary" />
+            <h2 className="font-bold">3. Rangkuman dan kemitraan keluarga</h2>
           </div>
-        </div>
+          <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-3">
+            <Field label="Kekuatan dan minat anak">
+              <textarea name="strengths" rows={4} defaultValue={record?.strengths || ""} placeholder="Kemampuan, minat, atau kebiasaan positif yang paling menonjol." className="w-full rounded-md border bg-background px-3 py-2 text-sm" />
+            </Field>
+            <Field label="Tindak lanjut sekolah">
+              <textarea name="follow_up" rows={4} defaultValue={record?.follow_up || ""} placeholder="Stimulasi atau dukungan berikutnya di kelas." className="w-full rounded-md border bg-background px-3 py-2 text-sm" />
+            </Field>
+            <Field label="Kemitraan dengan orang tua">
+              <textarea name="parent_partnership" rows={4} defaultValue={record?.parent_partnership || ""} placeholder="Kegiatan sederhana yang dapat dilanjutkan secara konsisten di rumah." className="w-full rounded-md border bg-background px-3 py-2 text-sm" />
+            </Field>
+          </div>
+        </section>
 
-        <div className="flex justify-end pt-4">
-          <button
-            type="submit"
-            disabled={formLoading}
-            className="flex items-center gap-2 bg-primary text-primary-foreground px-8 py-3 rounded-xl hover:bg-primary/90 transition-colors shadow-md font-bold text-lg disabled:opacity-50"
-          >
-            <Save className="w-5 h-5" />
-            {formLoading ? "Menyimpan Rapor..." : "Simpan Penilaian"}
+        <section className="rounded-lg border bg-card p-5 sm:p-6">
+          <div className="flex items-center gap-2">
+            <Ruler className="h-5 w-5 text-primary" />
+            <h2 className="font-bold">4. Pertumbuhan dan publikasi</h2>
+          </div>
+          <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <Field label="Berat badan (kg)"><input type="number" min="0" step="0.1" name="growth_weight" defaultValue={record?.growth_weight ?? ""} className="h-10 w-full rounded-md border bg-background px-3 text-sm" /></Field>
+            <Field label="Tinggi badan (cm)"><input type="number" min="0" step="0.1" name="growth_height" defaultValue={record?.growth_height ?? ""} className="h-10 w-full rounded-md border bg-background px-3 text-sm" /></Field>
+            <Field label="Lingkar kepala (cm)"><input type="number" min="0" step="0.1" name="growth_head" defaultValue={record?.growth_head ?? ""} className="h-10 w-full rounded-md border bg-background px-3 text-sm" /></Field>
+          </div>
+          <div className="mt-5 grid grid-cols-1 gap-4 border-t pt-5 md:grid-cols-2">
+            <Field label="Status">
+              <select name="status" defaultValue={record?.status || "published"} className="h-10 w-full rounded-md border bg-background px-3 text-sm">
+                <option value="draft">Draf untuk review internal</option>
+                <option value="published">Terbit</option>
+              </select>
+            </Field>
+            <Field label="Akses orang tua">
+              <select name="is_parent_visible" defaultValue={String(record?.is_parent_visible ?? true)} className="h-10 w-full rounded-md border bg-background px-3 text-sm">
+                <option value="true">Tampilkan di portal orang tua</option>
+                <option value="false">Simpan untuk internal sekolah</option>
+              </select>
+            </Field>
+          </div>
+        </section>
+
+        <div className="flex flex-col-reverse justify-end gap-3 sm:flex-row">
+          <Link to="/stppa-assessments" className="inline-flex h-11 items-center justify-center rounded-md border px-5 text-sm font-semibold hover:bg-muted">Batal</Link>
+          <button type="submit" disabled={formLoading || !isReady} className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-6 text-sm font-semibold text-primary-foreground disabled:opacity-50">
+            <Save className="h-4 w-4" /> {formLoading ? "Menyimpan..." : "Simpan Asesmen"}
           </button>
         </div>
       </form>
     </div>
   );
 };
+
+function numberOrNull(value: FormDataEntryValue | null) {
+  if (value === null || value === "") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
+  return (
+    <label className="block space-y-2">
+      <span className="text-sm font-semibold">{label}{required && <span className="ml-1 text-rose-600">*</span>}</span>
+      {children}
+    </label>
+  );
+}

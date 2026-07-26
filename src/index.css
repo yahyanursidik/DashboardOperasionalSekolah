@@ -264,3 +264,54 @@
     @apply bg-background text-foreground placeholder:text-muted-foreground;
   }
 }
+
+@keyframes portal-login-enter {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes portal-login-scene {
+  from {
+    transform: scale(1.02) translate3d(0, 0, 0);
+  }
+  to {
+    transform: scale(1.08) translate3d(-1.5%, -0.5%, 0);
+  }
+}
+
+@keyframes portal-login-mark {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+.portal-login-card {
+  animation: portal-login-enter 500ms ease-out both;
+}
+
+.portal-login-scene {
+  animation: portal-login-scene 18s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+.portal-login-mark {
+  animation: portal-login-mark 5s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .portal-login-card,
+  .portal-login-scene,
+  .portal-login-mark {
+    animation: none;
+  }
+}
