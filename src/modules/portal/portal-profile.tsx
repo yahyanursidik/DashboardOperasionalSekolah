@@ -41,6 +41,7 @@ export const PortalProfile: React.FC = () => {
         const { data, error } = await loadStudentLearningSchedules({
           classId: student.class_id,
           unitId: student.unit_id || student.classes?.unit_id,
+          studentId: student.id,
           academicYearId: activeYearId,
           semesterId: activeSemesterId,
         });
@@ -54,7 +55,7 @@ export const PortalProfile: React.FC = () => {
     };
 
     fetchSchedules();
-  }, [activeSemesterId, activeYearId, student?.class_id, student?.classes?.unit_id, student?.unit_id]);
+  }, [activeSemesterId, activeYearId, student?.class_id, student?.classes?.unit_id, student?.id, student?.unit_id]);
 
   const readiness = [
     { label: "Identitas siswa", done: Boolean(student?.full_name && student?.nis) },

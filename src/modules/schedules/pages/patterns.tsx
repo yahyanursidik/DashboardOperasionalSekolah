@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/set-state-in-effect */
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   AlertTriangle,
@@ -15,6 +15,8 @@ import {
   Save,
   Sparkles,
   Trash2,
+  UserRound,
+  UsersRound,
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "../../../components/layout/PageHeader";
@@ -23,7 +25,15 @@ import { useCurrentUnit } from "../../../app/providers/UnitProvider";
 import { supabaseClient } from "../../../lib/supabase/client";
 import { canReceiveAcademicAssignment } from "../../employees/employee-role-config";
 import { useClassSubjectOptions } from "../use-class-subject-options";
-import { daysOfWeek, formatTime, hasTimeOverlap, workWeekDays } from "../schedule-utils";
+import {
+  daysOfWeek,
+  formatTime,
+  getScheduleSubjectName,
+  getScheduleVisual,
+  hasTimeOverlap,
+  isParallelTeachingAssignment,
+  workWeekDays,
+} from "../schedule-utils";
 
 type PatternMode = "unit" | "classes" | "preschool";
 type PatternRow = { id: string; classId: string; employeeId: string; subjectId: string; subjectName: string };
@@ -31,6 +41,23 @@ type ScheduleSchemaMode = "checking" | "extended" | "legacy";
 type UnitRecord = { id: string; name: string; education_level?: string | null; is_active?: boolean | null };
 type ClassRecord = { id: string; name: string; grade_level?: number | null; level?: number | null; unit_id?: string | null; homeroom_teacher_id?: string | null };
 type EmployeeRecord = { id: string; full_name: string; position?: string | null; unit_id?: string | null; status?: string | null };
+type ScheduleRecord = {
+  id: string;
+  employee_id?: string | null;
+  class_id?: string | null;
+  subject_id?: string | null;
+  day_of_week: string;
+  start_time: string;
+  end_time: string;
+  schedule_type?: string | null;
+  schedule_scope?: string | null;
+  schedule_kind?: string | null;
+  activity_name?: string | null;
+  subject?: string | null;
+  classes?: { id?: string; name?: string; grade_level?: number | null } | null;
+  subjects?: { id?: string; name?: string } | null;
+  employees?: { id?: string; full_name?: string; position?: string | null } | null;
+};
 
 const activityKinds = [
   { value: "unit_activity", label: "Kegiatan bersama unit" },
@@ -67,6 +94,22 @@ function inferEducationLevel(unitName: string) {
   if (/preschool|paud|\btk\b|kelompok bermain|\bkb\b/.test(normalized)) return "preschool";
   if (/elementary|sekolah dasar|\bsd\b/.test(normalized)) return "elementary";
   return null;
+}
+
+function durationInMinutes(startTime?: string | null, endTime?: string | null) {
+  if (!startTime || !endTime) return 0;
+  const [startHour, startMinute] = startTime.slice(0, 5).split(":").map(Number);
+  const [endHour, endMinute] = endTime.slice(0, 5).split(":").map(Number);
+  return Math.max(0, (endHour * 60 + endMinute) - (startHour * 60 + startMinute));
+}
+
+function scheduleIdentity(schedule: ScheduleRecord) {
+  return [
+    schedule.day_of_week,
+    schedule.start_time,
+    schedule.end_time,
+    schedule.subject_id || schedule.subjects?.id || getScheduleSubjectName(schedule),
+  ].join(":");
 }
 
 function ClassPatternRow({
@@ -148,6 +191,10 @@ export const UnitSchedulePatterns: React.FC = () => {
   const [referenceError, setReferenceError] = useState("");
   const [reloadKey, setReloadKey] = useState(0);
   const [schemaMode, setSchemaMode] = useState<ScheduleSchemaMode>("checking");
+  const [activeSchedules, setActiveSchedules] = useState<ScheduleRecord[]>([]);
+  const [overviewClassId, setOverviewClassId] = useState("");
+  const [isLoadingSchedules, setIsLoadingSchedules] = useState(false);
+  const [scheduleError, setScheduleError] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -294,12 +341,119 @@ export const UnitSchedulePatterns: React.FC = () => {
     return () => { active = false; };
   }, [activeSemesterId, activeYearId, reloadKey, unitId]);
 
+  useEffect(() => {
+    let active = true;
+    if (!unitId || !activeYearId || !activeSemesterId) {
+      setActiveSchedules([]);
+      setScheduleError("");
+      return () => { active = false; };
+    }
+
+    setIsLoadingSchedules(true);
+    setScheduleError("");
+    const loadSchedules = async () => {
+      const extendedResult = await supabaseClient
+        .from("employee_schedules")
+        .select("id,employee_id,class_id,subject_id,day_of_week,start_time,end_time,schedule_type,schedule_scope,schedule_kind,activity_name,subject,classes(id,name,grade_level),subjects(id,name),employees(id,full_name,position)")
+        .eq("unit_id", unitId)
+        .eq("academic_year_id", activeYearId)
+        .eq("semester_id", activeSemesterId)
+        .eq("schedule_type", "mengajar")
+        .order("start_time") as any;
+      if (!extendedResult.error) return (extendedResult.data || []) as ScheduleRecord[];
+
+      const legacyResult = await supabaseClient
+        .from("employee_schedules")
+        .select("id,employee_id,class_id,subject_id,day_of_week,start_time,end_time,schedule_type,subject,classes(id,name,grade_level),subjects(id,name),employees(id,full_name,position)")
+        .eq("unit_id", unitId)
+        .eq("academic_year_id", activeYearId)
+        .eq("semester_id", activeSemesterId)
+        .eq("schedule_type", "mengajar")
+        .order("start_time") as any;
+      if (legacyResult.error) throw legacyResult.error;
+      return (legacyResult.data || []) as ScheduleRecord[];
+    };
+
+    void loadSchedules()
+      .then((scheduleRows) => {
+        if (!active) return;
+        setActiveSchedules(scheduleRows);
+      })
+      .catch((error) => {
+        if (!active) return;
+        setActiveSchedules([]);
+        setScheduleError(String(error?.message || "Jadwal aktif belum dapat dimuat."));
+      })
+      .finally(() => {
+        if (active) setIsLoadingSchedules(false);
+      });
+    return () => { active = false; };
+  }, [activeSemesterId, activeYearId, reloadKey, unitId]);
+
+  useEffect(() => {
+    if (classes.length === 0) {
+      setOverviewClassId("");
+      return;
+    }
+    if (!classes.some((item) => item.id === overviewClassId)) {
+      const firstScheduledClass = classes.find((item) => activeSchedules.some((schedule) => schedule.class_id === item.id));
+      setOverviewClassId(firstScheduledClass?.id || classes[0].id);
+    }
+  }, [activeSchedules, classes, overviewClassId]);
+
   const selectedUnit = units.find((unit) => unit.id === unitId);
   const isPreschoolUnit = selectedUnit?.education_level === "preschool";
   const selectedClasses = classes.filter((item) => selectedClassIds.includes(item.id));
   const preschoolReady = selectedClasses.filter((item) => item.homeroom_teacher_id || coordinatorId).length;
   const patternCount = mode === "unit" ? selectedDays.length : mode === "classes" ? selectedDays.length * rows.length : selectedDays.length * selectedClasses.length;
   const presets = mode === "preschool" ? preschoolPresets : unitPresets;
+  const classSummaries = useMemo(() => classes.map((classRecord) => {
+    const schedules = activeSchedules.filter((schedule) => schedule.class_id === classRecord.id);
+    const uniqueBlocks = Array.from(new Map(schedules.map((schedule) => [scheduleIdentity(schedule), schedule])).values());
+    return {
+      ...classRecord,
+      blockCount: uniqueBlocks.length,
+      subjectCount: new Set(uniqueBlocks.map((schedule) => schedule.subject_id || getScheduleSubjectName(schedule))).size,
+      teacherCount: new Set(schedules.map((schedule) => schedule.employee_id).filter(Boolean)).size,
+      lessonHours: Math.round(uniqueBlocks.reduce((total, schedule) => total + durationInMinutes(schedule.start_time, schedule.end_time), 0) / 35),
+    };
+  }), [activeSchedules, classes]);
+  const overviewClass = classes.find((item) => item.id === overviewClassId);
+  const overviewSchedules = useMemo(
+    () => activeSchedules.filter((schedule) => schedule.class_id === overviewClassId || schedule.schedule_scope === "unit"),
+    [activeSchedules, overviewClassId],
+  );
+  const overviewBlocks = useMemo(() => {
+    const grouped = new Map<string, { schedule: ScheduleRecord; teachers: string[] }>();
+    overviewSchedules.forEach((schedule) => {
+      const key = scheduleIdentity(schedule);
+      const current = grouped.get(key) || { schedule, teachers: [] };
+      const teacherName = schedule.employees?.full_name;
+      if (teacherName && !current.teachers.includes(teacherName)) current.teachers.push(teacherName);
+      grouped.set(key, current);
+    });
+    return Array.from(grouped.values()).sort((first, second) => {
+      const dayDifference = daysOfWeek.indexOf(first.schedule.day_of_week) - daysOfWeek.indexOf(second.schedule.day_of_week);
+      return dayDifference || first.schedule.start_time.localeCompare(second.schedule.start_time);
+    });
+  }, [overviewSchedules]);
+  const activeTeachingTeam = useMemo(() => {
+    const team = new Map<string, { id: string; name: string; position: string; subjects: Set<string>; minutes: number }>();
+    overviewSchedules.forEach((schedule) => {
+      if (!schedule.employee_id || !schedule.employees?.full_name) return;
+      const current = team.get(schedule.employee_id) || {
+        id: schedule.employee_id,
+        name: schedule.employees.full_name,
+        position: schedule.employees.position || "Guru / Pengajar",
+        subjects: new Set<string>(),
+        minutes: 0,
+      };
+      current.subjects.add(getScheduleSubjectName(schedule));
+      current.minutes += durationInMinutes(schedule.start_time, schedule.end_time);
+      team.set(schedule.employee_id, current);
+    });
+    return Array.from(team.values()).sort((first, second) => first.name.localeCompare(second.name, "id"));
+  }, [overviewSchedules]);
 
   const toggleDay = (day: string) => setSelectedDays((current) => current.includes(day) ? current.filter((item) => item !== day) : daysOfWeek.filter((item) => [...current, day].includes(item)));
   const updateRow = (id: string, next: PatternRow) => setRows((current) => current.map((row) => row.id === id ? next : row));
@@ -372,8 +526,8 @@ export const UnitSchedulePatterns: React.FC = () => {
       });
 
       const conflictColumns = schemaMode === "extended"
-        ? "id,employee_id,class_id,day_of_week,start_time,end_time,schedule_type,schedule_scope,activity_name,subject"
-        : "id,employee_id,class_id,day_of_week,start_time,end_time,schedule_type,subject";
+        ? "id,employee_id,class_id,subject_id,day_of_week,start_time,end_time,schedule_type,schedule_scope,activity_name,subject"
+        : "id,employee_id,class_id,subject_id,day_of_week,start_time,end_time,schedule_type,subject";
       const { data: existing, error: conflictError } = await supabaseClient
         .from("employee_schedules")
         .select(conflictColumns)
@@ -392,10 +546,11 @@ export const UnitSchedulePatterns: React.FC = () => {
           const bothNewPreschoolRows = mode === "preschool" && index >= (existing || []).length;
           const sameEmployee = !bothNewPreschoolRows && first.employee_id && first.employee_id === second.employee_id;
           const sameClass = first.class_id && first.class_id === second.class_id;
+          const parallelTeaching = isParallelTeachingAssignment(first, second);
           const firstIsUnitWide = first.schedule_scope === "unit" || (first.schedule_type === "mengajar" && !first.class_id);
           const secondIsUnitWide = second.schedule_scope === "unit" || (second.schedule_type === "mengajar" && !second.class_id);
           const unitBlocksLearning = first.schedule_type === "mengajar" && second.schedule_type === "mengajar" && (firstIsUnitWide || secondIsUnitWide);
-          if (sameEmployee || sameClass || unitBlocksLearning) {
+          if (sameEmployee || (!parallelTeaching && sameClass) || unitBlocksLearning) {
             throw new Error(`Bentrok ${first.day_of_week} ${formatTime(first.start_time)}-${formatTime(first.end_time)} dengan ${first.activity_name || first.subject || "jadwal yang sudah ada"}.`);
           }
         }
@@ -434,6 +589,136 @@ export const UnitSchedulePatterns: React.FC = () => {
           Mode kompatibilitas aktif. Semua pola tetap dapat disimpan dan dibaca portal; metadata pengelompokan lanjutan akan dipakai otomatis setelah migrasi database tersedia.
         </div>
       )}
+
+      <section className="space-y-4">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 className="text-lg font-bold">Jadwal pelajaran aktif</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Pilih kelas untuk melihat jadwal mingguan dan tim pengajar pada periode aktif.</p>
+          </div>
+          <Link to="/schedules" className="inline-flex h-9 items-center gap-2 self-start rounded-md border bg-card px-3 text-xs font-bold text-primary">
+            <CalendarDays className="h-4 w-4" /> Kelola seluruh jadwal
+          </Link>
+        </div>
+
+        {scheduleError && (
+          <div className="flex items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-900">
+            <span>{scheduleError}</span>
+            <button type="button" onClick={() => setReloadKey((current) => current + 1)} className="inline-flex h-9 shrink-0 items-center gap-2 rounded-md border border-red-300 bg-white px-3 text-xs font-bold">
+              <RefreshCw className="h-4 w-4" /> Muat ulang
+            </button>
+          </div>
+        )}
+
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {classSummaries.map((classRecord) => {
+            const selected = overviewClassId === classRecord.id;
+            return (
+              <button
+                key={classRecord.id}
+                type="button"
+                onClick={() => setOverviewClassId(classRecord.id)}
+                className={`min-h-32 rounded-lg border p-4 text-left shadow-sm transition ${selected ? "border-primary bg-primary/5 ring-1 ring-primary" : "bg-card hover:border-primary/40"}`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className={`flex h-9 w-9 items-center justify-center rounded-md ${selected ? "bg-primary text-primary-foreground" : "bg-blue-50 text-blue-700"}`}>
+                    <BookOpen className="h-4 w-4" />
+                  </div>
+                  <span className={`rounded-full px-2 py-1 text-[10px] font-bold ${classRecord.blockCount ? "bg-emerald-50 text-emerald-700" : "bg-muted text-muted-foreground"}`}>
+                    {classRecord.blockCount ? "AKTIF" : "BELUM ADA"}
+                  </span>
+                </div>
+                <p className="mt-3 font-bold">{classRecord.name}</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {classRecord.blockCount} slot · {classRecord.subjectCount} mapel · {classRecord.teacherCount} pengajar
+                </p>
+              </button>
+            );
+          })}
+          {!isLoadingReferences && unitId && classSummaries.length === 0 && (
+            <div className="rounded-lg border border-dashed bg-card p-5 text-sm text-muted-foreground sm:col-span-2 xl:col-span-4">Belum ada kelas pada unit dan tahun ajaran aktif.</div>
+          )}
+        </div>
+
+        {isLoadingSchedules ? (
+          <div className="flex min-h-44 items-center justify-center rounded-lg border bg-card text-sm text-muted-foreground">
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Memuat jadwal pelajaran aktif...
+          </div>
+        ) : overviewClass && (
+          <div className="grid gap-5 2xl:grid-cols-[minmax(0,1fr)_360px]">
+            <section className="overflow-hidden rounded-lg border bg-card shadow-sm">
+              <div className="flex flex-col gap-3 border-b p-5 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h3 className="font-bold">Jadwal Mingguan {overviewClass.name}</h3>
+                  <p className="mt-1 text-xs text-muted-foreground">Slot paralel ditampilkan sekali; seluruh pengajar kelompok tetap tercantum.</p>
+                </div>
+                <div className="flex flex-wrap gap-2 text-xs font-bold">
+                  <span className="rounded-md bg-blue-50 px-2.5 py-1.5 text-blue-700">{overviewBlocks.length} slot</span>
+                  <span className="rounded-md bg-emerald-50 px-2.5 py-1.5 text-emerald-700">{activeTeachingTeam.length} pengajar</span>
+                  <span className="rounded-md bg-amber-50 px-2.5 py-1.5 text-amber-800">{classSummaries.find((item) => item.id === overviewClassId)?.lessonHours || 0} JP</span>
+                </div>
+              </div>
+              <div className="overflow-x-auto">
+                <div className="grid min-w-[900px] grid-cols-5 divide-x">
+                  {workWeekDays.map((day) => {
+                    const blocks = overviewBlocks.filter((item) => item.schedule.day_of_week === day);
+                    return (
+                      <div key={day} className="min-h-64 p-3">
+                        <div className="mb-3 flex items-center justify-between">
+                          <strong className="text-sm">{day}</strong>
+                          <span className="text-[10px] font-bold text-muted-foreground">{blocks.length} SLOT</span>
+                        </div>
+                        <div className="space-y-2">
+                          {blocks.map(({ schedule, teachers }) => {
+                            const visual = getScheduleVisual(schedule, "lesson");
+                            return (
+                              <div key={scheduleIdentity(schedule)} className={`relative overflow-hidden rounded-md border p-3 pl-4 ${visual.border} ${visual.background}`}>
+                                <span className={`absolute inset-y-0 left-0 w-1 ${visual.accent}`} />
+                                <p className={`text-[11px] font-bold ${visual.text}`}>{formatTime(schedule.start_time)}-{formatTime(schedule.end_time)}</p>
+                                <p className="mt-1 text-sm font-bold leading-5">{getScheduleSubjectName(schedule)}</p>
+                                <p className="mt-1 text-[10px] leading-4 text-muted-foreground">{teachers.join(" · ") || "Pengajar belum ditautkan"}</p>
+                              </div>
+                            );
+                          })}
+                          {blocks.length === 0 && <p className="rounded-md border border-dashed p-3 text-center text-[11px] text-muted-foreground">Belum ada jadwal</p>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </section>
+
+            <aside className="rounded-lg border bg-card p-5 shadow-sm">
+              <div className="flex items-center gap-2">
+                <UsersRound className="h-5 w-5 text-primary" />
+                <div>
+                  <h3 className="font-bold">Tim Pengajar Aktif</h3>
+                  <p className="text-xs text-muted-foreground">{overviewClass.name} · periode aktif</p>
+                </div>
+              </div>
+              <div className="mt-4 space-y-3">
+                {activeTeachingTeam.map((teacher) => (
+                  <div key={teacher.id} className="rounded-md border bg-background p-3">
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-emerald-50 text-emerald-700"><UserRound className="h-4 w-4" /></div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-bold">{teacher.name}</p>
+                        <p className="mt-0.5 truncate text-[10px] text-muted-foreground">{teacher.position}</p>
+                      </div>
+                      <span className="shrink-0 rounded-md bg-muted px-2 py-1 text-[10px] font-bold">{Math.round(teacher.minutes / 35)} JP</span>
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {Array.from(teacher.subjects).map((subject) => <span key={subject} className="rounded-md bg-primary/5 px-2 py-1 text-[10px] font-semibold text-primary">{subject}</span>)}
+                    </div>
+                  </div>
+                ))}
+                {activeTeachingTeam.length === 0 && <p className="rounded-md border border-dashed p-4 text-center text-xs text-muted-foreground">Belum ada tim pengajar pada jadwal kelas ini.</p>}
+              </div>
+            </aside>
+          </div>
+        )}
+      </section>
 
       <div className="grid gap-6 2xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-5">

@@ -9,7 +9,7 @@ import { useCurrentUnit } from "../../../app/providers/UnitProvider";
 import { toast } from "sonner";
 import { supabaseClient } from "../../../lib/supabase/client";
 import { isMissingSupabaseColumn } from "../../../lib/supabase/schema-errors";
-import { daysOfWeek, formatTime, hasTimeOverlap, isValidTimeRange, scheduleTypes } from "../schedule-utils";
+import { daysOfWeek, formatTime, hasTimeOverlap, isParallelTeachingAssignment, isValidTimeRange, scheduleTypes } from "../schedule-utils";
 import { validateTeachingScheduleCurriculum } from "../curriculum-schedule-validation";
 import { canReceiveAcademicAssignment, getEmployeePosition } from "../../employees/employee-role-config";
 import { useClassSubjectOptions } from "../use-class-subject-options";
@@ -23,6 +23,8 @@ interface ExistingSchedule {
   start_time?: string | null;
   end_time?: string | null;
   schedule_type?: string | null;
+  subject_id?: string | null;
+  subject?: string | null;
 }
 
 export const ScheduleEdit: React.FC = () => {
@@ -124,7 +126,7 @@ export const ScheduleEdit: React.FC = () => {
   const findBlockingConflict = async () => {
     let query = supabaseClient
       .from("employee_schedules")
-      .select("id, employee_id, class_id, day_of_week, start_time, end_time, schedule_type, subject")
+      .select("id, employee_id, class_id, day_of_week, start_time, end_time, schedule_type, subject_id, subject")
       .eq("day_of_week", dayOfWeek)
       .neq("id", id as string);
 
@@ -149,7 +151,18 @@ export const ScheduleEdit: React.FC = () => {
     }
 
     const classConflict = scheduleType === "mengajar" && classId
-      ? overlapping.find((schedule) => schedule.class_id === classId && schedule.schedule_type === "mengajar")
+      ? overlapping.find((schedule) => schedule.class_id === classId
+        && schedule.schedule_type === "mengajar"
+        && !isParallelTeachingAssignment(schedule, {
+          employee_id: employeeId,
+          class_id: classId,
+          subject_id: subjectId,
+          subject: selectedSubjectName,
+          day_of_week: dayOfWeek,
+          start_time: startTime,
+          end_time: endTime,
+          schedule_type: scheduleType,
+        }))
       : null;
     if (classConflict) {
       return `Kelas ini sudah punya jadwal mengajar ${formatTime(classConflict.start_time)} - ${formatTime(classConflict.end_time)}.`;

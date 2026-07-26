@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/set-state-in-effect */
 import React, { useMemo, useState } from "react";
 import { useList, useDelete, useSelect } from "@refinedev/core";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
@@ -18,6 +18,7 @@ import {
   formatTime,
   getScheduleSubjectName,
   getScheduleVisual,
+  isHalaqohLearningSchedule,
   isUnitLearningSchedule,
 } from "../schedule-utils";
 
@@ -49,7 +50,7 @@ export const SchedulesList: React.FC = () => {
 
   const { data, isLoading } = useList({
     resource: "employee_schedules",
-    meta: { select: "*, employees(full_name, position), classes(name), units(name), subjects(name)" },
+    meta: { select: "*, employees(full_name, position), classes(name), units(name), subjects(name), tahfidz_halaqohs(id,name,program_type)" },
     filters,
     sorters: [
       { field: "day_of_week", order: "asc" },
@@ -123,7 +124,7 @@ export const SchedulesList: React.FC = () => {
     const teaching = schedules.filter((schedule) => schedule.schedule_type === "mengajar");
     const subjectSchedules = teaching.filter((schedule) => !schedule.schedule_kind || schedule.schedule_kind === "subject");
     const withoutSubject = subjectSchedules.filter((schedule) => !schedule.subject_id && !schedule.subject && !schedule.subjects?.name).length;
-    const withoutClass = subjectSchedules.filter((schedule) => !isUnitLearningSchedule(schedule) && !schedule.class_id).length;
+    const withoutClass = subjectSchedules.filter((schedule) => !isUnitLearningSchedule(schedule) && !isHalaqohLearningSchedule(schedule) && !schedule.class_id).length;
     return {
       total: schedules.length,
       employees: employeeIds.size,
@@ -347,7 +348,10 @@ export const SchedulesList: React.FC = () => {
                 {schedules.map((sch) => {
                   const hasConflict = conflictIds.has(String(sch.id));
                   const visual = getScheduleVisual(sch, sch.schedule_type === "mengajar" ? "lesson" : "work");
-                  const canDirectEdit = !isUnitLearningSchedule(sch) && (!sch.schedule_kind || sch.schedule_kind === "subject");
+                  const canDirectEdit = !isUnitLearningSchedule(sch) && !isHalaqohLearningSchedule(sch) && (!sch.schedule_kind || sch.schedule_kind === "subject");
+                  const managePath = isHalaqohLearningSchedule(sch)
+                    ? `/${sch.tahfidz_halaqohs?.program_type === "tahsin" ? "tahsin" : "tahfidz"}-halaqohs/edit/${sch.halaqoh_id}`
+                    : canDirectEdit ? `/schedules/edit/${sch.id}` : "/schedules/patterns";
                   return (
                     <tr key={sch.id} className={`hover:bg-muted/30 transition-colors ${hasConflict ? "bg-amber-50/50" : ""}`}>
                       <td className="px-6 py-4">
@@ -383,7 +387,7 @@ export const SchedulesList: React.FC = () => {
                         {sch.schedule_type === 'mengajar' ? (
                           <div className={`rounded-md border px-2.5 py-2 ${visual.border} ${visual.background}`}>
                             <p className={`font-semibold ${visual.text}`}>{getScheduleSubjectName(sch)}</p>
-                            <p className="text-xs flex items-center gap-1 text-muted-foreground"><MapPin className="w-3 h-3"/> Kelas: {isUnitLearningSchedule(sch) ? "Semua kelas" : sch.classes?.name || "Belum dipilih"}</p>
+                            <p className="text-xs flex items-center gap-1 text-muted-foreground"><MapPin className="w-3 h-3"/> {isHalaqohLearningSchedule(sch) ? `Halaqoh: ${sch.tahfidz_halaqohs?.name || "Al-Qur'an"}` : `Kelas: ${isUnitLearningSchedule(sch) ? "Semua kelas" : sch.classes?.name || "Belum dipilih"}`}</p>
                           </div>
                         ) : (
                           <span className="text-muted-foreground italic text-xs">Penugasan Umum</span>
@@ -391,9 +395,9 @@ export const SchedulesList: React.FC = () => {
                       </td>
                       <td className="px-6 py-4 text-right">
                         <button
-                          onClick={() => navigate(canDirectEdit ? `/schedules/edit/${sch.id}` : "/schedules/patterns")}
+                          onClick={() => navigate(managePath)}
                           className="p-1.5 text-muted-foreground hover:text-primary transition-colors"
-                          title={canDirectEdit ? "Edit jadwal" : "Kelola melalui Pola Jadwal Unit"}
+                          title={isHalaqohLearningSchedule(sch) ? "Kelola melalui halaqoh" : canDirectEdit ? "Edit jadwal" : "Kelola melalui Pola Jadwal Unit"}
                         >{canDirectEdit ? <Edit className="w-4 h-4"/> : <Calendar className="w-4 h-4"/>}</button>
                         <button
                           onClick={() => { if(confirm('Hapus jadwal ini?')) deleteSchedule({ resource: "employee_schedules", id: sch.id as string }) }}
@@ -426,7 +430,10 @@ export const SchedulesList: React.FC = () => {
               <div className="p-3 space-y-3 overflow-y-auto max-h-[600px] flex-1 custom-scrollbar">
                 {schedulesByDay[day]?.map(sch => {
                   const visual = getScheduleVisual(sch, sch.schedule_type === "mengajar" ? "lesson" : "work");
-                  const canDirectEdit = !isUnitLearningSchedule(sch) && (!sch.schedule_kind || sch.schedule_kind === "subject");
+                  const canDirectEdit = !isUnitLearningSchedule(sch) && !isHalaqohLearningSchedule(sch) && (!sch.schedule_kind || sch.schedule_kind === "subject");
+                  const managePath = isHalaqohLearningSchedule(sch)
+                    ? `/${sch.tahfidz_halaqohs?.program_type === "tahsin" ? "tahsin" : "tahfidz"}-halaqohs/edit/${sch.halaqoh_id}`
+                    : canDirectEdit ? `/schedules/edit/${sch.id}` : "/schedules/patterns";
                   return (
                   <article key={sch.id} className={`p-3 rounded-lg border shadow-sm relative overflow-hidden group ${visual.border} ${visual.background}`}>
                     <span className={`absolute inset-y-0 left-0 w-1 ${visual.accent}`} aria-hidden="true" />
@@ -436,7 +443,7 @@ export const SchedulesList: React.FC = () => {
                         {formatTime(sch.start_time)} - {formatTime(sch.end_time)}
                       </div>
                       <div className="flex gap-1">
-                        <button title={canDirectEdit ? "Edit jadwal" : "Kelola melalui Pola Jadwal Unit"} onClick={() => navigate(canDirectEdit ? `/schedules/edit/${sch.id}` : "/schedules/patterns")} className="flex h-7 w-7 items-center justify-center rounded bg-white/80 text-muted-foreground hover:text-primary">{canDirectEdit ? <Edit className="w-3.5 h-3.5"/> : <Calendar className="w-3.5 h-3.5"/>}</button>
+                        <button title={isHalaqohLearningSchedule(sch) ? "Kelola melalui halaqoh" : canDirectEdit ? "Edit jadwal" : "Kelola melalui Pola Jadwal Unit"} onClick={() => navigate(managePath)} className="flex h-7 w-7 items-center justify-center rounded bg-white/80 text-muted-foreground hover:text-primary">{canDirectEdit ? <Edit className="w-3.5 h-3.5"/> : <Calendar className="w-3.5 h-3.5"/>}</button>
                         <button title="Hapus jadwal" onClick={() => { if(confirm('Hapus jadwal ini?')) deleteSchedule({ resource: "employee_schedules", id: sch.id as string }) }} className="flex h-7 w-7 items-center justify-center rounded bg-white/80 text-muted-foreground hover:text-destructive"><Trash2 className="w-3.5 h-3.5"/></button>
                       </div>
                     </div>
@@ -459,7 +466,7 @@ export const SchedulesList: React.FC = () => {
                     {sch.schedule_type === 'mengajar' && (
                       <div className="mt-2 pt-2 border-t text-xs">
                         <p className={`font-bold truncate ${visual.text}`} title={getScheduleSubjectName(sch)}>{getScheduleSubjectName(sch)}</p>
-                        <p className="text-muted-foreground">Kelas: {isUnitLearningSchedule(sch) ? "Semua kelas" : sch.classes?.name || "Belum dipilih"}</p>
+                        <p className="text-muted-foreground">{isHalaqohLearningSchedule(sch) ? `Halaqoh: ${sch.tahfidz_halaqohs?.name || "Al-Qur'an"}` : `Kelas: ${isUnitLearningSchedule(sch) ? "Semua kelas" : sch.classes?.name || "Belum dipilih"}`}</p>
                         <p className="text-muted-foreground">Unit: {sch.units?.name || "Lintas Unit"}</p>
                       </div>
                     )}
