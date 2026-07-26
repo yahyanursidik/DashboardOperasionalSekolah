@@ -1,93 +1,54 @@
-import React, { useState } from "react";
+import React from "react";
 import { useNavigate } from "react-router-dom";
-import { KeyRound, ArrowRight } from "lucide-react";
-import { useSystemSettings } from "../../app/providers/SettingsProvider";
+import { KeyRound } from "lucide-react";
+import {
+  PortalLoginAlert,
+  PortalLoginButton,
+  PortalLoginShell,
+  PortalTextField,
+} from "../../components/auth/PortalLoginShell";
 
 export const CbtPortalLogin: React.FC = () => {
-  const [token, setToken] = useState("");
-  const [error, setError] = useState("");
+  const [token, setToken] = React.useState("");
+  const [error, setError] = React.useState("");
   const navigate = useNavigate();
-  const { loginCoverUrl } = useSystemSettings();
 
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!token.trim()) {
-      setError("Token ujian tidak boleh kosong");
+  const handleLogin = (event: React.FormEvent) => {
+    event.preventDefault();
+    const value = token.trim().toUpperCase();
+    if (!value) {
+      setError("Token ujian wajib diisi.");
       return;
     }
-    
-    // In a real app, verify the token via API first. 
-    // Since we rely on Refine's provider and it's anonymous access for test-taking, 
-    // we just navigate to the test room. 
-    // Validation will happen in the test room component.
-    navigate(`/cbt/test/${token.trim().toUpperCase()}`);
+    navigate(`/cbt/test/${value}`);
   };
 
   return (
-    <>
-      <div 
-        className="fixed inset-0 z-0 bg-gradient-to-br from-emerald-50 via-green-100/60 to-emerald-200"
-        style={loginCoverUrl ? {
-          backgroundImage: `url(${loginCoverUrl})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat'
-        } : {}}
-      >
-        {loginCoverUrl && <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"></div>}
-        {!loginCoverUrl && (
-          <>
-            <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-emerald-300 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob"></div>
-            <div className="absolute top-[20%] right-[-10%] w-72 h-72 bg-teal-300 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000"></div>
-            <div className="absolute bottom-[-20%] left-[20%] w-80 h-80 bg-green-300 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-4000"></div>
-          </>
-        )}
-      </div>
-      <div className="w-full max-w-md bg-white/60 backdrop-blur-xl rounded-3xl shadow-2xl overflow-hidden border border-white/50 relative z-10">
-      <div className="bg-indigo-600 p-8 text-center">
-        <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-sm">
-          <KeyRound className="w-8 h-8 text-white" />
-        </div>
-        <h2 className="text-2xl font-bold text-white">Masuk Ujian CBT</h2>
-        <p className="text-indigo-100 mt-2 text-sm">Silakan masukkan token ujian yang diberikan oleh panitia rekrutmen.</p>
-      </div>
-
-      <form onSubmit={handleLogin} className="p-8 space-y-6">
-        {error && (
-          <div className="p-3 bg-red-50 text-red-600 border border-red-100 rounded-lg text-sm font-medium text-center">
-            {error}
-          </div>
-        )}
-
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-slate-700">Token Ujian</label>
-          <input
-            type="text"
-            value={token}
-            onChange={(e) => {
-              setToken(e.target.value.toUpperCase());
-              setError("");
-            }}
-            placeholder="Contoh: X7B9K2"
-            className="w-full h-12 px-4 rounded-xl border border-slate-200 bg-slate-50 text-lg font-mono tracking-widest text-center uppercase focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all"
-            maxLength={10}
-          />
-        </div>
-
-        <button
-          type="submit"
-          className="w-full h-12 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl flex items-center justify-center gap-2 transition-colors shadow-sm"
-        >
-          Mulai Ujian <ArrowRight className="w-4 h-4" />
-        </button>
-
-        <div className="text-center pt-4">
-          <p className="text-xs text-slate-500">
-            Pastikan koneksi internet stabil sebelum memulai ujian. Waktu akan berjalan otomatis saat ujian dimulai.
-          </p>
-        </div>
+    <PortalLoginShell
+      portalName="Ujian CBT"
+      title="Masukkan token ujian"
+      description="Gunakan token yang diberikan panitia atau administrator ujian."
+      icon={KeyRound}
+      accent="violet"
+      sideNote="Ruang ujian terkontrol untuk peserta yang telah menerima token aktif."
+      footer="Pastikan perangkat memiliki daya yang cukup dan koneksi internet stabil sebelum memulai."
+    >
+      {error && <PortalLoginAlert>{error}</PortalLoginAlert>}
+      <form onSubmit={handleLogin} className="space-y-5">
+        <PortalTextField
+          id="cbt-token"
+          label="Token Ujian"
+          value={token}
+          onChange={(value) => { setToken(value); setError(""); }}
+          placeholder="Contoh: X7B9K2"
+          icon={KeyRound}
+          accent="violet"
+          maxLength={10}
+          uppercase
+          autoComplete="one-time-code"
+        />
+        <PortalLoginButton loading={false} disabled={!token.trim()} accent="violet" label="Masuk ke Ruang Ujian" />
       </form>
-    </div>
-    </>
+    </PortalLoginShell>
   );
 };

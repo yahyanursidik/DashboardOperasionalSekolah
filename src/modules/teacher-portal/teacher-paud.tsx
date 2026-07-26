@@ -1,374 +1,393 @@
-import React, { useState, useEffect } from "react";
+/* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/set-state-in-effect */
+import React from "react";
 import { useOutletContext } from "react-router-dom";
-import { supabaseClient } from "../../lib/supabase/client";
-import { CheckSquare, Info, Camera, Calendar, Star } from "lucide-react";
-import { useAcademicYear } from "../../app/providers/AcademicYearProvider";
+import {
+  BookOpen,
+  Camera,
+  CheckCircle2,
+  ClipboardCheck,
+  Info,
+  Save,
+  UploadCloud,
+  Users,
+} from "lucide-react";
 import { toast } from "sonner";
+import { useAcademicYear } from "../../app/providers/AcademicYearProvider";
+import { supabaseClient } from "../../lib/supabase/client";
 import { toDateInputValue } from "../leaves/leave-utils";
+import {
+  PAUD_ASPECTS,
+  PAUD_ISLAMIC_VALUES,
+  PAUD_OBSERVATION_METHODS,
+  PAUD_SCALES,
+  PAUD_SCALE_LABELS,
+} from "../paud/paud-config";
+
+type Mode = "observation" | "assessment";
 
 export const TeacherPaud: React.FC = () => {
   const { employee } = useOutletContext<any>();
-  const [units, setUnits] = useState<any[]>([]);
-  const [classes, setClasses] = useState<any[]>([]);
-  const [students, setStudents] = useState<any[]>([]);
-  
-  const [selectedUnitId, setSelectedUnitId] = useState("");
-  const [selectedClassId, setSelectedClassId] = useState("");
-  const [selectedStudentId, setSelectedStudentId] = useState("");
-  
   const { activeYearId, activeSemesterId } = useAcademicYear();
+  const [mode, setMode] = React.useState<Mode>("observation");
+  const [classes, setClasses] = React.useState<any[]>([]);
+  const [students, setStudents] = React.useState<any[]>([]);
+  const [selectedUnitId, setSelectedUnitId] = React.useState("");
+  const [selectedClassId, setSelectedClassId] = React.useState("");
+  const [selectedStudentId, setSelectedStudentId] = React.useState("");
+  const [isLoadingAssignments, setIsLoadingAssignments] = React.useState(true);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [isUploading, setIsUploading] = React.useState(false);
+  const [photoUrl, setPhotoUrl] = React.useState("");
+  const [recentCount, setRecentCount] = React.useState({ observations: 0, assessments: 0 });
 
-  const [activeTab, setActiveTab] = useState<"jurnal" | "stppa">("jurnal");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Form Jurnal
-  const [jurnalData, setJurnalData] = useState({
-    title: "",
-    description: "",
-    photo_url: ""
-  });
-
-  // Form STPPA
-  const [stppaData, setStppaData] = useState({
-    agama_moral: "BB",
-    fisik_motorik: "BB",
-    kognitif: "BB",
-    bahasa: "BB",
-    sosial_emosional: "BB",
-    seni: "BB",
-    narrative_report: ""
-  });
-
-  // Fetch Units on mount (Only PAUD)
-  useEffect(() => {
-    const fetchAssignments = async () => {
+  React.useEffect(() => {
+    const loadAssignments = async () => {
+      setIsLoadingAssignments(true);
       let scheduleQuery = supabaseClient
         .from("employee_schedules")
-        .select("class_id, classes(id, name, unit_id, units(id, name))")
+        .select("class_id, classes(id,name,unit_id,units(id,name,education_level))")
         .eq("employee_id", employee.id)
         .not("class_id", "is", null);
       if (activeYearId) scheduleQuery = scheduleQuery.eq("academic_year_id", activeYearId);
       if (activeSemesterId) scheduleQuery = scheduleQuery.eq("semester_id", activeSemesterId);
 
-      const { data: scheduleClasses } = await scheduleQuery;
-      const { data: homeroomClasses } = await supabaseClient
+      let homeroomQuery = supabaseClient
         .from("classes")
-        .select("id, name, unit_id, units(id, name)")
+        .select("id,name,unit_id,units(id,name,education_level)")
         .eq("homeroom_teacher_id", employee.id);
+      if (activeYearId) homeroomQuery = homeroomQuery.eq("academic_year_id", activeYearId);
 
+      const [scheduleResult, homeroomResult] = await Promise.all([scheduleQuery, homeroomQuery]);
       const classMap = new Map<string, any>();
-      [...(scheduleClasses || []).map((item: any) => item.classes), ...(homeroomClasses || [])]
+      [...(scheduleResult.data || []).map((item: any) => item.classes), ...(homeroomResult.data || [])]
         .filter(Boolean)
-        .forEach((cls: any) => classMap.set(cls.id, cls));
-
-      const assignedClasses = Array.from(classMap.values()).sort((a, b) => String(a.name).localeCompare(String(b.name)));
-      const unitMap = new Map<string, any>();
-      assignedClasses.forEach((cls: any) => {
-        if (cls.units?.id) unitMap.set(cls.units.id, cls.units);
-      });
-
-      setClasses(assignedClasses);
-      setUnits(Array.from(unitMap.values()));
-
-      if (!selectedUnitId && unitMap.size === 1) {
-        setSelectedUnitId(Array.from(unitMap.keys())[0]);
+        .filter((item: any) => {
+          const unit = item.units;
+          const unitText = String(unit?.name || "").toLowerCase();
+          return unit?.education_level === "preschool" || ["paud", "tk", "kb", "preschool"].some((term) => unitText.includes(term));
+        })
+        .forEach((item: any) => classMap.set(item.id, item));
+      const assigned = [...classMap.values()].sort((a, b) => String(a.name).localeCompare(String(b.name)));
+      setClasses(assigned);
+      if (assigned.length === 1) {
+        setSelectedUnitId(assigned[0].unit_id);
+        setSelectedClassId(assigned[0].id);
       }
+      setIsLoadingAssignments(false);
     };
-    fetchAssignments();
+    void loadAssignments();
   }, [activeSemesterId, activeYearId, employee.id]);
 
-  // Fetch Classes when Unit changes
-  useEffect(() => {
-    if (!selectedUnitId) {
-      setSelectedClassId("");
-      return;
-    }
-    if (!classes.some((cls) => cls.unit_id === selectedUnitId && cls.id === selectedClassId)) {
-      setSelectedClassId("");
-    }
-  }, [classes, selectedClassId, selectedUnitId]);
-
-  const filteredClasses = classes.filter((cls) => !selectedUnitId || cls.unit_id === selectedUnitId);
-
-  // Fetch Students when Class changes
-  useEffect(() => {
+  React.useEffect(() => {
     if (!selectedClassId) {
       setStudents([]);
       setSelectedStudentId("");
       return;
     }
-    const fetchStudents = async () => {
-      const { data } = await supabaseClient
+    const loadStudents = async () => {
+      const { data, error } = await supabaseClient
         .from("students")
-        .select("id, full_name")
+        .select("id,full_name")
         .eq("class_id", selectedClassId)
         .eq("status", "active")
         .order("full_name");
-      if (data) setStudents(data);
+      if (error) toast.error(`Daftar anak gagal dimuat: ${error.message}`);
+      setStudents(data || []);
+      setSelectedStudentId("");
     };
-    fetchStudents();
+    void loadStudents();
   }, [selectedClassId]);
 
-  const handleJurnalSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedStudentId || !jurnalData.title || !jurnalData.description) {
-      toast.error("Harap isi semua field wajib (Siswa, Judul, Deskripsi)");
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      const { error } = await supabaseClient
-        .from("paud_activities")
-        .insert({
-          student_id: selectedStudentId,
-          class_id: selectedClassId,
-          employee_id: employee.id,
-          academic_year_id: activeYearId,
-          semester_id: activeSemesterId,
-          date: toDateInputValue(new Date()),
-          title: jurnalData.title,
-          description: jurnalData.description,
-          photo_url: jurnalData.photo_url || null
-        });
-
-      if (error) throw error;
-      toast.success("Jurnal Kegiatan berhasil disimpan!");
-      setJurnalData({ title: "", description: "", photo_url: "" });
-    } catch (error: any) {
-      console.error(error);
-      toast.error("Gagal menyimpan jurnal");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleStppaSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  React.useEffect(() => {
     if (!selectedStudentId) {
-      toast.error("Harap pilih siswa terlebih dahulu");
+      setRecentCount({ observations: 0, assessments: 0 });
       return;
     }
-
-    setIsSubmitting(true);
-    try {
-      const { error } = await supabaseClient
+    const loadCounts = async () => {
+      let observationQuery = supabaseClient
+        .from("paud_activities")
+        .select("id", { count: "exact", head: true })
+        .eq("student_id", selectedStudentId);
+      let assessmentQuery = supabaseClient
         .from("paud_stppa_assessments")
-        .insert({
-          student_id: selectedStudentId,
-          class_id: selectedClassId,
-          employee_id: employee.id,
-          academic_year_id: activeYearId,
-          semester_id: activeSemesterId,
-          date: toDateInputValue(new Date()),
-          ...stppaData
-        });
+        .select("id", { count: "exact", head: true })
+        .eq("student_id", selectedStudentId);
+      if (activeSemesterId) {
+        observationQuery = observationQuery.eq("semester_id", activeSemesterId);
+        assessmentQuery = assessmentQuery.eq("semester_id", activeSemesterId);
+      }
+      const [observations, assessments] = await Promise.all([
+        observationQuery,
+        assessmentQuery,
+      ]);
+      setRecentCount({ observations: observations.count || 0, assessments: assessments.count || 0 });
+    };
+    void loadCounts();
+  }, [activeSemesterId, selectedStudentId]);
 
+  const unitOptions = React.useMemo(() => {
+    const map = new Map<string, any>();
+    classes.forEach((item) => item.units?.id && map.set(item.units.id, item.units));
+    return [...map.values()];
+  }, [classes]);
+  const filteredClasses = classes.filter((item) => !selectedUnitId || item.unit_id === selectedUnitId);
+
+  const uploadPhoto = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/") || file.size > 5 * 1024 * 1024) {
+      toast.error("Gunakan gambar dengan ukuran maksimal 5 MB.");
+      return;
+    }
+    setIsUploading(true);
+    try {
+      const extension = file.name.split(".").pop() || "jpg";
+      const path = `paud_activities/${selectedStudentId || "unassigned"}/${crypto.randomUUID()}.${extension}`;
+      const { error } = await supabaseClient.storage.from("documents").upload(path, file);
       if (error) throw error;
-      toast.success("Rapor STPPA berhasil disimpan!");
-      setStppaData({
-        agama_moral: "BB",
-        fisik_motorik: "BB",
-        kognitif: "BB",
-        bahasa: "BB",
-        sosial_emosional: "BB",
-        seni: "BB",
-        narrative_report: ""
-      });
+      setPhotoUrl(supabaseClient.storage.from("documents").getPublicUrl(path).data.publicUrl);
+      toast.success("Bukti foto berhasil diunggah.");
     } catch (error: any) {
-      console.error(error);
-      toast.error("Gagal menyimpan rapor STPPA");
+      toast.error(`Foto gagal diunggah: ${error.message}`);
     } finally {
-      setIsSubmitting(false);
+      setIsUploading(false);
     }
   };
 
-  const stppaOptions = ["BB", "MB", "BSH", "BSB"];
+  const submitObservation = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!selectedStudentId || !selectedClassId || !activeYearId || !activeSemesterId) {
+      toast.error("Pilih unit, kelas, anak, serta pastikan periode akademik aktif.");
+      return;
+    }
+    const formData = new FormData(event.currentTarget);
+    setIsSubmitting(true);
+    const { error } = await supabaseClient.from("paud_activities").insert({
+      student_id: selectedStudentId,
+      class_id: selectedClassId,
+      employee_id: employee.id,
+      academic_year_id: activeYearId,
+      semester_id: activeSemesterId,
+      date: formData.get("date"),
+      title: formData.get("title"),
+      description: formData.get("description"),
+      observation_method: formData.get("observation_method"),
+      development_aspects: formData.getAll("development_aspects"),
+      islamic_values: formData.getAll("islamic_values"),
+      follow_up: formData.get("follow_up") || null,
+      photo_url: photoUrl || null,
+      status: formData.get("status"),
+      is_parent_visible: formData.get("status") === "published",
+    });
+    setIsSubmitting(false);
+    if (error) {
+      toast.error(`Observasi gagal disimpan: ${error.message}`);
+      return;
+    }
+    toast.success("Observasi anak berhasil disimpan.");
+    event.currentTarget.reset();
+    setPhotoUrl("");
+    setRecentCount((value) => ({ ...value, observations: value.observations + 1 }));
+  };
+
+  const submitAssessment = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!selectedStudentId || !selectedClassId || !activeYearId || !activeSemesterId) {
+      toast.error("Pilih unit, kelas, anak, serta pastikan periode akademik aktif.");
+      return;
+    }
+    const formData = new FormData(event.currentTarget);
+    const values: Record<string, unknown> = {
+      student_id: selectedStudentId,
+      class_id: selectedClassId,
+      employee_id: employee.id,
+      academic_year_id: activeYearId,
+      semester_id: activeSemesterId,
+      period_name: formData.get("period_name"),
+      date: formData.get("date"),
+      strengths: formData.get("strengths") || null,
+      follow_up: formData.get("follow_up") || null,
+      parent_partnership: formData.get("parent_partnership") || null,
+      status: formData.get("status"),
+      is_parent_visible: formData.get("status") === "published",
+    };
+    PAUD_ASPECTS.forEach((aspect) => {
+      values[`${aspect.id}_scale`] = formData.get(`${aspect.id}_scale`);
+      values[`${aspect.id}_desc`] = formData.get(`${aspect.id}_desc`);
+    });
+    setIsSubmitting(true);
+    const { error } = await supabaseClient.from("paud_stppa_assessments").insert(values);
+    setIsSubmitting(false);
+    if (error) {
+      toast.error(`Asesmen gagal disimpan: ${error.message}`);
+      return;
+    }
+    toast.success("Asesmen perkembangan berhasil disimpan.");
+    event.currentTarget.reset();
+    setRecentCount((value) => ({ ...value, assessments: value.assessments + 1 }));
+  };
 
   return (
-    <div className="p-4 space-y-6">
-      <div className="bg-gradient-to-br from-purple-600 to-purple-800 text-white p-6 rounded-2xl shadow-sm">
-        <div className="flex items-center gap-3 mb-2">
-          <CheckSquare className="w-6 h-6" />
-          <h2 className="text-xl font-bold">Modul PAUD</h2>
+    <div className="space-y-6 pb-10">
+      <header className="border-b pb-5">
+        <div className="flex items-center gap-3">
+          <span className="rounded-md bg-emerald-50 p-2 text-emerald-700"><BookOpen className="h-5 w-5" /></span>
+          <div>
+            <h1 className="text-2xl font-bold">Perkembangan Anak KB/TK</h1>
+            <p className="mt-1 text-sm text-muted-foreground">Observasi autentik dan asesmen STPPA sesuai kelas yang ditugaskan kepada Anda.</p>
+          </div>
         </div>
-        <p className="text-purple-100 text-sm">Catat jurnal kegiatan harian dan capaian STPPA siswa KB/TK.</p>
-      </div>
+      </header>
 
-      <div className="bg-white rounded-2xl shadow-sm border overflow-hidden p-5 space-y-5">
-        
-        {/* Type selector */}
-        <div className="flex gap-2 p-1 bg-gray-100 rounded-xl">
-          <button 
-            type="button"
-            onClick={() => setActiveTab('jurnal')}
-            className={`flex-1 flex justify-center items-center gap-2 py-2 text-sm font-bold rounded-lg transition-colors ${activeTab === 'jurnal' ? 'bg-white shadow text-purple-700' : 'text-gray-500'}`}
-          >
-            <Camera className="w-4 h-4" /> Jurnal Kegiatan
-          </button>
-          <button 
-            type="button"
-            onClick={() => setActiveTab('stppa')}
-            className={`flex-1 flex justify-center items-center gap-2 py-2 text-sm font-bold rounded-lg transition-colors ${activeTab === 'stppa' ? 'bg-white shadow text-purple-700' : 'text-gray-500'}`}
-          >
-            <Star className="w-4 h-4" /> Rapor STPPA
-          </button>
-        </div>
-
-        {/* Global Selectors */}
-        <div className="grid grid-cols-2 gap-3 pb-4 border-b">
-          <div className="space-y-1.5">
-            <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Unit</label>
-            <select 
-              className="w-full border rounded-xl px-3 py-2.5 text-sm bg-gray-50 focus:bg-white focus:ring-2 focus:ring-purple-500 outline-none appearance-none"
+      <section className="rounded-lg border bg-card p-4">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+          <SelectField label="Unit">
+            <select
               value={selectedUnitId}
-              onChange={e => setSelectedUnitId(e.target.value)}
+              onChange={(event) => { setSelectedUnitId(event.target.value); setSelectedClassId(""); }}
+              className="h-10 w-full rounded-md border bg-background px-3 text-sm"
             >
-              <option value="">-- Pilih Unit --</option>
-              {units.map(u => (
-                <option key={u.id} value={u.id}>{u.name}</option>
-              ))}
+              <option value="">Pilih unit PAUD/TK</option>
+              {unitOptions.map((unit) => <option key={unit.id} value={unit.id}>{unit.name}</option>)}
             </select>
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Kelas</label>
-            <select 
-              className="w-full border rounded-xl px-3 py-2.5 text-sm bg-gray-50 focus:bg-white focus:ring-2 focus:ring-purple-500 outline-none appearance-none"
-              value={selectedClassId}
-              onChange={e => setSelectedClassId(e.target.value)}
-              disabled={!selectedUnitId}
-            >
-              <option value="">-- Pilih Kelas --</option>
-              {filteredClasses.map(c => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
+          </SelectField>
+          <SelectField label="Kelas">
+            <select value={selectedClassId} onChange={(event) => setSelectedClassId(event.target.value)} disabled={!selectedUnitId} className="h-10 w-full rounded-md border bg-background px-3 text-sm disabled:opacity-50">
+              <option value="">Pilih kelas</option>
+              {filteredClasses.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
             </select>
-          </div>
-          <div className="space-y-1.5 col-span-2">
-            <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Siswa</label>
-            <select 
-              className="w-full border rounded-xl px-3 py-2.5 text-sm bg-gray-50 focus:bg-white focus:ring-2 focus:ring-purple-500 outline-none appearance-none"
-              value={selectedStudentId}
-              onChange={e => setSelectedStudentId(e.target.value)}
-              disabled={!selectedClassId}
-            >
-              <option value="">-- Pilih Siswa --</option>
-              {students.map(s => (
-                <option key={s.id} value={s.id}>{s.full_name}</option>
-              ))}
+          </SelectField>
+          <SelectField label="Anak">
+            <select value={selectedStudentId} onChange={(event) => setSelectedStudentId(event.target.value)} disabled={!selectedClassId} className="h-10 w-full rounded-md border bg-background px-3 text-sm disabled:opacity-50">
+              <option value="">Pilih anak</option>
+              {students.map((item) => <option key={item.id} value={item.id}>{item.full_name}</option>)}
             </select>
-          </div>
+          </SelectField>
         </div>
-
-        {classes.length === 0 && (
-          <div className="rounded-xl border border-dashed bg-amber-50 p-4 text-sm text-amber-700">
-            Belum ada kelas PAUD yang tertaut ke jadwal/wali kelas Anda.
+        {selectedStudentId && (
+          <div className="mt-4 flex flex-wrap gap-2 border-t pt-4 text-xs">
+            <span className="rounded bg-violet-50 px-2 py-1 font-semibold text-violet-700">{recentCount.observations} observasi semester ini</span>
+            <span className="rounded bg-emerald-50 px-2 py-1 font-semibold text-emerald-700">{recentCount.assessments} asesmen semester ini</span>
           </div>
         )}
+      </section>
 
-        {/* JURNAL TAB */}
-        {activeTab === 'jurnal' && (
-          <form onSubmit={handleJurnalSubmit} className="space-y-4">
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Judul Kegiatan</label>
-              <input 
-                type="text"
-                required
-                placeholder="Contoh: Bermain Balok & Mengenal Warna"
-                className="w-full border rounded-xl px-3 py-2.5 text-sm bg-gray-50 focus:bg-white focus:ring-2 focus:ring-purple-500 outline-none"
-                value={jurnalData.title}
-                onChange={e => setJurnalData({...jurnalData, title: e.target.value})}
-              />
-            </div>
-            
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Deskripsi Pengamatan</label>
-              <textarea 
-                required
-                rows={3}
-                placeholder="Tuliskan bagaimana proses belajar anak hari ini..."
-                className="w-full border rounded-xl px-3 py-2.5 text-sm bg-gray-50 focus:bg-white focus:ring-2 focus:ring-purple-500 outline-none resize-none"
-                value={jurnalData.description}
-                onChange={e => setJurnalData({...jurnalData, description: e.target.value})}
-              />
-            </div>
-            
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wide flex justify-between">
-                <span>URL Foto Kegiatan</span>
-                <span className="font-normal lowercase text-gray-400">opsional</span>
-              </label>
-              <input 
-                type="url"
-                placeholder="https://..."
-                className="w-full border rounded-xl px-3 py-2.5 text-sm bg-gray-50 focus:bg-white focus:ring-2 focus:ring-purple-500 outline-none"
-                value={jurnalData.photo_url}
-                onChange={e => setJurnalData({...jurnalData, photo_url: e.target.value})}
-              />
-              <p className="text-[10px] text-gray-400 mt-1">Gunakan link eksternal (Google Drive / dll) untuk foto.</p>
-            </div>
+      {!isLoadingAssignments && !classes.length && (
+        <div className="flex gap-3 rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+          <Info className="h-5 w-5 shrink-0" />
+          <div><p className="font-semibold">Belum ada kelas PAUD/TK dalam penugasan Anda</p><p className="mt-1">Minta admin memeriksa wali kelas atau jadwal mengajar pada tahun ajaran dan semester aktif.</p></div>
+        </div>
+      )}
 
-            <button 
-              type="submit" 
-              disabled={isSubmitting || !selectedStudentId}
-              className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 rounded-xl transition-all shadow-sm disabled:opacity-50 mt-4"
-            >
-              {isSubmitting ? "Menyimpan..." : "Simpan Jurnal"}
-            </button>
-          </form>
-        )}
-
-        {/* STPPA TAB */}
-        {activeTab === 'stppa' && (
-          <form onSubmit={handleStppaSubmit} className="space-y-4">
-            
-            <div className="bg-purple-50 p-3 rounded-xl border border-purple-100 flex items-start gap-2 text-sm text-purple-800 mb-4">
-              <Info className="w-5 h-5 shrink-0 mt-0.5" />
-              <p>Pilih capaian tiap aspek. BB: Belum Berkembang, MB: Mulai Berkembang, BSH: Berkembang Sesuai Harapan, BSB: Berkembang Sangat Baik.</p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              {(["agama_moral", "fisik_motorik", "kognitif", "bahasa", "sosial_emosional", "seni"] as const).map(aspek => (
-                <div key={aspek} className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">
-                    {aspek.replace("_", " ")}
-                  </label>
-                  <select 
-                    className="w-full border rounded-xl px-3 py-2.5 text-sm bg-gray-50 focus:bg-white focus:ring-2 focus:ring-purple-500 outline-none appearance-none"
-                    value={stppaData[aspek]}
-                    onChange={e => setStppaData({...stppaData, [aspek]: e.target.value})}
-                  >
-                    {stppaOptions.map(opt => (
-                      <option key={opt} value={opt}>{opt}</option>
-                    ))}
-                  </select>
-                </div>
-              ))}
-            </div>
-
-            <div className="space-y-1.5 mt-4">
-              <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Laporan Naratif (Rapor)</label>
-              <textarea 
-                required
-                rows={4}
-                placeholder="Tuliskan laporan naratif perkembangan anak secara deskriptif..."
-                className="w-full border rounded-xl px-3 py-2.5 text-sm bg-gray-50 focus:bg-white focus:ring-2 focus:ring-purple-500 outline-none resize-none"
-                value={stppaData.narrative_report}
-                onChange={e => setStppaData({...stppaData, narrative_report: e.target.value})}
-              />
-            </div>
-
-            <button 
-              type="submit" 
-              disabled={isSubmitting || !selectedStudentId}
-              className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 rounded-xl transition-all shadow-sm disabled:opacity-50 mt-4"
-            >
-              {isSubmitting ? "Menyimpan..." : "Simpan Asesmen STPPA"}
-            </button>
-          </form>
-        )}
-
+      <div className="inline-flex w-full rounded-md border bg-muted/40 p-1 sm:w-auto">
+        <button type="button" onClick={() => setMode("observation")} className={`flex flex-1 items-center justify-center gap-2 rounded px-4 py-2 text-sm font-semibold sm:flex-none ${mode === "observation" ? "bg-background text-primary shadow-sm" : "text-muted-foreground"}`}>
+          <Camera className="h-4 w-4" /> Observasi
+        </button>
+        <button type="button" onClick={() => setMode("assessment")} className={`flex flex-1 items-center justify-center gap-2 rounded px-4 py-2 text-sm font-semibold sm:flex-none ${mode === "assessment" ? "bg-background text-primary shadow-sm" : "text-muted-foreground"}`}>
+          <ClipboardCheck className="h-4 w-4" /> Asesmen STPPA
+        </button>
       </div>
+
+      {mode === "observation" ? (
+        <form onSubmit={submitObservation} className="space-y-5 rounded-lg border bg-card p-5 sm:p-6">
+          <div><h2 className="font-bold">Catat bukti belajar</h2><p className="mt-1 text-sm text-muted-foreground">Tuliskan perilaku yang terlihat dan tindak lanjut yang dapat dilakukan.</p></div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <Field label="Tanggal"><input name="date" type="date" required defaultValue={toDateInputValue(new Date())} className="h-10 w-full rounded-md border bg-background px-3 text-sm" /></Field>
+            <Field label="Metode"><select name="observation_method" className="h-10 w-full rounded-md border bg-background px-3 text-sm">{PAUD_OBSERVATION_METHODS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></Field>
+          </div>
+          <Field label="Judul kegiatan"><input name="title" required placeholder="Kegiatan atau momen belajar" className="h-10 w-full rounded-md border bg-background px-3 text-sm" /></Field>
+          <Field label="Narasi observasi"><textarea name="description" required rows={4} placeholder="Situasi, tindakan atau ucapan anak, serta respons guru." className="w-full rounded-md border bg-background px-3 py-2 text-sm" /></Field>
+          <div>
+            <p className="text-sm font-semibold">Aspek perkembangan yang terbukti</p>
+            <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">
+              {PAUD_ASPECTS.map((aspect) => <CheckOption key={aspect.id} name="development_aspects" value={aspect.id} label={aspect.shortTitle} />)}
+            </div>
+          </div>
+          <div>
+            <p className="text-sm font-semibold">Nilai Islam dan karakter</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {PAUD_ISLAMIC_VALUES.map((value) => <CheckOption key={value} name="islamic_values" value={value} label={value} compact />)}
+            </div>
+          </div>
+          <Field label="Tindak lanjut"><textarea name="follow_up" rows={3} placeholder="Stimulasi berikutnya di kelas." className="w-full rounded-md border bg-background px-3 py-2 text-sm" /></Field>
+          <Field label="Bukti foto">
+            <label className="flex cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed p-4 text-sm font-semibold text-muted-foreground hover:bg-muted/30">
+              {photoUrl ? <><CheckCircle2 className="h-5 w-5 text-emerald-600" /> Foto siap disimpan</> : <><UploadCloud className="h-5 w-5" /> {isUploading ? "Mengunggah..." : "Unggah gambar maksimal 5 MB"}</>}
+              <input type="file" accept="image/*" onChange={uploadPhoto} className="sr-only" />
+            </label>
+          </Field>
+          <PublishRow />
+          <SubmitButton loading={isSubmitting || isUploading} disabled={!selectedStudentId} label="Simpan Observasi" />
+        </form>
+      ) : (
+        <form onSubmit={submitAssessment} className="space-y-6">
+          <section className="rounded-lg border bg-card p-5 sm:p-6">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <Field label="Nama periode"><input name="period_name" required placeholder="Contoh: Tengah Semester Ganjil" className="h-10 w-full rounded-md border bg-background px-3 text-sm" /></Field>
+              <Field label="Tanggal asesmen"><input name="date" type="date" required defaultValue={toDateInputValue(new Date())} className="h-10 w-full rounded-md border bg-background px-3 text-sm" /></Field>
+            </div>
+          </section>
+          <section className="divide-y overflow-hidden rounded-lg border bg-card">
+            {PAUD_ASPECTS.map((aspect) => (
+              <div key={aspect.id} className="grid grid-cols-1 gap-4 p-5 lg:grid-cols-[260px_1fr]">
+                <div>
+                  <h3 className="font-bold">{aspect.title}</h3>
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    {PAUD_SCALES.map((scale) => (
+                      <label key={scale} className="cursor-pointer">
+                        <input type="radio" name={`${aspect.id}_scale`} value={scale} required defaultChecked={scale === "BSH"} className="peer sr-only" />
+                        <span className="block rounded-md border p-2 text-xs peer-checked:border-primary peer-checked:bg-primary/10 peer-checked:text-primary">{scale} · {PAUD_SCALE_LABELS[scale]}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <Field label={`Narasi ${aspect.shortTitle}`}><textarea name={`${aspect.id}_desc`} required rows={5} placeholder="Kemampuan yang tampak, contoh bukti, dan dukungan yang diperlukan." className="w-full rounded-md border bg-background px-3 py-2 text-sm" /></Field>
+              </div>
+            ))}
+          </section>
+          <section className="grid grid-cols-1 gap-4 rounded-lg border bg-card p-5 lg:grid-cols-3">
+            <Field label="Kekuatan dan minat"><textarea name="strengths" rows={4} className="w-full rounded-md border bg-background px-3 py-2 text-sm" /></Field>
+            <Field label="Tindak lanjut sekolah"><textarea name="follow_up" rows={4} className="w-full rounded-md border bg-background px-3 py-2 text-sm" /></Field>
+            <Field label="Kemitraan orang tua"><textarea name="parent_partnership" rows={4} className="w-full rounded-md border bg-background px-3 py-2 text-sm" /></Field>
+          </section>
+          <section className="rounded-lg border bg-card p-5"><PublishRow /><SubmitButton loading={isSubmitting} disabled={!selectedStudentId} label="Simpan Asesmen" /></section>
+        </form>
+      )}
     </div>
   );
 };
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return <label className="block space-y-2"><span className="text-sm font-semibold">{label}</span>{children}</label>;
+}
+
+function SelectField({ label, children }: { label: string; children: React.ReactNode }) {
+  return <label className="space-y-2"><span className="flex items-center gap-1.5 text-xs font-bold uppercase text-muted-foreground"><Users className="h-3.5 w-3.5" />{label}</span>{children}</label>;
+}
+
+function CheckOption({ name, value, label, compact }: { name: string; value: string; label: string; compact?: boolean }) {
+  return (
+    <label className={`flex cursor-pointer items-center gap-2 rounded-md border ${compact ? "px-3 py-2" : "p-3"} text-sm peer-checked:bg-primary/10`}>
+      <input type="checkbox" name={name} value={value} className="accent-primary" /><span>{label}</span>
+    </label>
+  );
+}
+
+function PublishRow() {
+  return (
+    <Field label="Status publikasi">
+      <select name="status" defaultValue="published" className="h-10 w-full rounded-md border bg-background px-3 text-sm sm:max-w-sm">
+        <option value="draft">Draf internal</option>
+        <option value="published">Terbit ke portal orang tua</option>
+      </select>
+    </Field>
+  );
+}
+
+function SubmitButton({ loading, disabled, label }: { loading: boolean; disabled: boolean; label: string }) {
+  return (
+    <button type="submit" disabled={loading || disabled} className="mt-5 inline-flex h-11 w-full items-center justify-center gap-2 rounded-md bg-primary px-6 text-sm font-semibold text-primary-foreground disabled:opacity-50 sm:w-auto">
+      <Save className="h-4 w-4" /> {loading ? "Menyimpan..." : label}
+    </button>
+  );
+}

@@ -95,6 +95,7 @@ import {
 } from "../modules/quran";
 
 import {
+  PaudDashboard,
   PaudActivitiesList, PaudActivityForm,
   StppaAssessmentsList, StppaAssessmentForm
 } from "../modules/paud";
@@ -1010,6 +1011,7 @@ export default function App() {
                   <Route index element={<TahsinReportDashboard />} />
                 </Route>
 
+                <Route path="/paud" element={<PaudDashboard />} />
                 <Route path="/paud-activities">
                   <Route index element={<PaudActivitiesList />} />
                   <Route path="create" element={<PaudActivityForm />} />

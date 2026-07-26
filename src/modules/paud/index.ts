@@ -1,3 +1,4 @@
+export * from "./PaudDashboard";
 export * from "./PaudActivitiesList";
 export * from "./PaudActivityForm";
 export * from "./StppaAssessmentsList";

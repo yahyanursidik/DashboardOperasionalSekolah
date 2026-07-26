@@ -1,7 +1,11 @@
 import React from "react";
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 
 export const CbtPortalLayout: React.FC = () => {
+  const location = useLocation();
+  const isLogin = location.pathname === "/cbt" || location.pathname === "/cbt/login";
+  if (isLogin) return <Outlet />;
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
       <header className="bg-white border-b sticky top-0 z-50">

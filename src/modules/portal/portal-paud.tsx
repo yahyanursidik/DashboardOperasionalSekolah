@@ -1,179 +1,198 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React from "react";
+import { useList } from "@refinedev/core";
 import { useOutletContext } from "react-router-dom";
-import { useList, useOne } from "@refinedev/core";
-import { AlertCircle, Camera, Award, BookOpen } from "lucide-react";
-
-const SCALES = ['BB', 'MB', 'BSH', 'BSB'];
-const SCALE_COLORS: any = {
-  'BB': 'bg-red-500',
-  'MB': 'bg-amber-500',
-  'BSH': 'bg-blue-500',
-  'BSB': 'bg-emerald-500'
-};
-
-const SCALE_LABELS: any = {
-  'BB': 'Belum Berkembang',
-  'MB': 'Mulai Berkembang',
-  'BSH': 'Berkembang Sesuai Harapan',
-  'BSB': 'Berkembang Sangat Baik'
-};
-
-const ASPECTS = [
-  { id: 'agama_moral', title: 'Nilai Agama & Moral' },
-  { id: 'fisik_motorik', title: 'Fisik Motorik' },
-  { id: 'kognitif', title: 'Kognitif' },
-  { id: 'bahasa', title: 'Bahasa' },
-  { id: 'sosial_emosional', title: 'Sosial Emosional' },
-  { id: 'seni', title: 'Seni' },
-];
+import {
+  AlertCircle,
+  BookOpen,
+  Camera,
+  CheckCircle2,
+  HeartHandshake,
+  Ruler,
+  Sparkles,
+} from "lucide-react";
+import { useAcademicYear } from "../../app/providers/AcademicYearProvider";
+import {
+  formatPaudDate,
+  PAUD_ASPECTS,
+  PAUD_SCALE_LABELS,
+  PAUD_SCALE_TONES,
+  type PaudScale,
+} from "../paud/paud-config";
 
 export const PortalPaud: React.FC = () => {
   const { student } = useOutletContext<any>();
+  const { activeYearId, activeSemesterId } = useAcademicYear();
   const studentId = student?.id;
+  const commonFilters: any[] = studentId ? [{ field: "student_id", operator: "eq", value: studentId }] : [];
+  if (activeYearId) commonFilters.push({ field: "academic_year_id", operator: "eq", value: activeYearId });
+  if (activeSemesterId) commonFilters.push({ field: "semester_id", operator: "eq", value: activeSemesterId });
+  commonFilters.push(
+    { field: "status", operator: "eq", value: "published" },
+    { field: "is_parent_visible", operator: "eq", value: true },
+  );
 
-  const { data: activitiesData, isLoading: actLoading } = useList({
+  const activitiesQuery = useList({
     resource: "paud_activities",
-    filters: studentId ? [{ field: "student_id", operator: "eq", value: studentId }] : [],
+    filters: commonFilters,
     sorters: [{ field: "date", order: "desc" }],
-    queryOptions: { enabled: !!studentId }
+    pagination: { pageSize: 12 },
+    queryOptions: { enabled: Boolean(studentId) },
+    meta: { select: "*,employees(full_name)" },
   });
-
-  const { data: stppaData, isLoading: stppaLoading } = useList({
+  const assessmentsQuery = useList({
     resource: "paud_stppa_assessments",
-    filters: studentId ? [{ field: "student_id", operator: "eq", value: studentId }] : [],
+    filters: commonFilters,
     sorters: [{ field: "date", order: "desc" }],
-    pagination: { pageSize: 1 },
-    queryOptions: { enabled: !!studentId }
+    pagination: { pageSize: 10 },
+    queryOptions: { enabled: Boolean(studentId) },
+    meta: { select: "*,employees(full_name)" },
   });
-
-  const activities = activitiesData?.data || [];
-  const latestStppa = stppaData?.data?.[0];
+  const activities = activitiesQuery.data?.data || [];
+  const assessments = assessmentsQuery.data?.data || [];
+  const latestAssessment = assessments[0] as any;
+  const isError = activitiesQuery.isError || assessmentsQuery.isError;
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight text-emerald-800 dark:text-emerald-500 flex items-center gap-2">
-          <BookOpen className="w-6 h-6" />
-          Catatan Perkembangan Anak (KB/TK)
-        </h2>
-        <p className="text-muted-foreground mt-1">Pantau dokumentasi kegiatan dan evaluasi capaian perkembangan (STPPA) ananda.</p>
-      </div>
+    <div className="space-y-6 pb-10">
+      <header className="border-b pb-5">
+        <div className="flex items-center gap-3">
+          <span className="rounded-md bg-emerald-50 p-2 text-emerald-700"><BookOpen className="h-5 w-5" /></span>
+          <div>
+            <h1 className="text-2xl font-bold">Perkembangan Anak KB/TK</h1>
+            <p className="mt-1 text-sm text-muted-foreground">Bukti kegiatan, capaian perkembangan, dan dukungan yang dapat dilanjutkan bersama di rumah.</p>
+          </div>
+        </div>
+      </header>
 
-      {!studentId && (
-        <div className="bg-amber-50 text-amber-800 p-4 rounded-xl border border-amber-200">
-          Pilih anak KB/TK yang terhubung untuk melihat dokumentasi kegiatan dan STPPA.
+      {isError && (
+        <div className="flex gap-3 rounded-md border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
+          <AlertCircle className="h-5 w-5 shrink-0" />
+          <div><p className="font-semibold">Catatan perkembangan belum dapat dimuat</p><p className="mt-1">Silakan coba lagi atau hubungi sekolah bila kendala berlanjut.</p></div>
         </div>
       )}
 
-      {studentId && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
-          {/* KOLOM KIRI: LAPORAN STPPA */}
-          <div className="lg:col-span-2 space-y-6">
-            <h3 className="font-bold text-xl flex items-center gap-2">
-              <Award className="w-5 h-5 text-blue-500" />
-              Laporan Rapor STPPA Terakhir
-            </h3>
-            
-            {stppaLoading ? (
-              <div className="p-10 text-center animate-pulse">Memuat laporan rapor...</div>
-            ) : !latestStppa ? (
-              <div className="bg-card border rounded-xl shadow-sm">
-                <div className="p-10 flex flex-col items-center justify-center text-muted-foreground text-center">
-                  <AlertCircle className="w-10 h-10 mb-2 opacity-20" />
-                  <p>Belum ada evaluasi capaian STPPA untuk saat ini.</p>
-                </div>
+      {!studentId ? (
+        <div className="rounded-lg border border-dashed p-10 text-center text-muted-foreground">Pilih anak KB/TK yang terhubung untuk melihat perkembangannya.</div>
+      ) : (
+        <>
+          <section className="rounded-lg border bg-card p-5 sm:p-6">
+            <div className="flex flex-col gap-3 border-b pb-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-xs font-bold uppercase text-muted-foreground">Laporan terbaru</p>
+                <h2 className="mt-1 text-xl font-bold">{latestAssessment?.period_name || "Asesmen belum diterbitkan"}</h2>
+                {latestAssessment && <p className="mt-1 text-sm text-muted-foreground">{formatPaudDate(latestAssessment.date)} · {latestAssessment.employees?.full_name || "Tim guru"}</p>}
+              </div>
+              {latestAssessment && <span className="w-fit rounded-md bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">Telah diterbitkan sekolah</span>}
+            </div>
+
+            {assessmentsQuery.isLoading ? (
+              <div className="py-12 text-center text-sm text-muted-foreground">Memuat asesmen...</div>
+            ) : !latestAssessment ? (
+              <div className="flex flex-col items-center py-12 text-center text-muted-foreground">
+                <AlertCircle className="h-9 w-9 opacity-25" />
+                <p className="mt-3 font-semibold text-foreground">Belum ada laporan pada periode aktif</p>
+                <p className="mt-1 max-w-lg text-sm">Guru sedang mengumpulkan bukti observasi sebelum menerbitkan asesmen perkembangan.</p>
               </div>
             ) : (
-              <div className="space-y-6">
-                <div className="bg-gradient-to-r from-emerald-600 to-teal-500 text-white p-6 rounded-2xl shadow-md">
-                  <h4 className="font-bold text-xl mb-1">{latestStppa.period_name}</h4>
-                  <p className="text-emerald-100 text-sm">Dievaluasi pada: {new Date(latestStppa.date).toLocaleDateString('id-ID')}</p>
-                  
-                  {(latestStppa.growth_weight || latestStppa.growth_height) && (
-                    <div className="mt-4 pt-4 border-t border-emerald-400/30 flex gap-6 text-sm">
-                      {latestStppa.growth_weight && <div><strong>BB:</strong> {latestStppa.growth_weight} kg</div>}
-                      {latestStppa.growth_height && <div><strong>TB:</strong> {latestStppa.growth_height} cm</div>}
-                      {latestStppa.growth_head && <div><strong>LK:</strong> {latestStppa.growth_head} cm</div>}
-                    </div>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-1 gap-4">
-                  {ASPECTS.map(aspect => {
-                    const scale = latestStppa[`${aspect.id}_scale`];
-                    const desc = latestStppa[`${aspect.id}_desc`];
-                    
-                    if (!scale && !desc) return null;
-
+              <>
+                <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  {PAUD_ASPECTS.map((aspect) => {
+                    const scale = latestAssessment[`${aspect.id}_scale`] as PaudScale | undefined;
+                    const description = latestAssessment[`${aspect.id}_desc`];
                     return (
-                      <div key={aspect.id} className="bg-card border rounded-xl shadow-sm overflow-hidden border-l-4" style={{ borderLeftColor: scale === 'BSB' ? '#10b981' : scale === 'BSH' ? '#3b82f6' : scale === 'MB' ? '#f59e0b' : '#ef4444' }}>
-                        <div className="p-5">
-                          <div className="flex justify-between items-start mb-3">
-                            <h4 className="font-bold text-lg">{aspect.title}</h4>
-                            <div className="flex gap-1">
-                              {SCALES.map(s => (
-                                <div key={s} className={`px-2 py-1 text-[10px] font-bold rounded ${s === scale ? `${SCALE_COLORS[s]} text-white shadow-sm` : 'bg-muted text-muted-foreground'}`}>
-                                  {s}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                          <p className="text-sm text-gray-700 dark:text-gray-300 bg-muted/30 p-3 rounded-lg leading-relaxed italic">
-                            "{desc || 'Tidak ada catatan khusus.'}"
-                          </p>
-                          <p className="text-xs text-muted-foreground text-right mt-2 font-medium">
-                            Status: {SCALE_LABELS[scale]}
-                          </p>
+                      <article key={aspect.id} className="rounded-lg border p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <h3 className="font-bold">{aspect.title}</h3>
+                          {scale && <span className={`rounded border px-2 py-1 text-xs font-bold ${PAUD_SCALE_TONES[scale]}`}>{scale}</span>}
                         </div>
-                      </div>
+                        <p className="mt-3 text-sm leading-6 text-muted-foreground">{description || "Belum ada narasi khusus."}</p>
+                        {scale && <p className="mt-3 text-xs font-semibold text-primary">{PAUD_SCALE_LABELS[scale]}</p>}
+                      </article>
                     );
                   })}
                 </div>
-              </div>
+
+                {(latestAssessment.strengths || latestAssessment.follow_up || latestAssessment.parent_partnership) && (
+                  <div className="mt-5 grid grid-cols-1 gap-3 lg:grid-cols-3">
+                    <Note icon={Sparkles} title="Kekuatan dan minat" text={latestAssessment.strengths} />
+                    <Note icon={CheckCircle2} title="Tindak lanjut sekolah" text={latestAssessment.follow_up} />
+                    <Note icon={HeartHandshake} title="Dukungan di rumah" text={latestAssessment.parent_partnership} />
+                  </div>
+                )}
+
+                {(latestAssessment.growth_weight || latestAssessment.growth_height || latestAssessment.growth_head) && (
+                  <div className="mt-5 flex flex-wrap items-center gap-5 rounded-md bg-muted/30 p-4 text-sm">
+                    <span className="flex items-center gap-2 font-semibold"><Ruler className="h-4 w-4 text-primary" /> Catatan pertumbuhan</span>
+                    {latestAssessment.growth_weight && <span>Berat: <strong>{latestAssessment.growth_weight} kg</strong></span>}
+                    {latestAssessment.growth_height && <span>Tinggi: <strong>{latestAssessment.growth_height} cm</strong></span>}
+                    {latestAssessment.growth_head && <span>Lingkar kepala: <strong>{latestAssessment.growth_head} cm</strong></span>}
+                  </div>
+                )}
+              </>
             )}
-          </div>
+          </section>
 
-          {/* KOLOM KANAN: JURNAL FOTO */}
-          <div className="space-y-6">
-            <h3 className="font-bold text-xl flex items-center gap-2">
-              <Camera className="w-5 h-5 text-pink-500" />
-              Jurnal Momen
-            </h3>
-
-            {actLoading ? (
-              <div className="p-10 text-center animate-pulse">Memuat foto...</div>
-            ) : activities.length === 0 ? (
-              <div className="bg-card border rounded-xl shadow-sm">
-                <div className="p-10 flex flex-col items-center justify-center text-muted-foreground text-center">
-                  <Camera className="w-10 h-10 mb-2 opacity-20" />
-                  <p className="text-sm">Belum ada dokumentasi foto kegiatan.</p>
-                </div>
-              </div>
+          <section>
+            <div className="mb-4">
+              <h2 className="flex items-center gap-2 text-lg font-bold"><Camera className="h-5 w-5 text-primary" /> Momen dan bukti belajar</h2>
+              <p className="mt-1 text-sm text-muted-foreground">Dokumentasi yang telah dipilih guru untuk dibagikan kepada keluarga.</p>
+            </div>
+            {activitiesQuery.isLoading ? (
+              <div className="py-12 text-center text-sm text-muted-foreground">Memuat dokumentasi...</div>
+            ) : !activities.length ? (
+              <div className="rounded-lg border border-dashed p-10 text-center text-sm text-muted-foreground">Belum ada dokumentasi yang diterbitkan pada periode aktif.</div>
             ) : (
-              <div className="space-y-5">
-                {activities.map(act => (
-                  <div key={act.id} className="bg-card border rounded-2xl overflow-hidden shadow-sm">
-                    {act.photo_url && (
-                      <div className="w-full aspect-[4/3] bg-muted relative">
-                        <img src={act.photo_url} alt={act.title} className="w-full h-full object-cover" />
-                        <div className="absolute top-3 left-3 bg-black/50 backdrop-blur-md text-white text-xs px-2 py-1 rounded font-medium">
-                          {new Date(act.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long' })}
-                        </div>
-                      </div>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {activities.map((activity: any) => (
+                  <article key={activity.id} className="overflow-hidden rounded-lg border bg-card">
+                    {activity.photo_url ? (
+                      <img src={activity.photo_url} alt={activity.title} className="aspect-[16/9] w-full object-cover" />
+                    ) : (
+                      <div className="flex aspect-[16/9] items-center justify-center bg-muted"><Camera className="h-8 w-8 text-muted-foreground/30" /></div>
                     )}
                     <div className="p-4">
-                      <h4 className="font-bold mb-1">{act.title}</h4>
-                      <p className="text-sm text-muted-foreground line-clamp-3">{act.description}</p>
+                      <p className="text-xs font-semibold text-primary">{formatPaudDate(activity.date)}</p>
+                      <h3 className="mt-1 font-bold">{activity.title}</h3>
+                      <p className="mt-2 text-sm leading-6 text-muted-foreground">{activity.description}</p>
+                      {!!activity.islamic_values?.length && (
+                        <div className="mt-3 flex flex-wrap gap-1.5">
+                          {activity.islamic_values.map((value: string) => <span key={value} className="rounded bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700">{value}</span>)}
+                        </div>
+                      )}
+                      {activity.follow_up && <p className="mt-3 border-t pt-3 text-xs leading-5 text-muted-foreground"><strong className="text-foreground">Lanjutan:</strong> {activity.follow_up}</p>}
                     </div>
-                  </div>
+                  </article>
                 ))}
               </div>
             )}
-          </div>
+          </section>
 
-        </div>
+          {assessments.length > 1 && (
+            <section className="rounded-lg border bg-card p-5">
+              <h2 className="font-bold">Riwayat laporan</h2>
+              <div className="mt-3 divide-y">
+                {assessments.slice(1).map((assessment: any) => (
+                  <div key={assessment.id} className="flex items-center justify-between gap-3 py-3 text-sm">
+                    <span className="font-semibold">{assessment.period_name}</span>
+                    <span className="text-muted-foreground">{formatPaudDate(assessment.date)}</span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+        </>
       )}
     </div>
   );
 };
+
+function Note({ icon: Icon, title, text }: { icon: React.ComponentType<{ className?: string }>; title: string; text?: string | null }) {
+  if (!text) return null;
+  return (
+    <div className="rounded-lg border bg-muted/20 p-4">
+      <p className="flex items-center gap-2 text-sm font-bold"><Icon className="h-4 w-4 text-primary" />{title}</p>
+      <p className="mt-2 text-sm leading-6 text-muted-foreground">{text}</p>
+    </div>
+  );
+}

@@ -50,7 +50,7 @@ export const PortalLayout: React.FC = () => {
       setParent(parentData);
       const { data: linkedStudents } = await supabaseClient
         .from("student_parent_links")
-        .select("relationship, is_primary, can_access_parent_portal, students(*, classes(id, name, unit_id, units(name)))")
+        .select("relationship, is_primary, can_access_parent_portal, students(*, classes(id, name, unit_id, units(name,education_level)))")
         .eq("parent_id", parentData.id)
         .order("created_at", { ascending: true });
 
@@ -102,6 +102,12 @@ export const PortalLayout: React.FC = () => {
     navigate("/portal/login");
   };
 
+  const student = useMemo(() => students.find((item) => item.id === selectedStudentId) || students[0] || null, [selectedStudentId, students]);
+  const studentUnit = (student?.classes?.units || {}) as { name?: string; education_level?: string };
+  const studentUnitName = String(studentUnit.name || "").toLowerCase();
+  const isPaudStudent = studentUnit.education_level === "preschool"
+    || ["paud", "tk", "kb", "preschool"].some((term) => studentUnitName.includes(term));
+
   const navGroups = [
     { label: "Ringkasan", items: [
       { name: "Beranda", path: "/portal", icon: Home },
@@ -113,7 +119,7 @@ export const PortalLayout: React.FC = () => {
       { name: "e-Rapor", path: "/portal/reports", icon: FileText },
       { name: "Catatan Siswa", path: "/portal/journals", icon: ClipboardList },
       { name: "Qur'an", path: "/portal/quran", icon: BookOpen },
-      { name: "KB/TK", path: "/portal/paud", icon: Smile },
+      ...(isPaudStudent ? [{ name: "KB/TK", path: "/portal/paud", icon: Smile }] : []),
       { name: "Ekstrakurikuler", path: "/portal/extracurricular", icon: Target },
     ]},
     { label: "Layanan Sekolah", items: [
@@ -127,7 +133,6 @@ export const PortalLayout: React.FC = () => {
 
   const navItems = navGroups.flatMap((group) => group.items);
   const mobileMainItems = navItems.filter((item) => ["/portal", "/portal/attendance", "/portal/finance", "/portal/requests"].includes(item.path));
-  const student = useMemo(() => students.find((item) => item.id === selectedStudentId) || students[0] || null, [selectedStudentId, students]);
   const parentContext = useMemo(() => ({ parent, student, students, selectedStudentId, setSelectedStudentId, unreadAnnouncements, refreshUnreadAnnouncements }), [parent, student, students, selectedStudentId, unreadAnnouncements, refreshUnreadAnnouncements]);
 
   if (isLoading) return <div className="min-h-screen flex items-center justify-center bg-gray-50 text-sm text-gray-500">Memuat portal orang tua...</div>;
