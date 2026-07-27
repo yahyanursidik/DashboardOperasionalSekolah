@@ -8,6 +8,7 @@ import { dayMap, getScheduleSubjectName, isUnitLearningSchedule } from "../sched
 import { loadTeacherAssignedUnitIds, loadTeacherLearningSchedules } from "../schedules/schedule-data";
 import { isLeaveActiveOnDate, toDateInputValue } from "../leaves/leave-utils";
 import { canUseTeachingScheduleAttendance, getEmployeePosition } from "../employees/employee-role-config";
+import { loadTeacherAssignedClassIds } from "./teacher-assignment-data";
 
 const READ_ANNOUNCEMENTS_KEY = "teacher_portal_read_announcement_ids";
 
@@ -77,25 +78,17 @@ export const TeacherDashboard: React.FC = () => {
         setTodaySchedules(schedules || []);
         const accessibleUnitIds = new Set([employee.unit_id, ...assignedUnitRows].filter(Boolean));
 
-        let assignmentQuery = supabaseClient
-          .from("employee_schedules")
-          .select("class_id")
-          .eq("employee_id", employee.id)
-          .not("class_id", "is", null);
-        if (activeYearId) assignmentQuery = assignmentQuery.eq("academic_year_id", activeYearId);
-        if (activeSemesterId) assignmentQuery = assignmentQuery.eq("semester_id", activeSemesterId);
-        const { data: assignedClasses } = await assignmentQuery;
-        const { data: homeroomClasses } = await supabaseClient
-          .from("classes")
-          .select("id")
-          .eq("homeroom_teacher_id", employee.id);
-        const assignedClassIds = new Set<string>();
-        (assignedClasses || []).forEach((row: any) => {
-          if (row.class_id) assignedClassIds.add(row.class_id);
-        });
-        (homeroomClasses || []).forEach((row: any) => {
-          if (row.id) assignedClassIds.add(row.id);
-        });
+        let homeroomQuery = supabaseClient.from("classes").select("id").eq("homeroom_teacher_id", employee.id);
+        if (activeYearId) homeroomQuery = homeroomQuery.eq("academic_year_id", activeYearId);
+        const [assignmentClassResult, homeroomResult] = await Promise.all([
+          loadTeacherAssignedClassIds(employee.id, activeYearId, activeSemesterId),
+          homeroomQuery,
+        ]);
+        const assignedClassIds = new Set<string>([
+          ...(allSchedules || []).map((row: any) => row.class_id),
+          ...(assignmentClassResult.data || []),
+          ...(homeroomResult.data || []).map((row: any) => row.id),
+        ].filter(Boolean));
 
         const { data: announcementRows } = await supabaseClient
           .from("announcements")

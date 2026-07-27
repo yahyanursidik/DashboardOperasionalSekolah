@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/set-state-in-effect */
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import { Activity, AlertTriangle, Award, BookOpen, CheckCircle2, ChevronRight, HeartPulse, Loader2, Search, User } from "lucide-react";
@@ -5,6 +6,7 @@ import { toast } from "sonner";
 import { useAcademicYear } from "../../app/providers/AcademicYearProvider";
 import { supabaseClient } from "../../lib/supabase/client";
 import { toDateInputValue } from "../leaves/leave-utils";
+import { loadTeacherAssignedClassIds } from "./teacher-assignment-data";
 
 const categories = [
   { value: "akademik", label: "Akademik", icon: BookOpen },
@@ -52,13 +54,16 @@ export const TeacherJournals: React.FC = () => {
       setIsLoading(true);
       let classIds: string[] = [];
       if (!isBK) {
-        let scheduleQuery = supabaseClient.from("employee_schedules").select("class_id").eq("employee_id", employee.id).not("class_id", "is", null);
-        if (activeYearId) scheduleQuery = scheduleQuery.eq("academic_year_id", activeYearId);
-        if (activeSemesterId) scheduleQuery = scheduleQuery.eq("semester_id", activeSemesterId);
         let homeroomQuery = supabaseClient.from("classes").select("id").eq("homeroom_teacher_id", employee.id);
         if (activeYearId) homeroomQuery = homeroomQuery.eq("academic_year_id", activeYearId);
-        const [{ data: schedules }, { data: homerooms }] = await Promise.all([scheduleQuery, homeroomQuery]);
-        classIds = Array.from(new Set([...(schedules || []).map((item: any) => item.class_id), ...(homerooms || []).map((item: any) => item.id)].filter(Boolean)));
+        const [assignmentClassResult, { data: homerooms }] = await Promise.all([
+          loadTeacherAssignedClassIds(employee.id, activeYearId, activeSemesterId),
+          homeroomQuery,
+        ]);
+        classIds = Array.from(new Set([
+          ...(assignmentClassResult.data || []),
+          ...(homerooms || []).map((item: any) => item.id),
+        ].filter(Boolean)));
       }
       let studentQuery = supabaseClient.from("students").select("id, full_name, nis, class_id, unit_id, classes(name)").eq("status", "active").order("full_name");
       if (isBK && employee.unit_id) studentQuery = studentQuery.eq("unit_id", employee.unit_id);

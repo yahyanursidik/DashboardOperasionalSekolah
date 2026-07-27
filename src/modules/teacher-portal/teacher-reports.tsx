@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useOutletContext } from "react-router-dom";
 import { AlertCircle, CalendarDays, CheckCircle2, ChevronRight, FileText, Filter, Loader2, Users } from "lucide-react";
@@ -5,6 +6,7 @@ import { toast } from "sonner";
 import { useAcademicYear } from "../../app/providers/AcademicYearProvider";
 import { supabaseClient } from "../../lib/supabase/client";
 import { toDateInputValue } from "../leaves/leave-utils";
+import { loadTeacherAcademicAssignments } from "./teacher-assignment-data";
 
 const statusLabels: Record<string, string> = {
   draft: "Belum diisi", teacher_input: "Sedang diisi", homeroom_review: "Review wali kelas", revision_needed: "Perlu revisi", wakasek_review: "Review wakasek", principal_approval: "Persetujuan kepala sekolah", approved: "Disetujui", published: "Terbit", archived: "Arsip",
@@ -29,11 +31,17 @@ export const TeacherReports: React.FC = () => {
       if (activeSemesterId) scheduleQuery = scheduleQuery.eq("semester_id", activeSemesterId);
       let homeroomQuery = supabaseClient.from("classes").select("id, name, unit_id").eq("homeroom_teacher_id", employee.id);
       if (activeYearId) homeroomQuery = homeroomQuery.eq("academic_year_id", activeYearId);
-      const [{ data: schedules, error: scheduleError }, { data: homerooms }] = await Promise.all([scheduleQuery, homeroomQuery]);
+      const [{ data: schedules, error: scheduleError }, assignmentResult, { data: homerooms }] = await Promise.all([
+        scheduleQuery,
+        loadTeacherAcademicAssignments({ employeeId: employee.id, academicYearId: activeYearId, semesterId: activeSemesterId }),
+        homeroomQuery,
+      ]);
       if (scheduleError) toast.error("Penugasan kelas belum dapat dimuat", { description: scheduleError.message });
+      if (assignmentResult.error) toast.error("Surat penugasan belum dapat dimuat", { description: assignmentResult.error.message });
 
       const classMap = new Map<string, any>();
       (schedules || []).forEach((row: any) => row.classes?.id && classMap.set(row.classes.id, row.classes));
+      (assignmentResult.data || []).forEach((row: any) => row.classes?.id && classMap.set(row.classes.id, row.classes));
       (homerooms || []).forEach((row: any) => classMap.set(row.id, row));
       const assignedClasses = Array.from(classMap.values()).sort((a, b) => a.name.localeCompare(b.name));
       setClasses(assignedClasses);

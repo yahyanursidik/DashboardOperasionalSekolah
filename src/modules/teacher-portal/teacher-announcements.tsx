@@ -1,9 +1,11 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useOutletContext } from "react-router-dom";
 import { ArrowLeft, Bell, Building2, Calendar, CheckCircle2, Clock, Megaphone, Search, Users } from "lucide-react";
 import { supabaseClient } from "../../lib/supabase/client";
 import { useAcademicYear } from "../../app/providers/AcademicYearProvider";
 import { loadTeacherAssignedUnitIds } from "../schedules/schedule-data";
+import { loadTeacherAssignedClassIds } from "./teacher-assignment-data";
 
 const READ_KEY = "teacher_portal_read_announcement_ids";
 
@@ -53,8 +55,9 @@ export const TeacherAnnouncements: React.FC = () => {
         if (activeYearId) scheduleQuery = scheduleQuery.eq("academic_year_id", activeYearId);
         if (activeSemesterId) scheduleQuery = scheduleQuery.eq("semester_id", activeSemesterId);
 
-        const [{ data: scheduleRows }, { data: homeroomRows }, { data: announcementRows }, readsResult, assignedUnitIds] = await Promise.all([
+        const [{ data: scheduleRows }, assignmentClassResult, { data: homeroomRows }, { data: announcementRows }, readsResult, assignedUnitIds] = await Promise.all([
           scheduleQuery,
+          loadTeacherAssignedClassIds(employee.id, activeYearId, activeSemesterId),
           supabaseClient
             .from("classes")
             .select("id")
@@ -75,6 +78,7 @@ export const TeacherAnnouncements: React.FC = () => {
 
         const classIds = new Set<string>();
         (scheduleRows || []).forEach((row: any) => row.class_id && classIds.add(row.class_id));
+        (assignmentClassResult.data || []).forEach((classId) => classIds.add(classId));
         (homeroomRows || []).forEach((row: any) => row.id && classIds.add(row.id));
         const now = Date.now();
         const accessibleUnitIds = new Set([employee.unit_id, ...assignedUnitIds].filter(Boolean));

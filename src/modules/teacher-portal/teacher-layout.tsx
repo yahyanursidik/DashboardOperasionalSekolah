@@ -22,6 +22,7 @@ import { RolePortalShell, type RolePortalNavGroup } from "../../components/layou
 import { supabaseClient } from "../../lib/supabase/client";
 import { getEmployeePosition } from "../employees/employee-role-config";
 import { loadTeacherAssignedUnitIds } from "../schedules/schedule-data";
+import { loadTeacherAssignedClassIds } from "./teacher-assignment-data";
 
 const localReadKey = "teacher_portal_read_announcement_ids";
 
@@ -75,11 +76,12 @@ export const TeacherLayout: React.FC = () => {
       if (activeSemesterId) scheduledClassQuery = scheduledClassQuery.eq("semester_id", activeSemesterId);
 
       const today = new Date().toLocaleDateString("en-CA");
-      const [tasksResult, announcementsResult, readsResult, scheduledResult, homeroomResult, eventsResult, overtimeResult, leaveResult, assignedUnitIds] = await Promise.all([
+      const [tasksResult, announcementsResult, readsResult, scheduledResult, assignmentClassResult, homeroomResult, eventsResult, overtimeResult, leaveResult, assignedUnitIds] = await Promise.all([
         supabaseClient.from("admin_tasks").select("id,status").eq("assigned_to", session.user.id),
         supabaseClient.from("announcements").select("id,target_type,unit_id,class_id,publish_at").eq("status", "terkirim"),
         supabaseClient.from("employee_announcement_reads").select("announcement_id").eq("employee_id", currentEmployee.id),
         scheduledClassQuery,
+        loadTeacherAssignedClassIds(currentEmployee.id, activeYearId, activeSemesterId),
         supabaseClient.from("classes").select("id").eq("homeroom_teacher_id", currentEmployee.id),
         supabaseClient.from("attendance_event_participants").select("id,attendance_events(event_date,status)").eq("employee_id", currentEmployee.id),
         supabaseClient.from("employee_overtime").select("id,status,overtime_date").eq("employee_id", currentEmployee.id).in("status", ["pending", "approved"]),
@@ -94,6 +96,7 @@ export const TeacherLayout: React.FC = () => {
       }
       const classIds = new Set<string>([
         ...(scheduledResult.data || []).map((row: any) => row.class_id),
+        ...(assignmentClassResult.data || []),
         ...(homeroomResult.data || []).map((row: any) => row.id),
       ].filter(Boolean));
       const now = Date.now();
