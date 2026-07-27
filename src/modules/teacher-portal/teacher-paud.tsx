@@ -22,6 +22,7 @@ import {
   PAUD_SCALES,
   PAUD_SCALE_LABELS,
 } from "../paud/paud-config";
+import { loadTeacherAcademicAssignments } from "./teacher-assignment-data";
 
 type Mode = "observation" | "assessment";
 
@@ -57,9 +58,17 @@ export const TeacherPaud: React.FC = () => {
         .eq("homeroom_teacher_id", employee.id);
       if (activeYearId) homeroomQuery = homeroomQuery.eq("academic_year_id", activeYearId);
 
-      const [scheduleResult, homeroomResult] = await Promise.all([scheduleQuery, homeroomQuery]);
+      const [scheduleResult, assignmentResult, homeroomResult] = await Promise.all([
+        scheduleQuery,
+        loadTeacherAcademicAssignments({ employeeId: employee.id, academicYearId: activeYearId, semesterId: activeSemesterId }),
+        homeroomQuery,
+      ]);
       const classMap = new Map<string, any>();
-      [...(scheduleResult.data || []).map((item: any) => item.classes), ...(homeroomResult.data || [])]
+      [
+        ...(scheduleResult.data || []).map((item: any) => item.classes),
+        ...(assignmentResult.data || []).map((item: any) => item.classes),
+        ...(homeroomResult.data || []),
+      ]
         .filter(Boolean)
         .filter((item: any) => {
           const unit = item.units;

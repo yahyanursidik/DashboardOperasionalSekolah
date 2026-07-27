@@ -27,6 +27,11 @@ import { LessonSchedulePanel } from "../schedules/components/LessonSchedulePanel
 import { loadTeacherLearningSchedules } from "../schedules/schedule-data";
 import { canUseTeachingScheduleAttendance, getAttendanceMode, getEmploymentType } from "../employees/employee-role-config";
 import { changeOwnPortalPassword, validatePortalPassword } from "../employees/change-own-password";
+import {
+  isHomeroomAssignment,
+  isTeachingAssignment,
+  loadTeacherAcademicAssignments,
+} from "./teacher-assignment-data";
 
 function formatPosition(position?: string | null) {
   const map: Record<string, string> = {
@@ -73,6 +78,7 @@ export const TeacherProfile: React.FC = () => {
   const { activeYearId, activeSemesterId } = useAcademicYear();
   const [profile, setProfile] = useState<any>(employee);
   const [schedules, setSchedules] = useState<any[]>([]);
+  const [academicAssignments, setAcademicAssignments] = useState<any[]>([]);
   const [homeroomClasses, setHomeroomClasses] = useState<any[]>([]);
   const [halaqohs, setHalaqohs] = useState<any[]>([]);
   const [attendanceRows, setAttendanceRows] = useState<any[]>([]);
@@ -126,9 +132,17 @@ export const TeacherProfile: React.FC = () => {
         if (activeYearId) halaqohQuery = halaqohQuery.eq("academic_year_id", activeYearId);
         if (activeSemesterId) halaqohQuery = halaqohQuery.eq("semester_id", activeSemesterId);
 
-        const [{ data: employeeData }, { data: scheduleData }, { data: homeroomData }, { data: halaqohData }, { data: attendanceData }] = await Promise.all([
+        const [
+          { data: employeeData },
+          { data: scheduleData },
+          assignmentResult,
+          { data: homeroomData },
+          { data: halaqohData },
+          { data: attendanceData },
+        ] = await Promise.all([
           supabaseClient.from("employees").select("*, units(name)").eq("id", employee.id).single(),
           loadTeacherLearningSchedules({ employeeId: employee.id, homeUnitId: employee.unit_id, academicYearId: activeYearId, semesterId: activeSemesterId }),
+          loadTeacherAcademicAssignments({ employeeId: employee.id, academicYearId: activeYearId, semesterId: activeSemesterId }),
           homeroomQuery,
           halaqohQuery,
           supabaseClient.from("employee_attendance").select("id, date, status, time_in, time_out").eq("employee_id", employee.id).order("date", { ascending: false }).limit(10),
@@ -136,7 +150,13 @@ export const TeacherProfile: React.FC = () => {
 
         if (employeeData) setProfile(employeeData);
         setSchedules(scheduleData || []);
-        setHomeroomClasses(homeroomData || []);
+        setAcademicAssignments(assignmentResult.data || []);
+        const homeroomMap = new Map<string, any>();
+        (assignmentResult.data || [])
+          .filter(isHomeroomAssignment)
+          .forEach((assignment: any) => assignment.classes?.id && homeroomMap.set(assignment.classes.id, assignment.classes));
+        (homeroomData || []).forEach((cls: any) => homeroomMap.set(cls.id, cls));
+        setHomeroomClasses(Array.from(homeroomMap.values()).sort((a, b) => String(a.name).localeCompare(String(b.name))));
         setHalaqohs(halaqohData || []);
         setAttendanceRows(attendanceData || []);
       } catch (error) {
@@ -152,23 +172,39 @@ export const TeacherProfile: React.FC = () => {
   const teachingSchedules = useMemo(() => schedules.filter((schedule) => schedule.schedule_type === "mengajar"), [schedules]);
   const supportSchedules = useMemo(() => schedules.filter((schedule) => schedule.schedule_type !== "mengajar"), [schedules]);
   const subjects = useMemo(() => {
-    const names = teachingSchedules.map((schedule) => getScheduleSubjectName(schedule)).filter((name) => name && name !== "Mata Pelajaran");
+    const names = [
+      ...teachingSchedules.map((schedule) => getScheduleSubjectName(schedule)),
+      ...academicAssignments
+        .filter(isTeachingAssignment)
+        .map((assignment) => assignment.subjects?.name || assignment.subject),
+    ].filter((name) => name && name !== "Mata Pelajaran");
     return Array.from(new Set(names));
-  }, [teachingSchedules]);
+  }, [academicAssignments, teachingSchedules]);
   const assignedClassNames = useMemo(() => {
     const names = [
       ...teachingSchedules.map((schedule) => schedule.classes?.name).filter(Boolean),
+      ...academicAssignments.map((assignment) => assignment.classes?.name).filter(Boolean),
       ...homeroomClasses.map((cls) => cls.name).filter(Boolean),
     ];
     return Array.from(new Set(names));
-  }, [homeroomClasses, teachingSchedules]);
+  }, [academicAssignments, homeroomClasses, teachingSchedules]);
   const assignedUnits = useMemo(() => {
     const names = [
       ...schedules.map((schedule) => schedule.units?.name || schedule.classes?.units?.name).filter(Boolean),
+      ...academicAssignments.map((assignment) => assignment.classes?.units?.name).filter(Boolean),
       ...homeroomClasses.map((cls) => cls.units?.name).filter(Boolean),
     ];
     return Array.from(new Set(names));
-  }, [homeroomClasses, schedules]);
+  }, [academicAssignments, homeroomClasses, schedules]);
+  const teachingAssignments = useMemo(
+    () => academicAssignments
+      .filter(isTeachingAssignment)
+      .sort((a, b) => {
+        const classOrder = String(a.classes?.name || "").localeCompare(String(b.classes?.name || ""));
+        return classOrder || String(a.subjects?.name || a.subject || "").localeCompare(String(b.subjects?.name || b.subject || ""));
+      }),
+    [academicAssignments],
+  );
   const presentCount = attendanceRows.filter((item) => item.status === "present" || item.status === "late").length;
   const attendanceValue = attendanceRows.length > 0 ? `${presentCount}/${attendanceRows.length}` : "-";
   const followsTeachingSchedule = profile?.attendance_mode === "teaching_schedule" && canUseTeachingScheduleAttendance(profile?.position);
@@ -179,7 +215,7 @@ export const TeacherProfile: React.FC = () => {
     { label: "Kontak aktif", done: Boolean(profile?.phone || profile?.email) },
     { label: "Unit dan jabatan", done: Boolean(profile?.unit_id && profile?.position) },
     { label: "Jabatan utama", done: Boolean(profile?.position) },
-    { label: followsTeachingSchedule ? "Jadwal mengajar untuk absensi" : "Penugasan periode aktif", done: followsTeachingSchedule ? teachingSchedules.length > 0 : teachingSchedules.length > 0 || homeroomClasses.length > 0 || halaqohs.length > 0 },
+    { label: followsTeachingSchedule ? "Jadwal mengajar untuk absensi" : "Penugasan periode aktif", done: followsTeachingSchedule ? teachingSchedules.length > 0 : academicAssignments.length > 0 || teachingSchedules.length > 0 || homeroomClasses.length > 0 || halaqohs.length > 0 },
   ];
   const completed = checklist.filter((item) => item.done).length;
 
@@ -333,6 +369,35 @@ export const TeacherProfile: React.FC = () => {
             </div>
           )}
         </div>
+      </section>
+
+      <section className="rounded-lg border bg-white p-5 shadow-sm">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h3 className="flex items-center gap-2 font-bold text-gray-900">
+            <BookOpen className="h-5 w-5 text-emerald-600" />
+            Mata Pelajaran & Kelas Diampu
+          </h3>
+          <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-black text-emerald-700">{teachingAssignments.length}</span>
+        </div>
+        {teachingAssignments.length === 0 ? (
+          <p className="rounded-md border border-dashed p-6 text-center text-sm text-gray-500">Belum ada penugasan mata pelajaran pada periode aktif.</p>
+        ) : (
+          <div className="grid gap-2 sm:grid-cols-2">
+            {teachingAssignments.map((assignment) => (
+              <div key={assignment.id} className="flex min-w-0 items-center justify-between gap-3 rounded-md border bg-gray-50 px-3 py-2">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-bold text-gray-900">{assignment.subjects?.name || assignment.subject || "Mata pelajaran"}</p>
+                  <p className="truncate text-xs text-gray-500">
+                    {[assignment.classes?.name, assignment.classes?.units?.name].filter(Boolean).join(" - ") || "Kelas belum ditautkan"}
+                  </p>
+                </div>
+                {assignment.hours_per_week ? (
+                  <span className="shrink-0 rounded bg-white px-2 py-1 text-[10px] font-bold text-gray-600">{assignment.hours_per_week} JP</span>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="rounded-2xl border bg-white p-5 shadow-sm">

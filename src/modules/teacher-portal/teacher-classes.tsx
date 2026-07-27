@@ -1,11 +1,28 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useMemo, useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import { supabaseClient } from "../../lib/supabase/client";
-import { Users, CheckSquare, Award, Loader2, Save, BookOpenCheck, CircleAlert } from "lucide-react";
+import {
+  Award,
+  BookOpenCheck,
+  CheckSquare,
+  ChevronDown,
+  CircleAlert,
+  GraduationCap,
+  Loader2,
+  Save,
+  UserRoundCheck,
+  Users,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useAcademicYear } from "../../app/providers/AcademicYearProvider";
 import { getScheduleSubjectName } from "../schedules/schedule-utils";
 import { getAssessmentGradeTypes } from "../curriculum/assessment-policy";
+import {
+  isHomeroomAssignment,
+  isTeachingAssignment,
+  loadTeacherAcademicAssignments,
+} from "./teacher-assignment-data";
 
 type AttendanceStatus = "hadir" | "izin" | "sakit" | "alpa" | "terlambat" | "pulang_awal";
 type SubjectOption = {
@@ -43,11 +60,20 @@ const getLocalDateString = () => {
   return `${date.getFullYear()}-${month}-${day}`;
 };
 
+function normalizeSubjectName(value?: string | null) {
+  return String(value || "")
+    .replace(/\s*\(kelompok\s+\d+\)\s*$/i, "")
+    .trim()
+    .toLowerCase();
+}
+
 export const TeacherClasses: React.FC = () => {
   const { employee } = useOutletContext<any>();
   const { activeYearId, activeSemesterId } = useAcademicYear();
   const [classes, setClasses] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [classView, setClassView] = useState<"all" | "homeroom" | "teaching">("all");
+  const [expandedClassIds, setExpandedClassIds] = useState<Set<string>>(new Set());
   
   // States for Student List Modal (for Attendance/Grades)
   const [selectedClass, setSelectedClass] = useState<any>(null);
@@ -79,34 +105,124 @@ export const TeacherClasses: React.FC = () => {
       try {
         let scheduleQuery = supabaseClient
           .from("employee_schedules")
-          .select("class_id, subject_id, subject, classes(id, name, level, grade_level, capacity, homeroom_teacher_id, unit_id), subjects(id, name)")
-          .eq("employee_id", employee.id);
+          .select("class_id, subject_id, subject, classes(id, name, level, grade_level, capacity, homeroom_teacher_id, unit_id, academic_year_id, units(id, name, education_level)), subjects(id, name)")
+          .eq("employee_id", employee.id)
+          .eq("schedule_type", "mengajar")
+          .not("class_id", "is", null);
         if (activeYearId) scheduleQuery = scheduleQuery.eq("academic_year_id", activeYearId);
         if (activeSemesterId) scheduleQuery = scheduleQuery.eq("semester_id", activeSemesterId);
 
-        const { data: schedules } = await scheduleQuery;
-        const { data: homeroomClasses } = await supabaseClient
+        let homeroomQuery = supabaseClient
           .from("classes")
-          .select("id, name, level, grade_level, capacity, homeroom_teacher_id, unit_id")
+          .select("id, name, level, grade_level, capacity, homeroom_teacher_id, unit_id, academic_year_id, units(id, name, education_level)")
           .eq("homeroom_teacher_id", employee.id);
+        if (activeYearId) homeroomQuery = homeroomQuery.eq("academic_year_id", activeYearId);
 
+        const [scheduleResult, assignmentResult, homeroomResult] = await Promise.all([
+          scheduleQuery,
+          loadTeacherAcademicAssignments({
+            employeeId: employee.id,
+            academicYearId: activeYearId,
+            semesterId: activeSemesterId,
+          }),
+          homeroomQuery,
+        ]);
+        if (scheduleResult.error) {
+          toast.error("Jadwal mengajar belum dapat dimuat", { description: scheduleResult.error.message });
+        }
+        if (assignmentResult.error) {
+          toast.error("Penugasan akademik belum dapat dimuat", { description: assignmentResult.error.message });
+        }
+
+        const schedules = (scheduleResult.data || []) as any[];
+        const assignments = (assignmentResult.data || []) as any[];
         const map = new Map<string, any>();
-        (schedules || []).forEach((schedule: any) => {
+        const ensureClass = (cls: any) => {
+          if (!cls?.id) return null;
+          const current = map.get(cls.id) ?? {
+            ...cls,
+            _subjects: [],
+            _students: [],
+            _isHomeroom: false,
+            _isTeaching: false,
+            _assignmentRoles: [],
+          };
+          map.set(cls.id, current);
+          return current;
+        };
+
+        schedules.forEach((schedule: any) => {
           const cls = schedule.classes;
-          if (!cls?.id) return;
-          const current = map.get(cls.id) ?? { ...cls, _subjects: [] };
+          const current = ensureClass(cls);
+          if (!current) return;
+          current._isTeaching = true;
           const subjectName = getScheduleSubjectName(schedule);
           const subjectOption: SubjectOption = { id: schedule.subject_id || schedule.subjects?.id || null, name: subjectName };
-          if (subjectName && !current._subjects.some((subject: SubjectOption) => subject.name === subjectName)) {
+          if (subjectName && !current._subjects.some(
+            (subject: SubjectOption) => normalizeSubjectName(subject.name) === normalizeSubjectName(subjectName),
+          )) {
             current._subjects.push(subjectOption);
           }
-          map.set(cls.id, current);
         });
-        (homeroomClasses || []).forEach((cls: any) => {
-          map.set(cls.id, map.get(cls.id) ?? { ...cls, _subjects: [] });
+
+        assignments.forEach((assignment: any) => {
+          const current = ensureClass(assignment.classes);
+          if (!current) return;
+          if (!current._assignmentRoles.includes(assignment.role_type)) {
+            current._assignmentRoles.push(assignment.role_type);
+          }
+          if (isHomeroomAssignment(assignment)) current._isHomeroom = true;
+          if (!isTeachingAssignment(assignment)) return;
+          current._isTeaching = true;
+
+          const subjectName = assignment.subjects?.name || assignment.subject;
+          if (!subjectName) return;
+          const matchingSchedule = schedules.find(
+            (schedule: any) =>
+              schedule.class_id === assignment.class_id
+              && normalizeSubjectName(getScheduleSubjectName(schedule)) === normalizeSubjectName(subjectName),
+          );
+          const subjectOption: SubjectOption = {
+            id: assignment.subject_id || assignment.subjects?.id || matchingSchedule?.subject_id || matchingSchedule?.subjects?.id || null,
+            name: subjectName,
+            weeklyHours: assignment.hours_per_week ?? null,
+          };
+          const existingSubject = current._subjects.find(
+            (subject: SubjectOption) => normalizeSubjectName(subject.name) === normalizeSubjectName(subjectName),
+          );
+          if (existingSubject) {
+            Object.assign(existingSubject, {
+              id: existingSubject.id || subjectOption.id,
+              weeklyHours: subjectOption.weeklyHours ?? existingSubject.weeklyHours,
+            });
+          } else {
+            current._subjects.push(subjectOption);
+          }
+        });
+
+        (homeroomResult.data || []).forEach((cls: any) => {
+          const current = ensureClass(cls);
+          if (current) current._isHomeroom = true;
         });
 
         const classRows = Array.from(map.values());
+        const classIds = classRows.map((cls) => cls.id);
+        if (classIds.length > 0) {
+          const { data: studentRows, error: studentsError } = await supabaseClient
+            .from("students")
+            .select("id, full_name, nis, nisn, gender, class_id")
+            .in("class_id", classIds)
+            .eq("status", "active")
+            .order("full_name");
+          if (studentsError) {
+            toast.error("Daftar siswa belum dapat dimuat", { description: studentsError.message });
+          } else {
+            classRows.forEach((cls) => {
+              cls._students = (studentRows || []).filter((student: any) => student.class_id === cls.id);
+            });
+          }
+        }
+
         const subjectIds = [...new Set<string>(
           classRows.flatMap((cls) => (cls._subjects || []).map((subject: SubjectOption) => subject.id).filter(Boolean)),
         )];
@@ -133,7 +249,7 @@ export const TeacherClasses: React.FC = () => {
                 return {
                   ...subject,
                   curriculumStatus: semesterPlan?.status || "missing",
-                  weeklyHours: semesterPlan?.weekly_hours ?? null,
+                  weeklyHours: semesterPlan?.weekly_hours ?? subject.weeklyHours ?? null,
                   curriculumSemesterId: semesterPlan?.id || null,
                   includeInReport: semesterPlan?.include_in_report !== false,
                   finalAssessmentType: semesterPlan?.final_assessment_type,
@@ -144,7 +260,10 @@ export const TeacherClasses: React.FC = () => {
           }
         }
 
-        setClasses(classRows.sort((a, b) => String(a.name).localeCompare(String(b.name))));
+        setClasses(classRows.sort((a, b) => {
+          if (a._isHomeroom !== b._isHomeroom) return a._isHomeroom ? -1 : 1;
+          return String(a.name).localeCompare(String(b.name));
+        }));
       } catch (err) {
         console.error(err);
       } finally {
@@ -153,6 +272,27 @@ export const TeacherClasses: React.FC = () => {
     };
     fetchClasses();
   }, [activeSemesterId, activeYearId, employee.id]);
+
+  const classSummary = useMemo(() => {
+    const homeroomClasses = classes.filter((cls) => cls._isHomeroom);
+    const teachingClasses = classes.filter((cls) => cls._isTeaching);
+    return {
+      homeroomClasses: homeroomClasses.length,
+      homeroomStudents: homeroomClasses.reduce((total, cls) => total + (cls._students?.length || 0), 0),
+      teachingClasses: teachingClasses.length,
+      subjects: new Set(
+        teachingClasses.flatMap((cls) => (cls._subjects || []).map((subject: SubjectOption) => normalizeSubjectName(subject.name))),
+      ).size,
+    };
+  }, [classes]);
+  const visibleClasses = useMemo(
+    () => classes.filter((cls) =>
+      classView === "all"
+      || (classView === "homeroom" && cls._isHomeroom)
+      || (classView === "teaching" && cls._isTeaching)
+    ),
+    [classView, classes],
+  );
 
   const selectedSubjectOffering = useMemo(
     () => (selectedClass?._subjects || []).find((subject: SubjectOption) => String(subject.id) === String(selectedSubjectId)),
@@ -369,40 +509,83 @@ export const TeacherClasses: React.FC = () => {
   }
 
   return (
-    <div className="p-4 space-y-4">
-      <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2 mb-6">
-        <Users className="w-6 h-6 text-primary" /> Kelola Kelas
-      </h2>
-
-      <div className="rounded-2xl border bg-white p-4 shadow-sm">
-        <p className="text-sm font-bold text-gray-900">Ruang kerja kelas berdasarkan penugasan</p>
-        <p className="mt-1 text-xs leading-5 text-gray-500">
-          Daftar ini hanya menampilkan kelas wali dan kelas yang memiliki jadwal mengajar untuk Anda pada tahun ajaran aktif. Absensi dan nilai yang disimpan langsung masuk ke data sekolah.
+    <div className="space-y-5 p-4 md:p-0">
+      <header>
+        <h2 className="flex items-center gap-2 text-xl font-bold text-gray-950">
+          <Users className="h-6 w-6 text-primary" /> Kelas & Siswa
+        </h2>
+        <p className="mt-1 text-sm text-gray-500">
+          Kelas wali, kelas yang diampu, daftar siswa aktif, absensi, dan penilaian pada periode akademik aktif.
         </p>
-      </div>
+      </header>
+
+      <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {[
+          { label: "Kelas Wali", value: classSummary.homeroomClasses, icon: UserRoundCheck, tone: "bg-amber-50 text-amber-700" },
+          { label: "Siswa Wali", value: classSummary.homeroomStudents, icon: Users, tone: "bg-emerald-50 text-emerald-700" },
+          { label: "Kelas Diampu", value: classSummary.teachingClasses, icon: GraduationCap, tone: "bg-blue-50 text-blue-700" },
+          { label: "Mata Pelajaran", value: classSummary.subjects, icon: BookOpenCheck, tone: "bg-violet-50 text-violet-700" },
+        ].map(({ label, value, icon: Icon, tone }) => (
+          <div key={label} className="rounded-lg border bg-white p-4 shadow-sm">
+            <div className={`mb-3 flex h-9 w-9 items-center justify-center rounded-md ${tone}`}>
+              <Icon className="h-5 w-5" />
+            </div>
+            <p className="text-2xl font-black text-gray-950">{value}</p>
+            <p className="text-xs font-semibold text-gray-500">{label}</p>
+          </div>
+        ))}
+      </section>
+
+      <section className="rounded-lg border bg-white p-4 shadow-sm">
+        <p className="text-sm font-bold text-gray-900">Ruang kerja berdasarkan surat penugasan</p>
+        <p className="mt-1 text-xs leading-5 text-gray-500">
+          Penugasan wali kelas dan pengampu mata pelajaran menjadi acuan utama. Jadwal mengajar melengkapi jam pelaksanaan, sedangkan jumlah siswa dihitung dari data aktif kelas.
+        </p>
+        <div className="mt-4 grid grid-cols-3 rounded-md border bg-gray-50 p-1">
+          {[
+            { value: "all", label: "Semua" },
+            { value: "homeroom", label: "Kelas Wali" },
+            { value: "teaching", label: "Diampu" },
+          ].map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => setClassView(option.value as typeof classView)}
+              className={`h-9 rounded px-2 text-xs font-bold transition ${
+                classView === option.value ? "bg-white text-primary shadow-sm" : "text-gray-500 hover:text-gray-900"
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      </section>
 
       <div className="space-y-4 pb-8">
-        {classes.length === 0 && (
-          <div className="bg-white rounded-2xl border border-dashed p-8 text-center text-sm text-gray-500">
-            Belum ada kelas yang ditugaskan kepada Anda pada tahun ajaran aktif.
+        {visibleClasses.length === 0 && (
+          <div className="rounded-lg border border-dashed bg-white p-8 text-center text-sm text-gray-500">
+            Tidak ada kelas pada kategori ini untuk periode aktif.
           </div>
         )}
-        {classes.map((cls) => (
-          <div key={cls.id} className="bg-white border rounded-2xl shadow-sm overflow-hidden">
-            <div className="p-4 border-b bg-gray-50 flex justify-between items-center">
-              <div>
-                <h3 className="font-bold text-gray-900 text-lg flex items-center gap-2">
+        {visibleClasses.map((cls) => (
+          <div key={cls.id} className="overflow-hidden rounded-lg border bg-white shadow-sm">
+            <div className="flex items-start justify-between gap-3 border-b bg-gray-50 p-4">
+              <div className="min-w-0">
+                <h3 className="flex flex-wrap items-center gap-2 text-lg font-bold text-gray-900">
                   {cls.name}
-                  {cls.homeroom_teacher_id === employee.id && (
-                    <span className="bg-amber-100 text-amber-700 text-[10px] px-2 py-0.5 rounded-full border border-amber-200 uppercase tracking-wide">Wali Kelas</span>
+                  {cls._isHomeroom && (
+                    <span className="rounded-full border border-amber-200 bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-700">Wali Kelas</span>
+                  )}
+                  {cls._isTeaching && (
+                    <span className="rounded-full border border-blue-200 bg-blue-100 px-2 py-0.5 text-[10px] font-bold uppercase text-blue-700">Pengampu</span>
                   )}
                 </h3>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Tingkat: {cls.level}
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {[cls.units?.name, `Tingkat ${cls.grade_level || cls.level || "-"}`].filter(Boolean).join(" - ")}
                 </p>
               </div>
-              <div className="bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-bold shrink-0">
-                {cls.capacity} Siswa
+              <div className="shrink-0 rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">
+                {cls._students?.length || 0} siswa aktif
               </div>
             </div>
 
@@ -410,7 +593,7 @@ export const TeacherClasses: React.FC = () => {
               <div className="space-y-2 border-b px-4 py-3">
                 <div className="flex items-center gap-2 text-xs font-bold text-gray-700">
                   <BookOpenCheck className="h-4 w-4 text-emerald-600" />
-                  Perangkat Semester Aktif
+                  Mata Pelajaran yang Diampu
                 </div>
                 <div className="grid gap-2 sm:grid-cols-2">
                   {cls._subjects.map((subject: SubjectOption) => {
@@ -438,22 +621,69 @@ export const TeacherClasses: React.FC = () => {
                 )}
               </div>
             )}
-            
-            <div className="grid grid-cols-2 divide-x">
-              <button 
-                onClick={() => openClassAction(cls, "attendance")}
-                className="p-3 flex flex-col items-center justify-center gap-2 hover:bg-gray-50 transition"
+
+            <div className="border-b">
+              <button
+                type="button"
+                onClick={() => setExpandedClassIds((current) => {
+                  const next = new Set(current);
+                  if (next.has(cls.id)) next.delete(cls.id);
+                  else next.add(cls.id);
+                  return next;
+                })}
+                className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-gray-50"
+                aria-expanded={expandedClassIds.has(cls.id)}
               >
-                <CheckSquare className="w-5 h-5 text-emerald-600" />
-                <span className="text-xs font-bold text-gray-700">Absensi Harian</span>
+                <span className="flex items-center gap-2 text-xs font-bold text-gray-700">
+                  <Users className="h-4 w-4 text-primary" />
+                  Daftar {cls._students?.length || 0} siswa aktif
+                </span>
+                <ChevronDown className={`h-4 w-4 text-gray-400 transition ${expandedClassIds.has(cls.id) ? "rotate-180" : ""}`} />
               </button>
-              <button 
-                onClick={() => openClassAction(cls, "grades")}
-                className="p-3 flex flex-col items-center justify-center gap-2 hover:bg-gray-50 transition"
-              >
-                <Award className="w-5 h-5 text-blue-600" />
-                <span className="text-xs font-bold text-gray-700">Input Nilai</span>
-              </button>
+              {expandedClassIds.has(cls.id) && (
+                <div className="border-t bg-gray-50/70 p-3">
+                  {cls._students?.length ? (
+                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                      {cls._students.map((student: any, index: number) => (
+                        <div key={student.id} className="flex min-w-0 items-center gap-3 rounded-md border bg-white px-3 py-2">
+                          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-black text-primary">
+                            {index + 1}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="truncate text-xs font-bold text-gray-900">{student.full_name}</p>
+                            <p className="truncate text-[10px] text-gray-500">NIS {student.nis || student.nisn || "-"}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="py-4 text-center text-xs text-gray-500">Belum ada siswa aktif yang terhubung ke kelas ini.</p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className={`grid divide-x ${cls._isHomeroom && cls._subjects?.some((subject: SubjectOption) => subject.id) ? "grid-cols-2" : "grid-cols-1"}`}>
+              {cls._isHomeroom && (
+                <button
+                  type="button"
+                  onClick={() => openClassAction(cls, "attendance")}
+                  className="flex items-center justify-center gap-2 p-3 transition hover:bg-gray-50"
+                >
+                  <CheckSquare className="h-5 w-5 text-emerald-600" />
+                  <span className="text-xs font-bold text-gray-700">Absensi Harian</span>
+                </button>
+              )}
+              {cls._subjects?.some((subject: SubjectOption) => subject.id) && (
+                <button
+                  type="button"
+                  onClick={() => openClassAction(cls, "grades")}
+                  className="flex items-center justify-center gap-2 p-3 transition hover:bg-gray-50"
+                >
+                  <Award className="h-5 w-5 text-blue-600" />
+                  <span className="text-xs font-bold text-gray-700">Input Nilai Mapel</span>
+                </button>
+              )}
             </div>
           </div>
         ))}
