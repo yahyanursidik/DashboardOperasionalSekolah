@@ -23,6 +23,7 @@ import { supabaseClient } from "../../lib/supabase/client";
 import { getEmployeePosition } from "../employees/employee-role-config";
 import { loadTeacherAssignedUnitIds } from "../schedules/schedule-data";
 import { loadTeacherAssignedClassIds } from "./teacher-assignment-data";
+import { publishDueAnnouncements } from "../../lib/announcements/publish-due";
 
 const localReadKey = "teacher_portal_read_announcement_ids";
 
@@ -66,6 +67,7 @@ export const TeacherLayout: React.FC = () => {
 
       const currentEmployee = empData as any;
       setEmployee(currentEmployee);
+      await publishDueAnnouncements();
 
       let scheduledClassQuery = supabaseClient
         .from("employee_schedules")

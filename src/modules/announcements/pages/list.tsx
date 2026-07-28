@@ -1,8 +1,10 @@
-import React, { useState } from "react";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import React, { useEffect, useState } from "react";
 import { useList, useDelete } from "@refinedev/core";
 import { Link, useNavigate } from "react-router-dom";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { Megaphone, Plus, Trash2, Edit, CheckCircle2, Clock, Eye, XCircle, AlertCircle } from "lucide-react";
+import { publishDueAnnouncements } from "../../../lib/announcements/publish-due";
 
 const statusConfig: Record<string, { label: string, color: string, icon: any }> = {
   draft: { label: "Draft", color: "bg-slate-100 text-slate-800", icon: Edit },
@@ -29,7 +31,7 @@ export const AnnouncementsList: React.FC = () => {
   if (filterStatus) filters.push({ field: "status", operator: "eq", value: filterStatus });
   if (filterTarget) filters.push({ field: "target_type", operator: "eq", value: filterTarget });
 
-  const { data, isLoading } = useList({
+  const { data, isLoading, refetch } = useList({
     resource: "announcements",
     meta: { select: "*, author:profiles!created_by(full_name), units(name), classes(name)" },
     filters,
@@ -37,6 +39,14 @@ export const AnnouncementsList: React.FC = () => {
   });
 
   const { mutate: deleteData } = useDelete();
+
+  useEffect(() => {
+    const synchronizeScheduledAnnouncements = async () => {
+      const publishedCount = await publishDueAnnouncements();
+      if (publishedCount > 0) await refetch();
+    };
+    void synchronizeScheduledAnnouncements();
+  }, [refetch]);
 
   return (
     <div className="space-y-6">

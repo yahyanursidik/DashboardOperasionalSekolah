@@ -65,7 +65,12 @@ export const PortalLogin: React.FC = () => {
         return;
       }
 
-      await supabaseClient.rpc("link_my_account");
+      const { data: accountLinked, error: linkError } = await supabaseClient.rpc("ensure_parent_portal_account");
+      if (linkError || !accountLinked) {
+        await supabaseClient.auth.signOut();
+        toast.error("Akun orang tua belum dapat ditautkan. Hubungi Tata Usaha untuk memeriksa email dan status akun.");
+        return;
+      }
       toast.success("Selamat datang di Portal Orang Tua.");
       navigate("/portal", { replace: true });
     } catch (error: any) {
