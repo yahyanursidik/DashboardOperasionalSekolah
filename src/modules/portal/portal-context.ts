@@ -8,6 +8,12 @@ export type ParentPortalParent = {
   occupation?: string | null;
 };
 
+export type ParentPortalGuardian = ParentPortalParent & {
+  relationship?: string | null;
+  is_primary?: boolean;
+  can_access_parent_portal?: boolean;
+};
+
 export type ParentPortalStudent = {
   id: string;
   full_name?: string | null;
@@ -21,6 +27,7 @@ export type ParentPortalStudent = {
   photoUrl?: string | null;
   relationship?: string | null;
   is_primary_guardian?: boolean;
+  guardians?: ParentPortalGuardian[];
   classes?: {
     id?: string;
     name?: string | null;

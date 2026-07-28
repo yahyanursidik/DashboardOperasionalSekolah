@@ -4,16 +4,14 @@ import { supabaseClient } from "../../lib/supabase/client";
 import { Home, Wallet, BookOpen, LogOut, Smile, ClipboardList, Bell, Target, FileText, MoreHorizontal, X, Users, UserRound, CalendarCheck, LifeBuoy, Library } from "lucide-react";
 import { useSystemSettings } from "../../app/providers/SettingsProvider";
 import type { ParentPortalParent, ParentPortalStudent } from "./portal-context";
-
-type LinkedStudentRow = {
-  relationship?: string | null;
-  is_primary?: boolean | null;
-  can_access_parent_portal?: boolean | null;
-  students?: ParentPortalStudent | null;
-};
+import { publishDueAnnouncements } from "../../lib/announcements/publish-due";
 
 type AnnouncementIdRow = { id: string };
 type AnnouncementReadRow = { announcement_id: string };
+type ParentWorkspace = {
+  parent: ParentPortalParent | null;
+  students: ParentPortalStudent[];
+};
 
 export const PortalLayout: React.FC = () => {
   const navigate = useNavigate();
@@ -24,55 +22,50 @@ export const PortalLayout: React.FC = () => {
   const [selectedStudentId, setSelectedStudentId] = useState("");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [unreadAnnouncements, setUnreadAnnouncements] = useState(0);
 
-  useEffect(() => {
-    const fetchSession = async () => {
-      const { data: { session } } = await supabaseClient.auth.getSession();
-      if (!session) {
-        navigate("/portal/login");
-        return;
-      }
+  const fetchWorkspace = useCallback(async () => {
+    setIsLoading(true);
+    setLoadError("");
 
-      const { data: parentDataResult, error: parentError } = await supabaseClient
-        .from("parents")
-        .select("id, full_name, phone, email, address, nik, occupation")
-        .eq("user_id", session.user.id)
-        .single();
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (!session) {
+      navigate("/portal/login");
+      return;
+    }
 
-      if (parentError || !parentDataResult) {
-        await supabaseClient.auth.signOut();
-        navigate("/portal/login");
-        return;
-      }
-
-      const parentData = parentDataResult as unknown as ParentPortalParent;
-      setParent(parentData);
-      const { data: linkedStudents } = await supabaseClient
-        .from("student_parent_links")
-        .select("relationship, is_primary, can_access_parent_portal, students(*, classes(id, name, unit_id, units(name,education_level)))")
-        .eq("parent_id", parentData.id)
-        .order("created_at", { ascending: true });
-
-      const mappedStudents: ParentPortalStudent[] = ((linkedStudents || []) as unknown as LinkedStudentRow[])
-        .filter((item) => item.can_access_parent_portal !== false)
-        .flatMap((item) => item.students ? [{
-          ...item.students,
-          relationship: item.relationship,
-          is_primary_guardian: Boolean(item.is_primary),
-        }] : []);
-
-      if (mappedStudents.length > 0) {
-        setStudents(mappedStudents);
-        setSelectedStudentId((current) => current || mappedStudents[0].id);
-      } else {
-        setStudents([]);
-      }
+    await publishDueAnnouncements();
+    const { data, error } = await supabaseClient.rpc("get_parent_portal_workspace");
+    if (error) {
+      setLoadError("Data portal belum dapat dimuat. Periksa koneksi lalu coba lagi.");
       setIsLoading(false);
-    };
+      return;
+    }
 
-    fetchSession();
+    const workspace = data as unknown as ParentWorkspace;
+    if (!workspace?.parent) {
+      await supabaseClient.auth.signOut();
+      navigate("/portal/login");
+      return;
+    }
+
+    const accessibleStudents = workspace.students || [];
+    setParent(workspace.parent);
+    setStudents(accessibleStudents);
+    setSelectedStudentId((current) => (
+      accessibleStudents.some((item) => item.id === current)
+        ? current
+        : accessibleStudents[0]?.id || ""
+    ));
+    setIsLoading(false);
   }, [navigate]);
+
+  useEffect(() => {
+    // The workspace request resolves asynchronously before updating portal state.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void fetchWorkspace();
+  }, [fetchWorkspace]);
 
   const refreshUnreadAnnouncements = useCallback(async () => {
     if (!parent?.id) return;
@@ -136,6 +129,16 @@ export const PortalLayout: React.FC = () => {
   const parentContext = useMemo(() => ({ parent, student, students, selectedStudentId, setSelectedStudentId, unreadAnnouncements, refreshUnreadAnnouncements }), [parent, student, students, selectedStudentId, unreadAnnouncements, refreshUnreadAnnouncements]);
 
   if (isLoading) return <div className="min-h-screen flex items-center justify-center bg-gray-50 text-sm text-gray-500">Memuat portal orang tua...</div>;
+  if (loadError) return (
+    <div className="min-h-screen bg-gray-50 p-6 flex items-center justify-center">
+      <div className="max-w-md rounded-lg border border-amber-200 bg-white p-6 text-center shadow-sm">
+        <Users className="mx-auto h-10 w-10 text-amber-500" />
+        <h1 className="mt-3 text-lg font-bold text-gray-900">Portal belum dapat dimuat</h1>
+        <p className="mt-2 text-sm leading-6 text-gray-500">{loadError}</p>
+        <button onClick={() => void fetchWorkspace()} className="mt-5 rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">Coba Lagi</button>
+      </div>
+    </div>
+  );
   if (!parent || !student) return (
     <div className="min-h-screen bg-gray-50 p-6 flex items-center justify-center">
       <div className="max-w-md rounded-lg border bg-white p-6 text-center shadow-sm">

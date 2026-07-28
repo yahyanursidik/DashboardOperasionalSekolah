@@ -5,6 +5,7 @@ import { Bell, BookOpenCheck, Calendar, CalendarCheck, FileWarning, Home, Librar
 import { useSystemSettings } from "../../app/providers/SettingsProvider";
 import { supabaseClient } from "../../lib/supabase/client";
 import { formatStaffPosition, getInitials, staffPortalPositions } from "./staff-utils";
+import { publishDueAnnouncements } from "../../lib/announcements/publish-due";
 
 type NavItem = { to: string; label: string; icon: React.ElementType; exact?: boolean; badge?: number };
 type NavGroup = { label: string; items: NavItem[] };
@@ -34,6 +35,7 @@ export const StaffLayout: React.FC = () => {
       if (!accessError && !hasAccess) { await supabaseClient.auth.signOut(); navigate("/staff/login", { replace: true }); return; }
       setEmployee(currentEmployee);
       setIsLoading(false);
+      await publishDueAnnouncements();
 
       const [{ data: tasks }, { data: reports }, { data: announcements }, readsResult, { data: eventParticipations }, { data: overtimeRows }] = await Promise.all([
         supabaseClient.from("admin_tasks").select("id,status").eq("assigned_to", session.user.id),

@@ -5,7 +5,7 @@ import { BookOpen, CalendarDays, CheckCircle2, GraduationCap, IdCard, Mail, MapP
 import { useAcademicYear } from "../../app/providers/AcademicYearProvider";
 import { LessonSchedulePanel } from "../schedules/components/LessonSchedulePanel";
 import { loadStudentLearningSchedules } from "../schedules/schedule-data";
-import type { ParentPortalContext } from "./portal-context";
+import type { ParentPortalContext, ParentPortalGuardian } from "./portal-context";
 
 function formatGender(gender?: string | null) {
   if (gender === "L") return "Ikhwan";
@@ -21,6 +21,10 @@ function getInitials(name?: string | null) {
     .map((word) => word[0])
     .join("")
     .toUpperCase();
+}
+
+function guardianRelationshipLabel(relationship?: string | null) {
+  return ({ father: "Ayah", mother: "Ibu", guardian: "Wali" } as Record<string, string>)[relationship || ""] || "Orang tua / wali";
 }
 
 export const PortalProfile: React.FC = () => {
@@ -64,7 +68,13 @@ export const PortalProfile: React.FC = () => {
     { label: "Jadwal pelajaran", done: schedules.length > 0 },
   ];
 
-  const relationshipLabel = ({ father: "Ayah", mother: "Ibu", guardian: "Wali" } as Record<string, string>)[student.relationship || ""] || "Orang tua / wali";
+  const guardians: ParentPortalGuardian[] = student.guardians?.length
+    ? student.guardians
+    : [{
+      ...parent,
+      relationship: student.relationship,
+      is_primary: student.is_primary_guardian,
+    }];
 
   return (
     <div className="p-4 space-y-6">
@@ -148,25 +158,38 @@ export const PortalProfile: React.FC = () => {
         </div>
       </section>
 
-      <section className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
+      <section className="grid gap-5 lg:grid-cols-[1.35fr_0.65fr]">
         <div className="rounded-lg border bg-white p-5 shadow-sm">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <h3 className="flex items-center gap-2 font-bold text-gray-900"><UserRound className="h-5 w-5 text-emerald-600" /> Data Orang Tua / Wali</h3>
-              <p className="mt-1 text-xs text-gray-500">Kontak utama yang dipakai sekolah untuk komunikasi resmi.</p>
+              <h3 className="flex items-center gap-2 font-bold text-gray-900"><UserRound className="h-5 w-5 text-emerald-600" /> Data Keluarga & Wali</h3>
+              <p className="mt-1 text-xs text-gray-500">Daftar orang tua atau wali yang tertaut dengan {student.full_name || "siswa"}.</p>
             </div>
-            <span className="w-max rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">{relationshipLabel}{student.is_primary_guardian ? " utama" : ""}</span>
+            <span className="w-max rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">{guardians.length} wali tertaut</span>
           </div>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            {[
-              [UserRound, "Nama", parent.full_name],
-              [Phone, "No. HP / WhatsApp", parent.phone],
-              [Mail, "Email portal", parent.email],
-              [MapPin, "Alamat", parent.address],
-            ].map(([Icon, label, value]) => {
-              const DataIcon = Icon as typeof UserRound;
-              return <div key={String(label)} className="flex gap-3 rounded-md border bg-gray-50 p-3"><DataIcon className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" /><div className="min-w-0"><p className="text-xs font-semibold text-gray-500">{String(label)}</p><p className="mt-0.5 break-words text-sm font-bold text-gray-900">{String(value || "Belum diisi")}</p></div></div>;
-            })}
+          <div className="mt-4 divide-y">
+            {guardians.map((guardian) => (
+              <article key={guardian.id} className="py-4 first:pt-0 last:pb-0">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-emerald-50 text-sm font-black text-emerald-700">{getInitials(guardian.full_name)}</div>
+                    <div className="min-w-0">
+                      <p className="truncate font-bold text-gray-900">{guardian.full_name || "Nama belum diisi"}</p>
+                      <p className="text-xs text-gray-500">{guardian.occupation || "Pekerjaan belum diisi"}</p>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    <span className="rounded-md bg-gray-100 px-2 py-1 text-[11px] font-bold text-gray-700">{guardianRelationshipLabel(guardian.relationship)}</span>
+                    {guardian.is_primary && <span className="rounded-md bg-emerald-50 px-2 py-1 text-[11px] font-bold text-emerald-700">Kontak utama</span>}
+                  </div>
+                </div>
+                <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-3">
+                  <div className="flex min-w-0 gap-2"><Phone className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" /><div className="min-w-0"><dt className="text-xs text-gray-500">No. HP / WhatsApp</dt><dd className="break-words font-semibold text-gray-900">{guardian.phone || "Belum diisi"}</dd></div></div>
+                  <div className="flex min-w-0 gap-2"><Mail className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" /><div className="min-w-0"><dt className="text-xs text-gray-500">Email kontak</dt><dd className="break-words font-semibold text-gray-900">{guardian.email || "Belum diisi"}</dd></div></div>
+                  <div className="flex min-w-0 gap-2"><MapPin className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" /><div className="min-w-0"><dt className="text-xs text-gray-500">Alamat</dt><dd className="break-words font-semibold text-gray-900">{guardian.address || "Belum diisi"}</dd></div></div>
+                </dl>
+              </article>
+            ))}
           </div>
         </div>
 
