@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { useShow, useList, useCreate, useDelete } from "@refinedev/core";
+import React, { useMemo, useState } from "react";
+import { useShow, useList, useDelete } from "@refinedev/core";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import {
   User,
@@ -31,6 +31,11 @@ import {
   FileText,
   MapPin,
   IdCard,
+  Search,
+  Check,
+  Link2,
+  UserPlus,
+  Mail,
 } from "lucide-react";
 import { AuditHistory } from "../../../components/common/AuditHistory";
 import { Link, useNavigate } from "react-router-dom";
@@ -38,6 +43,24 @@ import { calculateCompleteness, getStudentQualitySummary } from "./list";
 import { ParentForm } from "../../parents/components/parent-form";
 import { AcademicHistoryModal } from "../components/AcademicHistoryModal";
 import { toast } from "sonner";
+import { supabaseClient } from "../../../lib/supabase/client";
+
+type ParentOption = {
+  id: string;
+  full_name: string;
+  nik?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  is_active?: boolean | null;
+};
+
+const getInitials = (name: string) =>
+  name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join("") || "W";
 
 const UnlinkConfirmModal: React.FC<{
   isOpen: boolean;
@@ -157,7 +180,7 @@ export const StudentShow: React.FC = () => {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
-  const [linkMode, setLinkMode] = useState<"existing" | "new">("new");
+  const [linkMode, setLinkMode] = useState<"existing" | "new">("existing");
   
   // Tabs State
   const [activeTab, setActiveTab] = useState<"parents" | "health" | "academic" | "journals">("parents");
@@ -166,43 +189,69 @@ export const StudentShow: React.FC = () => {
   const { mutate: deleteMutate, isLoading: isUnlinking } = useDelete();
   const [unlinkModal, setUnlinkModal] = useState<{ isOpen: boolean; linkId: string; parentName: string }>({ isOpen: false, linkId: "", parentName: "" });
 
-  // Link mutation
-  const { mutate: createLink, isLoading: isLinking } = useCreate();
-
-  // If the parent form was modified to return the inserted data, we could auto-link.
-  // For now, after creating a parent, we close the form and ask user to link existing.
-
   const [selectedParentId, setSelectedParentId] = useState("");
   const [relationship, setRelationship] = useState("father");
   const [isPrimary, setIsPrimary] = useState(false);
+  const [parentSearch, setParentSearch] = useState("");
+  const [isLinking, setIsLinking] = useState(false);
 
-  // Existing parents query for linking
-  const { data: allParentsData } = useList({
+  // The default Refine page size only returned the first few guardians.
+  const { data: allParentsData, isLoading: allParentsLoading, refetch: refetchAllParents } = useList({
     resource: "parents",
+    pagination: { pageSize: 1000 },
+    sorters: [{ field: "full_name", order: "asc" }],
+    meta: { select: "id, full_name, nik, phone, email, is_active" },
     queryOptions: { enabled: linkMode === "existing" && isModalOpen }
   });
 
-  const handleLinkExisting = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedParentId) return;
+  const linkedParentIds = useMemo(
+    () => new Set((parentsData?.data || []).map((link) => String(link.parent_id))),
+    [parentsData?.data]
+  );
 
-    createLink({
-      resource: "student_parent_links",
-      values: {
-        student_id: record?.id,
-        parent_id: selectedParentId,
-        relationship: relationship,
-        is_primary: isPrimary,
-        can_access_parent_portal: true,
-      },
-      successNotification: () => ({ message: "Orang Tua Berhasil Ditautkan", type: "success" })
-    }, {
-      onSuccess: () => {
-        setIsModalOpen(false);
-        refetchParents();
-        setSelectedParentId("");
-      }
+  const filteredParents = useMemo(() => {
+    const query = parentSearch.trim().toLocaleLowerCase("id-ID");
+    const parents = (allParentsData?.data || []) as ParentOption[];
+
+    if (!query) return parents;
+    return parents.filter((parent) =>
+      [parent.full_name, parent.nik, parent.phone, parent.email]
+        .filter(Boolean)
+        .some((value) => String(value).toLocaleLowerCase("id-ID").includes(query))
+    );
+  }, [allParentsData?.data, parentSearch]);
+
+  const openParentLinkModal = () => {
+    setLinkMode("existing");
+    setSelectedParentId("");
+    setParentSearch("");
+    setRelationship("father");
+    setIsPrimary(false);
+    setIsModalOpen(true);
+  };
+
+  const handleLinkExisting = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedParentId || !record?.id || isLinking) return;
+
+    setIsLinking(true);
+    const { error } = await supabaseClient.rpc("link_student_parent", {
+      p_student_id: record.id,
+      p_parent_id: selectedParentId,
+      p_relationship: relationship,
+      p_is_primary: isPrimary,
     });
+    setIsLinking(false);
+
+    if (error) {
+      toast.error(error.code === "23505" ? "Orang tua ini sudah tertaut dengan siswa." : `Gagal menautkan orang tua: ${error.message}`);
+      return;
+    }
+
+    toast.success("Orang tua / wali berhasil ditautkan.");
+    setIsModalOpen(false);
+    setSelectedParentId("");
+    refetchParents();
   };
 
   const handleUnlink = () => {
@@ -601,10 +650,10 @@ export const StudentShow: React.FC = () => {
                 <Users className="w-5 h-5 text-blue-600" /> Orang Tua / Wali
               </h3>
               <button 
-                onClick={() => setIsModalOpen(true)}
+                onClick={openParentLinkModal}
                 className="text-sm flex items-center gap-1 bg-blue-50 text-blue-600 px-3 py-1.5 rounded-md font-medium hover:bg-blue-100 transition-colors"
               >
-                <Plus className="w-4 h-4" /> Tautkan Orang Tua
+                <Plus className="w-4 h-4" /> Tambah / Tautkan Wali
               </button>
             </div>
             
@@ -1025,77 +1074,149 @@ export const StudentShow: React.FC = () => {
       )}
       {/* MODAL: Tautkan Orang Tua */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-background rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden max-h-[90vh] flex flex-col">
-            <div className="p-4 border-b flex items-center justify-between bg-muted/30">
-              <h3 className="font-semibold text-lg">Tautkan Orang Tua / Wali</h3>
-              <button onClick={() => setIsModalOpen(false)} className="p-1 rounded-md hover:bg-muted"><X className="w-5 h-5"/></button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-3 sm:p-6" role="dialog" aria-modal="true" aria-labelledby="parent-link-title">
+          <div className={`bg-background rounded-xl shadow-xl w-full overflow-hidden max-h-[92vh] flex flex-col ${linkMode === "new" ? "max-w-5xl" : "max-w-3xl"}`}>
+            <div className="p-5 border-b flex items-start justify-between gap-4 bg-muted/30">
+              <div>
+                <h3 id="parent-link-title" className="font-semibold text-lg">Tambah Orang Tua / Wali</h3>
+                <p className="text-sm text-muted-foreground mt-1">Hubungkan wali ke <span className="font-medium text-foreground">{record?.full_name}</span> agar data keluarga dan akses portal tercatat benar.</p>
+              </div>
+              <button type="button" aria-label="Tutup dialog" onClick={() => setIsModalOpen(false)} className="p-2 rounded-md hover:bg-muted shrink-0"><X className="w-5 h-5"/></button>
             </div>
-            <div className="p-6 overflow-y-auto">
+            <div className="p-4 sm:p-6 overflow-y-auto">
               
-              <div className="flex p-1 bg-muted rounded-lg mb-6 w-full max-w-md">
+              <div className="grid grid-cols-2 p-1 bg-muted rounded-lg mb-6 w-full max-w-lg" aria-label="Cara menambahkan wali">
                 <button 
+                  type="button"
                   onClick={() => setLinkMode("new")}
-                  className={`flex-1 text-sm font-medium py-1.5 rounded-md ${linkMode === "new" ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}
-                >Buat Orang Tua Baru</button>
+                  className={`min-h-10 flex items-center justify-center gap-2 text-sm font-medium px-3 rounded-md ${linkMode === "new" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                ><UserPlus className="w-4 h-4" /> Buat Wali Baru</button>
                 <button 
+                  type="button"
                   onClick={() => setLinkMode("existing")}
-                  className={`flex-1 text-sm font-medium py-1.5 rounded-md ${linkMode === "existing" ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}
-                >Pilih yang Sudah Ada</button>
+                  className={`min-h-10 flex items-center justify-center gap-2 text-sm font-medium px-3 rounded-md ${linkMode === "existing" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                ><Link2 className="w-4 h-4" /> Pilih dari Data Wali</button>
               </div>
 
               {linkMode === "new" ? (
-                <div className="border rounded-xl p-4">
-                  <p className="text-sm text-muted-foreground mb-4">Masukkan data orang tua baru. Setelah tersimpan, Anda dapat menautkannya di tab "Pilih yang Sudah Ada".</p>
-                  <ParentForm action="create" hideActions={false} />
+                <div>
+                  <div className="mb-5 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
+                    Simpan data wali baru terlebih dahulu. Setelah tersimpan, sistem akan membuka daftar wali agar Anda dapat memilih dan menautkannya ke siswa ini.
+                  </div>
+                  <ParentForm
+                    action="create"
+                    hideActions
+                    onSuccess={() => {
+                      toast.success("Data wali baru berhasil disimpan. Silakan pilih wali tersebut.");
+                      setLinkMode("existing");
+                      refetchAllParents();
+                    }}
+                  />
+                  <div className="sticky bottom-0 -mx-4 sm:-mx-6 -mb-4 sm:-mb-6 mt-6 flex justify-end gap-3 border-t bg-background p-4 sm:px-6">
+                    <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-sm border rounded-md hover:bg-muted">Batal</button>
+                    <button type="submit" form="parent-form" className="px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/90">Simpan Data Wali</button>
+                  </div>
                 </div>
               ) : (
-                <form onSubmit={handleLinkExisting} className="space-y-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Pilih Orang Tua</label>
-                    <select 
-                      required 
-                      value={selectedParentId}
-                      onChange={(e) => setSelectedParentId(e.target.value)}
-                      className="w-full border rounded-md px-3 py-2 text-sm"
-                    >
-                      <option value="">-- Pilih --</option>
-                      {allParentsData?.data?.map((p: any) => (
-                        <option key={p.id} value={p.id}>{p.full_name} ({p.phone || "Tanpa No. HP"})</option>
-                      ))}
-                    </select>
+                <form onSubmit={handleLinkExisting} className="space-y-6">
+                  <div className="space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-1">
+                      <div>
+                        <label htmlFor="parent-search" className="text-sm font-semibold">Cari data wali</label>
+                        <p className="text-xs text-muted-foreground mt-0.5">Cari dengan nama, NIK, nomor HP, atau email.</p>
+                      </div>
+                      {!allParentsLoading && <p className="text-xs text-muted-foreground">{allParentsData?.total || allParentsData?.data?.length || 0} data wali dimuat</p>}
+                    </div>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <input
+                        id="parent-search"
+                        type="search"
+                        value={parentSearch}
+                        onChange={(event) => setParentSearch(event.target.value)}
+                        placeholder="Contoh: Siti Aminah atau 0812..."
+                        className="w-full min-h-11 border rounded-md pl-10 pr-3 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                      />
+                    </div>
+
+                    <div className="border rounded-lg overflow-hidden" aria-live="polite">
+                      {allParentsLoading ? (
+                        <div className="min-h-40 flex items-center justify-center gap-2 text-sm text-muted-foreground"><Loader2 className="w-4 h-4 animate-spin" /> Memuat seluruh data wali...</div>
+                      ) : filteredParents.length === 0 ? (
+                        <div className="min-h-40 flex flex-col items-center justify-center text-center px-6">
+                          <Users className="w-8 h-8 text-muted-foreground/50 mb-3" />
+                          <p className="font-medium text-sm">Data wali tidak ditemukan</p>
+                          <p className="text-xs text-muted-foreground mt-1">Periksa kata pencarian atau buat data wali baru.</p>
+                          <button type="button" onClick={() => setLinkMode("new")} className="mt-4 text-sm font-medium text-primary hover:underline">Buat wali baru</button>
+                        </div>
+                      ) : (
+                        <div className="max-h-72 overflow-y-auto divide-y">
+                          {filteredParents.map((parent) => {
+                            const alreadyLinked = linkedParentIds.has(parent.id);
+                            const inactive = parent.is_active === false;
+                            const disabled = alreadyLinked || inactive;
+                            const selected = selectedParentId === parent.id;
+                            return (
+                              <button
+                                key={parent.id}
+                                type="button"
+                                disabled={disabled}
+                                onClick={() => setSelectedParentId(parent.id)}
+                                className={`w-full min-h-16 px-4 py-3 flex items-center gap-3 text-left transition-colors ${selected ? "bg-primary/10" : "hover:bg-muted/50"} ${disabled ? "opacity-60 cursor-not-allowed" : ""}`}
+                              >
+                                <span className="w-10 h-10 rounded-full bg-blue-50 text-blue-700 flex items-center justify-center shrink-0 text-sm font-bold">{getInitials(parent.full_name)}</span>
+                                <span className="min-w-0 flex-1">
+                                  <span className="flex flex-wrap items-center gap-2">
+                                    <span className="font-medium text-sm truncate">{parent.full_name}</span>
+                                    {alreadyLinked && <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-muted">Sudah tertaut</span>}
+                                    {inactive && <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-red-50 text-red-700">Nonaktif</span>}
+                                  </span>
+                                  <span className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                                    <span className="inline-flex items-center gap-1"><PhoneCall className="w-3 h-3" /> {parent.phone || "No. HP belum diisi"}</span>
+                                    {parent.email && <span className="inline-flex items-center gap-1 truncate"><Mail className="w-3 h-3" /> {parent.email}</span>}
+                                    {parent.nik && <span>NIK {parent.nik}</span>}
+                                  </span>
+                                </span>
+                                <span className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${selected ? "bg-primary border-primary text-primary-foreground" : "border-muted-foreground/40"}`}>
+                                  {selected && <Check className="w-3.5 h-3.5" />}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
                   </div>
                   
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">Hubungan (Status)</label>
-                    <select 
-                      value={relationship}
-                      onChange={(e) => setRelationship(e.target.value)}
-                      className="w-full border rounded-md px-3 py-2 text-sm"
-                    >
-                      <option value="father">Ayah</option>
-                      <option value="mother">Ibu</option>
-                      <option value="guardian">Wali</option>
-                    </select>
+                    <p className="text-sm font-semibold">Hubungan dengan siswa</p>
+                    <div className="grid grid-cols-3 gap-2">
+                      {[{ value: "father", label: "Ayah" }, { value: "mother", label: "Ibu" }, { value: "guardian", label: "Wali" }].map((option) => (
+                        <button key={option.value} type="button" onClick={() => setRelationship(option.value)} className={`min-h-11 border rounded-md text-sm font-medium ${relationship === option.value ? "border-primary bg-primary/10 text-primary" : "hover:bg-muted"}`}>{option.label}</button>
+                      ))}
+                    </div>
                   </div>
 
-                  <div className="space-y-2 pt-2">
-                    <label className="flex items-center gap-2 cursor-pointer">
+                  <div className="rounded-lg border p-4">
+                    <label className="flex items-start gap-3 cursor-pointer">
                       <input 
                         type="checkbox" 
                         checked={isPrimary}
                         onChange={(e) => setIsPrimary(e.target.checked)}
-                        className="rounded border-gray-300 text-primary focus:ring-primary" 
+                        className="mt-0.5 rounded border-gray-300 text-primary focus:ring-primary"
                       />
-                      <span className="text-sm font-medium">Jadikan Kontak Utama</span>
+                      <span>
+                        <span className="block text-sm font-medium">Jadikan kontak utama siswa</span>
+                        <span className="block text-xs text-muted-foreground mt-1">Kontak utama diprioritaskan untuk komunikasi resmi. Kontak utama sebelumnya akan diperbarui otomatis.</span>
+                      </span>
                     </label>
-                    <p className="text-xs text-muted-foreground ml-6">Hanya satu kontak utama per siswa. Menandai ini akan menggeser kontak utama sebelumnya.</p>
                   </div>
 
-                  <div className="flex justify-end gap-2 pt-4">
+                  <div className="sticky bottom-0 -mx-4 sm:-mx-6 -mb-4 sm:-mb-6 flex justify-end gap-3 border-t bg-background p-4 sm:px-6">
                     <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-sm border rounded-md hover:bg-muted">Batal</button>
-                    <button type="submit" disabled={isLinking} className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-md disabled:opacity-70">
-                      {isLinking ? "Menautkan..." : "Tautkan Sekarang"}
+                    <button type="submit" disabled={isLinking || !selectedParentId} className="px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-md disabled:opacity-50 flex items-center gap-2">
+                      {isLinking ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link2 className="w-4 h-4" />}
+                      {isLinking ? "Menautkan..." : "Tautkan Wali"}
                     </button>
                   </div>
                 </form>
