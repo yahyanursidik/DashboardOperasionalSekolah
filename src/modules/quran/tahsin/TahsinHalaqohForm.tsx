@@ -63,6 +63,7 @@ export const TahsinHalaqohForm: React.FC = () => {
     resource: "employees",
     optionLabel: "full_name",
     optionValue: "id",
+    filters: [{ field: "status", operator: "eq", value: "active" }],
     sorters: [{ field: "full_name", order: "asc" }],
   });
 
@@ -130,6 +131,12 @@ export const TahsinHalaqohForm: React.FC = () => {
       semester_id: formData.get("semester_id"),
       program_type: "tahsin",
     };
+
+    if (!data.employee_id) {
+      setIsSubmitting(false);
+      toast.error("Pilih guru tahsin yang menerima amanah halaqoh.");
+      return;
+    }
 
     try {
       if (isEdit) {
@@ -264,13 +271,15 @@ export const TahsinHalaqohForm: React.FC = () => {
                 <label className="text-sm font-medium">Guru Tahsin</label>
                 <select
                   name="employee_id"
+                  required
                   defaultValue={record?.employee_id || ""}
                   onChange={(event) => setFormPreview((prev) => ({ ...prev, employee_id: event.target.value }))}
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-primary/20"
                 >
-                  <option value="">-- Belum ada pengampu --</option>
+                  <option value="">-- Pilih Guru Tahsin Aktif --</option>
                   {employeeOptions?.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                 </select>
+                <p className="text-xs text-muted-foreground">Hanya pegawai aktif dengan peran pengajar yang dapat disimpan sebagai pengampu.</p>
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Deskripsi / Catatan</label>

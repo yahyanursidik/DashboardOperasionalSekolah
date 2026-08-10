@@ -104,6 +104,7 @@ const ResourceAccessMap: Record<string, RoleName[]> = {
   // Admissions (SPMB)
   'admissions': ['super_admin', 'ketua_yayasan', 'kepsek', 'wakasek', 'kepala_tu', 'admin_tu', 'admin_sekolah', 'admin_unit', 'admin_spmb'],
   'admissions_applicants': ['super_admin', 'ketua_yayasan', 'kepsek', 'wakasek', 'kepala_tu', 'admin_tu', 'admin_sekolah', 'admin_unit', 'admin_spmb'],
+  'admission_leads': ['super_admin', 'ketua_yayasan', 'kepsek', 'wakasek', 'kepala_tu', 'admin_tu', 'admin_sekolah', 'admin_unit', 'admin_spmb'],
 
   // PAUD Module
   'paud_activities': ['super_admin', 'ketua_yayasan', 'kepsek', 'admin_unit', 'guru', 'wali_kelas'],
