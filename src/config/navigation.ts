@@ -34,7 +34,8 @@ import {
   ShieldCheck,
   Send,
   BarChart3,
-  FileDown
+  FileDown,
+  ContactRound,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { RoleName } from "../lib/permissions";
@@ -168,6 +169,13 @@ export const navigationConfig: NavigationGroup[] = [
   {
     name: "SPMB",
     items: [
+      {
+        title: "CRM Calon Orang Tua",
+        href: "/admissions/crm",
+        icon: ContactRound,
+        resource: "admission_leads",
+        keywords: ["prospek", "calon wali", "follow up", "survey", "whatsapp", "referral"],
+      },
       {
         title: "Penerimaan Murid Baru",
         href: "/admissions",

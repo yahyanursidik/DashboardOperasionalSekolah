@@ -77,7 +77,7 @@ import { CbtExamsList } from "../modules/recruitment/cbt/CbtExamsList";
 import { CbtExamBanksManager } from "../modules/recruitment/cbt/CbtExamBanksManager";
 import { CbtAttemptsList } from "../modules/recruitment/cbt/CbtAttemptsList";
 import { CbtAttemptShow } from "../modules/recruitment/cbt/CbtAttemptShow";
-import { AdmissionsDashboard, AdmissionsSettings, AdmissionsReports, ApplicantsList as AdmissionsApplicantsList, ApplicantShow as AdmissionsApplicantShow } from "../modules/admissions/pages";
+import { AdmissionsDashboard, AdmissionsSettings, AdmissionsReports, ApplicantsList as AdmissionsApplicantsList, ApplicantShow as AdmissionsApplicantShow, AdmissionCrm, AdmissionLeadShow } from "../modules/admissions/pages";
 import { AcademicDashboard, Gradebook, ReportCards, ReportPrint } from "../modules/academic";
 import { SarprasDashboard, AssetLoansList, ProcurementsList, UnifiedAssetsDashboard, RoomsList, RoomSchedulesList, MaintenanceList, StocktakesList } from "../modules/sarpras";
 import { AcademicCalendar } from "../modules/calendar";
@@ -679,6 +679,12 @@ export default function App() {
             meta: { label: "Data Pendaftar", parent: "admissions" }
           },
           {
+            name: "admission_leads",
+            list: "/admissions/crm",
+            show: "/admissions/crm/:id",
+            meta: { label: "CRM Calon Orang Tua", parent: "admissions", canDelete: false }
+          },
+          {
             name: "academic_grades",
             list: "/academic/gradebook",
             meta: { canDelete: false },
@@ -1095,6 +1101,8 @@ export default function App() {
 
                 <Route path="/admissions">
                   <Route index element={<AdmissionsDashboard />} />
+                  <Route path="crm" element={<AdmissionCrm />} />
+                  <Route path="crm/:id" element={<AdmissionLeadShow />} />
                   <Route path="settings" element={<AdmissionsSettings />} />
                   <Route path="reports" element={<AdmissionsReports />} />
                   <Route path="applicants" element={<AdmissionsApplicantsList />} />
@@ -1253,6 +1261,8 @@ export default function App() {
               <Route path="/admin-spmb/login" element={<AdminSpmbLogin />} />
               <Route path="/admin-spmb" element={<AdminSpmbLayout />}>
                 <Route index element={<AdmissionsDashboard />} />
+                <Route path="crm" element={<AdmissionCrm />} />
+                <Route path="crm/:id" element={<AdmissionLeadShow />} />
                 <Route path="applicants" element={<AdmissionsApplicantsList />} />
                 <Route path="applicants/:id" element={<AdmissionsApplicantShow />} />
                 <Route path="reports" element={<AdmissionsReports />} />

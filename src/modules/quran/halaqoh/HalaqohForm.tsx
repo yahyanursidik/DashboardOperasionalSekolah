@@ -132,6 +132,12 @@ export const HalaqohForm: React.FC = () => {
       program_type: "tahfidz", // Pastikan program_type di-set 'tahfidz'
     };
 
+    if (!data.employee_id) {
+      setIsSubmitting(false);
+      toast.error("Pilih muhaffizh yang menerima amanah halaqoh.");
+      return;
+    }
+
     try {
       await onFinish(data);
       toast.success(isEdit ? "Halaqoh berhasil diperbarui!" : "Halaqoh berhasil ditambahkan!");
@@ -271,15 +277,17 @@ export const HalaqohForm: React.FC = () => {
                 <div className="relative">
                   <select
                     name="employee_id"
+                    required
                     defaultValue={record?.employee_id || ""}
                     onChange={(event) => setFormPreview((prev) => ({ ...prev, employee_id: event.target.value }))}
                     className="w-full flex h-10 rounded-md border border-input bg-background pl-10 pr-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-primary/20 focus:outline-none transition-shadow appearance-none"
                   >
-                    <option value="">-- Belum ada pengampu --</option>
+                    <option value="">-- Pilih Muhaffizh Aktif --</option>
                     {employeeOptions?.map(opt => (
                       <option key={opt.value} value={opt.value}>{opt.label}</option>
                     ))}
                   </select>
+                  <p className="text-xs text-muted-foreground">Hanya pegawai aktif dengan peran pengajar yang dapat disimpan sebagai pengampu.</p>
                   <Users className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 </div>
                 <p className="text-xs text-muted-foreground">Muhaffizh dapat ditambahkan nanti jika belum ditentukan.</p>

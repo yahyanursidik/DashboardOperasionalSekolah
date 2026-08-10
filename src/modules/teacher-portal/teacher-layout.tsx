@@ -34,6 +34,7 @@ export const TeacherLayout: React.FC = () => {
   const [unreadAnnouncements, setUnreadAnnouncements] = useState(0);
   const [attendanceActions, setAttendanceActions] = useState(0);
   const [hasPaudAssignment, setHasPaudAssignment] = useState(false);
+  const [hasQuranAssignment, setHasQuranAssignment] = useState(false);
   const navigate = useNavigate();
   const { activeYearId, activeSemesterId } = useAcademicYear();
 
@@ -71,14 +72,21 @@ export const TeacherLayout: React.FC = () => {
 
       let scheduledClassQuery = supabaseClient
         .from("employee_schedules")
-        .select("class_id")
+        .select("class_id, subject_id, subjects(quran_program_type)")
         .eq("employee_id", currentEmployee.id)
         .not("class_id", "is", null);
       if (activeYearId) scheduledClassQuery = scheduledClassQuery.eq("academic_year_id", activeYearId);
       if (activeSemesterId) scheduledClassQuery = scheduledClassQuery.eq("semester_id", activeSemesterId);
 
       const today = new Date().toLocaleDateString("en-CA");
-      const [tasksResult, announcementsResult, readsResult, scheduledResult, assignmentClassResult, homeroomResult, eventsResult, overtimeResult, leaveResult, assignedUnitIds] = await Promise.all([
+      let quranHalaqohQuery = supabaseClient
+        .from("tahfidz_halaqohs")
+        .select("id")
+        .eq("employee_id", currentEmployee.id);
+      if (activeYearId) quranHalaqohQuery = quranHalaqohQuery.eq("academic_year_id", activeYearId);
+      if (activeSemesterId) quranHalaqohQuery = quranHalaqohQuery.eq("semester_id", activeSemesterId);
+
+      const [tasksResult, announcementsResult, readsResult, scheduledResult, assignmentClassResult, homeroomResult, eventsResult, overtimeResult, leaveResult, quranHalaqohResult, assignedUnitIds] = await Promise.all([
         supabaseClient.from("admin_tasks").select("id,status").eq("assigned_to", session.user.id),
         supabaseClient.from("announcements").select("id,target_type,unit_id,class_id,publish_at").eq("status", "terkirim"),
         supabaseClient.from("employee_announcement_reads").select("announcement_id").eq("employee_id", currentEmployee.id),
@@ -88,6 +96,7 @@ export const TeacherLayout: React.FC = () => {
         supabaseClient.from("attendance_event_participants").select("id,attendance_events(event_date,status)").eq("employee_id", currentEmployee.id),
         supabaseClient.from("employee_overtime").select("id,status,overtime_date").eq("employee_id", currentEmployee.id).in("status", ["pending", "approved"]),
         supabaseClient.from("leave_requests").select("id").eq("employee_id", currentEmployee.id).eq("status", "pending"),
+        quranHalaqohQuery,
         loadTeacherAssignedUnitIds(currentEmployee.id, activeYearId, activeSemesterId),
       ]);
 
@@ -113,6 +122,18 @@ export const TeacherLayout: React.FC = () => {
         const name = String(unit.name || "").toLowerCase();
         return unit.education_level === "preschool" || ["paud", "tk", "kb", "preschool"].some((term) => name.includes(term));
       }));
+      const hasScheduledQuran = (scheduledResult.data || []).some((row: any) =>
+        Boolean(row.subjects?.quran_program_type)
+      );
+      const hasAssignedQuran = (assignmentClassResult.assignments || []).some((assignment: any) =>
+        assignment.role_type === "guru_quran" || Boolean(assignment.subjects?.quran_program_type)
+      );
+      setHasQuranAssignment(
+        currentEmployee.position === "guru_quran"
+        || hasScheduledQuran
+        || hasAssignedQuran
+        || (quranHalaqohResult.data || []).length > 0
+      );
       const scopedAnnouncements = (announcementsResult.data || []).filter((item: any) => {
         if (item.publish_at && new Date(item.publish_at).getTime() > now) return false;
         if (["all", "staff"].includes(item.target_type)) return true;
@@ -137,7 +158,7 @@ export const TeacherLayout: React.FC = () => {
       { label: "Pembelajaran", items: [
         { to: "/teacher/classes", label: "Kelas, Absensi & Nilai", icon: CheckSquare, keywords: ["siswa", "penilaian"] },
         { to: "/teacher/reports", label: "Rapor Digital", icon: FileText, keywords: ["sas", "asat", "semester"] },
-        { to: "/teacher/quran", label: "Pembelajaran Qur'an", icon: BookOpen, keywords: ["tahfidz", "tahsin", "mutabaah"] },
+        ...(hasQuranAssignment ? [{ to: "/teacher/quran", label: "Pembelajaran Qur'an", icon: BookOpen, keywords: ["tahfidz", "tahsin", "mutabaah"] }] : []),
         ...(hasPaudAssignment ? [{ to: "/teacher/paud", label: "Perkembangan KB/TK", icon: Star }] : []),
         { to: "/teacher/journals", label: "Jurnal & Tindak Lanjut Siswa", icon: ClipboardList },
         { to: "/teacher/library", label: "Perpustakaan Digital", icon: Library },
@@ -155,7 +176,7 @@ export const TeacherLayout: React.FC = () => {
       ] },
       { label: "Akun", items: [{ to: "/teacher/profile", label: "Profil & Keamanan", icon: UserRound }] },
     ];
-  }, [attendanceActions, employee, hasPaudAssignment, pendingTasks, unreadAnnouncements]);
+  }, [attendanceActions, employee, hasPaudAssignment, hasQuranAssignment, pendingTasks, unreadAnnouncements]);
 
   const handleLogout = async () => {
     await supabaseClient.auth.signOut();

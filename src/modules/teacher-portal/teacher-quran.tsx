@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
 import React, { useEffect, useMemo, useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import { supabaseClient } from "../../lib/supabase/client";
@@ -5,6 +6,7 @@ import { Award, BookOpen, CheckCircle, ClipboardCheck, Info, ShieldCheck, Target
 import { useAcademicYear } from "../../app/providers/AcademicYearProvider";
 import { toast } from "sonner";
 import { toDateInputValue } from "../leaves/leave-utils";
+import { isTeachingAssignment, loadTeacherAcademicAssignments } from "./teacher-assignment-data";
 
 const getPredicate = (score: number) => {
   if (score >= 90) return "Mumtaz (Istimewa)";
@@ -62,18 +64,30 @@ export const TeacherQuran: React.FC = () => {
         .not("class_id", "is", null);
       if (activeYearId) scheduleQuery = scheduleQuery.eq("academic_year_id", activeYearId);
       if (activeSemesterId) scheduleQuery = scheduleQuery.eq("semester_id", activeSemesterId);
-      const { data: scheduleClasses } = await scheduleQuery;
+      const [{ data: scheduleClasses }, assignmentResult] = await Promise.all([
+        scheduleQuery,
+        loadTeacherAcademicAssignments({
+          employeeId: employee.id,
+          academicYearId: activeYearId,
+          semesterId: activeSemesterId,
+        }),
+      ]);
 
       const quranSchedules = (scheduleClasses || []).filter((item: any) =>
         item.subjects?.quran_program_type === programType || item.subjects?.quran_program_type === "both"
       );
+      const quranAssignments = (assignmentResult.data || []).filter((item: any) =>
+        isTeachingAssignment(item)
+        && (item.subjects?.quran_program_type === programType || item.subjects?.quran_program_type === "both")
+      );
+      const quranSources = [...quranSchedules, ...quranAssignments];
       const nextClassSubjects: Record<string, any> = {};
-      quranSchedules.forEach((item: any) => {
+      quranSources.forEach((item: any) => {
         if (item.class_id && item.subjects) nextClassSubjects[item.class_id] = item.subjects;
       });
       setClassSubjects(nextClassSubjects);
       const classMap = new Map<string, any>();
-      quranSchedules.map((item: any) => item.classes)
+      quranSources.map((item: any) => item.classes)
         .filter(Boolean)
         .forEach((cls: any) => classMap.set(cls.id, cls));
       const assignedClasses = Array.from(classMap.values()).sort((a, b) => String(a.name).localeCompare(String(b.name)));
@@ -163,15 +177,24 @@ export const TeacherQuran: React.FC = () => {
     const fetchStudentContext = async () => {
       setIsLoadingLastRecord(true);
       try {
-        const { data: recordData } = await supabaseClient
+        let recordQuery = supabaseClient
           .from("quran_records")
           .select("surah_or_jilid, ayat_or_page, date, fluency_score")
           .eq("student_id", formData.student_id)
-          .eq("record_type", programType)
+          .eq("record_type", programType);
+        if (activeYearId) recordQuery = recordQuery.eq("academic_year_id", activeYearId);
+        if (activeSemesterId) recordQuery = recordQuery.eq("semester_id", activeSemesterId);
+        if (selectedSubject?.id) recordQuery = recordQuery.eq("subject_id", selectedSubject.id);
+        if (sourceMode === "halaqoh" && selectedHalaqohId) {
+          recordQuery = recordQuery.eq("halaqoh_id", selectedHalaqohId);
+        } else if (sourceMode === "class" && selectedClassId) {
+          recordQuery = recordQuery.eq("class_id", selectedClassId);
+        }
+        const { data: recordData } = await recordQuery
           .order("date", { ascending: false })
           .order("created_at", { ascending: false })
           .limit(1)
-          .single();
+          .maybeSingle();
         setLastRecord(recordData || null);
         if (recordData && !formData.surah_or_jilid) {
           setFormData((prev) => ({ ...prev, surah_or_jilid: (recordData as any).surah_or_jilid }));
@@ -196,7 +219,7 @@ export const TeacherQuran: React.FC = () => {
     };
 
     fetchStudentContext();
-  }, [activeSemesterId, activeYearId, formData.student_id, programType]);
+  }, [activeSemesterId, activeYearId, formData.student_id, programType, selectedClassId, selectedHalaqohId, selectedSubject?.id, sourceMode]);
 
   const resetStudent = () => {
     setFormData((prev) => ({ ...prev, student_id: "", surah_or_jilid: "", ayat_or_page: "", notes: "", title: "", score: "", status: "" }));
