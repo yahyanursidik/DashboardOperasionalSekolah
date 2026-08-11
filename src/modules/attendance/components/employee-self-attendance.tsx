@@ -18,13 +18,13 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabaseClient } from "../../../lib/supabase/client";
-import { useAcademicYear } from "../../../app/providers/AcademicYearProvider";
 import { dayMap, formatTime, getScheduleSubjectName } from "../../schedules/schedule-utils";
 import { formatLeaveType, isLeaveActiveOnDate, toDateInputValue } from "../../leaves/leave-utils";
 import { formatShortTime, formatSubstituteStatus } from "../../substitutes/substitute-utils";
 import { EmployeeEventAttendance } from "./employee-event-attendance";
 import { EmployeeOvertime } from "./employee-overtime";
 import { canUseTeachingScheduleAttendance } from "../../employees/employee-role-config";
+import { resolveAttendancePeriod } from "../attendance-period";
 
 type PortalKind = "teacher" | "staff";
 
@@ -158,7 +158,6 @@ function getCurrentPosition() {
 }
 
 export const EmployeeSelfAttendance: React.FC<EmployeeSelfAttendanceProps> = ({ employee, portal, showSubstitutes = false }) => {
-  const { activeYearId, activeSemesterId } = useAcademicYear();
   const today = toDateInputValue(new Date());
   const backPath = portal === "teacher" ? "/teacher" : "/staff";
   const [history, setHistory] = useState<any[]>([]);
@@ -182,6 +181,18 @@ export const EmployeeSelfAttendance: React.FC<EmployeeSelfAttendanceProps> = ({ 
     setIsLoading(true);
     try {
       const dayName = dayMap[new Date().getDay()] || "Senin";
+      const [academicYearsResult, semestersResult] = await Promise.all([
+        supabaseClient.from("academic_years").select("id,name,start_date,end_date").order("start_date", { ascending: false }),
+        supabaseClient.from("semesters").select("id,name,academic_year_id,start_date,end_date").order("start_date", { ascending: false }),
+      ]);
+      const attendancePeriod = resolveAttendancePeriod(
+        (academicYearsResult.data ?? []) as any[],
+        (semestersResult.data ?? []) as any[],
+        today,
+      );
+      if (academicYearsResult.error || semestersResult.error) {
+        console.warn("Attendance period could not be resolved; schedule fallback is used.", academicYearsResult.error || semestersResult.error);
+      }
       const attendancePromise = supabaseClient
         .from("employee_attendance")
         .select("id,date,status,time_in,time_out,notes,unit_id,site_id,location_status,verification_status,is_late,late_minutes,is_early_departure,early_departure_minutes,attendance_rule_source,expected_start_time,expected_end_time,attendance_sites(name)")
@@ -201,8 +212,8 @@ export const EmployeeSelfAttendance: React.FC<EmployeeSelfAttendanceProps> = ({ 
         .eq("employee_id", employee.id)
         .eq("day_of_week", dayName)
         .order("start_time");
-      if (activeYearId) schedulePromise = schedulePromise.or(`academic_year_id.eq.${activeYearId},academic_year_id.is.null`);
-      if (activeSemesterId) schedulePromise = schedulePromise.or(`semester_id.eq.${activeSemesterId},semester_id.is.null`);
+      if (attendancePeriod.academicYear?.id) schedulePromise = schedulePromise.or(`academic_year_id.eq.${attendancePeriod.academicYear.id},academic_year_id.is.null`);
+      if (attendancePeriod.semester?.id) schedulePromise = schedulePromise.or(`semester_id.eq.${attendancePeriod.semester.id},semester_id.is.null`);
       const sitesPromise = supabaseClient
         .from("attendance_sites")
         .select("id,name,address,radius_meters,accuracy_limit_meters,is_active,attendance_site_units(unit_id,units(name))")
@@ -265,7 +276,7 @@ export const EmployeeSelfAttendance: React.FC<EmployeeSelfAttendanceProps> = ({ 
 
   useEffect(() => {
     void fetchData();
-  }, [activeSemesterId, activeYearId, employee.id]);
+  }, [employee.id]);
 
   const currentRecord = history.find((item) => item.date === today) ?? null;
   const openRecord = history.find((item) => item.time_in && !item.time_out) ?? currentRecord;
@@ -282,7 +293,12 @@ export const EmployeeSelfAttendance: React.FC<EmployeeSelfAttendanceProps> = ({ 
   const lastWorkSchedule = workSchedules.reduce((latest, schedule) => !latest || String(schedule.end_time) > String(latest.end_time) ? schedule : latest, null as any);
   const followsTeachingSchedule = employee.attendance_mode === "teaching_schedule" && canUseTeachingScheduleAttendance(employee.position);
   const followsWorkSchedule = employee.attendance_mode === "work_schedule";
-  const compatibleRuleContext = !followsTeachingSchedule && ["teaching_schedule", "no_schedule"].includes(ruleContext?.rule_source || "") ? null : ruleContext;
+  const ruleContextMissesLoadedDuty = (followsTeachingSchedule && firstTeachingSchedule && ruleContext?.rule_source === "no_schedule")
+    || (followsWorkSchedule && firstWorkSchedule && ruleContext?.rule_source === "no_work_schedule");
+  const compatibleRuleContext = (!followsTeachingSchedule && ["teaching_schedule", "no_schedule"].includes(ruleContext?.rule_source || ""))
+    || ruleContextMissesLoadedDuty
+    ? null
+    : ruleContext;
   const activeUnitId = compatibleRuleContext?.unit_id || assignedShiftSchedule?.unit_id || (followsTeachingSchedule ? firstTeachingSchedule?.unit_id : followsWorkSchedule ? firstWorkSchedule?.unit_id : null) || employee.unit_id || null;
   const policy = useMemo(
     () => policies.find((item) => item.unit_id === activeUnitId) || policies.find((item) => !item.unit_id) || FALLBACK_POLICY,

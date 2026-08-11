@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { useAcademicYear } from "../../../app/providers/AcademicYearProvider";
 import { dayMap, formatTime, getScheduleSubjectName } from "../../schedules/schedule-utils";
 import { canUseTeachingScheduleAttendance } from "../../employees/employee-role-config";
+import { resolveAttendancePeriod, scheduleMatchesAttendancePeriod } from "../attendance-period";
 
 const STATUS_OPTIONS = [
   { value: "present", label: "Hadir", active: "bg-emerald-500 text-white", idle: "bg-slate-100 text-slate-500 hover:bg-emerald-100 hover:text-emerald-700" },
@@ -132,11 +133,25 @@ export const EmployeeAttendanceList: React.FC = () => {
 
   const scheduleFilters: any[] = [{ field: "day_of_week", operator: "eq", value: dayName }];
 
-  const { data: schedulesData } = useList({
+  const { data: schedulesData, isLoading: schedulesLoading, isError: schedulesError } = useList({
     resource: "employee_schedules",
     filters: scheduleFilters,
     pagination: { pageSize: 1000 },
     meta: { select: "employee_id, unit_id, academic_year_id, semester_id, day_of_week, start_time, end_time, schedule_type, subject, subject_id, attendance_shift_id, classes(name), subjects(name), units(name), attendance_shifts(name,check_in_open,check_in_close,grace_minutes)" },
+  });
+
+  const { data: academicYearsData, isLoading: academicYearsLoading, isError: academicYearsError } = useList({
+    resource: "academic_years",
+    pagination: { pageSize: 100 },
+    sorters: [{ field: "start_date", order: "desc" }],
+    meta: { select: "id,name,start_date,end_date" },
+  });
+
+  const { data: semestersData, isLoading: semestersLoading, isError: semestersError } = useList({
+    resource: "semesters",
+    pagination: { pageSize: 200 },
+    sorters: [{ field: "start_date", order: "desc" }],
+    meta: { select: "id,name,academic_year_id,start_date,end_date" },
   });
 
   const { data: policiesData } = useList({
@@ -176,12 +191,22 @@ export const EmployeeAttendanceList: React.FC = () => {
 
   const employees = tableQueryResult?.data?.data || [];
   const isLoading = tableQueryResult.isLoading;
+  const scheduleContextLoading = schedulesLoading || academicYearsLoading || semestersLoading;
+  const scheduleContextError = schedulesError || academicYearsError || semestersError;
+  const attendancePeriod = useMemo(() => resolveAttendancePeriod(
+    (academicYearsData?.data || []) as any[],
+    (semestersData?.data || []) as any[],
+    selectedDate,
+    activeYearId,
+    activeSemesterId,
+  ), [academicYearsData?.data, activeSemesterId, activeYearId, selectedDate, semestersData?.data]);
+  const attendanceAcademicYearId = attendancePeriod.academicYear?.id || activeYearId;
+  const attendanceSemesterId = attendancePeriod.semester?.id || activeSemesterId;
 
   const scheduleMap = useMemo(() => {
     const map: Record<string, any[]> = {};
     (schedulesData?.data ?? []).filter((schedule: any) => schedule.attendance_shift_id || (
-      (!activeYearId || !schedule.academic_year_id || schedule.academic_year_id === activeYearId)
-      && (!activeSemesterId || !schedule.semester_id || schedule.semester_id === activeSemesterId)
+      scheduleMatchesAttendancePeriod(schedule, attendanceAcademicYearId, attendanceSemesterId)
     )).forEach((schedule: any) => {
       if (!map[schedule.employee_id]) map[schedule.employee_id] = [];
       map[schedule.employee_id].push(schedule);
@@ -191,7 +216,7 @@ export const EmployeeAttendanceList: React.FC = () => {
       return (a.start_time || "").localeCompare(b.start_time || "");
     }));
     return map;
-  }, [activeSemesterId, activeYearId, schedulesData]);
+  }, [attendanceAcademicYearId, attendanceSemesterId, schedulesData]);
 
   const policyMap = useMemo(() => {
     const map: Record<string, any> = {};
@@ -225,6 +250,9 @@ export const EmployeeAttendanceList: React.FC = () => {
       grace: record.applied_grace_minutes,
       hasDuty: !["no_schedule", "no_work_schedule"].includes(record.attendance_rule_source),
     };
+    if (scheduleContextError && ["teaching_schedule", "work_schedule"].includes(employee.attendance_mode)) {
+      return { name: "Data jadwal gagal dimuat", start: null, end: null, grace: 0, hasDuty: null, loadError: true };
+    }
     const shiftSchedule = schedules.find((schedule) => schedule.attendance_shift_id);
     if (shiftSchedule) return { name: shiftSchedule.attendance_shifts?.name || "Shift khusus", start: shiftSchedule.start_time, end: shiftSchedule.end_time, grace: shiftSchedule.attendance_shifts?.grace_minutes, hasDuty: true };
     if (employee.attendance_mode === "teaching_schedule" && canUseTeachingScheduleAttendance(employee.position)) {
@@ -244,7 +272,7 @@ export const EmployeeAttendanceList: React.FC = () => {
     const policy = policyMap[employee.unit_id] || policyMap.__global__;
     return { name: policy ? (policy.unit_id ? "Kebijakan unit" : "Kebijakan lintas unit") : "Default sistem", start: policy?.default_start_time || "07:00", end: policy?.default_end_time || "15:00", grace: policy?.grace_minutes ?? 10, hasDuty: true };
   };
-  const hasAttendanceDuty = (employee: any) => getRulePreview(employee, getRecord(employee), scheduleMap[employee.id] ?? []).hasDuty;
+  const hasAttendanceDuty = (employee: any) => getRulePreview(employee, getRecord(employee), scheduleMap[employee.id] ?? []).hasDuty === true;
   const displayedEmployees = employees.filter((employee: any) => {
     if (!filterAttendance) return true;
     const record = getRecord(employee);
@@ -448,6 +476,10 @@ export const EmployeeAttendanceList: React.FC = () => {
             onChange={(e) => setSelectedDate(e.target.value)}
             className="border border-input rounded-xl px-4 py-2.5 text-sm bg-background font-bold outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all hover:bg-muted/30"
           />
+          <p className="mt-1.5 text-[11px] text-muted-foreground">
+            Periode otomatis: {attendancePeriod.academicYear?.name || "tahun belum ditemukan"}
+            {attendancePeriod.semester?.name ? ` · Semester ${attendancePeriod.semester.name}` : ""}
+          </p>
         </div>
         <div>
           <label className="block text-xs font-bold text-muted-foreground mb-2 uppercase tracking-wider">Jabatan</label>
@@ -495,9 +527,19 @@ export const EmployeeAttendanceList: React.FC = () => {
         )}
       </div>
 
+      {scheduleContextError && (
+        <div className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-red-800">
+          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
+          <div>
+            <p className="text-sm font-bold">Jadwal belum dapat dimuat</p>
+            <p className="mt-1 text-xs">Sistem tidak akan menyimpulkan pegawai tidak terjadwal sampai koneksi jadwal pulih. Muat ulang halaman atau periksa akses database.</p>
+          </div>
+        </div>
+      )}
+
       <div className="bg-card rounded-xl border shadow-sm overflow-hidden min-h-[400px]">
-        {isLoading ? (
-          <div className="flex justify-center items-center h-64 text-muted-foreground">Memuat data pegawai...</div>
+        {isLoading || scheduleContextLoading ? (
+          <div className="flex justify-center items-center gap-2 h-64 text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin" /> Memeriksa pegawai dan jadwal...</div>
         ) : displayedEmployees.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 text-center">
             <Users className="w-12 h-12 text-muted-foreground/30 mb-4" />
@@ -524,6 +566,7 @@ export const EmployeeAttendanceList: React.FC = () => {
                   const leave = leaveMap[emp.id];
                   const timeEnabled = status === "present" || status === "late";
                   const rulePreview = getRulePreview(emp, record, schedules);
+                  const ruleUnavailable = rulePreview.loadError === true;
 
                   return (
                     <tr key={emp.id} className="hover:bg-muted/30 transition-colors">
@@ -547,9 +590,9 @@ export const EmployeeAttendanceList: React.FC = () => {
                         </div>
                       </td>
                       <td className="px-4 py-3 min-w-[220px]">
-                        <div className={`mb-2 rounded-md border px-2.5 py-2 ${rulePreview.hasDuty ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}>
-                          <p className={`text-[11px] font-bold ${rulePreview.hasDuty ? "text-emerald-800" : "text-amber-800"}`}>{rulePreview.hasDuty ? `Acuan masuk ${formatTime(rulePreview.start)}${rulePreview.end ? ` - ${formatTime(rulePreview.end)}` : ""}` : "Tidak wajib absen hari ini"}</p>
-                          <p className={`mt-0.5 text-[10px] ${rulePreview.hasDuty ? "text-emerald-700" : "text-amber-700"}`}>{rulePreview.name}{rulePreview.hasDuty ? ` | toleransi ${rulePreview.grace ?? 10} menit` : ""}</p>
+                        <div className={`mb-2 rounded-md border px-2.5 py-2 ${ruleUnavailable ? "border-red-200 bg-red-50" : rulePreview.hasDuty ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}>
+                          <p className={`text-[11px] font-bold ${ruleUnavailable ? "text-red-800" : rulePreview.hasDuty ? "text-emerald-800" : "text-amber-800"}`}>{ruleUnavailable ? "Status jadwal belum dapat ditentukan" : rulePreview.hasDuty ? `Acuan masuk ${formatTime(rulePreview.start)}${rulePreview.end ? ` - ${formatTime(rulePreview.end)}` : ""}` : "Tidak wajib absen hari ini"}</p>
+                          <p className={`mt-0.5 text-[10px] ${ruleUnavailable ? "text-red-700" : rulePreview.hasDuty ? "text-emerald-700" : "text-amber-700"}`}>{rulePreview.name}{rulePreview.hasDuty ? ` | toleransi ${rulePreview.grace ?? 10} menit` : ""}</p>
                           {rulePreview.hasDuty ? <p className="mt-0.5 text-[10px] text-emerald-700">Datang lebih awal tetap diterima sebagai hadir.</p> : null}
                         </div>
                         {schedules.length > 0 ? (
@@ -569,7 +612,9 @@ export const EmployeeAttendanceList: React.FC = () => {
                             {schedules.length > 2 && <p className="text-[11px] text-muted-foreground">+{schedules.length - 2} jadwal lain</p>}
                           </div>
                         ) : (
-                          <span className="text-xs text-muted-foreground italic">Tidak terjadwal</span>
+                          <span className={`text-xs italic ${ruleUnavailable ? "text-red-700" : "text-muted-foreground"}`}>
+                            {ruleUnavailable ? "Daftar jadwal belum dapat ditampilkan" : "Tidak terjadwal"}
+                          </span>
                         )}
                         {leave && (
                           <div className="mt-2 rounded-lg border border-blue-100 bg-blue-50 px-2 py-1.5 text-xs text-blue-700">

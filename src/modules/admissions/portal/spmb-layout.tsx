@@ -20,7 +20,7 @@ export const SpmbLayout: React.FC = () => {
   const loadApplicant = useCallback(async (activeUser?: User | null) => {
     const target = activeUser || user;
     if (!target) return;
-    const { data } = await db.from("admissions_applicants").select("*, units(name), academic_years(name), admission_batches(name,registration_fee,announcement_at)").eq("user_id", target.id).is("archived_at", null).order("registration_date", { ascending: false }).limit(1).maybeSingle();
+    const { data } = await db.from("admissions_applicants").select("*, units(name), academic_years(name), admission_batches(name,registration_fee,announcement_at), desired_classes:desired_class_id(name,grade_level)").eq("user_id", target.id).is("archived_at", null).order("registration_date", { ascending: false }).limit(1).maybeSingle();
     setApplicant(data || null);
   }, [user]);
 

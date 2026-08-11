@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { ArrowRight, CalendarDays, CheckCircle2, Circle, Clock3, CreditCard, FileText, Megaphone, UploadCloud, UserPlus } from "lucide-react";
 import { supabaseClient } from "../../../lib/supabase/client";
 import { admissionStatusMeta, admissionStatusOrder, formatAdmissionDate, getAdmissionStatus } from "../admissions-config";
+import { applicantTargetLabel, entryTypeLabel } from "../quota-utils";
 import { useSpmbPortal } from "./spmb-context";
 
 const db = supabaseClient as any;
@@ -44,7 +45,7 @@ export const SpmbDashboard: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4"><div><p className="text-sm font-semibold text-emerald-700">{applicant.registration_number}</p><h1 className="text-2xl sm:text-3xl font-bold">Pendaftaran {applicant.name}</h1><p className="text-slate-600 mt-2">{applicant.units?.name || applicant.unit} · {applicant.academic_years?.name || applicant.academic_year} · {applicant.admission_batches?.name || "Gelombang pendaftaran"}</p></div><span className={`self-start lg:self-auto px-3 py-1.5 rounded-full text-sm font-semibold ${meta.tone}`}>{meta.label}</span></div>
+      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4"><div><p className="text-sm font-semibold text-emerald-700">{applicant.registration_number}</p><h1 className="text-2xl sm:text-3xl font-bold">Pendaftaran {applicant.name}</h1><p className="text-slate-600 mt-2">{applicant.units?.name || applicant.unit} · {applicant.academic_years?.name || applicant.academic_year} · {applicant.admission_batches?.name || "Gelombang pendaftaran"}</p><p className="text-sm font-semibold text-slate-800 mt-2">{applicantTargetLabel(applicant)} · {entryTypeLabel(applicant.entry_type)}</p></div><span className={`self-start lg:self-auto px-3 py-1.5 rounded-full text-sm font-semibold ${meta.tone}`}>{meta.label}</span></div>
 
       <section className="grid sm:grid-cols-3 gap-4">
         <div className="bg-white border rounded-lg p-5"><Clock3 className="w-5 h-5 text-emerald-700" /><p className="text-xs uppercase font-semibold text-slate-500 mt-4">Status saat ini</p><p className="font-bold mt-1">{meta.label}</p><p className="text-sm text-slate-600 mt-1">{meta.description}</p></div>

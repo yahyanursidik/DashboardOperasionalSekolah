@@ -1,17 +1,23 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, LineChart, Line } from "recharts";
 import { Users, UserCheck, UserX, TrendingUp, Download, Loader2, Link as LinkIcon, BarChart3 } from "lucide-react";
 import { useList } from "@refinedev/core";
 import { Link } from "react-router-dom";
 import { getAdmissionStatus } from "../admissions-config";
+import { applicantTargetLabel, entryTypeLabel } from "../quota-utils";
+import { supabaseClient } from "../../../lib/supabase/client";
+
+const db = supabaseClient as any;
 
 export const AdmissionsReports: React.FC = () => {
+  const [quotas, setQuotas] = useState<any[]>([]);
   const { data: tableData, isLoading } = useList({
     resource: "admissions_applicants",
     pagination: { mode: "off" }
   });
+  useEffect(() => { db.rpc("admission_quota_snapshot", { p_batch_id: null }).then(({ data }: any) => setQuotas(data || [])); }, []);
 
   const reports = useMemo(() => {
     const rawData = tableData?.data || [];
@@ -56,6 +62,18 @@ export const AdmissionsReports: React.FC = () => {
     ? ((totalAcceptedHistorically / totalHistorically) * 100).toFixed(1) 
     : "0.0";
 
+  const exportReport = () => {
+    const rows = (tableData?.data || []) as any[];
+    const csv = [
+      ["Nomor Pendaftaran", "Nama", "Unit", "Tahun Ajaran", "Kelas Tujuan", "Jalur", "Status", "Tanggal Daftar"],
+      ...rows.map((row) => [row.registration_number, row.name, row.unit, row.academic_year, applicantTargetLabel(row), entryTypeLabel(row.entry_type), getAdmissionStatus(row), row.registration_date]),
+    ].map((row) => row.map((value) => `"${String(value || "").replaceAll('"', '""')}"`).join(",")).join("\n");
+    const url = URL.createObjectURL(new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" }));
+    const anchor = document.createElement("a");
+    anchor.href = url; anchor.download = `laporan-spmb-${new Date().toISOString().slice(0, 10)}.csv`; anchor.click();
+    URL.revokeObjectURL(url);
+  };
+
   if (isLoading) {
     return (
       <div className="flex flex-col justify-center items-center py-32 text-muted-foreground gap-4">
@@ -99,7 +117,7 @@ export const AdmissionsReports: React.FC = () => {
               <LinkIcon className="w-4 h-4" />
               <span>Kembali ke Dashboard</span>
             </Link>
-            <button className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg font-medium text-sm hover:bg-primary/90 transition-colors shadow-sm cursor-not-allowed opacity-80" title="Sedang Dalam Pengembangan">
+            <button onClick={exportReport} className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg font-medium text-sm hover:bg-primary/90 transition-colors shadow-sm" title="Unduh CSV laporan SPMB">
               <Download className="w-4 h-4" />
               <span>Ekspor Laporan</span>
             </button>
@@ -214,6 +232,11 @@ export const AdmissionsReports: React.FC = () => {
           </div>
         </div>
       </div>
+
+      <section className="bg-white border rounded-lg overflow-hidden mt-6">
+        <div className="p-5 border-b"><h3 className="text-lg font-bold">Realisasi Daya Tampung per Kelas</h3><p className="text-sm text-muted-foreground mt-1">Memisahkan siswa baru dan pindahan agar keputusan penerimaan tidak melampaui alokasi kursi.</p></div>
+        <div className="overflow-x-auto"><table className="w-full text-sm"><thead className="bg-slate-50 border-b"><tr><th className="text-left px-5 py-3">Unit / gelombang</th><th className="text-left px-5 py-3">Kelas tujuan</th><th className="text-left px-5 py-3">Jalur</th><th className="text-right px-5 py-3">Pendaftar</th><th className="text-right px-5 py-3">Diterima</th><th className="text-right px-5 py-3">Sisa / kuota</th></tr></thead><tbody className="divide-y">{quotas.map((row) => <tr key={row.quota_id}><td className="px-5 py-4"><p className="font-semibold">{row.unit_name}</p><p className="text-xs text-slate-500 mt-1">{row.batch_name} · {row.academic_year_name}</p></td><td className="px-5 py-4 font-bold">{row.class_name}</td><td className="px-5 py-4">{entryTypeLabel(row.entry_type)}</td><td className="px-5 py-4 text-right">{row.applicant_count}</td><td className="px-5 py-4 text-right">{row.reserved_count}</td><td className={`px-5 py-4 text-right font-bold ${Number(row.remaining_count) === 0 ? "text-rose-700" : "text-emerald-700"}`}>{row.remaining_count} / {row.quota}</td></tr>)}{quotas.length === 0 && <tr><td colSpan={6} className="p-10 text-center text-slate-500">Belum ada rencana daya tampung per kelas.</td></tr>}</tbody></table></div>
+      </section>
 
       {/* Tabel Data Historis */}
       <div className="bg-card border rounded-2xl shadow-sm overflow-hidden mt-6">
