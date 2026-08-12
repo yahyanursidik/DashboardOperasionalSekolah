@@ -119,7 +119,7 @@ export const SpmbForm: React.FC = () => {
   const targets = useMemo(() => activeOptions.filter((row) => row.unit_id === form.unit_id && row.batch_id === form.batch_id && row.entry_type === form.entry_type), [activeOptions, form.unit_id, form.batch_id, form.entry_type]);
   const selectedOption = useMemo(() => options.find((row) => row.batch_id === form.batch_id && row.class_id === form.desired_class_id && row.entry_type === form.entry_type), [options, form]);
   const selectedUnit = units.find((row: any) => row.unit_id === form.unit_id);
-  const requiresLearningTimezone = isOnlinePreschoolProgram(selectedOption || applicant);
+  const requiresLearningTimezone = isOnlinePreschoolProgram(selectedOption || applicant || selectedUnit);
   const set = (key: keyof typeof form, value: string) => setForm((current) => ({ ...current, [key]: value }));
 
   const save = async (target: "draft" | "submitted") => {
