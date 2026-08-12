@@ -22,6 +22,18 @@ const withTimeout = async <T,>(promise: Promise<T>, message: string): Promise<T>
     if (timeoutId) clearTimeout(timeoutId);
   }
 };
+const getErrorMessage = (error: unknown, fallback: string) => error instanceof Error ? error.message : fallback;
+const loadQuotaOptions = async () => {
+  try {
+    return await withTimeout(publicDb.rpc("admission_public_quota_options"), "Layanan SPMB terlalu lama merespons. Silakan coba lagi.");
+  } catch (publicError) {
+    const fallback = await withTimeout(db.rpc("admission_public_quota_options"), "Layanan SPMB terlalu lama merespons. Silakan coba lagi.");
+    if (fallback.error && !isAdmissionQuotaSchemaError(fallback.error)) {
+      fallback.error.message = `${fallback.error.message} (public client: ${getErrorMessage(publicError, "gagal memuat")})`;
+    }
+    return fallback;
+  }
+};
 const emptyForm = {
   unit_id: "",
   batch_id: "",
@@ -60,7 +72,7 @@ export const SpmbForm: React.FC = () => {
     setOptionsError("");
     setReferenceTime(Date.now());
     try {
-      const { data, error } = await withTimeout(publicDb.rpc("admission_public_quota_options"), "Layanan SPMB terlalu lama merespons. Silakan coba lagi.");
+      const { data, error } = await loadQuotaOptions();
       const missing = isAdmissionQuotaSchemaError(error);
       setOptions(error ? [] : data || []);
       setSchemaMissing(missing);
@@ -68,7 +80,7 @@ export const SpmbForm: React.FC = () => {
     } catch (error) {
       setOptions([]);
       setSchemaMissing(false);
-      setOptionsError(error instanceof Error ? error.message : "Layanan SPMB tidak dapat dihubungi.");
+      setOptionsError(getErrorMessage(error, "Layanan SPMB tidak dapat dihubungi."));
     } finally {
       setLoading(false);
     }
@@ -140,7 +152,7 @@ export const SpmbForm: React.FC = () => {
       toast.success(target === "submitted" ? "Pendaftaran dikirim ke panitia." : "Draf pendaftaran tersimpan.");
       navigate("/spmb");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Formulir belum dapat disimpan.");
+      toast.error(getErrorMessage(error, "Formulir belum dapat disimpan."));
     } finally {
       setSaving(null);
     }
