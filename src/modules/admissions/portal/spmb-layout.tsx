@@ -17,12 +17,12 @@ export const SpmbLayout: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const isAuthPage = location.pathname === "/spmb/login" || location.pathname === "/spmb/register";
 
-  const loadApplicant = useCallback(async (activeUser?: User | null) => {
-    const target = activeUser || user;
-    if (!target) return;
-    const { data } = await db.from("admissions_applicants").select("*, units(name), academic_years(name), admission_batches(name,registration_fee,announcement_at), desired_classes:desired_class_id(name,grade_level)").eq("user_id", target.id).is("archived_at", null).order("registration_date", { ascending: false }).limit(1).maybeSingle();
-    setApplicant(data || null);
-  }, [user]);
+  const loadApplicant = useCallback(async (target: User) => {
+    const { data, error } = await db.from("admissions_applicants").select("*, units(name), academic_years(name), admission_batches(name,registration_fee,announcement_at), desired_classes:desired_class_id(name,grade_level)").eq("user_id", target.id).is("archived_at", null).order("registration_date", { ascending: false }).limit(1).maybeSingle();
+    // Keep the last valid applicant during a temporary network failure. Replacing
+    // it with null would unexpectedly switch the portal into a new-form state.
+    if (!error) setApplicant(data || null);
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -34,8 +34,16 @@ export const SpmbLayout: React.FC = () => {
       if (mounted) setLoading(false);
     });
     const { data: listener } = supabaseClient.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user || null);
-      if (!session) setApplicant(null);
+      const sessionUser = session?.user || null;
+      setUser(sessionUser);
+      if (!sessionUser) {
+        setApplicant(null);
+        return;
+      }
+
+      // Run the database read outside the auth callback so token refreshes do not
+      // block the auth event and do not restart the layout initialization effect.
+      window.setTimeout(() => { void loadApplicant(sessionUser); }, 0);
     });
     return () => { mounted = false; listener.subscription.unsubscribe(); };
   }, [loadApplicant]);
@@ -49,7 +57,7 @@ export const SpmbLayout: React.FC = () => {
   const links = [{ to: "/spmb", label: "Ringkasan", icon: Home }, { to: "/spmb/form", label: "Formulir", icon: FileText }];
 
   return (
-    <SpmbPortalContext.Provider value={{ user: user!, applicant, loading, refreshApplicant: () => loadApplicant(user) }}>
+    <SpmbPortalContext.Provider value={{ user: user!, applicant, loading, refreshApplicant: () => loadApplicant(user!) }}>
       <div className="min-h-screen bg-slate-50 text-slate-950 flex flex-col">
         <header className="bg-white border-b sticky top-0 z-30">
           <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between gap-4">

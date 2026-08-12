@@ -55,10 +55,27 @@ const emptyForm = {
   address: "",
 };
 
+const getInitialForm = (applicant: any | null, user: any) => {
+  if (applicant) {
+    return Object.fromEntries(
+      Object.keys(emptyForm).map((key) => [key, applicant[key] ?? (emptyForm as any)[key]]),
+    ) as typeof emptyForm;
+  }
+
+  return {
+    ...emptyForm,
+    parent_name: user.user_metadata?.full_name || "",
+    parent_phone: user.user_metadata?.phone || "",
+    parent_email: user.email || "",
+  };
+};
+
 export const SpmbForm: React.FC = () => {
   const navigate = useNavigate();
   const { user, applicant, refreshApplicant } = useSpmbPortal();
-  const [form, setForm] = useState(emptyForm);
+  // The form is initialized once when the page opens. Auth token refreshes may
+  // replace the user object, but must never overwrite data currently being typed.
+  const [form, setForm] = useState(() => getInitialForm(applicant, user));
   const [options, setOptions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [schemaMissing, setSchemaMissing] = useState(false);
@@ -90,19 +107,6 @@ export const SpmbForm: React.FC = () => {
   useEffect(() => {
     void loadOptions();
   }, []);
-
-  useEffect(() => {
-    if (!applicant) {
-      setForm((value) => ({
-        ...value,
-        parent_name: user.user_metadata?.full_name || "",
-        parent_phone: user.user_metadata?.phone || "",
-        parent_email: user.email || "",
-      }));
-      return;
-    }
-    setForm(Object.fromEntries(Object.keys(emptyForm).map((key) => [key, applicant[key] ?? (emptyForm as any)[key]])) as typeof emptyForm);
-  }, [applicant, user]);
 
   const activeOptions = useMemo(() => options.filter((row) => referenceTime > 0 && new Date(row.registration_start_at).getTime() <= referenceTime && new Date(row.registration_end_at).getTime() >= referenceTime), [options, referenceTime]);
   const units = useMemo(() => Array.from(new Map(activeOptions.map((row) => [row.unit_id, row])).values()).sort((a: any, b: any) => String(a.unit_name).localeCompare(String(b.unit_name))), [activeOptions]);
