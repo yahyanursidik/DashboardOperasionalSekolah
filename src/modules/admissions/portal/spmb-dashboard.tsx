@@ -10,7 +10,7 @@ import { useSpmbPortal } from "./spmb-context";
 const db = supabaseClient as any;
 
 export const SpmbDashboard: React.FC = () => {
-  const { user, applicant } = useSpmbPortal();
+  const { user, applicants, applicant } = useSpmbPortal();
   const [documents, setDocuments] = useState<any[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
   const [assessment, setAssessment] = useState<any | null>(null);
@@ -26,8 +26,8 @@ export const SpmbDashboard: React.FC = () => {
 
   if (!applicant) return (
     <div className="max-w-4xl mx-auto space-y-6">
-      <div><p className="text-sm font-semibold text-emerald-700">Assalamu'alaikum, {user.user_metadata?.full_name || "Orang Tua / Wali"}</p><h1 className="text-3xl font-bold mt-1">Mulai Pendaftaran Calon Murid</h1><p className="text-slate-600 mt-2">Pilih unit dan gelombang aktif, lalu lengkapi data calon murid.</p></div>
-      <div className="bg-white border rounded-lg p-8 sm:p-10 text-center"><div className="w-14 h-14 bg-emerald-50 text-emerald-700 rounded-full grid place-items-center mx-auto"><UserPlus className="w-7 h-7" /></div><h2 className="text-xl font-bold mt-5">Belum ada formulir pendaftaran</h2><p className="text-slate-600 mt-2 max-w-lg mx-auto">Data dapat disimpan sebagai draf sebelum dikirim. Setelah dikirim, panitia akan memeriksa berkas dan memberi jadwal seleksi.</p><Link to="/spmb/form" className="mt-6 inline-flex h-11 items-center gap-2 px-5 rounded-md bg-emerald-700 text-white font-semibold hover:bg-emerald-800">Isi Formulir <ArrowRight className="w-4 h-4" /></Link></div>
+      <div><p className="text-sm font-semibold text-emerald-700">Assalamu'alaikum, {user.user_metadata?.full_name || "Orang Tua / Wali"}</p><h1 className="text-3xl font-bold mt-1">{applicants.length ? "Daftarkan Anak Lain" : "Mulai Pendaftaran Calon Murid"}</h1><p className="text-slate-600 mt-2">Setiap anak memiliki formulir, berkas, pembayaran, dan status seleksi masing-masing.</p></div>
+      <div className="bg-white border rounded-lg p-8 sm:p-10 text-center"><div className="w-14 h-14 bg-emerald-50 text-emerald-700 rounded-full grid place-items-center mx-auto"><UserPlus className="w-7 h-7" /></div><h2 className="text-xl font-bold mt-5">{applicants.length ? "Formulir anak baru" : "Belum ada formulir pendaftaran"}</h2><p className="text-slate-600 mt-2 max-w-lg mx-auto">Setelah disimpan, nama anak akan tersedia pada pemilih calon murid di bagian atas portal.</p><Link to="/spmb/form" className="mt-6 inline-flex h-11 items-center gap-2 px-5 rounded-md bg-emerald-700 text-white font-semibold hover:bg-emerald-800">Isi Formulir Anak <ArrowRight className="w-4 h-4" /></Link></div>
     </div>
   );
 

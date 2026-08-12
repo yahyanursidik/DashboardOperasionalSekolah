@@ -72,7 +72,7 @@ const getInitialForm = (applicant: any | null, user: any) => {
 
 export const SpmbForm: React.FC = () => {
   const navigate = useNavigate();
-  const { user, applicant, refreshApplicant } = useSpmbPortal();
+  const { user, applicant, refreshApplicants } = useSpmbPortal();
   // The form is initialized once when the page opens. Auth token refreshes may
   // replace the user object, but must never overwrite data currently being typed.
   const [form, setForm] = useState(() => getInitialForm(applicant, user));
@@ -147,13 +147,16 @@ export const SpmbForm: React.FC = () => {
         workflow_status: target,
         submitted_at: target === "submitted" ? new Date().toISOString() : applicant?.submitted_at || null,
       };
-      const query = applicant ? db.from("admissions_applicants").update(payload).eq("id", applicant.id) : db.from("admissions_applicants").insert(payload);
-      const { error } = await withTimeout<SupabaseResult>(query, "Formulir terlalu lama merespons saat disimpan. Silakan coba lagi.");
+      const query = applicant
+        ? db.from("admissions_applicants").update(payload).eq("id", applicant.id).select("id").single()
+        : db.from("admissions_applicants").insert(payload).select("id").single();
+      const { data: savedApplicant, error } = await withTimeout<SupabaseResult<{ id: string }>>(query, "Formulir terlalu lama merespons saat disimpan. Silakan coba lagi.");
       if (error) {
         toast.error(`Formulir belum dapat disimpan: ${error.message}`);
         return;
       }
-      await withTimeout(refreshApplicant(), "Formulir tersimpan, tetapi ringkasan belum dapat dimuat ulang. Silakan refresh halaman.");
+      const savedApplicantId = savedApplicant?.id || applicant?.id;
+      await withTimeout(refreshApplicants(savedApplicantId), "Formulir tersimpan, tetapi ringkasan belum dapat dimuat ulang. Silakan refresh halaman.");
       toast.success(target === "submitted" ? "Pendaftaran dikirim ke panitia." : "Draf pendaftaran tersimpan.");
       navigate("/spmb");
     } catch (error) {
@@ -168,7 +171,7 @@ export const SpmbForm: React.FC = () => {
   return <div className="max-w-4xl mx-auto space-y-6">
     <div>
       <p className="text-sm font-semibold text-emerald-700">SPMB</p>
-      <h1 className="text-2xl sm:text-3xl font-bold">Formulir Calon Murid</h1>
+      <h1 className="text-2xl sm:text-3xl font-bold">{applicant ? `Formulir ${applicant.name}` : "Formulir Anak Baru"}</h1>
       <p className="text-slate-600 mt-2">Pilih unit tujuan terlebih dahulu agar gelombang, kelas, dan kuota yang tampil sesuai layanan sekolah.</p>
     </div>
     {!editable && <Notice tone="blue" icon={CheckCircle2}>Formulir telah dikunci karena proses verifikasi berlangsung. Hubungi panitia bila ada data yang perlu dikoreksi.</Notice>}

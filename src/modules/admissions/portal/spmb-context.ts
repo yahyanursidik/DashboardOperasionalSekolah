@@ -4,9 +4,11 @@ import type { User } from "@supabase/supabase-js";
 
 export interface SpmbPortalContextValue {
   user: User;
+  applicants: any[];
   applicant: any | null;
   loading: boolean;
-  refreshApplicant: () => Promise<void>;
+  selectApplicant: (applicantId: string | null) => void;
+  refreshApplicants: (preferredApplicantId?: string | null) => Promise<void>;
 }
 
 export const SpmbPortalContext = createContext<SpmbPortalContextValue | null>(null);
