@@ -3,6 +3,7 @@ import { useLocation } from "react-router-dom";
 import { supabaseClient } from "../../../lib/supabase/client";
 import { Printer } from "lucide-react";
 import { calculateFinalScore, getFinalAssessmentType } from "../../curriculum/assessment-policy";
+import { StoredImage } from "../../../components/common/StoredImage";
 
 export const ReportPrint: React.FC = () => {
   const location = useLocation();
@@ -155,11 +156,7 @@ export const ReportPrint: React.FC = () => {
           <div className="flex gap-6 mb-6 items-start">
             {data.student.photo_url && (
               <div className="w-24 h-32 border-2 border-black p-1 shrink-0 bg-white">
-                <img 
-                  src={data.student.photo_url.startsWith('http') ? data.student.photo_url : `https://ebdkupeqmpqrdfketgab.supabase.co/storage/v1/object/public/school-documents/${data.student.photo_url}`}
-                  alt={data.student.full_name}
-                  className="w-full h-full object-cover grayscale"
-                />
+                <StoredImage source={data.student.photo_url} alt={data.student.full_name} className="w-full h-full object-cover grayscale" />
               </div>
             )}
             <table className="w-full text-sm">

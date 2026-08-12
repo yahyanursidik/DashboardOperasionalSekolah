@@ -1,12 +1,17 @@
 import React from "react";
 import { AlertTriangle, ExternalLink, FileText } from "lucide-react";
 import { driveEmbedUrl, type OnboardingMaterial, youtubeEmbedUrl } from "./onboarding-config";
+import { isContaboStoragePath } from "../../lib/supabase/storage";
+import { useStoredFileUrl } from "../../hooks/useStoredFileUrl";
 
 export const OnboardingViewer: React.FC<{ material: Pick<OnboardingMaterial, "title" | "material_type" | "file_url">; compact?: boolean }> = ({ material, compact = false }) => {
-  const { file_url: fileUrl, material_type: type, title } = material;
+  const { file_url: storedFileUrl, material_type: type, title } = material;
+  const signedFileUrl = useStoredFileUrl(storedFileUrl);
+  const fileUrl = isContaboStoragePath(storedFileUrl) ? signedFileUrl : storedFileUrl;
   const height = compact ? "h-80" : "h-[min(68vh,680px)]";
 
-  if (!fileUrl) return <ViewerMessage text="File atau tautan materi belum tersedia." />;
+  if (!storedFileUrl) return <ViewerMessage text="File atau tautan materi belum tersedia." />;
+  if (!fileUrl) return <ViewerMessage text="Menyiapkan akses file..." />;
   if (type === "pdf") return <iframe src={fileUrl} className={`w-full ${height} border-0 bg-white`} title={`PDF ${title}`} />;
   if (type === "gdrive") return <iframe src={driveEmbedUrl(fileUrl)} className={`w-full ${height} border-0 bg-white`} title={`Google Drive ${title}`} />;
   if (type === "youtube") {

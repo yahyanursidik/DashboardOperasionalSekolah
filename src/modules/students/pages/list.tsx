@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { StoredImage } from "../../../components/common/StoredImage";
 import { useTable } from "@refinedev/react-table";
 import { useList, useDelete } from "@refinedev/core";
 import { flexRender } from "@tanstack/react-table";
@@ -461,17 +462,7 @@ export const StudentsList: React.FC = () => {
           return (
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0 overflow-hidden border">
-                {photoUrl ? (
-                  <img 
-                    src={photoUrl.startsWith('http') ? photoUrl : `https://ebdkupeqmpqrdfketgab.supabase.co/storage/v1/object/public/school-documents/${photoUrl}`}
-                    alt={getValue<string>()}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <span className="font-bold text-primary/50 text-xs">
-                    {getValue<string>().charAt(0)}
-                  </span>
-                )}
+                <StoredImage source={photoUrl} alt={getValue<string>()} className="w-full h-full object-cover" fallback={<span className="font-bold text-primary/50 text-xs">{getValue<string>().charAt(0)}</span>} />
               </div>
               <div className="flex flex-col">
                 <span className="font-semibold text-foreground">{getValue<string>()}</span>

@@ -35,10 +35,18 @@ export const admissionStatusOrder: AdmissionStatus[] = [
 export const admissionDocumentTypes = [
   { value: "family_card", label: "Kartu Keluarga", required: true },
   { value: "birth_certificate", label: "Akta Kelahiran", required: true },
+  { value: "parent_id_card", label: "KTP Orang Tua / Wali", required: true },
   { value: "photo", label: "Pas Foto", required: true },
   { value: "previous_report", label: "Rapor / laporan perkembangan terakhir", required: false },
   { value: "transfer_letter", label: "Surat pindah (khusus siswa pindahan)", required: false },
 ] as const;
+
+export const isRequiredAdmissionDocument = (documentType: string, entryType?: string | null) =>
+  admissionDocumentTypes.some((document) => document.value === documentType && document.required)
+  || (documentType === "transfer_letter" && entryType === "transfer");
+
+export const getRequiredAdmissionDocumentTypes = (entryType?: string | null) =>
+  admissionDocumentTypes.filter((document) => isRequiredAdmissionDocument(document.value, entryType));
 
 export const legacyToAdmissionStatus = (legacy?: string | null): AdmissionStatus => {
   const map: Record<string, AdmissionStatus> = {

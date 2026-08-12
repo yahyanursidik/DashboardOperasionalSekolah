@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { ReportCardPDF } from "../components/ReportCardPDF";
+import { getDocumentSignedUrl, uploadDocument } from "../../../../lib/supabase/storage";
 
 export const GeneratePDFList: React.FC = () => {
   const { activeUnitId } = useCurrentUnit();
@@ -104,23 +105,15 @@ export const GeneratePDFList: React.FC = () => {
       pdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight);
       const pdfBlob = pdf.output('blob');
 
-      // 6. Upload to Supabase Storage
+      // 6. Upload through the Contabo S3 signer
       toast.loading("Mengunggah ke server...", { id: `pdf-${report.id}` });
-      const fileName = `${report.report_period_id}/${report.student_id}_${Date.now()}.pdf`;
-      
-      const { data: uploadData, error: uploadError } = await supabaseClient.storage
-        .from('report_pdfs')
-        .upload(fileName, pdfBlob, { contentType: 'application/pdf', upsert: true });
-
-      if (uploadError) throw uploadError;
-
-      // Get public URL
-      const { data: urlData } = supabaseClient.storage.from('report_pdfs').getPublicUrl(fileName);
+      const pdfFile = new File([pdfBlob], `report-${report.student_id}.pdf`, { type: "application/pdf" });
+      const uploaded = await uploadDocument(pdfFile, `reports/pdfs/${report.report_period_id}`);
 
       // 7. Save to report_pdf_exports
       await supabaseClient.from('report_pdf_exports').insert({
         report_id: report.id,
-        file_url: urlData.publicUrl,
+        file_url: uploaded.filePath,
         generated_by: user.id
       });
 
@@ -132,6 +125,14 @@ export const GeneratePDFList: React.FC = () => {
     } finally {
       setGeneratingId(null);
       setRenderData(null);
+    }
+  };
+
+  const openPdf = async (fileUrl: string) => {
+    try {
+      window.open(await getDocumentSignedUrl(fileUrl, 600), "_blank", "noopener,noreferrer");
+    } catch {
+      toast.error("PDF belum dapat dibuka.");
     }
   };
 
@@ -254,14 +255,13 @@ export const GeneratePDFList: React.FC = () => {
                       <td className="px-4 py-4 text-right">
                         <div className="flex items-center justify-end gap-2">
                           {latestPdf && (
-                            <a 
-                              href={latestPdf.file_url} 
-                              target="_blank" 
-                              rel="noreferrer"
+                            <button
+                              type="button"
+                              onClick={() => void openPdf(latestPdf.file_url)}
                               className="px-3 py-1.5 bg-background border shadow-sm rounded-md text-xs font-semibold hover:bg-muted flex items-center gap-1"
                             >
                               <FileDown className="w-3.5 h-3.5" /> Unduh
-                            </a>
+                            </button>
                           )}
                           <button 
                             onClick={() => handleGeneratePdf(report)}

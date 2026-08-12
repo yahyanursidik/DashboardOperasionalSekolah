@@ -19,6 +19,7 @@ import {
   PAUD_SCALE_TONES,
   type PaudScale,
 } from "../paud/paud-config";
+import { StoredImage } from "../../components/common/StoredImage";
 
 export const PortalPaud: React.FC = () => {
   const { student } = useOutletContext<any>();
@@ -147,7 +148,7 @@ export const PortalPaud: React.FC = () => {
                 {activities.map((activity: any) => (
                   <article key={activity.id} className="overflow-hidden rounded-lg border bg-card">
                     {activity.photo_url ? (
-                      <img src={activity.photo_url} alt={activity.title} className="aspect-[16/9] w-full object-cover" />
+                      <StoredImage source={activity.photo_url} alt={activity.title} className="aspect-[16/9] w-full object-cover" />
                     ) : (
                       <div className="flex aspect-[16/9] items-center justify-center bg-muted"><Camera className="h-8 w-8 text-muted-foreground/30" /></div>
                     )}

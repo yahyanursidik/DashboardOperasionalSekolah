@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, CalendarDays, CheckCircle2, Circle, Clock3, CreditCard, FileText, Megaphone, UploadCloud, UserPlus } from "lucide-react";
 import { supabaseClient } from "../../../lib/supabase/client";
-import { admissionStatusMeta, admissionStatusOrder, formatAdmissionDate, getAdmissionStatus } from "../admissions-config";
+import { admissionStatusMeta, admissionStatusOrder, formatAdmissionDate, getAdmissionStatus, getRequiredAdmissionDocumentTypes } from "../admissions-config";
 import { applicantTargetLabel, entryTypeLabel } from "../quota-utils";
 import { useSpmbPortal } from "./spmb-context";
 
@@ -34,11 +34,12 @@ export const SpmbDashboard: React.FC = () => {
   const status = getAdmissionStatus(applicant);
   const meta = admissionStatusMeta[status];
   const currentIndex = admissionStatusOrder.indexOf(status);
-  const verifiedDocs = documents.filter((doc) => doc.status === "valid").length;
+  const requiredDocumentTypes = getRequiredAdmissionDocumentTypes(applicant.entry_type);
+  const verifiedDocs = requiredDocumentTypes.filter((type) => documents.some((doc) => doc.document_type === type.value && doc.status === "valid")).length;
   const payment = payments[0];
   const tasks = [
     { to: "/spmb/form", title: "Data calon murid", detail: status === "draft" ? "Lengkapi dan kirim formulir" : "Lihat data yang telah dikirim", icon: FileText, done: status !== "draft" },
-    { to: "/spmb/documents", title: "Berkas persyaratan", detail: `${verifiedDocs} dari ${documents.length || 3} berkas terverifikasi`, icon: UploadCloud, done: verifiedDocs >= 3 },
+    { to: "/spmb/documents", title: "Berkas persyaratan", detail: `${verifiedDocs} dari ${requiredDocumentTypes.length} berkas wajib terverifikasi`, icon: UploadCloud, done: verifiedDocs === requiredDocumentTypes.length },
     { to: "/spmb/payment", title: "Biaya pendaftaran", detail: payment ? `Status: ${payment.status === "verified" ? "terverifikasi" : payment.status === "rejected" ? "perlu diperbaiki" : "menunggu verifikasi"}` : "Unggah bukti pembayaran", icon: CreditCard, done: payment?.status === "verified" },
     { to: "/spmb/announcement", title: "Hasil seleksi", detail: ["accepted", "waitlisted", "rejected", "enrolled"].includes(status) ? "Keputusan sudah tersedia" : "Tersedia setelah proses seleksi", icon: Megaphone, done: ["accepted", "enrolled"].includes(status) },
   ];

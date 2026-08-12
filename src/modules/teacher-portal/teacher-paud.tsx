@@ -14,6 +14,7 @@ import {
 import { toast } from "sonner";
 import { useAcademicYear } from "../../app/providers/AcademicYearProvider";
 import { supabaseClient } from "../../lib/supabase/client";
+import { uploadDocument } from "../../lib/supabase/storage";
 import { toDateInputValue } from "../leaves/leave-utils";
 import {
   PAUD_ASPECTS,
@@ -150,11 +151,8 @@ export const TeacherPaud: React.FC = () => {
     }
     setIsUploading(true);
     try {
-      const extension = file.name.split(".").pop() || "jpg";
-      const path = `paud_activities/${selectedStudentId || "unassigned"}/${crypto.randomUUID()}.${extension}`;
-      const { error } = await supabaseClient.storage.from("documents").upload(path, file);
-      if (error) throw error;
-      setPhotoUrl(supabaseClient.storage.from("documents").getPublicUrl(path).data.publicUrl);
+      const uploaded = await uploadDocument(file, `paud/activities/${selectedStudentId || "unassigned"}`);
+      setPhotoUrl(uploaded.filePath);
       toast.success("Bukti foto berhasil diunggah.");
     } catch (error: any) {
       toast.error(`Foto gagal diunggah: ${error.message}`);

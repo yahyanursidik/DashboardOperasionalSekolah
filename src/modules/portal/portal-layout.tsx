@@ -5,6 +5,7 @@ import { Home, Wallet, BookOpen, LogOut, Smile, ClipboardList, Bell, Target, Fil
 import { useSystemSettings } from "../../app/providers/SettingsProvider";
 import type { ParentPortalParent, ParentPortalStudent } from "./portal-context";
 import { publishDueAnnouncements } from "../../lib/announcements/publish-due";
+import { StoredImage } from "../../components/common/StoredImage";
 
 type AnnouncementIdRow = { id: string };
 type AnnouncementReadRow = { announcement_id: string };
@@ -197,11 +198,7 @@ export const PortalLayout: React.FC = () => {
           <div className="max-w-md mx-auto md:max-w-full px-4 py-3 flex justify-between items-center min-h-[64px]">
             <div className="flex items-center gap-3 min-w-0">
               <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center overflow-hidden shrink-0 border border-emerald-200">
-                {selectedStudentPhoto ? (
-                  <img src={selectedStudentPhoto} alt="Student" className="w-full h-full object-cover" />
-                ) : (
-                  <span className="text-emerald-700 font-bold text-lg">{student.full_name?.charAt(0)}</span>
-                )}
+                <StoredImage source={selectedStudentPhoto} alt="Student" className="w-full h-full object-cover" fallback={<span className="text-emerald-700 font-bold text-lg">{student.full_name?.charAt(0)}</span>} />
               </div>
               <div className="min-w-0">
                 <h1 className="text-sm md:text-base font-bold text-gray-900 leading-tight truncate">{student.full_name}</h1>

@@ -6,6 +6,7 @@ import { supabaseClient } from "../../../../lib/supabase/client";
 import { toast } from "sonner";
 import { logAudit } from "../../../../lib/audit";
 import { getAssessmentBasisLabel } from "../../report-period-utils";
+import { getDocumentSignedUrl } from "../../../../lib/supabase/storage";
 
 export const ParentReportShow: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -167,6 +168,14 @@ export const ParentReportShow: React.FC = () => {
 
   const pdfExports = reportData?.report_pdf_exports || [];
   const latestPdf = pdfExports.length > 0 ? pdfExports[0].file_url : null;
+  const openPdf = async () => {
+    if (!latestPdf) return;
+    try {
+      window.open(await getDocumentSignedUrl(latestPdf, 600), "_blank", "noopener,noreferrer");
+    } catch {
+      toast.error("PDF belum dapat dibuka.");
+    }
+  };
 
 
   return (
@@ -331,14 +340,13 @@ export const ParentReportShow: React.FC = () => {
 
           <div className="mt-8 pt-8 border-t flex justify-center">
              {latestPdf ? (
-               <a 
-                  href={latestPdf}
-                  target="_blank"
-                  rel="noreferrer"
+               <button
+                  type="button"
+                  onClick={() => void openPdf()}
                   className="px-6 py-2 bg-background border border-primary shadow-sm hover:bg-muted rounded-lg font-semibold text-sm transition-colors flex items-center gap-2 text-primary"
                 >
                   <Download className="w-4 h-4" /> Unduh Versi PDF
-                </a>
+                </button>
              ) : (
                 <button 
                   disabled

@@ -7,6 +7,7 @@ import { audienceLabel, gradeLabel, isLibraryPublished, resourceTypeLabel } from
 import type { LibraryAudience, LibraryBook } from "../digital-library/library-config";
 import { supabaseClient } from "../../lib/supabase/client";
 import type { ParentPortalContext } from "./portal-context";
+import { getDocumentSignedUrl, isContaboStoragePath } from "../../lib/supabase/storage";
 
 type LibraryPortalProps = { audience: LibraryAudience; unitId?: string | null; gradeLevel?: number | null; title?: string };
 type Activity = { progress_percent: number; is_favorite: boolean; completed_at?: string | null; last_opened_at?: string | null };
@@ -15,6 +16,14 @@ const getLocalActivity = (bookId: string): Activity => {
   try { return JSON.parse(window.localStorage.getItem(`library-activity:${bookId}`) || "{}") as Activity; }
   catch { return { progress_percent: 0, is_favorite: false }; }
 };
+
+async function resolveBookUrls(rows: LibraryBook[]) {
+  return Promise.all(rows.map(async (book) => ({
+    ...book,
+    cover_url: book.cover_url && isContaboStoragePath(book.cover_url) ? await getDocumentSignedUrl(book.cover_url, 3600).catch(() => null) : book.cover_url,
+    file_url: isContaboStoragePath(book.file_url) ? await getDocumentSignedUrl(book.file_url, 3600).catch(() => book.file_url) : book.file_url,
+  })));
+}
 
 export const DigitalLibraryPortal: React.FC<LibraryPortalProps> = ({ audience, unitId, gradeLevel, title = "Perpustakaan Digital" }) => {
   const [books, setBooks] = useState<LibraryBook[]>([]);
@@ -34,8 +43,8 @@ export const DigitalLibraryPortal: React.FC<LibraryPortalProps> = ({ audience, u
     if (bookResult.error) {
       const fallback = await supabaseClient.from("digital_library_books").select("*,digital_library_categories(name)").eq("is_active", true).order("created_at", { ascending: false });
       if (fallback.error) toast.error("Perpustakaan belum dapat dimuat.");
-      setBooks(((fallback.data || []) as unknown as LibraryBook[]).map((book) => ({ ...book, digital_library_user_books: [getLocalActivity(book.id)] })));
-    } else setBooks((bookResult.data || []) as unknown as LibraryBook[]);
+      setBooks(await resolveBookUrls(((fallback.data || []) as unknown as LibraryBook[]).map((book) => ({ ...book, digital_library_user_books: [getLocalActivity(book.id)] }))));
+    } else setBooks(await resolveBookUrls((bookResult.data || []) as unknown as LibraryBook[]));
     if (categoryResult.error) {
       const fallbackCategories = await supabaseClient.from("digital_library_categories").select("id,name").order("name");
       setCategories((fallbackCategories.data || []) as unknown as Array<{ id: string; name: string }>);

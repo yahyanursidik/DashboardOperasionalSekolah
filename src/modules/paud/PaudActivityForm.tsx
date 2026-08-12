@@ -5,7 +5,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Save, UploadCloud } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "../../components/layout/PageHeader";
-import { supabaseClient } from "../../lib/supabase/client";
+import { uploadDocument } from "../../lib/supabase/storage";
 import { useAcademicYear } from "../../app/providers/AcademicYearProvider";
 import { useCurrentUnit } from "../../app/providers/UnitProvider";
 import {
@@ -77,12 +77,8 @@ export const PaudActivityForm: React.FC = () => {
 
     setIsUploading(true);
     try {
-      const extension = file.name.split(".").pop()?.toLowerCase() || "jpg";
-      const filePath = `paud_activities/${selectedStudentId || "unassigned"}/${crypto.randomUUID()}.${extension}`;
-      const { error } = await supabaseClient.storage.from("documents").upload(filePath, file);
-      if (error) throw error;
-      const { data } = supabaseClient.storage.from("documents").getPublicUrl(filePath);
-      setPhotoUrl(data.publicUrl);
+      const uploaded = await uploadDocument(file, `paud/activities/${selectedStudentId || "unassigned"}`);
+      setPhotoUrl(uploaded.filePath);
       toast.success("Foto berhasil diunggah.");
     } catch (error: any) {
       toast.error(`Foto gagal diunggah: ${error.message || "periksa konfigurasi penyimpanan"}`);

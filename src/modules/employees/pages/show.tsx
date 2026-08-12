@@ -24,6 +24,7 @@ import { formatScheduleType, formatTime } from "../../schedules/schedule-utils";
 import { validateTeachingScheduleCurriculum } from "../../schedules/curriculum-schedule-validation";
 import { toast } from "sonner";
 import { PortalAccessPanel } from "../components/PortalAccessPanel";
+import { StoredImage } from "../../../components/common/StoredImage";
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 const POSITION_MAP: Record<string, { label: string; color: string; icon: React.ElementType }> = {
@@ -462,8 +463,8 @@ export const EmployeeShow: React.FC = () => {
             {/* Banner */}
             <div className={`h-20 bg-gradient-to-r ${avatarColor} opacity-20`} />
             <div className="px-5 pb-5 -mt-10">
-              <div className={`w-20 h-20 rounded-2xl bg-gradient-to-br ${avatarColor} flex items-center justify-center text-white font-bold text-2xl shadow-lg border-4 border-background mb-3`}>
-                {getInitials(record.full_name ?? "?")}
+              <div className={`w-20 h-20 rounded-2xl bg-gradient-to-br ${avatarColor} flex items-center justify-center overflow-hidden text-white font-bold text-2xl shadow-lg border-4 border-background mb-3`}>
+                <StoredImage source={record.photo_url} alt={record.full_name || "Foto pegawai"} className="h-full w-full object-cover" fallback={getInitials(record.full_name ?? "?")} />
               </div>
               <h2 className="text-xl font-bold text-foreground">{record.full_name}</h2>
               <div className="flex flex-wrap gap-2 mt-2">

@@ -3,6 +3,7 @@ import { useForm, useSelect } from "@refinedev/core";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { Save, ArrowLeft, User, Briefcase, GraduationCap, Eye, Info } from "lucide-react";
 import { attendanceModeOptions, canFollowWorkSchedule, canUseTeachingScheduleAttendance, employeePositions, employmentTypeOptions, getAttendanceMode, getEmployeePosition, getRecommendedAttendanceMode } from "../employee-role-config";
+import { PhotoUpload } from "../../../components/common/PhotoUpload";
 
 function FormSection({ title, icon: Icon, children }: { title: string; icon: React.ElementType; children: React.ReactNode }) {
   return (
@@ -40,6 +41,7 @@ export const EmployeeEdit: React.FC = () => {
   const [positionOverride, setPositionOverride] = useState<string | null>(null);
   const [employmentTypeOverride, setEmploymentTypeOverride] = useState<string | null>(null);
   const [attendanceModeOverride, setAttendanceModeOverride] = useState<string | null>(null);
+  const [photoUrlOverride, setPhotoUrlOverride] = useState<string | null>(null);
 
   const { onFinish, mutationResult, queryResult } = useForm({
     resource: "employees",
@@ -52,6 +54,7 @@ export const EmployeeEdit: React.FC = () => {
   });
 
   const employee = queryResult?.data?.data;
+  const photoUrl = photoUrlOverride ?? employee?.photo_url ?? "";
   const { options: unitOptions } = useSelect({ resource: "units", optionLabel: "name", optionValue: "id" });
 
   const position = positionOverride ?? employee?.position ?? "";
@@ -107,6 +110,10 @@ export const EmployeeEdit: React.FC = () => {
       <form onSubmit={handleSubmit} className="space-y-5">
         {/* ── Identitas Dasar ── */}
         <FormSection title="Identitas Dasar" icon={User}>
+          <div className="rounded-lg border bg-muted/20 p-4">
+            <PhotoUpload value={photoUrl || null} onChange={setPhotoUrlOverride} folderPath="employees/photos" />
+            <input type="hidden" name="photo_url" value={photoUrl} />
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label="NIK / NIP" required>
               <input name="nik" type="text" required defaultValue={employee?.nik} className={inputCls} placeholder="Nomor Induk Pegawai" />

@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useAcademicYear } from "../../app/providers/AcademicYearProvider";
 import { BrandLogo } from "../common/BrandLogo";
+import { StoredImage } from "../common/StoredImage";
 
 export interface RolePortalNavItem {
   to: string;
@@ -220,7 +221,7 @@ export const RolePortalShell: React.FC<RolePortalShellProps> = ({
             {notificationPath ? <Link to={notificationPath} title="Informasi dan pengumuman" className="relative flex h-10 w-10 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"><Bell className="h-5 w-5" /></Link> : null}
             <div className="flex items-center gap-2 border-l pl-2 sm:pl-3">
               <div className="hidden max-w-40 text-right lg:block"><p className="truncate text-sm font-semibold leading-none">{employee?.full_name}</p><p className="mt-1 truncate text-xs text-muted-foreground">{roleLabel}</p></div>
-              <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-primary/10 font-bold text-primary">{employee?.photo_url ? <img src={employee.photo_url} alt="Foto profil" className="h-full w-full object-cover" /> : String(employee?.full_name || "P").charAt(0).toUpperCase()}</div>
+              <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-primary/10 font-bold text-primary"><StoredImage source={employee?.photo_url} alt="Foto profil" className="h-full w-full object-cover" fallback={String(employee?.full_name || "P").charAt(0).toUpperCase()} /></div>
               <button type="button" onClick={() => void onLogout()} title="Keluar" className="hidden h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive sm:flex"><LogOut className="h-4 w-4" /></button>
             </div>
           </div>

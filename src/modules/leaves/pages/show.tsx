@@ -24,6 +24,7 @@ import {
   leaveStatusConfig,
 } from "../leave-utils";
 import { toast } from "sonner";
+import { useStoredFileUrl } from "../../../hooks/useStoredFileUrl";
 
 export const LeaveShow: React.FC = () => {
   const { id } = useParams();
@@ -38,6 +39,7 @@ export const LeaveShow: React.FC = () => {
   });
 
   const leave = data?.data;
+  const proofUrl = useStoredFileUrl(leave?.proof_document);
   const dateRange = useMemo(() => getDatesInRange(leave?.start_date, leave?.end_date), [leave?.start_date, leave?.end_date]);
   const affectedDays = useMemo(() => new Set(dateRange.map((date) => dayMap[new Date(`${date}T00:00:00`).getDay()])), [dateRange]);
 
@@ -228,7 +230,7 @@ export const LeaveShow: React.FC = () => {
               <p className="text-xs text-muted-foreground uppercase font-medium mb-2">Dokumen Lampiran</p>
               {leave.proof_document ? (
                 <a
-                  href={leave.proof_document}
+                  href={proofUrl || undefined}
                   target="_blank"
                   rel="noreferrer"
                   className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-md text-sm font-medium border border-blue-200 transition-colors"

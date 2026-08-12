@@ -89,12 +89,12 @@ export const LibraryBookForm: React.FC<{ bookId?: string }> = ({ bookId }) => {
     if (bookFile) {
       if (bookFile.size > 50 * 1024 * 1024) throw new Error("Ukuran file koleksi maksimal 50 MB.");
       const uploaded = await uploadDocument(bookFile, `digital-library/books/${new Date().getFullYear()}`);
-      fileUrl = supabaseClient.storage.from("school-documents").getPublicUrl(uploaded.filePath).data.publicUrl;
+      fileUrl = uploaded.filePath;
     }
     if (coverFile) {
       if (!coverFile.type.startsWith("image/") || coverFile.size > 5 * 1024 * 1024) throw new Error("Sampul harus berupa gambar maksimal 5 MB.");
       const uploaded = await uploadDocument(coverFile, `digital-library/covers/${new Date().getFullYear()}`);
-      coverUrl = supabaseClient.storage.from("school-documents").getPublicUrl(uploaded.filePath).data.publicUrl;
+      coverUrl = uploaded.filePath;
     }
     return { fileUrl, coverUrl };
   };
@@ -168,9 +168,9 @@ export const LibraryBookForm: React.FC<{ bookId?: string }> = ({ bookId }) => {
 
         <section className="rounded-lg border bg-card p-5"><h2 className="flex items-center gap-2 font-bold"><FileText className="h-5 w-5 text-primary" />Sumber dan publikasi</h2><div className="mt-4 grid gap-4 md:grid-cols-2">
           <label className="text-sm font-medium">Jenis sumber<select value={form.resource_type} onChange={(e) => setField("resource_type", e.target.value)} className={inputClass}>{LIBRARY_RESOURCE_TYPES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
-          <label className="text-sm font-medium">URL sumber *<input type="url" value={form.file_url} onChange={(e) => setField("file_url", e.target.value)} placeholder="https://..." className={inputClass} /></label>
+          <label className="text-sm font-medium">URL sumber *<input type="text" value={form.file_url} onChange={(e) => setField("file_url", e.target.value)} placeholder="https://... atau file tersimpan" className={inputClass} /></label>
           <label className="rounded-md border border-dashed p-4 text-sm font-medium"><span className="flex items-center gap-2"><UploadCloud className="h-4 w-4" />Atau unggah koleksi</span><input type="file" accept=".pdf,.epub,.doc,.docx,.mp3,.mp4" onChange={(e) => setBookFile(e.target.files?.[0] || null)} className="mt-3 block w-full text-xs" />{bookFile && <span className="mt-2 block truncate text-xs text-primary">{bookFile.name}</span>}</label>
-          <label className="text-sm font-medium">URL sampul<input type="url" value={form.cover_url} onChange={(e) => setField("cover_url", e.target.value)} placeholder="https://..." className={inputClass} /></label>
+          <label className="text-sm font-medium">URL sampul<input type="text" value={form.cover_url} onChange={(e) => setField("cover_url", e.target.value)} placeholder="https://... atau file tersimpan" className={inputClass} /></label>
           <label className="rounded-md border border-dashed p-4 text-sm font-medium"><span className="flex items-center gap-2"><Image className="h-4 w-4" />Atau unggah sampul</span><input type="file" accept="image/*" onChange={(e) => setCoverFile(e.target.files?.[0] || null)} className="mt-3 block w-full text-xs" />{coverFile && <span className="mt-2 block truncate text-xs text-primary">{coverFile.name}</span>}</label>
           <div className="grid grid-cols-2 gap-3"><label className="text-sm font-medium">Jumlah halaman<input type="number" min={1} value={form.page_count} onChange={(e) => setField("page_count", e.target.value)} className={inputClass} /></label><label className="text-sm font-medium">Estimasi baca (menit)<input type="number" min={1} value={form.estimated_minutes} onChange={(e) => setField("estimated_minutes", e.target.value)} className={inputClass} /></label></div>
           <label className="text-sm font-medium">Mulai tayang<input type="datetime-local" value={form.publish_start_at} onChange={(e) => setField("publish_start_at", e.target.value)} className={inputClass} /></label>

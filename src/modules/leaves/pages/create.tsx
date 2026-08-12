@@ -6,6 +6,7 @@ import { ArrowLeft, Calendar, CheckCircle2, FileText, Info, Save, Upload } from 
 import { useAcademicYear } from "../../../app/providers/AcademicYearProvider";
 import { useCurrentUnit } from "../../../app/providers/UnitProvider";
 import { supabaseClient } from "../../../lib/supabase/client";
+import { uploadDocument } from "../../../lib/supabase/storage";
 import { dayMap, formatTime, getScheduleSubjectName } from "../../schedules/schedule-utils";
 import { toast } from "sonner";
 import {
@@ -95,16 +96,8 @@ export const LeaveCreate: React.FC = () => {
     if (!file) return null;
     setIsUploading(true);
     try {
-      const fileExt = file.name.split(".").pop();
-      const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
-      const filePath = `leaves/${fileName}`;
-
-      const { error } = await supabaseClient.storage.from("leave_documents").upload(filePath, file);
-
-      if (error) throw error;
-
-      const { data } = supabaseClient.storage.from("leave_documents").getPublicUrl(filePath);
-      return data.publicUrl;
+      const uploaded = await uploadDocument(file, `leaves/${employeeId || "unassigned"}`);
+      return uploaded.filePath;
     } catch (error) {
       console.error("Upload error:", error);
       toast.error("Gagal mengunggah dokumen");

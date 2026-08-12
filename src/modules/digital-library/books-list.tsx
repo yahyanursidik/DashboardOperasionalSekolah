@@ -7,8 +7,17 @@ import { PageHeader } from "../../components/layout/PageHeader";
 import { supabaseClient } from "../../lib/supabase/client";
 import { audienceLabel, gradeLabel, isLibraryPublished, resourceTypeLabel } from "./library-config";
 import type { LibraryBook } from "./library-config";
+import { getDocumentSignedUrl, isContaboStoragePath } from "../../lib/supabase/storage";
 
 const PAGE_SIZE = 12;
+
+async function resolveBookUrls(rows: LibraryBook[]) {
+  return Promise.all(rows.map(async (book) => ({
+    ...book,
+    cover_url: book.cover_url && isContaboStoragePath(book.cover_url) ? await getDocumentSignedUrl(book.cover_url, 3600).catch(() => null) : book.cover_url,
+    file_url: isContaboStoragePath(book.file_url) ? await getDocumentSignedUrl(book.file_url, 3600).catch(() => book.file_url) : book.file_url,
+  })));
+}
 
 export const DigitalLibraryBooksList: React.FC = () => {
   const [books, setBooks] = useState<LibraryBook[]>([]);
@@ -32,8 +41,8 @@ export const DigitalLibraryBooksList: React.FC = () => {
     if (bookResult.error) {
       const fallback = await supabaseClient.from("digital_library_books").select("*,digital_library_categories(name)").order("created_at", { ascending: false });
       if (fallback.error) toast.error("Katalog perpustakaan belum dapat dimuat.");
-      setBooks((fallback.data || []) as unknown as LibraryBook[]);
-    } else setBooks((bookResult.data || []) as unknown as LibraryBook[]);
+      setBooks(await resolveBookUrls((fallback.data || []) as unknown as LibraryBook[]));
+    } else setBooks(await resolveBookUrls((bookResult.data || []) as unknown as LibraryBook[]));
     setLoading(false);
   };
 

@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { supabaseClient } from "../../../lib/supabase/client";
 import { getDocumentSignedUrl } from "../../../lib/supabase/storage";
-import { admissionDocumentTypes, admissionStatusMeta, formatAdmissionDate, getAdmissionStatus, type AdmissionStatus } from "../admissions-config";
+import { admissionDocumentTypes, admissionStatusMeta, formatAdmissionDate, getAdmissionStatus, getRequiredAdmissionDocumentTypes, type AdmissionStatus } from "../admissions-config";
 import { applicantTargetLabel, classTargetLabel, entryTypeLabel } from "../quota-utils";
 
 const db = supabaseClient as any;
@@ -123,8 +123,9 @@ export const ApplicantShow: React.FC = () => {
     if (error) toast.error(error.message); else { toast.success("Kelas tujuan dan jalur kuota diperbarui."); await load(); }
   };
 
-  const validDocs = documents.filter((doc) => doc.status === "valid").length;
-  const requiredDocs = admissionDocumentTypes.filter((doc) => doc.required || (doc.value === "transfer_letter" && applicant?.entry_type === "transfer")).length;
+  const requiredDocumentTypes = getRequiredAdmissionDocumentTypes(applicant?.entry_type);
+  const validDocs = requiredDocumentTypes.filter((type) => documents.some((doc) => doc.document_type === type.value && doc.status === "valid")).length;
+  const requiredDocs = requiredDocumentTypes.length;
   const latestPayment = payments[0];
   const info = useMemo(() => applicant ? [["Nama lengkap",applicant.name],["NIK",applicant.nik],["NISN",applicant.nisn],["Jenis kelamin",applicant.gender === "P" ? "Perempuan" : "Laki-laki"],["Tempat, tanggal lahir",`${applicant.birth_place || "-"}, ${formatAdmissionDate(applicant.dob)}`],["Asal sekolah",applicant.previous_school],["Orang tua / wali",applicant.parent_name],["WhatsApp",applicant.parent_phone],["Email",applicant.parent_email],["Alamat",applicant.address]] : [], [applicant]);
 

@@ -5,8 +5,9 @@ import { CheckCircle, XCircle, Eye, Clock, X } from "lucide-react";
 import { useCurrentUnit } from "../../../app/providers/UnitProvider";
 import { useAcademicYear } from "../../../app/providers/AcademicYearProvider";
 import { FinanceSectionNav } from "../components/FinanceSectionNav";
-import { supabaseClient } from "../../../lib/supabase/client";
+import { getDocumentSignedUrl } from "../../../lib/supabase/storage";
 import { belongsToFinanceUnit } from "../finance-utils";
+import { toast } from "sonner";
 
 type PaymentTransaction = {
   id: string;
@@ -53,12 +54,11 @@ export const PaymentVerifications: React.FC = () => {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   const openProof = async (value: string) => {
-    if (/^https?:\/\//i.test(value)) {
-      setSelectedImage(value);
-      return;
+    try {
+      setSelectedImage(await getDocumentSignedUrl(value, 300));
+    } catch {
+      toast.error("Bukti pembayaran belum dapat dibuka.");
     }
-    const { data: signed, error } = await supabaseClient.storage.from("payment-proofs").createSignedUrl(value, 300);
-    if (!error && signed?.signedUrl) setSelectedImage(signed.signedUrl);
   };
 
   const handleVerify = (id: string, newStatus: string, reason?: string) => {

@@ -2,20 +2,17 @@ import React, { useState, useRef } from "react";
 import { Camera, Upload, X, Loader2 } from "lucide-react";
 import { uploadDocument, getDocumentSignedUrl } from "../../lib/supabase/storage";
 import { toast } from "sonner";
-import { supabaseClient } from "../../lib/supabase/client";
 
 interface PhotoUploadProps {
   value: string | null;
   onChange: (url: string) => void;
-  bucketName?: string;
   folderPath?: string;
 }
 
 export const PhotoUpload: React.FC<PhotoUploadProps> = ({ 
   value, 
   onChange,
-  bucketName = "school-documents",
-  folderPath = "avatars"
+  folderPath = "students/photos"
 }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [preview, setPreview] = useState<string | null>(value);
@@ -23,18 +20,16 @@ export const PhotoUpload: React.FC<PhotoUploadProps> = ({
 
   // Load actual image URL if the value is a storage path
   React.useEffect(() => {
+    let active = true;
     if (value) {
-      if (value.startsWith('http')) {
-        setPreview(value);
-      } else {
-        // Assume it's a Supabase storage path
-        const { data } = supabaseClient.storage.from(bucketName).getPublicUrl(value);
-        setPreview(data.publicUrl);
-      }
+      void getDocumentSignedUrl(value, 3600)
+        .then((url) => { if (active) setPreview(url); })
+        .catch(() => { if (active) setPreview(null); });
     } else {
-      setPreview(null);
+      queueMicrotask(() => { if (active) setPreview(null); });
     }
-  }, [value, bucketName]);
+    return () => { active = false; };
+  }, [value]);
 
   const processAndUploadImage = async (file: File) => {
     if (!file.type.startsWith("image/")) {
@@ -85,7 +80,7 @@ export const PhotoUpload: React.FC<PhotoUploadProps> = ({
       // Set local preview while uploading for better UX
       setPreview(URL.createObjectURL(blob));
 
-      // 4. Upload to Supabase
+      // 4. Upload through the server-side Contabo S3 signer
       const processedFile = new File([blob], `avatar_${Date.now()}.jpg`, { type: "image/jpeg" });
       const uploadResult = await uploadDocument(processedFile, folderPath);
       
@@ -93,9 +88,9 @@ export const PhotoUpload: React.FC<PhotoUploadProps> = ({
       onChange(uploadResult.filePath);
       toast.success("Foto berhasil diproses dan diunggah!");
       
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Upload error:", error);
-      toast.error(error.message || "Gagal mengunggah foto.");
+      toast.error(error instanceof Error ? error.message : "Gagal mengunggah foto.");
       // Reset preview to old value on error
       setPreview(value);
     } finally {

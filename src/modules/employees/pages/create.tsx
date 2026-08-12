@@ -3,6 +3,7 @@ import { useForm, useSelect } from "@refinedev/core";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Save, ArrowLeft, User, GraduationCap, Briefcase, Info } from "lucide-react";
 import { attendanceModeOptions, canFollowWorkSchedule, canUseTeachingScheduleAttendance, employeePositions, employmentTypeOptions, getAttendanceMode, getEmployeePosition, getRecommendedAttendanceMode } from "../employee-role-config";
+import { PhotoUpload } from "../../../components/common/PhotoUpload";
 
 function FormSection({ title, icon: Icon, children }: { title: string; icon: React.ElementType; children: React.ReactNode }) {
   return (
@@ -39,6 +40,7 @@ export const EmployeeCreate: React.FC = () => {
   const [position, setPosition] = useState("guru");
   const [employmentType, setEmploymentType] = useState("permanent");
   const [attendanceMode, setAttendanceMode] = useState("unit_hours");
+  const [photoUrl, setPhotoUrl] = useState("");
   const supportsTeachingSchedule = canUseTeachingScheduleAttendance(position);
   const supportsWorkSchedule = canFollowWorkSchedule(position);
 
@@ -83,6 +85,10 @@ export const EmployeeCreate: React.FC = () => {
       <form onSubmit={handleSubmit} className="space-y-5">
         {/* ── Identitas Dasar ── */}
         <FormSection title="Identitas Dasar" icon={User}>
+          <div className="rounded-lg border bg-muted/20 p-4">
+            <PhotoUpload value={photoUrl || null} onChange={setPhotoUrl} folderPath="employees/photos" />
+            <input type="hidden" name="photo_url" value={photoUrl} />
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label="NIK / NIP" required>
               <input name="nik" type="text" required className={inputCls} placeholder="Nomor Induk Pegawai" />

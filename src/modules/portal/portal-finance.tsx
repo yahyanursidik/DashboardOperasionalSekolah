@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import { useList } from "@refinedev/core";
 import { useOutletContext } from "react-router-dom";
 import { supabaseClient } from "../../lib/supabase/client";
+import { uploadDocument } from "../../lib/supabase/storage";
 import { Receipt, CheckCircle, Clock, Upload, X, History, XCircle, AlertTriangle, Banknote } from "lucide-react";
 import { toast } from "sonner";
 
@@ -36,13 +37,7 @@ export const PortalFinance: React.FC = () => {
     
     setIsSubmitting(true);
     try {
-      const safeName = proofFile.name.replace(/[^a-zA-Z0-9._-]/g, "-");
-      const storagePath = `${student.id}/${Date.now()}-${safeName}`;
-      const { error: uploadError } = await supabaseClient.storage.from("payment-proofs").upload(storagePath, proofFile, {
-        cacheControl: "3600",
-        upsert: false,
-      });
-      if (uploadError) throw uploadError;
+      const uploaded = await uploadDocument(proofFile, `finance/${student.id}/payment-proofs`);
 
       const { error } = await supabaseClient
         .from("payment_transactions")
@@ -54,11 +49,10 @@ export const PortalFinance: React.FC = () => {
           payment_date: new Date().toISOString().slice(0, 10),
           status: "pending_verification",
           notes: "Dikirim melalui Portal Orang Tua",
-          proof_image_url: storagePath,
+          proof_image_url: uploaded.filePath,
         }]);
 
       if (error) {
-        await supabaseClient.storage.from("payment-proofs").remove([storagePath]);
         throw error;
       }
       

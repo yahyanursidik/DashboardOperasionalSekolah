@@ -19,6 +19,7 @@ import { PageHeader } from "../../components/layout/PageHeader";
 import { useAcademicYear } from "../../app/providers/AcademicYearProvider";
 import { useCurrentUnit } from "../../app/providers/UnitProvider";
 import { formatPaudDate, PAUD_OBSERVATION_METHODS } from "./paud-config";
+import { StoredImage } from "../../components/common/StoredImage";
 
 const PAGE_SIZE = 12;
 
@@ -148,7 +149,7 @@ export const PaudActivitiesList: React.FC = () => {
               <article key={record.id} className="overflow-hidden rounded-lg border bg-card">
                 <div className="relative flex aspect-[16/9] items-center justify-center overflow-hidden bg-muted">
                   {record.photo_url ? (
-                    <img src={record.photo_url} alt={record.title} className="h-full w-full object-cover" />
+                    <StoredImage source={record.photo_url} alt={record.title} className="h-full w-full object-cover" />
                   ) : (
                     <Camera className="h-9 w-9 text-muted-foreground/30" />
                   )}

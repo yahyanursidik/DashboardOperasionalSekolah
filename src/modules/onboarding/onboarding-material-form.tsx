@@ -16,6 +16,7 @@ import {
   type OnboardingMaterial,
 } from "./onboarding-config";
 import { OnboardingViewer } from "./onboarding-viewer";
+import { uploadDocument } from "../../lib/supabase/storage";
 
 type FormState = {
   title: string;
@@ -136,12 +137,8 @@ export const OnboardingMaterialForm: React.FC<{ mode: "create" | "edit" }> = ({ 
     }
     setIsUploading(true);
     try {
-      const extension = file.name.split(".").pop()?.toLowerCase() || "bin";
-      const safePath = `${form.unit_id || "global"}/${new Date().getFullYear()}/${crypto.randomUUID()}.${extension}`;
-      const { data, error } = await supabaseClient.storage.from("onboarding_materials").upload(safePath, file, { upsert: false, contentType: file.type || undefined });
-      if (error) throw error;
-      const publicUrl = supabaseClient.storage.from("onboarding_materials").getPublicUrl(data.path).data.publicUrl;
-      set("file_url", publicUrl);
+      const uploaded = await uploadDocument(file, `onboarding/${form.unit_id || "global"}`);
+      set("file_url", uploaded.filePath);
       toast.success("File berhasil diunggah dan siap dipratinjau.");
     } catch (error: any) {
       toast.error(error.message || "File gagal diunggah.");
