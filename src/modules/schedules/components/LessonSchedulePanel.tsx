@@ -21,6 +21,7 @@ import {
   isHalaqohLearningSchedule,
   isUnitLearningSchedule,
 } from "../schedule-utils";
+import { currentWeekdayInTimeZone, localizeSchoolSchedule, SCHOOL_TIME_ZONE, timeZoneLabel } from "../../../lib/timezones";
 
 type SchedulePanelProps = {
   schedules: any[];
@@ -33,6 +34,7 @@ type SchedulePanelProps = {
   defaultType?: "all" | "mengajar" | "non_mengajar";
   defaultView?: "day" | "week";
   mode?: "lesson" | "work";
+  timeZone?: string | null;
 };
 
 function getUnitId(schedule: any) {
@@ -95,15 +97,16 @@ export const LessonSchedulePanel: React.FC<SchedulePanelProps> = ({
   defaultType = "all",
   defaultView,
   mode = "lesson",
+  timeZone,
 }) => {
-  const today = dayMap[new Date().getDay()] || "Senin";
+  const today = timeZone ? currentWeekdayInTimeZone(timeZone) : dayMap[new Date().getDay()] || "Senin";
   const isWorkMode = mode === "work";
   const [activeDay, setActiveDay] = useState(today);
   const [selectedUnitId, setSelectedUnitId] = useState("all");
   const [typeFilter, setTypeFilter] = useState<"all" | "mengajar" | "non_mengajar">(defaultType);
   const [view, setView] = useState<"day" | "week">(defaultView || (compact || isWorkMode ? "day" : "week"));
 
-  const sortedSchedules = useMemo(() => [...(schedules || [])].sort(sortSchedules), [schedules]);
+  const sortedSchedules = useMemo(() => (schedules || []).map((schedule) => localizeSchoolSchedule(schedule, timeZone)).sort(sortSchedules), [schedules, timeZone]);
   const units = useMemo(() => {
     const map = new Map<string, string>();
     sortedSchedules.forEach((schedule) => map.set(getUnitId(schedule), getUnitName(schedule)));
@@ -157,8 +160,9 @@ export const LessonSchedulePanel: React.FC<SchedulePanelProps> = ({
             <p className={`${dense ? "text-xs" : "text-sm"} font-bold leading-5 ${visual.text}`}>{getDisplayName(schedule, mode)}</p>
             <p className="mt-0.5 flex items-center gap-1 text-[11px] font-semibold text-foreground/70">
               <Clock className="h-3 w-3 shrink-0" />
-              {formatTime(schedule.start_time)} - {formatTime(schedule.end_time)}
+              {formatTime(schedule.start_time)} - {formatTime(schedule.end_time)}{schedule.localized_end_day && schedule.localized_end_day !== schedule.day_of_week ? ` (${schedule.localized_end_day})` : ""}
             </p>
+            {schedule.school_start_time && <p className="mt-0.5 text-[10px] font-medium text-foreground/55">WIB {formatTime(schedule.school_start_time)} - {formatTime(schedule.school_end_time)}</p>}
           </div>
           {!dense && (
             <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md ${visual.softBackground} ${visual.text}`}>
@@ -199,6 +203,7 @@ export const LessonSchedulePanel: React.FC<SchedulePanelProps> = ({
             <div>
               <h2 className="text-lg font-bold text-foreground">{title}</h2>
               <p className="mt-1 max-w-2xl text-sm leading-5 text-muted-foreground">{description}</p>
+              {timeZone && <p className="mt-2 text-xs font-semibold text-blue-700">Zona waktu siswa: {timeZoneLabel(timeZone)}{timeZone !== SCHOOL_TIME_ZONE ? " · waktu WIB tetap ditampilkan sebagai referensi" : ""}</p>}
             </div>
           </div>
 

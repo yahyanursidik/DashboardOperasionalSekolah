@@ -70,11 +70,11 @@ export const getAdmissionStatus = (row: { workflow_status?: string | null; statu
   return canonical && admissionStatuses.includes(canonical) ? canonical : legacyToAdmissionStatus(row.status);
 };
 
-export const formatAdmissionDate = (value?: string | null, includeTime = false) => {
+export const formatAdmissionDate = (value?: string | null, includeTime = false, timeZone = "Asia/Jakarta") => {
   if (!value) return "-";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "-";
   return new Intl.DateTimeFormat("id-ID", includeTime
-    ? { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Jakarta" }
-    : { dateStyle: "medium", timeZone: "Asia/Jakarta" }).format(date);
+    ? { dateStyle: "medium", timeStyle: "short", timeZone }
+    : { dateStyle: "medium", timeZone }).format(date);
 };

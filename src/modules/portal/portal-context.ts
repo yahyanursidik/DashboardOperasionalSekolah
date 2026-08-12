@@ -25,6 +25,8 @@ export type ParentPortalStudent = {
   gender?: string | null;
   photo_url?: string | null;
   photoUrl?: string | null;
+  residence_country?: string | null;
+  learning_timezone?: string | null;
   relationship?: string | null;
   is_primary_guardian?: boolean;
   guardians?: ParentPortalGuardian[];

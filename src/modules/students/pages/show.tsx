@@ -41,6 +41,7 @@ import {
 import { AuditHistory } from "../../../components/common/AuditHistory";
 import { Link, useNavigate } from "react-router-dom";
 import { calculateCompleteness, getStudentQualitySummary } from "./list";
+import { timeZoneLabel } from "../../../lib/timezones";
 import { ParentForm } from "../../parents/components/parent-form";
 import { AcademicHistoryModal } from "../components/AcademicHistoryModal";
 import { toast } from "sonner";
@@ -481,6 +482,8 @@ export const StudentShow: React.FC = () => {
                 { label: "Kelas", value: record.classes?.name || "Belum ada kelas" },
                 { label: "L/P", value: record.gender === "L" ? "Ikhwan (L)" : record.gender === "P" ? "Akhawat (P)" : "-" },
                 { label: "Tempat/Tgl Lahir", value: `${record.birth_place || "-"} / ${formatDate(record.date_of_birth)}` },
+                ...(record.learning_timezone ? [{ label: "Zona Waktu Belajar", value: timeZoneLabel(record.learning_timezone) }] : []),
+                ...(record.residence_country ? [{ label: "Negara Domisili", value: record.residence_country }] : []),
               ].map((item) => (
                 <div key={item.label} className="flex justify-between gap-3 border-b last:border-b-0 pb-2 last:pb-0">
                   <span className="text-muted-foreground">{item.label}</span>

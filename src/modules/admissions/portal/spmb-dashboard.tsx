@@ -5,6 +5,7 @@ import { ArrowRight, CalendarDays, CheckCircle2, Circle, Clock3, CreditCard, Fil
 import { supabaseClient } from "../../../lib/supabase/client";
 import { admissionStatusMeta, admissionStatusOrder, formatAdmissionDate, getAdmissionStatus, getRequiredAdmissionDocumentTypes } from "../admissions-config";
 import { applicantTargetLabel, entryTypeLabel } from "../quota-utils";
+import { timeZoneLabel } from "../../../lib/timezones";
 import { useSpmbPortal } from "./spmb-context";
 
 const db = supabaseClient as any;
@@ -46,11 +47,11 @@ export const SpmbDashboard: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4"><div><p className="text-sm font-semibold text-emerald-700">{applicant.registration_number}</p><h1 className="text-2xl sm:text-3xl font-bold">Pendaftaran {applicant.name}</h1><p className="text-slate-600 mt-2">{applicant.units?.name || applicant.unit} · {applicant.academic_years?.name || applicant.academic_year} · {applicant.admission_batches?.name || "Gelombang pendaftaran"}</p><p className="text-sm font-semibold text-slate-800 mt-2">{applicantTargetLabel(applicant)} · {entryTypeLabel(applicant.entry_type)}</p></div><span className={`self-start lg:self-auto px-3 py-1.5 rounded-full text-sm font-semibold ${meta.tone}`}>{meta.label}</span></div>
+      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4"><div><p className="text-sm font-semibold text-emerald-700">{applicant.registration_number}</p><h1 className="text-2xl sm:text-3xl font-bold">Pendaftaran {applicant.name}</h1><p className="text-slate-600 mt-2">{applicant.units?.name || applicant.unit} · {applicant.academic_years?.name || applicant.academic_year} · {applicant.admission_batches?.name || "Gelombang pendaftaran"}</p><p className="text-sm font-semibold text-slate-800 mt-2">{applicantTargetLabel(applicant)} · {entryTypeLabel(applicant.entry_type)}</p>{applicant.learning_timezone && <p className="mt-2 text-sm font-semibold text-blue-700">Waktu belajar: {timeZoneLabel(applicant.learning_timezone)} · {applicant.residence_country || "Domisili belum diisi"}</p>}</div><span className={`self-start lg:self-auto px-3 py-1.5 rounded-full text-sm font-semibold ${meta.tone}`}>{meta.label}</span></div>
 
       <section className="grid sm:grid-cols-3 gap-4">
         <div className="bg-white border rounded-lg p-5"><Clock3 className="w-5 h-5 text-emerald-700" /><p className="text-xs uppercase font-semibold text-slate-500 mt-4">Status saat ini</p><p className="font-bold mt-1">{meta.label}</p><p className="text-sm text-slate-600 mt-1">{meta.description}</p></div>
-        <div className="bg-white border rounded-lg p-5"><CalendarDays className="w-5 h-5 text-blue-700" /><p className="text-xs uppercase font-semibold text-slate-500 mt-4">Jadwal seleksi</p><p className="font-bold mt-1">{assessment?.scheduled_at ? formatAdmissionDate(assessment.scheduled_at, true) : "Belum dijadwalkan"}</p><p className="text-sm text-slate-600 mt-1">{assessment?.location || "Akan diinformasikan panitia"}</p></div>
+        <div className="bg-white border rounded-lg p-5"><CalendarDays className="w-5 h-5 text-blue-700" /><p className="text-xs uppercase font-semibold text-slate-500 mt-4">Jadwal seleksi</p><p className="font-bold mt-1">{assessment?.scheduled_at ? formatAdmissionDate(assessment.scheduled_at, true, applicant.learning_timezone || "Asia/Jakarta") : "Belum dijadwalkan"}</p><p className="text-sm text-slate-600 mt-1">{assessment?.location || "Akan diinformasikan panitia"}</p>{assessment?.scheduled_at && applicant.learning_timezone && applicant.learning_timezone !== "Asia/Jakarta" && <p className="mt-1 text-xs text-slate-500">Waktu sekolah: {formatAdmissionDate(assessment.scheduled_at, true)} WIB</p>}</div>
         <div className="bg-white border rounded-lg p-5"><CreditCard className="w-5 h-5 text-amber-700" /><p className="text-xs uppercase font-semibold text-slate-500 mt-4">Biaya pendaftaran</p><p className="font-bold mt-1">{Number(applicant.admission_batches?.registration_fee || 0).toLocaleString("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 })}</p><p className="text-sm text-slate-600 mt-1">{payment ? `Bukti ${payment.status}` : "Belum ada bukti pembayaran"}</p></div>
       </section>
 

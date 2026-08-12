@@ -4,7 +4,9 @@ import { AlertCircle, Building2, CheckCircle2, Loader2, Save, Send, UsersRound }
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { supabaseClient, supabasePublicClient } from "../../../lib/supabase/client";
+import { detectBrowserTimeZone, isOnlinePreschoolProgram, isValidTimeZone } from "../../../lib/timezones";
 import { getAdmissionStatus } from "../admissions-config";
+import { LearningTimezoneFields } from "../components/learning-timezone-fields";
 import { admissionEntryTypeMeta, entryTypeLabel, isAdmissionQuotaSchemaError } from "../quota-utils";
 import { useSpmbPortal } from "./spmb-context";
 
@@ -53,6 +55,8 @@ const emptyForm = {
   parent_email: "",
   family_card_number: "",
   address: "",
+  residence_country: "Indonesia",
+  learning_timezone: detectBrowserTimeZone(),
 };
 
 const getInitialForm = (applicant: any | null, user: any) => {
@@ -115,6 +119,7 @@ export const SpmbForm: React.FC = () => {
   const targets = useMemo(() => activeOptions.filter((row) => row.unit_id === form.unit_id && row.batch_id === form.batch_id && row.entry_type === form.entry_type), [activeOptions, form.unit_id, form.batch_id, form.entry_type]);
   const selectedOption = useMemo(() => options.find((row) => row.batch_id === form.batch_id && row.class_id === form.desired_class_id && row.entry_type === form.entry_type), [options, form]);
   const selectedUnit = units.find((row: any) => row.unit_id === form.unit_id);
+  const requiresLearningTimezone = isOnlinePreschoolProgram(selectedOption || applicant);
   const set = (key: keyof typeof form, value: string) => setForm((current) => ({ ...current, [key]: value }));
 
   const save = async (target: "draft" | "submitted") => {
@@ -124,6 +129,10 @@ export const SpmbForm: React.FC = () => {
     }
     if (form.entry_type === "transfer" && !form.previous_school.trim()) {
       toast.error("Asal sekolah wajib diisi untuk siswa pindahan.");
+      return;
+    }
+    if (requiresLearningTimezone && (!form.residence_country.trim() || !isValidTimeZone(form.learning_timezone))) {
+      toast.error("Lengkapi negara domisili dan zona waktu siswa untuk penyesuaian pembelajaran online.");
       return;
     }
     if (!selectedOption) {
@@ -138,6 +147,8 @@ export const SpmbForm: React.FC = () => {
     try {
       const payload = {
         ...form,
+        residence_country: requiresLearningTimezone ? form.residence_country.trim() : null,
+        learning_timezone: requiresLearningTimezone ? form.learning_timezone : null,
         desired_grade: Number(selectedOption.grade_level),
         user_id: user.id,
         unit_id: selectedOption.unit_id,
@@ -242,6 +253,15 @@ export const SpmbForm: React.FC = () => {
           <p className="text-sm mt-1">{selectedOption.remaining_count} dari {selectedOption.quota} kursi masih tersedia.{Number(selectedOption.remaining_count) <= 0 && selectedOption.allow_waitlist ? " Formulir tetap dapat dikirim sebagai antrean; penerimaan menunggu kursi tersedia." : ""}</p>
         </div>
       </div>}
+
+      {requiresLearningTimezone && <LearningTimezoneFields
+        idPrefix="spmb-learning"
+        country={form.residence_country}
+        timeZone={form.learning_timezone}
+        disabled={!editable}
+        onCountryChange={(value) => set("residence_country", value)}
+        onTimeZoneChange={(value) => set("learning_timezone", value)}
+      />}
     </section>
 
     <section className="bg-white border rounded-lg p-5 sm:p-6 space-y-5"><h2 className="font-bold text-lg">Identitas Calon Murid</h2><div className="grid sm:grid-cols-2 gap-4">

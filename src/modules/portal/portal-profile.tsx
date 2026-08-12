@@ -202,6 +202,7 @@ export const PortalProfile: React.FC = () => {
 
       <LessonSchedulePanel
         schedules={schedules}
+        timeZone={student.learning_timezone}
         isLoading={isLoadingSchedules}
         title="Jadwal Pelajaran Siswa"
         description="Jadwal pelajaran kelas aktif yang dapat dipantau orang tua untuk mendampingi persiapan belajar harian."

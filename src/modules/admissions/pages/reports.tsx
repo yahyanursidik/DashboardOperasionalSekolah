@@ -8,6 +8,7 @@ import { Link } from "react-router-dom";
 import { getAdmissionStatus } from "../admissions-config";
 import { applicantTargetLabel, entryTypeLabel } from "../quota-utils";
 import { supabaseClient } from "../../../lib/supabase/client";
+import { timeZoneLabel } from "../../../lib/timezones";
 
 const db = supabaseClient as any;
 
@@ -65,8 +66,8 @@ export const AdmissionsReports: React.FC = () => {
   const exportReport = () => {
     const rows = (tableData?.data || []) as any[];
     const csv = [
-      ["Nomor Pendaftaran", "Nama", "Unit", "Tahun Ajaran", "Kelas Tujuan", "Jalur", "Status", "Tanggal Daftar"],
-      ...rows.map((row) => [row.registration_number, row.name, row.unit, row.academic_year, applicantTargetLabel(row), entryTypeLabel(row.entry_type), getAdmissionStatus(row), row.registration_date]),
+      ["Nomor Pendaftaran", "Nama", "Unit", "Tahun Ajaran", "Kelas Tujuan", "Jalur", "Status", "Negara Domisili", "Zona Waktu Belajar", "Tanggal Daftar"],
+      ...rows.map((row) => [row.registration_number, row.name, row.unit, row.academic_year, applicantTargetLabel(row), entryTypeLabel(row.entry_type), getAdmissionStatus(row), row.residence_country, row.learning_timezone ? timeZoneLabel(row.learning_timezone) : "", row.registration_date]),
     ].map((row) => row.map((value) => `"${String(value || "").replaceAll('"', '""')}"`).join(",")).join("\n");
     const url = URL.createObjectURL(new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" }));
     const anchor = document.createElement("a");

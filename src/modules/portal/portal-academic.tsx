@@ -115,6 +115,7 @@ export const PortalAcademic: React.FC = () => {
 
       <LessonSchedulePanel
         schedules={schedules}
+        timeZone={student.learning_timezone as string | null | undefined}
         isLoading={isSchedulesLoading}
         title="Jadwal Pelajaran"
         description="Jadwal pelajaran kelas aktif siswa untuk membantu orang tua menyiapkan buku, tugas, dan pendampingan belajar."
