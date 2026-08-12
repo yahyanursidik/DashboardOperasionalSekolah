@@ -10,6 +10,18 @@ import { useSpmbPortal } from "./spmb-context";
 
 const db = supabaseClient as any;
 const publicDb = supabasePublicClient as any;
+const REQUEST_TIMEOUT_MS = 15000;
+const withTimeout = async <T,>(promise: Promise<T>, message: string): Promise<T> => {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(message)), REQUEST_TIMEOUT_MS);
+  });
+  try {
+    return await Promise.race([promise, timeout]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+};
 const emptyForm = {
   unit_id: "",
   batch_id: "",
@@ -47,11 +59,19 @@ export const SpmbForm: React.FC = () => {
     setLoading(true);
     setOptionsError("");
     setReferenceTime(Date.now());
-    const { data, error } = await publicDb.rpc("admission_public_quota_options");
-    setOptions(error ? [] : data || []);
-    setSchemaMissing(isAdmissionQuotaSchemaError(error));
-    setOptionsError(error && !isAdmissionQuotaSchemaError(error) ? error.message || "Layanan SPMB tidak dapat dihubungi." : "");
-    setLoading(false);
+    try {
+      const { data, error } = await withTimeout(publicDb.rpc("admission_public_quota_options"), "Layanan SPMB terlalu lama merespons. Silakan coba lagi.");
+      const missing = isAdmissionQuotaSchemaError(error);
+      setOptions(error ? [] : data || []);
+      setSchemaMissing(missing);
+      setOptionsError(error && !missing ? error.message || "Layanan SPMB tidak dapat dihubungi." : "");
+    } catch (error) {
+      setOptions([]);
+      setSchemaMissing(false);
+      setOptionsError(error instanceof Error ? error.message : "Layanan SPMB tidak dapat dihubungi.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -98,27 +118,32 @@ export const SpmbForm: React.FC = () => {
       return;
     }
     setSaving(target);
-    const payload = {
-      ...form,
-      desired_grade: Number(selectedOption.grade_level),
-      user_id: user.id,
-      unit_id: selectedOption.unit_id,
-      academic_year_id: selectedOption.academic_year_id,
-      unit: selectedOption.unit_name,
-      academic_year: selectedOption.academic_year_name,
-      workflow_status: target,
-      submitted_at: target === "submitted" ? new Date().toISOString() : applicant?.submitted_at || null,
-    };
-    const query = applicant ? db.from("admissions_applicants").update(payload).eq("id", applicant.id) : db.from("admissions_applicants").insert(payload);
-    const { error } = await query;
-    setSaving(null);
-    if (error) {
-      toast.error(`Formulir belum dapat disimpan: ${error.message}`);
-      return;
+    try {
+      const payload = {
+        ...form,
+        desired_grade: Number(selectedOption.grade_level),
+        user_id: user.id,
+        unit_id: selectedOption.unit_id,
+        academic_year_id: selectedOption.academic_year_id,
+        unit: selectedOption.unit_name,
+        academic_year: selectedOption.academic_year_name,
+        workflow_status: target,
+        submitted_at: target === "submitted" ? new Date().toISOString() : applicant?.submitted_at || null,
+      };
+      const query = applicant ? db.from("admissions_applicants").update(payload).eq("id", applicant.id) : db.from("admissions_applicants").insert(payload);
+      const { error } = await withTimeout(query, "Formulir terlalu lama merespons saat disimpan. Silakan coba lagi.");
+      if (error) {
+        toast.error(`Formulir belum dapat disimpan: ${error.message}`);
+        return;
+      }
+      await withTimeout(refreshApplicant(), "Formulir tersimpan, tetapi ringkasan belum dapat dimuat ulang. Silakan refresh halaman.");
+      toast.success(target === "submitted" ? "Pendaftaran dikirim ke panitia." : "Draf pendaftaran tersimpan.");
+      navigate("/spmb");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Formulir belum dapat disimpan.");
+    } finally {
+      setSaving(null);
     }
-    await refreshApplicant();
-    toast.success(target === "submitted" ? "Pendaftaran dikirim ke panitia." : "Draf pendaftaran tersimpan.");
-    navigate("/spmb");
   };
 
   if (loading) return <div className="py-24 grid place-items-center"><Loader2 className="w-8 h-8 animate-spin text-emerald-700" /></div>;
