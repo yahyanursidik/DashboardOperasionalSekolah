@@ -18,6 +18,7 @@ export const supabasePublicClient = createClient<Database>(SUPABASE_URL, SUPABAS
     autoRefreshToken: false,
     detectSessionInUrl: false,
     persistSession: false,
+    storageKey: "tsls-public-anon",
   },
   db: {
     schema: "public",
