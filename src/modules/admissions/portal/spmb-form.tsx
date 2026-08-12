@@ -11,6 +11,7 @@ import { useSpmbPortal } from "./spmb-context";
 const db = supabaseClient as any;
 const publicDb = supabasePublicClient as any;
 const REQUEST_TIMEOUT_MS = 15000;
+type SupabaseResult<T = any> = { data: T | null; error: any };
 const withTimeout = async <T,>(promise: Promise<T>, message: string): Promise<T> => {
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<never>((_, reject) => {
@@ -23,11 +24,11 @@ const withTimeout = async <T,>(promise: Promise<T>, message: string): Promise<T>
   }
 };
 const getErrorMessage = (error: unknown, fallback: string) => error instanceof Error ? error.message : fallback;
-const loadQuotaOptions = async () => {
+const loadQuotaOptions = async (): Promise<SupabaseResult<any[]>> => {
   try {
-    return await withTimeout(publicDb.rpc("admission_public_quota_options"), "Layanan SPMB terlalu lama merespons. Silakan coba lagi.");
+    return await withTimeout<SupabaseResult<any[]>>(publicDb.rpc("admission_public_quota_options"), "Layanan SPMB terlalu lama merespons. Silakan coba lagi.");
   } catch (publicError) {
-    const fallback = await withTimeout(db.rpc("admission_public_quota_options"), "Layanan SPMB terlalu lama merespons. Silakan coba lagi.");
+    const fallback = await withTimeout<SupabaseResult<any[]>>(db.rpc("admission_public_quota_options"), "Layanan SPMB terlalu lama merespons. Silakan coba lagi.");
     if (fallback.error && !isAdmissionQuotaSchemaError(fallback.error)) {
       fallback.error.message = `${fallback.error.message} (public client: ${getErrorMessage(publicError, "gagal memuat")})`;
     }
@@ -143,7 +144,7 @@ export const SpmbForm: React.FC = () => {
         submitted_at: target === "submitted" ? new Date().toISOString() : applicant?.submitted_at || null,
       };
       const query = applicant ? db.from("admissions_applicants").update(payload).eq("id", applicant.id) : db.from("admissions_applicants").insert(payload);
-      const { error } = await withTimeout(query, "Formulir terlalu lama merespons saat disimpan. Silakan coba lagi.");
+      const { error } = await withTimeout<SupabaseResult>(query, "Formulir terlalu lama merespons saat disimpan. Silakan coba lagi.");
       if (error) {
         toast.error(`Formulir belum dapat disimpan: ${error.message}`);
         return;
