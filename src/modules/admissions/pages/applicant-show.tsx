@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { supabaseClient } from "../../../lib/supabase/client";
 import { getDocumentSignedUrl } from "../../../lib/supabase/storage";
-import { admissionDocumentTypes, admissionStatusMeta, formatAdmissionDate, getAdmissionStatus, getRequiredAdmissionDocumentTypes, type AdmissionStatus } from "../admissions-config";
+import { admissionDocumentTypes, admissionStatusMeta, formatAdmissionDate, getAdmissionStatus, getRequiredAdmissionDocumentTypes, isRequiredAdmissionDocument, type AdmissionStatus } from "../admissions-config";
 import { applicantTargetLabel, classTargetLabel, entryTypeLabel } from "../quota-utils";
 
 const db = supabaseClient as any;
@@ -34,7 +34,9 @@ export const ApplicantShow: React.FC = () => {
   const [quotaOptions, setQuotaOptions] = useState<any[]>([]);
   const [targetPlanId, setTargetPlanId] = useState("");
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [working, setWorking] = useState(false);
+  const [reviewingDocumentId, setReviewingDocumentId] = useState<string | null>(null);
   const [action, setAction] = useState("");
   const [note, setNote] = useState("");
   const [schedule, setSchedule] = useState({ assessment_type: "academic_test", scheduled_at: "", location: "", notes: "" });
@@ -42,10 +44,16 @@ export const ApplicantShow: React.FC = () => {
 
   const load = async () => {
     setLoading(true);
+    setLoadError("");
     const selection = "*, units(name), academic_years(name), admission_batches(name,quota,registration_fee), desired_classes:desired_class_id(name,grade_level,capacity)";
     let result = await db.from("admissions_applicants").select(selection).eq("registration_number", id).maybeSingle();
     if (!result.data && /^[0-9a-f-]{36}$/i.test(id)) result = await db.from("admissions_applicants").select(selection).eq("id", id).maybeSingle();
-    if (result.error || !result.data) { setApplicant(null); setLoading(false); return; }
+    if (result.error || !result.data) {
+      setApplicant(null);
+      setLoadError(result.error?.message || "Pendaftar tidak ditemukan.");
+      setLoading(false);
+      return;
+    }
     const row = result.data; setApplicant(row);
     const [doc, pay, assess, hist, classResult, quotaResult] = await Promise.all([
       db.from("admission_documents").select("*").eq("applicant_id", row.id).order("created_at"),
@@ -55,6 +63,8 @@ export const ApplicantShow: React.FC = () => {
       db.from("classes").select("id,name,grade_level").eq("unit_id", row.unit_id).eq("academic_year_id", row.academic_year_id).order("grade_level").order("name"),
       db.rpc("admission_quota_snapshot", { p_batch_id: row.batch_id }),
     ]);
+    const relatedError = [doc.error, pay.error, assess.error, hist.error, classResult.error, quotaResult.error].find(Boolean);
+    setLoadError(relatedError?.message || "");
     setDocuments(doc.data || []); setPayments(pay.data || []); setAssessments(assess.data || []); setHistory(hist.data || []); setClasses(classResult.data || []);
     const availableQuotas = Array.isArray(quotaResult.data) ? quotaResult.data : [];
     const currentQuota = availableQuotas.find((item: any) => item.class_id === row.desired_class_id && item.entry_type === (row.entry_type || "new")) || null;
@@ -79,8 +89,10 @@ export const ApplicantShow: React.FC = () => {
   const reviewDocument = async (document: any, valid: boolean) => {
     const reviewNote = valid ? null : window.prompt("Tuliskan perbaikan yang harus dilakukan orang tua:");
     if (!valid && !reviewNote) return;
+    setReviewingDocumentId(document.id);
     const { data: auth } = await supabaseClient.auth.getUser();
     const { error } = await db.from("admission_documents").update({ status: valid ? "valid" : "revision_required", review_note: reviewNote, reviewed_at: new Date().toISOString(), reviewed_by: auth.user?.id }).eq("id", document.id);
+    setReviewingDocumentId(null);
     if (error) toast.error(error.message); else { toast.success(valid ? "Berkas dinyatakan valid." : "Permintaan perbaikan dikirim."); await load(); }
   };
   const reviewPayment = async (payment: any, valid: boolean) => {
@@ -90,7 +102,17 @@ export const ApplicantShow: React.FC = () => {
     const { error } = await db.from("admission_payments").update({ status: valid ? "verified" : "rejected", verification_note: reviewNote, verified_at: new Date().toISOString(), verified_by: auth.user?.id }).eq("id", payment.id);
     if (error) toast.error(error.message); else { toast.success("Status pembayaran diperbarui."); await load(); }
   };
-  const openFile = async (path?: string) => { if (!path) return; try { window.open(await getDocumentSignedUrl(path, 300), "_blank", "noopener,noreferrer"); } catch { toast.error("Berkas belum dapat dibuka."); } };
+  const openFile = async (path?: string) => {
+    if (!path) return;
+    const preview = window.open("about:blank", "_blank");
+    try {
+      const url = await getDocumentSignedUrl(path, 300);
+      if (preview) preview.location.replace(url); else window.open(url, "_blank", "noopener,noreferrer");
+    } catch {
+      preview?.close();
+      toast.error("Berkas belum dapat dibuka.");
+    }
+  };
 
   const saveAssessment = async () => {
     if (!applicant || !schedule.scheduled_at || !schedule.location.trim()) { toast.error("Isi tanggal, waktu, dan lokasi seleksi."); return; }
@@ -126,17 +148,24 @@ export const ApplicantShow: React.FC = () => {
   const requiredDocumentTypes = getRequiredAdmissionDocumentTypes(applicant?.entry_type);
   const validDocs = requiredDocumentTypes.filter((type) => documents.some((doc) => doc.document_type === type.value && doc.status === "valid")).length;
   const requiredDocs = requiredDocumentTypes.length;
+  const configuredDocumentRows = admissionDocumentTypes.map((type) => ({ type, document: documents.find((doc) => doc.document_type === type.value), required: isRequiredAdmissionDocument(type.value, applicant?.entry_type) }));
+  const additionalDocumentRows = documents.filter((document) => !admissionDocumentTypes.some((type) => type.value === document.document_type)).map((document) => ({ type: { value: document.document_type, label: document.document_type.replaceAll("_", " ") }, document, required: false }));
+  const documentRows = [...configuredDocumentRows, ...additionalDocumentRows];
   const latestPayment = payments[0];
-  const info = useMemo(() => applicant ? [["Nama lengkap",applicant.name],["NIK",applicant.nik],["NISN",applicant.nisn],["Jenis kelamin",applicant.gender === "P" ? "Perempuan" : "Laki-laki"],["Tempat, tanggal lahir",`${applicant.birth_place || "-"}, ${formatAdmissionDate(applicant.dob)}`],["Asal sekolah",applicant.previous_school],["Orang tua / wali",applicant.parent_name],["WhatsApp",applicant.parent_phone],["Email",applicant.parent_email],["Alamat",applicant.address]] : [], [applicant]);
+  const info = useMemo(() => applicant ? [["Nama lengkap",applicant.name],["NIK",applicant.nik],["NISN",applicant.nisn],["Jenis kelamin",applicant.gender === "P" ? "Perempuan" : "Laki-laki"],["Tempat, tanggal lahir",`${applicant.birth_place || "-"}, ${formatAdmissionDate(applicant.dob)}`],["Asal sekolah",applicant.previous_school],["Orang tua / wali",applicant.parent_name],["WhatsApp",applicant.parent_phone],["Email",applicant.parent_email],["Nomor Kartu Keluarga",applicant.family_card_number],["Alamat",applicant.address]] : [], [applicant]);
 
   if (loading) return <div className="py-28 grid place-items-center"><Loader2 className="w-8 h-8 animate-spin text-emerald-700" /></div>;
-  if (!applicant) return <div className="max-w-xl mx-auto py-20 text-center"><AlertCircle className="w-10 h-10 text-amber-600 mx-auto" /><h1 className="text-xl font-bold mt-4">Pendaftar tidak ditemukan</h1><Link to={`${base}/applicants`} className="inline-flex mt-5 text-emerald-700 font-semibold">Kembali ke daftar</Link></div>;
+  if (!applicant) return <div className="max-w-xl mx-auto py-20 text-center"><AlertCircle className="w-10 h-10 text-amber-600 mx-auto" /><h1 className="text-xl font-bold mt-4">{loadError === "Pendaftar tidak ditemukan." ? "Pendaftar tidak ditemukan" : "Data pendaftar belum dapat dimuat"}</h1><p className="text-sm text-slate-600 mt-2">{loadError}</p><Link to={`${base}/applicants`} className="inline-flex mt-5 text-emerald-700 font-semibold">Kembali ke daftar</Link></div>;
 
   return <div className="space-y-6 max-w-6xl mx-auto"><div className="flex items-start gap-3"><Link to={`${base}/applicants`} title="Kembali" className="w-10 h-10 border rounded-md grid place-items-center shrink-0 hover:bg-slate-50"><ArrowLeft className="w-4 h-4" /></Link><div className="flex-1"><PageHeader title={applicant.name} description={`${applicant.registration_number} · ${applicant.units?.name || applicant.unit} · ${applicantTargetLabel(applicant)} · ${entryTypeLabel(applicant.entry_type)}`} /></div><span className={`hidden sm:inline-flex px-3 py-1.5 rounded-full text-sm font-semibold ${admissionStatusMeta[status].tone}`}>{admissionStatusMeta[status].label}</span></div>
-    <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4"><Summary icon={FileText} label="Berkas valid" value={`${validDocs}/${requiredDocs}`} detail={validDocs >= requiredDocs ? "Persyaratan utama lengkap" : "Masih perlu pemeriksaan"} /><Summary icon={CreditCard} label="Pembayaran" value={latestPayment?.status === "verified" ? "Valid" : latestPayment ? "Diproses" : "Belum ada"} detail={latestPayment ? Number(latestPayment.amount).toLocaleString("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }) : "Bukti belum diunggah"} /><Summary icon={CalendarDays} label="Seleksi" value={assessments.some((item) => item.completed_at) ? "Selesai" : assessments.length ? "Terjadwal" : "Belum ada"} detail={assessments[0]?.scheduled_at ? formatAdmissionDate(assessments[0].scheduled_at, true) : "Jadwal belum dibuat"} /><Summary icon={GraduationCap} label="Kuota tujuan" value={quota ? `${quota.remaining_count} tersisa` : "Belum diatur"} detail={quota ? `${quota.reserved_count}/${quota.quota} kursi terisi · ${entryTypeLabel(applicant.entry_type)}` : "Atur pada Pengaturan SPMB"} /></div>
+    {loadError && <div className="border border-amber-300 bg-amber-50 rounded-md p-4 flex gap-3 text-sm text-amber-950"><AlertCircle className="w-5 h-5 shrink-0" /><div><p className="font-bold">Sebagian data belum dapat dimuat</p><p className="mt-1">{loadError}</p></div></div>}
+    <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4"><Summary icon={FileText} label="Berkas wajib valid" value={`${validDocs}/${requiredDocs}`} detail={validDocs === requiredDocs ? "Persyaratan utama lengkap" : `${requiredDocs - validDocs} berkas belum valid`} /><Summary icon={CreditCard} label="Pembayaran" value={latestPayment?.status === "verified" ? "Valid" : latestPayment ? "Diproses" : "Belum ada"} detail={latestPayment ? Number(latestPayment.amount).toLocaleString("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }) : "Bukti belum diunggah"} /><Summary icon={CalendarDays} label="Seleksi" value={assessments.some((item) => item.completed_at) ? "Selesai" : assessments.length ? "Terjadwal" : "Belum ada"} detail={assessments[0]?.scheduled_at ? formatAdmissionDate(assessments[0].scheduled_at, true) : "Jadwal belum dibuat"} /><Summary icon={GraduationCap} label="Kuota tujuan" value={quota ? `${quota.remaining_count} tersisa` : "Belum diatur"} detail={quota ? `${quota.reserved_count}/${quota.quota} kursi terisi · ${entryTypeLabel(applicant.entry_type)}` : "Atur pada Pengaturan SPMB"} /></div>
     <div className="grid lg:grid-cols-[1.55fr_1fr] gap-6"><div className="space-y-6">
       <section className="bg-white border rounded-lg p-5 sm:p-6"><h2 className="font-bold text-lg flex items-center gap-2"><User className="w-5 h-5 text-emerald-700" />Identitas dan Kontak</h2><div className="grid sm:grid-cols-2 gap-x-6 gap-y-5 mt-5">{info.map(([label,value]) => <div key={label} className={label === "Alamat" ? "sm:col-span-2" : ""}><p className="text-xs font-semibold uppercase text-slate-500">{label}</p><p className="font-medium mt-1 break-words">{value || "-"}</p></div>)}</div></section>
-      <section className="bg-white border rounded-lg overflow-hidden"><div className="p-5 border-b"><h2 className="font-bold text-lg">Verifikasi Berkas</h2><p className="text-sm text-slate-600 mt-1">Buka berkas sebelum menyatakan valid atau meminta revisi.</p></div><div className="divide-y">{documents.map((doc) => <div key={doc.id} className="p-4 sm:px-5 flex flex-col sm:flex-row sm:items-center gap-3"><div className="flex-1"><p className="font-bold">{admissionDocumentTypes.find((type) => type.value === doc.document_type)?.label || doc.document_type}</p><p className="text-xs text-slate-500 mt-1">{doc.file_name} · {doc.status}</p>{doc.review_note && <p className="text-sm text-rose-700 mt-2">{doc.review_note}</p>}</div><div className="flex gap-2"><button onClick={() => openFile(doc.file_url)} title="Buka berkas" className="w-9 h-9 border rounded-md grid place-items-center"><ExternalLink className="w-4 h-4" /></button><button onClick={() => reviewDocument(doc,true)} title="Nyatakan valid" className="w-9 h-9 border rounded-md grid place-items-center text-emerald-700"><CheckCircle2 className="w-4 h-4" /></button><button onClick={() => reviewDocument(doc,false)} title="Minta perbaikan" className="w-9 h-9 border rounded-md grid place-items-center text-rose-700"><XCircle className="w-4 h-4" /></button></div></div>)}{documents.length === 0 && <p className="p-8 text-center text-sm text-slate-500">Belum ada berkas yang diunggah.</p>}</div></section>
+      <section className="bg-white border rounded-lg overflow-hidden"><div className="p-5 border-b"><h2 className="font-bold text-lg">Verifikasi Berkas SPMB</h2><p className="text-sm text-slate-600 mt-1">Seluruh persyaratan tetap ditampilkan. Buka berkas yang sudah masuk sebelum menyatakan valid atau meminta revisi.</p></div><div className="divide-y">{documentRows.map(({ type, document, required }) => {
+        const status = getDocumentReviewStatus(document);
+        return <div key={type.value} className={`p-4 sm:px-5 flex flex-col sm:flex-row sm:items-center gap-3 ${!document && required ? "bg-amber-50/60" : ""}`}><div className="flex-1 min-w-0"><div className="flex flex-wrap items-center gap-2"><p className="font-bold capitalize">{type.label}</p><span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${required ? "bg-rose-100 text-rose-700" : "bg-slate-100 text-slate-600"}`}>{required ? "Wajib" : "Opsional"}</span><span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${status.tone}`}>{status.label}</span></div><p className="text-xs text-slate-500 mt-2 truncate">{document ? `${document.file_name || "Nama berkas tidak tersedia"} · diunggah ${formatAdmissionDate(document.created_at, true)}` : "Belum ada berkas yang diunggah oleh orang tua / wali."}</p>{document?.review_note && <p className="text-sm text-rose-700 mt-2">Catatan revisi: {document.review_note}</p>}</div>{document ? <div className="flex gap-2"><button type="button" onClick={() => void openFile(document.file_url)} title="Buka berkas" className="h-9 px-3 border rounded-md inline-flex items-center gap-2 text-sm font-semibold hover:bg-slate-50"><ExternalLink className="w-4 h-4" />Buka</button><button type="button" onClick={() => void reviewDocument(document,true)} disabled={reviewingDocumentId === document.id} title="Nyatakan valid" className="w-9 h-9 border rounded-md grid place-items-center text-emerald-700 hover:bg-emerald-50 disabled:opacity-50">{reviewingDocumentId === document.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}</button><button type="button" onClick={() => void reviewDocument(document,false)} disabled={reviewingDocumentId === document.id} title="Minta perbaikan" className="w-9 h-9 border rounded-md grid place-items-center text-rose-700 hover:bg-rose-50 disabled:opacity-50"><XCircle className="w-4 h-4" /></button></div> : <span className="text-xs font-semibold text-amber-800">Menunggu unggahan</span>}</div>;
+      })}</div></section>
       <section className="bg-white border rounded-lg overflow-hidden"><div className="p-5 border-b"><h2 className="font-bold text-lg">Pembayaran Pendaftaran</h2></div>{latestPayment ? <div className="p-5 flex flex-col sm:flex-row sm:items-center gap-4"><div className="flex-1"><p className="font-bold">{Number(latestPayment.amount).toLocaleString("id-ID", { style: "currency", currency: "IDR" })}</p><p className="text-sm text-slate-600 mt-1">Transfer {formatAdmissionDate(latestPayment.paid_at)} · {latestPayment.status}</p>{latestPayment.verification_note && <p className="text-sm text-rose-700 mt-2">{latestPayment.verification_note}</p>}</div><div className="flex gap-2"><button onClick={() => openFile(latestPayment.proof_url)} title="Buka bukti" className="w-9 h-9 border rounded-md grid place-items-center"><ExternalLink className="w-4 h-4" /></button><button onClick={() => reviewPayment(latestPayment,true)} className="h-9 px-3 border rounded-md text-sm font-semibold text-emerald-700">Verifikasi</button><button onClick={() => reviewPayment(latestPayment,false)} className="h-9 px-3 border rounded-md text-sm font-semibold text-rose-700">Tolak bukti</button></div></div> : <p className="p-8 text-center text-sm text-slate-500">Belum ada bukti pembayaran.</p>}</section>
       <section className="bg-white border rounded-lg p-5 sm:p-6"><h2 className="font-bold text-lg">Observasi / Seleksi</h2><div className="grid sm:grid-cols-2 gap-4 mt-5"><select value={schedule.assessment_type} onChange={(e) => setSchedule((v) => ({...v,assessment_type:e.target.value}))} className="h-10 px-3 border rounded-md"><option value="observation">Observasi kesiapan</option><option value="academic_test">Tes akademik</option><option value="quran">Pemetaan Al-Qur'an</option><option value="interview">Wawancara keluarga</option><option value="psychology">Psikologi</option></select><input type="datetime-local" value={schedule.scheduled_at} onChange={(e) => setSchedule((v) => ({...v,scheduled_at:e.target.value}))} className="h-10 px-3 border rounded-md" /><input value={schedule.location} onChange={(e) => setSchedule((v) => ({...v,location:e.target.value}))} placeholder="Lokasi / ruang / tautan" className="h-10 px-3 border rounded-md sm:col-span-2" /><textarea value={schedule.notes} onChange={(e) => setSchedule((v) => ({...v,notes:e.target.value}))} placeholder="Catatan persiapan untuk keluarga" className="min-h-20 p-3 border rounded-md sm:col-span-2" /></div><button onClick={saveAssessment} disabled={working} className="mt-4 h-10 px-4 rounded-md bg-slate-900 text-white font-semibold text-sm flex items-center gap-2"><Save className="w-4 h-4" />Simpan Jadwal</button><div className="mt-5 divide-y border-t">{assessments.map((item) => <div key={item.id} className="py-4 flex items-center gap-3"><div className="flex-1"><p className="font-bold text-sm">{String(item.assessment_type || "seleksi").replaceAll("_"," ")}</p><p className="text-xs text-slate-500 mt-1">{formatAdmissionDate(item.scheduled_at,true)} · {item.location || "-"} {item.score != null ? `· Nilai ${item.score}` : ""}</p></div>{!item.completed_at && <button onClick={() => completeAssessment(item)} className="h-9 px-3 border rounded-md text-sm font-semibold">Catat hasil</button>}</div>)}</div></section>
     </div><aside className="space-y-6">
@@ -150,3 +179,10 @@ export const ApplicantShow: React.FC = () => {
 };
 
 const Summary = ({ icon: Icon,label,value,detail }: { icon: React.ElementType; label:string; value:string; detail:string }) => <div className="bg-white border rounded-lg p-5"><Icon className="w-5 h-5 text-emerald-700" /><p className="text-xs uppercase font-semibold text-slate-500 mt-4">{label}</p><p className="font-bold text-lg mt-1">{value}</p><p className="text-xs text-slate-500 mt-1">{detail}</p></div>;
+
+const getDocumentReviewStatus = (document?: any) => {
+  if (!document) return { label: "Belum diunggah", tone: "bg-amber-100 text-amber-800" };
+  if (document.status === "valid") return { label: "Valid", tone: "bg-emerald-100 text-emerald-800" };
+  if (["revision_required", "rejected"].includes(document.status)) return { label: "Perlu perbaikan", tone: "bg-rose-100 text-rose-800" };
+  return { label: "Menunggu pemeriksaan", tone: "bg-sky-100 text-sky-800" };
+};
