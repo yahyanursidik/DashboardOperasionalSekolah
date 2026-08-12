@@ -111,7 +111,7 @@ import { PortalQuran } from "../modules/portal/portal-quran";
 import { PortalPaud } from "../modules/portal/portal-paud";
 import { PortalAnnouncements } from "../modules/portal/portal-announcements";
 import { PrintInvoice } from "../modules/finance/pages/print-invoice";
-import { SpmbLayout, SpmbDashboard, SpmbForm, SpmbDocuments, SpmbAnnouncement, SpmbLogin, SpmbRegister, SpmbChecklist, SpmbPayment } from "../modules/admissions/portal";
+import { SpmbLayout, SpmbDashboard, SpmbForm, SpmbDocuments, SpmbAnnouncement, SpmbLogin, SpmbRegister, SpmbForgotPassword, SpmbResetPassword, SpmbChecklist, SpmbPayment } from "../modules/admissions/portal";
 import { CbtPortalLayout } from "../modules/cbt-portal/CbtPortalLayout";
 import { CbtPortalLogin } from "../modules/cbt-portal/CbtPortalLogin";
 import { CbtPortalTestRoom } from "../modules/cbt-portal/CbtPortalTestRoom";
@@ -167,6 +167,13 @@ import { PortalRequests } from "../modules/portal/portal-requests";
 import { OnboardingList, OnboardingCreate, OnboardingEdit, OnboardingShow } from "../modules/onboarding/pages";
 
 export default function App() {
+  // Supabase falls back to the configured Site URL when a requested recovery
+  // redirect is not yet allow-listed. Preserve the recovery hash and route it
+  // into the SPMB password form instead of leaving the parent on the admin root.
+  if (typeof window !== "undefined" && window.location.pathname !== "/spmb/reset-password") {
+    const recoveryType = new URLSearchParams(window.location.hash.replace(/^#/, "")).get("type");
+    if (recoveryType === "recovery") window.history.replaceState(null, "", `/spmb/reset-password${window.location.hash}`);
+  }
   return (
     <BrowserRouter>
       <ThemeProvider>
@@ -1200,6 +1207,8 @@ export default function App() {
                 <Route index element={<SpmbDashboard />} />
                 <Route path="login" element={<SpmbLogin />} />
                 <Route path="register" element={<SpmbRegister />} />
+                <Route path="forgot-password" element={<SpmbForgotPassword />} />
+                <Route path="reset-password" element={<SpmbResetPassword />} />
                 <Route path="form" element={<SpmbForm />} />
                 <Route path="documents" element={<SpmbDocuments />} />
                 <Route path="checklist" element={<SpmbChecklist />} />

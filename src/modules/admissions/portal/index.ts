@@ -5,5 +5,7 @@ export * from "./spmb-documents";
 export * from "./spmb-announcement";
 export * from "./spmb-login";
 export * from "./spmb-register";
+export * from "./spmb-forgot-password";
+export * from "./spmb-reset-password";
 export * from "./spmb-checklist";
 export * from "./spmb-payment";

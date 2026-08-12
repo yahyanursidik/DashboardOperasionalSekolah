@@ -16,7 +16,9 @@ export const SpmbLayout: React.FC = () => {
   const [applicants, setApplicants] = useState<any[]>([]);
   const [activeApplicantId, setActiveApplicantId] = useState<string | null | undefined>(undefined);
   const [loading, setLoading] = useState(true);
-  const isAuthPage = location.pathname === "/spmb/login" || location.pathname === "/spmb/register";
+  const isGuestAuthPage = ["/spmb/login", "/spmb/register", "/spmb/forgot-password"].includes(location.pathname);
+  const isResetPage = location.pathname === "/spmb/reset-password";
+  const isAuthPage = isGuestAuthPage || isResetPage;
 
   const loadApplicants = useCallback(async (target: User, preferredApplicantId?: string | null) => {
     const { data, error } = await db.from("admissions_applicants").select("*, units(name), academic_years(name), admission_batches(name,registration_fee,announcement_at), desired_classes:desired_class_id(name,grade_level)").eq("user_id", target.id).is("archived_at", null).order("registration_date", { ascending: false });
@@ -58,7 +60,7 @@ export const SpmbLayout: React.FC = () => {
 
   if (loading) return <div className="min-h-screen grid place-items-center bg-slate-50"><Loader2 className="w-8 h-8 animate-spin text-emerald-700" /></div>;
   if (!user && !isAuthPage) return <Navigate to="/spmb/login" replace state={{ from: location.pathname }} />;
-  if (user && isAuthPage) return <Navigate to="/spmb" replace />;
+  if (user && isGuestAuthPage) return <Navigate to="/spmb" replace />;
   if (isAuthPage) return <Outlet />;
 
   const signOut = async () => { await supabaseClient.auth.signOut(); navigate("/spmb/login", { replace: true }); };

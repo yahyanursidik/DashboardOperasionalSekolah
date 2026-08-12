@@ -1,9 +1,9 @@
 import { randomUUID } from "node:crypto";
-import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
-export type ObjectStorageAction = "create_upload" | "create_download";
+export type ObjectStorageAction = "create_upload" | "create_download" | "delete_object" | "delete_legacy";
 
 export interface ObjectStorageRequest {
   action?: ObjectStorageAction;
@@ -109,7 +109,7 @@ async function getActorAccess(admin: SupabaseClient, userId: string) {
   return { roles, isActiveEmployee: employee?.status === "active" };
 }
 
-async function canAccessKey(admin: SupabaseClient, userId: string, key: string, operation: "upload" | "download") {
+async function canAccessKey(admin: SupabaseClient, userId: string, key: string, operation: "upload" | "download" | "delete") {
   const root = key.split("/")[0];
   if (!allowedRoots.has(root)) return false;
 
@@ -201,6 +201,23 @@ async function processObjectStorage(context: ObjectStorageContext): Promise<Obje
     const command = new GetObjectCommand({ Bucket: bucket, Key: key });
     const downloadUrl = await getSignedUrl(storage, command, { expiresIn: 300 });
     return json(200, { downloadUrl, expiresIn: 300 });
+  }
+
+  if (action === "delete_object") {
+    const key = objectKeyFromStoredPath(context.body?.storedPath, bucket);
+    if (!key) return json(400, { error: "Referensi file Contabo tidak valid." });
+    if (!(await canAccessKey(admin, actorData.user.id, key, "delete"))) return json(403, { error: "Anda tidak memiliki akses untuk menghapus file ini." });
+    await storage.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
+    return json(200, { deleted: true });
+  }
+
+  if (action === "delete_legacy") {
+    const key = String(context.body?.storedPath || "").trim().replace(/\\/g, "/").replace(/^\/+/, "");
+    if (!key || key.includes("..") || !key.startsWith("admissions/")) return json(400, { error: "Referensi file lama tidak valid." });
+    if (!(await canAccessKey(admin, actorData.user.id, key, "delete"))) return json(403, { error: "Anda tidak memiliki akses untuk menghapus file ini." });
+    const { error } = await admin.storage.from("school-documents").remove([key]);
+    if (error) return json(502, { error: `File lama belum dapat dihapus: ${error.message}` });
+    return json(200, { deleted: true });
   }
 
   return json(400, { error: "Perintah penyimpanan tidak valid." });

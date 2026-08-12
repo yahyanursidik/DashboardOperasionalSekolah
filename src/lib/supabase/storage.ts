@@ -6,6 +6,7 @@ interface StorageApiResponse {
   uploadUrl?: string;
   downloadUrl?: string;
   storedPath?: string;
+  deleted?: boolean;
   error?: string;
 }
 
@@ -70,4 +71,11 @@ export const getDocumentSignedUrl = async (filePath: string, expiresIn = 60) => 
     .createSignedUrl(filePath, expiresIn);
   if (error) throw error;
   return data.signedUrl;
+};
+
+export const deleteStoredFile = async (filePath?: string | null) => {
+  const storedPath = String(filePath || "").trim();
+  if (!storedPath || /^https?:\/\//i.test(storedPath)) return { deleted: false, skipped: true };
+  const result = await callStorageApi({ action: isContaboStoragePath(storedPath) ? "delete_object" : "delete_legacy", storedPath });
+  return { deleted: Boolean(result.deleted), skipped: false };
 };

@@ -243,12 +243,16 @@ export function PortalPasswordField({
   onChange,
   accent = "emerald",
   label = "Kata Sandi",
+  autoComplete = "current-password",
+  minLength,
 }: {
   id: string;
   value: string;
   onChange: (value: string) => void;
   accent?: PortalAccent;
   label?: string;
+  autoComplete?: string;
+  minLength?: number;
 }) {
   const [visible, setVisible] = React.useState(false);
   const tone = accents[accent];
@@ -264,7 +268,8 @@ export function PortalPasswordField({
           value={value}
           onChange={(event) => onChange(event.target.value)}
           placeholder="Masukkan kata sandi"
-          autoComplete="current-password"
+          autoComplete={autoComplete}
+          minLength={minLength}
           className={`h-12 w-full rounded-md border border-slate-300 bg-white pl-10 pr-11 text-sm text-slate-950 outline-none placeholder:text-slate-400 focus:ring-2 ${tone.focus}`}
         />
         <button
