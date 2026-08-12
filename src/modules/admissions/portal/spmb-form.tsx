@@ -3,12 +3,13 @@ import React, { useEffect, useMemo, useState } from "react";
 import { AlertCircle, Building2, CheckCircle2, Loader2, Save, Send, UsersRound } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { supabaseClient } from "../../../lib/supabase/client";
+import { supabaseClient, supabasePublicClient } from "../../../lib/supabase/client";
 import { getAdmissionStatus } from "../admissions-config";
 import { admissionEntryTypeMeta, entryTypeLabel, isAdmissionQuotaSchemaError } from "../quota-utils";
 import { useSpmbPortal } from "./spmb-context";
 
 const db = supabaseClient as any;
+const publicDb = supabasePublicClient as any;
 const emptyForm = {
   unit_id: "",
   batch_id: "",
@@ -36,18 +37,25 @@ export const SpmbForm: React.FC = () => {
   const [options, setOptions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [schemaMissing, setSchemaMissing] = useState(false);
+  const [optionsError, setOptionsError] = useState("");
   const [referenceTime, setReferenceTime] = useState(0);
   const [saving, setSaving] = useState<"draft" | "submitted" | null>(null);
   const status = applicant ? getAdmissionStatus(applicant) : "draft";
   const editable = !applicant || ["draft", "submitted", "documents_review"].includes(status);
 
-  useEffect(() => {
+  const loadOptions = async () => {
+    setLoading(true);
+    setOptionsError("");
     setReferenceTime(Date.now());
-    db.rpc("admission_public_quota_options").then(({ data, error }: any) => {
-      setOptions(data || []);
-      setSchemaMissing(isAdmissionQuotaSchemaError(error));
-      setLoading(false);
-    });
+    const { data, error } = await publicDb.rpc("admission_public_quota_options");
+    setOptions(error ? [] : data || []);
+    setSchemaMissing(isAdmissionQuotaSchemaError(error));
+    setOptionsError(error && !isAdmissionQuotaSchemaError(error) ? error.message || "Layanan SPMB tidak dapat dihubungi." : "");
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    void loadOptions();
   }, []);
 
   useEffect(() => {
@@ -123,7 +131,8 @@ export const SpmbForm: React.FC = () => {
     </div>
     {!editable && <Notice tone="blue" icon={CheckCircle2}>Formulir telah dikunci karena proses verifikasi berlangsung. Hubungi panitia bila ada data yang perlu dikoreksi.</Notice>}
     {schemaMissing && <Notice tone="amber" icon={AlertCircle}>Layanan kuota kelas belum aktif. Panitia perlu menyelesaikan pembaruan sistem SPMB.</Notice>}
-    {activeOptions.length === 0 && !applicant && !schemaMissing && <Notice tone="amber" icon={AlertCircle}>Belum ada unit, kelas, dan kuota pendaftaran yang dibuka. Panitia perlu membagi kuota pada Pengaturan SPMB.</Notice>}
+    {optionsError && <div className="flex flex-col gap-3 rounded-md border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900 sm:flex-row sm:items-center sm:justify-between"><span className="flex gap-3"><AlertCircle className="h-5 w-5 shrink-0" />Data tujuan pendaftaran belum dapat dimuat: {optionsError}</span><button type="button" onClick={() => void loadOptions()} className="h-9 shrink-0 rounded-md border border-rose-300 bg-white px-3 font-semibold">Coba lagi</button></div>}
+    {activeOptions.length === 0 && !applicant && !schemaMissing && !optionsError && <Notice tone="amber" icon={AlertCircle}>Belum ada unit, kelas, dan kuota pendaftaran yang dibuka. Panitia perlu membagi kuota pada Pengaturan SPMB.</Notice>}
 
     <section className="bg-white border rounded-lg p-5 sm:p-6 space-y-5">
       <div>

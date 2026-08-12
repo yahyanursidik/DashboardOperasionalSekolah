@@ -9,3 +9,17 @@ export const supabaseClient = createClient<Database>(SUPABASE_URL, SUPABASE_KEY,
     schema: "public",
   },
 });
+
+// Public catalogue reads must not inherit a stale portal login token. Keeping a
+// separate, non-persistent client makes public RPCs consistently use the anon
+// role even while a parent is signed in with an older session.
+export const supabasePublicClient = createClient<Database>(SUPABASE_URL, SUPABASE_KEY, {
+  auth: {
+    autoRefreshToken: false,
+    detectSessionInUrl: false,
+    persistSession: false,
+  },
+  db: {
+    schema: "public",
+  },
+});
