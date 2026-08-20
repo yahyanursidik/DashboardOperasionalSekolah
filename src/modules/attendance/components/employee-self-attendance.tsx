@@ -285,13 +285,17 @@ export const EmployeeSelfAttendance: React.FC<EmployeeSelfAttendanceProps> = ({ 
     [schedules]
   );
   const assignedShiftSchedule = schedules.find((schedule) => schedule.attendance_shift_id) || null;
-  const teachingSchedules = schedules.filter((schedule) => schedule.schedule_type === "mengajar" && !schedule.attendance_shift_id);
+  const followsTeachingSchedule = employee.attendance_mode === "teaching_schedule" && canUseTeachingScheduleAttendance(employee.position);
+  // For a part-time teacher, every scheduled duty is a work obligation. Some
+  // legacy Quran/halaqoh duties were saved with a non-"mengajar" type, so
+  // filtering only by that label incorrectly marked the day as no schedule.
+  const partTimeDutySchedule = followsTeachingSchedule && employee.employment_type === "part_time";
+  const teachingSchedules = schedules.filter((schedule) => !schedule.attendance_shift_id && (schedule.schedule_type === "mengajar" || partTimeDutySchedule));
   const workSchedules = schedules.filter((schedule) => schedule.schedule_type !== "mengajar" && !schedule.attendance_shift_id);
   const firstTeachingSchedule = teachingSchedules[0] || null;
   const lastTeachingSchedule = teachingSchedules.reduce((latest, schedule) => !latest || String(schedule.end_time) > String(latest.end_time) ? schedule : latest, null as any);
   const firstWorkSchedule = workSchedules[0] || null;
   const lastWorkSchedule = workSchedules.reduce((latest, schedule) => !latest || String(schedule.end_time) > String(latest.end_time) ? schedule : latest, null as any);
-  const followsTeachingSchedule = employee.attendance_mode === "teaching_schedule" && canUseTeachingScheduleAttendance(employee.position);
   const followsWorkSchedule = employee.attendance_mode === "work_schedule";
   const ruleContextMissesLoadedDuty = (followsTeachingSchedule && firstTeachingSchedule && ruleContext?.rule_source === "no_schedule")
     || (followsWorkSchedule && firstWorkSchedule && ruleContext?.rule_source === "no_work_schedule");
@@ -311,7 +315,7 @@ export const EmployeeSelfAttendance: React.FC<EmployeeSelfAttendanceProps> = ({ 
     shift_id: assignedShiftSchedule?.attendance_shift_id || null,
     policy_id: policy.id || null,
     rule_source: assignedShiftSchedule ? "assigned_shift" : followsTeachingSchedule ? firstTeachingSchedule ? "teaching_schedule" : "no_schedule" : followsWorkSchedule ? firstWorkSchedule ? "work_schedule" : "no_work_schedule" : policy.unit_id ? "unit_policy" : policy.id ? "global_policy" : "system_default",
-    rule_name: assignedShiftSchedule?.attendance_shifts?.name || (followsTeachingSchedule ? firstTeachingSchedule ? "Jadwal Mengajar Part-time" : "Tidak Ada Jadwal Mengajar" : followsWorkSchedule ? firstWorkSchedule ? "Jadwal Kerja Fleksibel" : "Tidak Ada Jadwal Kerja" : policy.name || "Aturan Presensi Sistem"),
+    rule_name: assignedShiftSchedule?.attendance_shifts?.name || (followsTeachingSchedule ? firstTeachingSchedule ? (firstTeachingSchedule.schedule_type === "mengajar" ? "Jadwal Mengajar Part-time" : "Jadwal Tugas Part-time") : "Tidak Ada Jadwal Mengajar" : followsWorkSchedule ? firstWorkSchedule ? "Jadwal Kerja Fleksibel" : "Tidak Ada Jadwal Kerja" : policy.name || "Aturan Presensi Sistem"),
     start_time: assignedShiftSchedule?.start_time || (followsTeachingSchedule ? firstTeachingSchedule?.start_time : followsWorkSchedule ? firstWorkSchedule?.start_time : null) || policy.default_start_time || "07:00",
     end_time: assignedShiftSchedule?.end_time || (followsTeachingSchedule ? lastTeachingSchedule?.end_time : followsWorkSchedule ? lastWorkSchedule?.end_time : null) || policy.default_end_time || "15:00",
     check_in_open: assignedShiftSchedule?.attendance_shifts?.check_in_open || ((followsTeachingSchedule && firstTeachingSchedule) ? addMinutes(firstTeachingSchedule.start_time, -(employee.attendance_lead_minutes ?? 30)) : (followsWorkSchedule && firstWorkSchedule) ? addMinutes(firstWorkSchedule.start_time, -(employee.attendance_lead_minutes ?? 30)) : null) || policy.check_in_open || "05:00",
@@ -342,7 +346,7 @@ export const EmployeeSelfAttendance: React.FC<EmployeeSelfAttendanceProps> = ({ 
       return;
     }
     if (action === "check_in" && ["no_schedule", "no_work_schedule"].includes(effectiveRule.rule_source)) {
-      toast.error(effectiveRule.rule_source === "no_work_schedule" ? "Hari ini tidak ada jadwal kerja aktif. Hubungi admin bila shift berubah." : "Hari ini tidak ada jadwal mengajar aktif. Anda tidak diwajibkan absen kecuali ada tugas khusus.");
+      toast.error(effectiveRule.rule_source === "no_work_schedule" ? "Hari ini tidak ada jadwal kerja aktif. Hubungi admin bila shift berubah." : "Hari ini tidak ada jadwal tugas aktif. Anda tidak diwajibkan absen kecuali ada tugas khusus.");
       return;
     }
     if (effectiveRule.require_geofence && !effectiveSiteId) {
@@ -506,7 +510,7 @@ export const EmployeeSelfAttendance: React.FC<EmployeeSelfAttendanceProps> = ({ 
             <div className="mt-2 flex items-start gap-2 text-xs text-gray-500">
               <LocateFixed className="mt-0.5 h-3.5 w-3.5 shrink-0" />
               <p>{!hasAttendanceDuty
-                ? "Lokasi tidak diperlukan karena hari ini tidak ada jadwal mengajar aktif."
+                ? "Lokasi tidak diperlukan karena hari ini tidak ada jadwal tugas aktif."
                 : effectiveRule.require_geofence
                 ? `Lokasi diminta hanya saat tombol absensi ditekan. Akurasi maksimum ${effectiveRule.max_accuracy_meters} meter.`
                 : "Verifikasi lokasi belum diwajibkan pada unit ini. Waktu tetap dicatat oleh server."}</p>
