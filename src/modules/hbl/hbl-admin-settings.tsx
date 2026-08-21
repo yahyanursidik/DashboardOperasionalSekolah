@@ -12,7 +12,7 @@ const hblDb = supabaseClient as any;
 
 export const HblAdminSettings: React.FC = () => {
   const { activeYearId, activeSemesterId } = useAcademicYear();
-  const { activeUnitId } = useCurrentUnit();
+  const { activeUnitId, setActiveUnitId } = useCurrentUnit();
   const [programs, setPrograms] = useState<any[]>([]);
   const [units, setUnits] = useState<any[]>([]);
   const [semesters, setSemesters] = useState<any[]>([]);
@@ -45,7 +45,7 @@ export const HblAdminSettings: React.FC = () => {
     setIsLoading(true);
     const [programResult, unitResult, studentResult, semesterResult] = await Promise.all([
       hblDb.from("hbl_programs").select("*, units(name), academic_years(name), semesters(name,academic_years(name))").order("created_at", { ascending: false }),
-      hblDb.from("units").select("id,name").eq("is_active", true).order("name"),
+      hblDb.from("units").select("id,name").order("name"),
       hblDb.from("students").select("id,full_name,nis,unit_id,classes(name)").eq("status", "active").order("full_name"),
       hblDb.from("semesters").select("id,name,academic_year_id,is_active,start_date,academic_years(name)").order("start_date", { ascending: false }),
     ]);
@@ -233,7 +233,8 @@ export const HblAdminSettings: React.FC = () => {
         <form onSubmit={createProgram} className="space-y-3 rounded-xl border bg-card p-4">
           <h3 className="font-bold">Program baru</h3>
           <input value={programForm.name} onChange={(e) => setProgramForm({ ...programForm, name: e.target.value })} placeholder="Contoh: HBL Preschool" className="h-10 w-full rounded-md border px-3 text-sm" required />
-          <select value={programForm.unit_id} onChange={(e) => setProgramForm({ ...programForm, unit_id: e.target.value })} className="h-10 w-full rounded-md border px-3 text-sm" required><option value="">Pilih unit</option>{units.map((unit) => <option key={unit.id} value={unit.id}>{unit.name}</option>)}</select>
+          <label className="block text-xs font-semibold text-muted-foreground">Unit program<select aria-label="Unit program" value={programForm.unit_id} onChange={(event) => { setProgramForm({ ...programForm, unit_id: event.target.value }); setActiveUnitId(event.target.value || null); }} className="mt-1 h-10 w-full rounded-md border bg-background px-3 text-sm text-foreground" required><option value="">Pilih unit</option>{units.map((unit) => <option key={unit.id} value={unit.id}>{unit.name}</option>)}</select></label>
+          {units.length === 0 && <p className="rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">Tidak ada unit yang dapat diakses akun ini. Periksa penugasan unit pada pengguna.</p>}
           <select value={programForm.semester_id} onChange={(e) => setProgramForm({ ...programForm, semester_id: e.target.value })} className="h-10 w-full rounded-md border px-3 text-sm" required><option value="">Pilih tahun ajaran / semester</option>{semesters.map((semester) => <option key={semester.id} value={semester.id}>{semester.academic_years?.name || "Tahun ajaran"} · Semester {semester.name}{semester.is_active ? " (Aktif)" : ""}</option>)}</select>
           <textarea value={programForm.description} onChange={(e) => setProgramForm({ ...programForm, description: e.target.value })} placeholder="Tujuan dan penjelasan program" rows={3} className="w-full rounded-md border p-3 text-sm" />
           <button disabled={isSaving} className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-bold text-primary-foreground disabled:opacity-50"><Plus className="h-4 w-4" /> Buat Program</button>

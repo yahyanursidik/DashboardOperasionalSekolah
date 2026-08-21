@@ -797,6 +797,7 @@ export default function App() {
                 <Route index element={<DashboardPage />} />
                 <Route path="/master-data" element={<MasterDataDashboard />} />
                 <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/hbl" element={<Navigate to="/curriculum/hbl" replace />} />
                 <Route path="/communications" element={<CommunicationsPage />} />
                 
                 <Route path="/students">
