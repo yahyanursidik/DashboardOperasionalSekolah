@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   ClipboardCheck,
   FileText,
+  GraduationCap,
   Palette,
   Plus,
   School,
@@ -188,11 +189,12 @@ export const CurriculumDashboard: React.FC = () => {
           <h2 className="text-lg font-bold">Integrasi program khas sekolah Islam</h2>
           <p className="mt-1 text-sm text-muted-foreground">Kurikulum menetapkan arah dan target; pelaksanaan harian, asesmen, dan laporan tetap dicatat pada modul program terkait.</p>
         </div>
-        <div className="grid gap-px bg-border md:grid-cols-3">
+        <div className="grid gap-px bg-border md:grid-cols-2 xl:grid-cols-4">
           {[
             { title: "Tahfidz & Mutaba'ah", detail: "Kelola halaqoh, target hafalan, ziyadah harian, munaqosyah, dan laporan.", href: "/tahfidz-halaqohs", icon: BookOpen },
             { title: "Tahsin", detail: "Kelola halaqoh, target tilawah atau jilid, jurnal harian, dan ujian kenaikan.", href: "/tahsin-halaqohs", icon: Users },
             { title: "Target Quran Klasikal", detail: "Selaraskan target per kelas dengan kurikulum mapel khas dan periode aktif.", href: "/quran-targets", icon: ClipboardCheck },
+            { title: "Homebased Learning", detail: "Susun materi keluarga per semester, peserta, bukti kegiatan, dan tindak lanjut laporan.", href: "/curriculum/hbl", icon: GraduationCap },
           ].map(({ title, detail, href, icon: Icon }) => (
             <Link key={title} to={href} className="flex items-start gap-4 bg-card p-5 hover:bg-muted/30">
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-emerald-50 text-emerald-700"><Icon className="h-4 w-4" /></div>

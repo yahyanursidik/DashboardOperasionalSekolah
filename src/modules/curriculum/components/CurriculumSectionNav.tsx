@@ -1,5 +1,5 @@
 import React from "react";
-import { BookOpen, ClipboardCheck, FileText, LayoutDashboard, Palette, Users } from "lucide-react";
+import { BookOpen, ClipboardCheck, FileText, GraduationCap, LayoutDashboard, Palette, Users } from "lucide-react";
 import { NavLink } from "react-router-dom";
 
 const items = [
@@ -7,6 +7,7 @@ const items = [
   { to: "/curriculum/quality", label: "Kendali Mutu", icon: ClipboardCheck },
   { to: "/curriculum/subjects", label: "Kurikulum SD", icon: BookOpen, end: true },
   { to: "/curriculum/paud", label: "Kurikulum PAUD", icon: Palette },
+  { to: "/curriculum/hbl", label: "LMS HBL", icon: GraduationCap },
   { to: "/curriculum/subjects/directory", label: "Guru Pengampu", icon: Users },
   { to: "/curriculum/documents", label: "Lampiran", icon: FileText },
 ];
@@ -34,4 +35,3 @@ export const CurriculumSectionNav: React.FC = () => (
     </div>
   </nav>
 );
-

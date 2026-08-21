@@ -125,6 +125,13 @@ export const navigationConfig: NavigationGroup[] = [
         keywords: ["mata pelajaran", "mapel", "cp", "atp", "prota", "promes"],
       },
       {
+        title: "LMS Homebased Learning",
+        href: "/curriculum/hbl",
+        icon: GraduationCap,
+        resource: "subjects",
+        keywords: ["hbl", "belajar rumah", "materi orang tua", "preschool online", "lms"],
+      },
+      {
         title: "Pola Jadwal Unit",
         href: "/schedules/patterns",
         icon: CalendarCheck,

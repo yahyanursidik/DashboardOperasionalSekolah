@@ -18,6 +18,7 @@ export const PortalHbl: React.FC = () => {
   const [materials, setMaterials] = useState<any[]>([]);
   const [reports, setReports] = useState<any[]>([]);
   const [links, setLinks] = useState<Record<string, string>>({});
+  const [notes, setNotes] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [savingId, setSavingId] = useState("");
 
@@ -57,6 +58,7 @@ export const PortalHbl: React.FC = () => {
     setMaterials(materialRows);
     setReports(reportResult.data || []);
     setLinks(Object.fromEntries((reportResult.data || []).map((item: any) => [item.material_id, item.submission_url || ""])));
+    setNotes(Object.fromEntries((reportResult.data || []).map((item: any) => [item.material_id, item.notes || ""])));
     setIsLoading(false);
   }, [activeSemesterId, student]);
 
@@ -67,6 +69,7 @@ export const PortalHbl: React.FC = () => {
   const reportByMaterial = useMemo(() => new Map(reports.map((item) => [item.material_id, item])), [reports]);
   const isCompleted = (material: any) => {
     const report = reportByMaterial.get(material.id);
+    if (report?.status === "needs_revision") return false;
     return material.report_type === "checklist" ? Boolean(report?.checklist_completed) : Boolean(report?.submission_url);
   };
   const completedCount = materials.filter(isCompleted).length;
@@ -75,7 +78,8 @@ export const PortalHbl: React.FC = () => {
     setSavingId(material.id);
     const { error } = await hblDb.from("hbl_material_reports").upsert({
       material_id: material.id, student_id: student.id, parent_id: parent.id,
-      checklist_completed: true, submission_url: null, status: "submitted", submitted_at: new Date().toISOString(),
+      checklist_completed: true, submission_url: null, notes: (notes[material.id] || "").trim() || null,
+      status: "submitted", submitted_at: new Date().toISOString(), reviewed_at: null, reviewed_by: null,
     }, { onConflict: "material_id,student_id" });
     setSavingId("");
     if (error) return toast.error("Checklist belum tersimpan", { description: error.message });
@@ -89,7 +93,8 @@ export const PortalHbl: React.FC = () => {
     setSavingId(material.id);
     const { error } = await hblDb.from("hbl_material_reports").upsert({
       material_id: material.id, student_id: student.id, parent_id: parent.id,
-      checklist_completed: false, submission_url: url, status: "submitted", submitted_at: new Date().toISOString(),
+      checklist_completed: false, submission_url: url, notes: (notes[material.id] || "").trim() || null,
+      status: "submitted", submitted_at: new Date().toISOString(), reviewed_at: null, reviewed_by: null,
     }, { onConflict: "material_id,student_id" });
     setSavingId("");
     if (error) return toast.error("Tautan laporan belum tersimpan", { description: error.message });
@@ -110,9 +115,12 @@ export const PortalHbl: React.FC = () => {
           return <article key={subject.id} className="overflow-hidden rounded-xl border bg-white shadow-sm"><div className="flex items-center gap-2 border-b bg-gray-50 px-5 py-4"><BookOpen className="h-5 w-5 text-emerald-700" /><div><h3 className="font-bold text-gray-900">{subject.name}</h3><p className="text-xs text-gray-500">{subjectMaterials.length} materi</p></div></div><div className="grid gap-5 p-4 lg:grid-cols-2">{subjectMaterials.map((material) => {
             const report = reportByMaterial.get(material.id);
             const completed = isCompleted(material);
-            return <div key={material.id} className={`space-y-4 rounded-xl border p-4 ${completed ? "border-emerald-200 bg-emerald-50/30" : "bg-white"}`}><HblMediaPreview type={material.resource_type} url={material.resource_url} title={material.title} /><div><div className="flex items-start justify-between gap-3"><h4 className="font-bold text-gray-900">{material.title}</h4>{completed && <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-100 px-2 py-1 text-[10px] font-bold text-emerald-700"><CheckCircle2 className="h-3 w-3" /> Selesai</span>}</div>{material.description && <p className="mt-2 whitespace-pre-line text-sm leading-6 text-gray-600">{material.description}</p>}<p className="mt-2 text-xs text-gray-500">{material.due_date ? `Tenggat ${new Date(`${material.due_date}T00:00:00`).toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" })}` : "Tanpa tenggat"}</p></div>
-              {material.report_type === "checklist" ? <button onClick={() => void saveChecklist(material)} disabled={savingId === material.id || completed} className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-emerald-700 px-4 text-sm font-bold text-white disabled:opacity-50">{savingId === material.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <ClipboardCheck className="h-4 w-4" />} {completed ? "Sudah Diselesaikan" : "Tandai Selesai"}</button> : <div className="space-y-2"><label className="text-xs font-bold text-gray-700">Tautan laporan Google Drive<input value={links[material.id] || ""} onChange={(e) => setLinks({ ...links, [material.id]: e.target.value })} placeholder="https://drive.google.com/..." className="mt-1.5 h-10 w-full rounded-md border px-3 font-normal" /></label><div className="flex gap-2"><button onClick={() => void saveDriveLink(material)} disabled={savingId === material.id} className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-md bg-emerald-700 px-4 text-sm font-bold text-white disabled:opacity-50">{savingId === material.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} {report?.submission_url ? "Perbarui Laporan" : "Kirim Laporan"}</button>{report?.submission_url && <a href={report.submission_url} target="_blank" rel="noreferrer" title="Buka laporan" className="flex h-10 w-10 items-center justify-center rounded-md border text-emerald-700"><ExternalLink className="h-4 w-4" /></a>}</div></div>}
-              {report?.status === "reviewed" && <p className="flex items-center gap-1 text-xs font-semibold text-emerald-700"><CheckCircle2 className="h-3.5 w-3.5" /> Laporan sudah ditinjau sekolah.</p>}
+            return <div key={material.id} className={`space-y-4 rounded-xl border p-4 ${report?.status === "needs_revision" ? "border-amber-300 bg-amber-50/40" : completed ? "border-emerald-200 bg-emerald-50/30" : "bg-white"}`}><HblMediaPreview type={material.resource_type} url={material.resource_url} title={material.title} /><div><div className="flex items-start justify-between gap-3"><h4 className="font-bold text-gray-900">{material.title}</h4>{completed && <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-100 px-2 py-1 text-[10px] font-bold text-emerald-700"><CheckCircle2 className="h-3 w-3" /> Selesai</span>}</div>{material.description && <p className="mt-2 whitespace-pre-line text-sm leading-6 text-gray-600">{material.description}</p>}<p className="mt-2 text-xs text-gray-500">{material.due_date ? `Tenggat ${new Date(`${material.due_date}T00:00:00`).toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" })}` : "Tanpa tenggat"}</p></div>
+              {report?.status === "needs_revision" && <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900"><strong>Perlu diperbaiki:</strong><p className="mt-1">{report.review_note || "Silakan perbarui laporan sesuai arahan sekolah."}</p></div>}
+              <label className="text-xs font-bold text-gray-700">Catatan untuk sekolah (opsional)<textarea value={notes[material.id] || ""} onChange={(event) => setNotes({ ...notes, [material.id]: event.target.value })} placeholder="Keterangan kegiatan atau kendala" rows={2} className="mt-1.5 w-full rounded-md border p-2 font-normal" /></label>
+              {material.report_type === "checklist" ? <button onClick={() => void saveChecklist(material)} disabled={savingId === material.id || completed} className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-emerald-700 px-4 text-sm font-bold text-white disabled:opacity-50">{savingId === material.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <ClipboardCheck className="h-4 w-4" />} {completed ? "Sudah Diselesaikan" : report?.status === "needs_revision" ? "Kirim Ulang Checklist" : "Tandai Selesai"}</button> : <div className="space-y-2"><label className="text-xs font-bold text-gray-700">Tautan laporan Google Drive<input value={links[material.id] || ""} onChange={(e) => setLinks({ ...links, [material.id]: e.target.value })} placeholder="https://drive.google.com/..." className="mt-1.5 h-10 w-full rounded-md border px-3 font-normal" /></label><div className="flex gap-2"><button onClick={() => void saveDriveLink(material)} disabled={savingId === material.id} className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-md bg-emerald-700 px-4 text-sm font-bold text-white disabled:opacity-50">{savingId === material.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} {report?.status === "needs_revision" ? "Kirim Ulang Laporan" : report?.submission_url ? "Perbarui Laporan" : "Kirim Laporan"}</button>{report?.submission_url && <a href={report.submission_url} target="_blank" rel="noreferrer" title="Buka laporan" className="flex h-10 w-10 items-center justify-center rounded-md border text-emerald-700"><ExternalLink className="h-4 w-4" /></a>}</div></div>}
+              {report?.status === "reviewed" && <p className="flex items-center gap-1 text-xs font-semibold text-emerald-700"><CheckCircle2 className="h-3.5 w-3.5" /> Laporan disetujui sekolah.{report.review_note ? ` ${report.review_note}` : ""}</p>}
+              {report?.status === "submitted" && <p className="text-xs font-semibold text-blue-700">Laporan sudah dikirim dan menunggu review sekolah.</p>}
             </div>;
           })}{subjectMaterials.length === 0 && <p className="col-span-full py-8 text-center text-sm text-gray-400">Materi belum diterbitkan.</p>}</div></article>;
         })}

@@ -61,6 +61,7 @@ import { CommunicationsPage } from "../modules/communications";
 import { StudentJournalsList, StudentJournalCreate, StudentJournalEdit } from "../modules/student-journals/pages";
 import { FinanceDashboard, InvoicesList, PaymentVerifications, SchoolExpenses, FinanceCategories, SpmbFeesConfig, FinanceSettings, FinanceCashbook, FinanceBudgets, FinanceAccounting, FinanceReports, FinanceTariffs, FinanceReceipts } from "../modules/finance/pages";
 import { CurriculumDashboard } from "../modules/curriculum/dashboard";
+import { HblAdminPage } from "../modules/hbl";
 import { CurriculumQualityControl } from "../modules/curriculum/quality-control";
 import { SubjectsList, SubjectCreate, SubjectEdit, SubjectShow, SubjectTeacherDirectory } from "../modules/curriculum/subjects";
 import { SubjectCurriculumCreate, SubjectCurriculumEdit } from "../modules/curriculum/subject-curriculums";
@@ -1040,6 +1041,7 @@ export default function App() {
                 <Route path="/curriculum">
                   <Route index element={<CurriculumDashboard />} />
                   <Route path="quality" element={<CurriculumQualityControl />} />
+                  <Route path="hbl" element={<HblAdminPage />} />
                   <Route path="subjects">
                     <Route index element={<SubjectsList />} />
                     <Route path="create" element={<SubjectCreate />} />
