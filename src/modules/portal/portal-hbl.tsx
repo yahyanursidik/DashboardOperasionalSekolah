@@ -4,6 +4,7 @@ import { BookOpen, CheckCircle2, ClipboardCheck, ExternalLink, GraduationCap, Lo
 import { useOutletContext } from "react-router-dom";
 import { toast } from "sonner";
 import { supabaseClient } from "../../lib/supabase/client";
+import { useAcademicYear } from "../../app/providers/AcademicYearProvider";
 import type { ParentPortalContext } from "./portal-context";
 import { HblMediaPreview } from "../hbl";
 
@@ -11,6 +12,7 @@ const hblDb = supabaseClient as any;
 
 export const PortalHbl: React.FC = () => {
   const { parent, student } = useOutletContext<ParentPortalContext>();
+  const { activeSemesterId } = useAcademicYear();
   const [programs, setPrograms] = useState<any[]>([]);
   const [subjects, setSubjects] = useState<any[]>([]);
   const [materials, setMaterials] = useState<any[]>([]);
@@ -22,10 +24,12 @@ export const PortalHbl: React.FC = () => {
   const load = useCallback(async () => {
     if (!student?.id) return;
     setIsLoading(true);
-    const enrollmentResult = await hblDb
+    let enrollmentQuery = hblDb
       .from("hbl_program_students")
-      .select("program_id,hbl_programs(id,name,description,status,units(name))")
+      .select("program_id,hbl_programs!inner(id,name,description,status,semester_id,units(name),semesters(name,academic_years(name)))")
       .eq("student_id", student.id);
+    if (activeSemesterId) enrollmentQuery = enrollmentQuery.eq("hbl_programs.semester_id", activeSemesterId);
+    const enrollmentResult = await enrollmentQuery;
     if (enrollmentResult.error) {
       toast.error("Program HBL belum dapat dimuat", { description: enrollmentResult.error.message });
       setIsLoading(false);
@@ -54,7 +58,7 @@ export const PortalHbl: React.FC = () => {
     setReports(reportResult.data || []);
     setLinks(Object.fromEntries((reportResult.data || []).map((item: any) => [item.material_id, item.submission_url || ""])));
     setIsLoading(false);
-  }, [student]);
+  }, [activeSemesterId, student]);
 
   // Materi disinkronkan dari Supabase setiap kali siswa aktif berubah.
   // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -100,7 +104,7 @@ export const PortalHbl: React.FC = () => {
 
     {programs.map((program) => {
       const programSubjects = subjects.filter((subject) => subject.program_id === program.id);
-      return <section key={program.id} className="space-y-4"><div className="rounded-xl border bg-white p-5 shadow-sm"><div className="flex items-start gap-3"><div className="rounded-lg bg-emerald-50 p-2 text-emerald-700"><GraduationCap className="h-5 w-5" /></div><div><h2 className="text-lg font-bold text-gray-900">{program.name}</h2><p className="mt-1 text-sm text-gray-500">{program.description || program.units?.name || "Program Homebased Learning"}</p></div></div></div>
+      return <section key={program.id} className="space-y-4"><div className="rounded-xl border bg-white p-5 shadow-sm"><div className="flex items-start gap-3"><div className="rounded-lg bg-emerald-50 p-2 text-emerald-700"><GraduationCap className="h-5 w-5" /></div><div><h2 className="text-lg font-bold text-gray-900">{program.name}</h2><p className="mt-1 text-xs font-semibold text-emerald-700">{program.semesters?.academic_years?.name || "Tahun ajaran"} · Semester {program.semesters?.name || "-"}</p><p className="mt-1 text-sm text-gray-500">{program.description || program.units?.name || "Program Homebased Learning"}</p></div></div></div>
         {programSubjects.map((subject) => {
           const subjectMaterials = materials.filter((material) => material.subject_id === subject.id);
           return <article key={subject.id} className="overflow-hidden rounded-xl border bg-white shadow-sm"><div className="flex items-center gap-2 border-b bg-gray-50 px-5 py-4"><BookOpen className="h-5 w-5 text-emerald-700" /><div><h3 className="font-bold text-gray-900">{subject.name}</h3><p className="text-xs text-gray-500">{subjectMaterials.length} materi</p></div></div><div className="grid gap-5 p-4 lg:grid-cols-2">{subjectMaterials.map((material) => {
@@ -115,6 +119,6 @@ export const PortalHbl: React.FC = () => {
       </section>;
     })}
 
-    {programs.length === 0 && <div className="rounded-xl border border-dashed bg-white p-10 text-center"><GraduationCap className="mx-auto h-10 w-10 text-gray-300" /><h2 className="mt-3 font-bold text-gray-700">Belum ada program HBL</h2><p className="mt-1 text-sm text-gray-500">Program akan muncul setelah sekolah menerbitkan dan menautkannya ke siswa ini.</p></div>}
+    {programs.length === 0 && <div className="rounded-xl border border-dashed bg-white p-10 text-center"><GraduationCap className="mx-auto h-10 w-10 text-gray-300" /><h2 className="mt-3 font-bold text-gray-700">Belum ada program HBL semester aktif</h2><p className="mt-1 text-sm text-gray-500">Program akan muncul setelah sekolah menerbitkan dan menautkannya ke siswa ini pada semester aktif.</p></div>}
   </div>;
 };

@@ -11,17 +11,19 @@ const EMPTY_MATERIAL = { title: "", description: "", resource_type: "youtube", r
 const hblDb = supabaseClient as any;
 
 export const HblAdminSettings: React.FC = () => {
-  const { activeYearId } = useAcademicYear();
+  const { activeYearId, activeSemesterId } = useAcademicYear();
   const { activeUnitId } = useCurrentUnit();
   const [programs, setPrograms] = useState<any[]>([]);
   const [units, setUnits] = useState<any[]>([]);
+  const [semesters, setSemesters] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
   const [subjects, setSubjects] = useState<any[]>([]);
   const [materials, setMaterials] = useState<any[]>([]);
   const [enrollments, setEnrollments] = useState<any[]>([]);
   const [reports, setReports] = useState<any[]>([]);
   const [selectedProgramId, setSelectedProgramId] = useState("");
-  const [programForm, setProgramForm] = useState({ name: "", description: "", unit_id: activeUnitId || "" });
+  const [semesterFilter, setSemesterFilter] = useState(activeSemesterId || "");
+  const [programForm, setProgramForm] = useState({ name: "", description: "", unit_id: activeUnitId || "", semester_id: activeSemesterId || "" });
   const [subjectName, setSubjectName] = useState("");
   const [selectedSubjectId, setSelectedSubjectId] = useState("");
   const [materialForm, setMaterialForm] = useState(EMPTY_MATERIAL);
@@ -29,24 +31,33 @@ export const HblAdminSettings: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
-  const selectedProgram = programs.find((item) => item.id === selectedProgramId) || null;
+  const visiblePrograms = programs.filter((item) => !semesterFilter || item.semester_id === semesterFilter);
+  const selectedProgram = visiblePrograms.find((item) => item.id === selectedProgramId) || null;
+
+  const changeSemesterFilter = (semesterId: string) => {
+    setSemesterFilter(semesterId);
+    setSelectedProgramId(programs.find((program) => !semesterId || program.semester_id === semesterId)?.id || "");
+  };
 
   const loadBase = useCallback(async () => {
     setIsLoading(true);
-    const [programResult, unitResult, studentResult] = await Promise.all([
-      hblDb.from("hbl_programs").select("*, units(name), academic_years(name)").order("created_at", { ascending: false }),
+    const [programResult, unitResult, studentResult, semesterResult] = await Promise.all([
+      hblDb.from("hbl_programs").select("*, units(name), academic_years(name), semesters(name,academic_years(name))").order("created_at", { ascending: false }),
       hblDb.from("units").select("id,name").eq("is_active", true).order("name"),
       hblDb.from("students").select("id,full_name,nis,unit_id,classes(name)").eq("status", "active").order("full_name"),
+      hblDb.from("semesters").select("id,name,academic_year_id,is_active,start_date,academic_years(name)").order("start_date", { ascending: false }),
     ]);
-    const error = programResult.error || unitResult.error || studentResult.error;
+    const error = programResult.error || unitResult.error || studentResult.error || semesterResult.error;
     if (error) toast.error("LMS HBL belum dapat dimuat", { description: error.message });
     setPrograms(programResult.data || []);
     setUnits(unitResult.data || []);
     setStudents(studentResult.data || []);
-    setSelectedProgramId((current) => current || programResult.data?.[0]?.id || "");
-    setProgramForm((current) => ({ ...current, unit_id: current.unit_id || activeUnitId || unitResult.data?.[0]?.id || "" }));
+    setSemesters(semesterResult.data || []);
+    setSemesterFilter((current) => current || activeSemesterId || "");
+    setSelectedProgramId((current) => current || programResult.data?.find((program: any) => !activeSemesterId || program.semester_id === activeSemesterId)?.id || "");
+    setProgramForm((current) => ({ ...current, unit_id: current.unit_id || activeUnitId || unitResult.data?.[0]?.id || "", semester_id: current.semester_id || activeSemesterId || semesterResult.data?.find((semester: any) => semester.is_active)?.id || "" }));
     setIsLoading(false);
-  }, [activeUnitId]);
+  }, [activeSemesterId, activeUnitId]);
 
   const loadProgram = useCallback(async (programId: string) => {
     if (!programId) {
@@ -85,16 +96,18 @@ export const HblAdminSettings: React.FC = () => {
 
   const createProgram = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!programForm.unit_id || programForm.name.trim().length < 3) return toast.error("Nama dan unit program wajib diisi.");
+    const selectedSemester = semesters.find((semester) => semester.id === programForm.semester_id);
+    if (!programForm.unit_id || !selectedSemester || programForm.name.trim().length < 3) return toast.error("Nama, unit, dan semester program wajib diisi.");
     setIsSaving(true);
     const { data, error } = await hblDb.from("hbl_programs").insert({
       name: programForm.name.trim(), description: programForm.description.trim() || null,
-      unit_id: programForm.unit_id, academic_year_id: activeYearId || null,
+      unit_id: programForm.unit_id, academic_year_id: selectedSemester.academic_year_id || activeYearId || null, semester_id: selectedSemester.id,
     }).select("id").single();
     setIsSaving(false);
     if (error) return toast.error("Program gagal dibuat", { description: error.message });
     toast.success("Program HBL dibuat.");
     setProgramForm((current) => ({ ...current, name: "", description: "" }));
+    setSemesterFilter(selectedSemester.id);
     await loadBase();
     setSelectedProgramId(data.id);
   };
@@ -174,7 +187,7 @@ export const HblAdminSettings: React.FC = () => {
     await loadProgram(selectedProgramId);
   };
 
-  const candidateStudents = useMemo(() => students.filter((student) => !selectedProgram?.unit_id || student.unit_id === selectedProgram.unit_id), [selectedProgram, students]);
+  const candidateStudents = students.filter((student) => !selectedProgram?.unit_id || student.unit_id === selectedProgram.unit_id);
   const materialGroups = useMemo(() => Object.fromEntries(subjects.map((subject) => [subject.id, materials.filter((item) => item.subject_id === subject.id)])), [materials, subjects]);
 
   if (isLoading) return <div className="flex min-h-64 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
@@ -186,16 +199,20 @@ export const HblAdminSettings: React.FC = () => {
       <div className="space-y-4">
         <form onSubmit={createProgram} className="space-y-3 rounded-xl border bg-card p-4">
           <h3 className="font-bold">Program baru</h3>
-          <input value={programForm.name} onChange={(e) => setProgramForm({ ...programForm, name: e.target.value })} placeholder="Contoh: HBL Preschool Semester 1" className="h-10 w-full rounded-md border px-3 text-sm" required />
+          <input value={programForm.name} onChange={(e) => setProgramForm({ ...programForm, name: e.target.value })} placeholder="Contoh: HBL Preschool" className="h-10 w-full rounded-md border px-3 text-sm" required />
           <select value={programForm.unit_id} onChange={(e) => setProgramForm({ ...programForm, unit_id: e.target.value })} className="h-10 w-full rounded-md border px-3 text-sm" required><option value="">Pilih unit</option>{units.map((unit) => <option key={unit.id} value={unit.id}>{unit.name}</option>)}</select>
+          <select value={programForm.semester_id} onChange={(e) => setProgramForm({ ...programForm, semester_id: e.target.value })} className="h-10 w-full rounded-md border px-3 text-sm" required><option value="">Pilih tahun ajaran / semester</option>{semesters.map((semester) => <option key={semester.id} value={semester.id}>{semester.academic_years?.name || "Tahun ajaran"} · Semester {semester.name}{semester.is_active ? " (Aktif)" : ""}</option>)}</select>
           <textarea value={programForm.description} onChange={(e) => setProgramForm({ ...programForm, description: e.target.value })} placeholder="Tujuan dan penjelasan program" rows={3} className="w-full rounded-md border p-3 text-sm" />
           <button disabled={isSaving} className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-bold text-primary-foreground disabled:opacity-50"><Plus className="h-4 w-4" /> Buat Program</button>
         </form>
-        <div className="overflow-hidden rounded-xl border bg-card"><div className="border-b px-4 py-3"><h3 className="font-bold">Daftar program</h3></div><div className="divide-y">{programs.map((program) => <button key={program.id} onClick={() => setSelectedProgramId(program.id)} className={`flex w-full items-center justify-between gap-3 p-4 text-left ${selectedProgramId === program.id ? "bg-primary/10" : "hover:bg-muted/40"}`}><span><span className="block text-sm font-bold">{program.name}</span><span className="mt-1 block text-xs text-muted-foreground">{program.units?.name} · {program.status === "published" ? "Terbit" : program.status === "archived" ? "Arsip" : "Draf"}</span></span><ChevronRight className="h-4 w-4 shrink-0" /></button>)}{programs.length === 0 && <p className="p-6 text-center text-sm text-muted-foreground">Belum ada program.</p>}</div></div>
+        <div className="overflow-hidden rounded-xl border bg-card">
+          <div className="space-y-3 border-b px-4 py-3"><h3 className="font-bold">Daftar program</h3><select value={semesterFilter} onChange={(event) => changeSemesterFilter(event.target.value)} className="h-9 w-full rounded-md border bg-background px-2 text-xs"><option value="">Semua semester</option>{semesters.map((semester) => <option key={semester.id} value={semester.id}>{semester.academic_years?.name || "Tahun ajaran"} · {semester.name}{semester.is_active ? " (Aktif)" : ""}</option>)}</select></div>
+          <div className="divide-y">{visiblePrograms.map((program) => <button key={program.id} onClick={() => setSelectedProgramId(program.id)} className={`flex w-full items-center justify-between gap-3 p-4 text-left ${selectedProgramId === program.id ? "bg-primary/10" : "hover:bg-muted/40"}`}><span><span className="block text-sm font-bold">{program.name}</span><span className="mt-1 block text-xs text-muted-foreground">{program.units?.name} · {program.academic_years?.name || "Tahun ajaran"} · Semester {program.semesters?.name || "-"} · {program.status === "published" ? "Terbit" : program.status === "archived" ? "Arsip" : "Draf"}</span></span><ChevronRight className="h-4 w-4 shrink-0" /></button>)}{visiblePrograms.length === 0 && <p className="p-6 text-center text-sm text-muted-foreground">Belum ada program pada semester ini.</p>}</div>
+        </div>
       </div>
 
       {!selectedProgram ? <div className="flex min-h-80 items-center justify-center rounded-xl border border-dashed text-sm text-muted-foreground">Buat atau pilih program untuk mulai menyusun LMS.</div> : <div className="space-y-5">
-        <section className="flex flex-col gap-3 rounded-xl border bg-card p-5 sm:flex-row sm:items-start sm:justify-between"><div><div className="flex flex-wrap items-center gap-2"><h3 className="text-lg font-bold">{selectedProgram.name}</h3><span className={`rounded-full px-2 py-1 text-[10px] font-bold ${selectedProgram.status === "published" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>{selectedProgram.status}</span></div><p className="mt-2 text-sm text-muted-foreground">{selectedProgram.description || "Belum ada deskripsi."}</p></div><button onClick={toggleProgramStatus} className="shrink-0 rounded-md border px-3 py-2 text-xs font-bold">{selectedProgram.status === "published" ? "Kembalikan ke Draf" : "Terbitkan Program"}</button></section>
+        <section className="flex flex-col gap-3 rounded-xl border bg-card p-5 sm:flex-row sm:items-start sm:justify-between"><div><div className="flex flex-wrap items-center gap-2"><h3 className="text-lg font-bold">{selectedProgram.name}</h3><span className={`rounded-full px-2 py-1 text-[10px] font-bold ${selectedProgram.status === "published" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>{selectedProgram.status}</span></div><p className="mt-1 text-xs font-semibold text-primary">{selectedProgram.academic_years?.name || "Tahun ajaran"} · Semester {selectedProgram.semesters?.name || "-"}</p><p className="mt-2 text-sm text-muted-foreground">{selectedProgram.description || "Belum ada deskripsi."}</p></div><button onClick={toggleProgramStatus} className="shrink-0 rounded-md border px-3 py-2 text-xs font-bold">{selectedProgram.status === "published" ? "Kembalikan ke Draf" : "Terbitkan Program"}</button></section>
 
         <section className="rounded-xl border bg-card p-5"><div className="mb-4 flex items-center gap-2"><BookOpen className="h-5 w-5 text-primary" /><div><h3 className="font-bold">Mata pelajaran & materi</h3><p className="text-xs text-muted-foreground">Satu program dapat berisi banyak mata pelajaran dan materi.</p></div></div><form onSubmit={addSubject} className="flex gap-2"><input value={subjectName} onChange={(e) => setSubjectName(e.target.value)} placeholder="Nama mata pelajaran" className="h-10 flex-1 rounded-md border px-3 text-sm" /><button disabled={isSaving} className="rounded-md bg-primary px-4 text-sm font-bold text-primary-foreground">Tambah</button></form>
           <div className="mt-5 space-y-4">{subjects.map((subject) => <article key={subject.id} className="rounded-lg border"><button onClick={() => setSelectedSubjectId(subject.id)} className={`flex w-full items-center justify-between p-3 text-left ${selectedSubjectId === subject.id ? "bg-primary/5" : ""}`}><span className="font-bold">{subject.name}</span><span className="text-xs text-muted-foreground">{materialGroups[subject.id]?.length || 0} materi</span></button><div className="grid gap-4 border-t p-3 lg:grid-cols-2">{(materialGroups[subject.id] || []).map((material: any) => <div key={material.id} className="space-y-3 rounded-lg border bg-muted/10 p-3"><HblMediaPreview type={material.resource_type} url={material.resource_url} title={material.title} /><div><div className="flex items-start justify-between gap-3"><h4 className="font-bold">{material.title}</h4><span className={`rounded px-2 py-0.5 text-[10px] font-bold ${material.is_published ? "bg-emerald-50 text-emerald-700" : "bg-gray-100 text-gray-600"}`}>{material.is_published ? "Terbit" : "Draf"}</span></div><p className="mt-1 text-xs text-muted-foreground">{material.report_type === "checklist" ? "Laporan checklist" : "Laporan tautan Google Drive"}{material.due_date ? ` · tenggat ${material.due_date}` : ""}</p></div><div className="flex gap-2"><button onClick={() => void toggleMaterial(material)} className="rounded-md border px-2 py-1 text-xs font-bold">{material.is_published ? "Tarik" : "Terbitkan"}</button><button onClick={() => void deleteMaterial(material)} className="rounded-md border p-1.5 text-red-600" title="Hapus materi"><Trash2 className="h-3.5 w-3.5" /></button></div></div>)}{(materialGroups[subject.id] || []).length === 0 && <p className="text-sm text-muted-foreground">Belum ada materi.</p>}</div></article>)}{subjects.length === 0 && <p className="rounded-lg border border-dashed p-5 text-center text-sm text-muted-foreground">Tambahkan mata pelajaran pertama.</p>}</div>
