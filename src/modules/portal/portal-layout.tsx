@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Outlet, useNavigate, useLocation, Link } from "react-router-dom";
 import { supabaseClient } from "../../lib/supabase/client";
-import { Home, Wallet, BookOpen, LogOut, Smile, ClipboardList, Bell, Target, FileText, MoreHorizontal, X, Users, UserRound, CalendarCheck, LifeBuoy, Library } from "lucide-react";
+import { Home, Wallet, BookOpen, LogOut, Smile, ClipboardList, Bell, Target, FileText, MoreHorizontal, X, Users, UserRound, CalendarCheck, LifeBuoy, Library, GraduationCap } from "lucide-react";
 import { useSystemSettings } from "../../app/providers/SettingsProvider";
 import type { ParentPortalParent, ParentPortalStudent } from "./portal-context";
 import { publishDueAnnouncements } from "../../lib/announcements/publish-due";
@@ -108,6 +108,7 @@ export const PortalLayout: React.FC = () => {
       { name: "Profil Keluarga", path: "/portal/profile", icon: UserRound },
     ]},
     { label: "Perkembangan Anak", items: [
+      { name: "Homebased Learning", path: "/portal/hbl", icon: GraduationCap },
       { name: "Kehadiran", path: "/portal/attendance", icon: CalendarCheck },
       { name: "Akademik & Jadwal", path: "/portal/academic", icon: BookOpen },
       { name: "e-Rapor", path: "/portal/reports", icon: FileText },

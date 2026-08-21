@@ -17,6 +17,7 @@ import { supabaseClient } from "../../../lib/supabase/client";
 import { toast } from "sonner";
 import { Modal } from "../../../components/common/Modal";
 import { useAcademicYear } from "../../../app/providers/AcademicYearProvider";
+import { academicAssignmentTypes } from "../employee-role-config";
 
 // ─── Position label & color helpers ───────────────────────────────────────────
 const POSITION_MAP: Record<string, { label: string; color: string }> = {
@@ -194,7 +195,7 @@ function EmployeeCard({ employee, onClick, onEdit, onAccess, onDelete }: { emplo
 
 // ─── Main Component ────────────────────────────────────────────────────────────
 export const EmployeesList: React.FC = () => {
-  const { activeYearId, activeSemesterId } = useAcademicYear();
+  const { activeYearId } = useAcademicYear();
   const navigate = useNavigate();
   const location = useLocation();
   const basePath = location.pathname.startsWith("/hrd") ? "/hrd/employees" : "/employees";
@@ -263,7 +264,6 @@ export const EmployeesList: React.FC = () => {
     filters: [
       { field: "is_active", operator: "eq", value: true },
       ...(activeYearId ? [{ field: "academic_year_id", operator: "eq" as const, value: activeYearId }] : []),
-      ...(activeSemesterId ? [{ field: "semester_id", operator: "eq" as const, value: activeSemesterId }] : []),
     ],
     pagination: { pageSize: 1000 },
     meta: { select: "employee_id, is_active" },
@@ -491,22 +491,21 @@ export const EmployeesList: React.FC = () => {
         cell: function render({ row }) {
           const assignments: any[] = row.original._assignments ?? [];
           if (assignments.length === 0) return <span className="text-xs text-muted-foreground italic">Belum ada</span>;
-          const subjects = assignments.filter((a) => a.subject).map((a) => a.subject);
+          const labels = assignments.map((assignment) => (
+            assignment.subjects?.name
+            || assignment.subject
+            || assignment.classes?.name
+            || academicAssignmentTypes.find((item) => item.value === assignment.role_type)?.label
+            || String(assignment.role_type || "Penugasan").replace(/_/g, " ")
+          ));
           return (
             <div className="flex flex-wrap gap-1 max-w-[200px]">
-              {subjects.slice(0, 2).map((s, i) => (
+              {labels.slice(0, 2).map((label, i) => (
                 <span key={i} className="text-[10px] bg-blue-50 text-blue-700 px-2 py-0.5 rounded border border-blue-100 font-medium">
-                  {s}
+                  {label}
                 </span>
               ))}
-              {subjects.length > 2 && (
-                <span className="text-[10px] text-muted-foreground">+{subjects.length - 2}</span>
-              )}
-              {assignments.length > 0 && subjects.length === 0 && (
-                <span className="text-[10px] bg-muted text-muted-foreground px-2 py-0.5 rounded">
-                  {assignments.length} tugas
-                </span>
-              )}
+              {labels.length > 2 && <span className="text-[10px] text-muted-foreground">+{labels.length - 2}</span>}
             </div>
           );
         },
@@ -585,10 +584,9 @@ export const EmployeesList: React.FC = () => {
       { field: "employee_id", operator: "in" as const, value: employeeIds },
       { field: "is_active", operator: "eq" as const, value: true },
       ...(activeYearId ? [{ field: "academic_year_id", operator: "eq" as const, value: activeYearId }] : []),
-      ...(activeSemesterId ? [{ field: "semester_id", operator: "eq" as const, value: activeSemesterId }] : []),
     ] : [],
     pagination: { pageSize: 500 },
-    meta: { select: "employee_id, subject, role_type, is_active" },
+    meta: { select: "employee_id, subject, subject_id, class_id, role_type, semester_id, is_active, subjects(name), classes(name)" },
     queryOptions: { enabled: employeeIds.length > 0 },
   });
 

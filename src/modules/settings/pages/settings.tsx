@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from "react";
 import { useGetIdentity, useUpdate, useList, useCreate, useDelete } from "@refinedev/core";
 import { PageHeader } from "../../../components/layout/PageHeader";
-import { User, Users, Bell, Shield, Moon, Sun, Monitor, Palette, Check, Save, Type, Image as ImageIcon, Globe, Search, Filter, Trash2, Edit2, SearchX, Loader2, UserPlus, AlertTriangle, ChevronLeft, ChevronRight, Wallet, LockKeyhole, ArrowRight } from "lucide-react";
+import { User, Users, Bell, Shield, Moon, Sun, Monitor, Palette, Check, Save, Type, Image as ImageIcon, Globe, Search, Filter, Trash2, Edit2, SearchX, Loader2, UserPlus, AlertTriangle, ChevronLeft, ChevronRight, Wallet, LockKeyhole, ArrowRight, GraduationCap } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useTheme } from "../../../app/providers/ThemeProvider";
 import { useSystemSettings } from "../../../app/providers/SettingsProvider";
 import { supabaseClient } from "../../../lib/supabase/client";
 import { toast } from "sonner";
+import { HblAdminSettings } from "../../hbl";
 
 export const SettingsPage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<"profile" | "users" | "appearance" | "security">("profile");
+  const [activeTab, setActiveTab] = useState<"profile" | "users" | "appearance" | "security" | "hbl">("profile");
 
   return (
     <div className="space-y-6">
@@ -52,6 +53,16 @@ export const SettingsPage: React.FC = () => {
             Preferensi Tampilan
           </button>
           <button
+            onClick={() => setActiveTab("hbl")}
+            className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-all relative overflow-hidden ${
+              activeTab === "hbl" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+            }`}
+          >
+            {activeTab === "hbl" && <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-r" />}
+            <GraduationCap className={`w-4 h-4 ${activeTab === "hbl" ? "text-primary" : ""}`} />
+            LMS Homebased Learning
+          </button>
+          <button
             onClick={() => setActiveTab("security")}
             className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-all relative overflow-hidden ${
               activeTab === "security" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
@@ -68,6 +79,7 @@ export const SettingsPage: React.FC = () => {
           {activeTab === "profile" && <ProfileSettings />}
           {activeTab === "users" && <UsersTab />}
           {activeTab === "appearance" && <AppearanceSettings />}
+          {activeTab === "hbl" && <HblAdminSettings />}
           {activeTab === "security" && <SecuritySettings />}
         </div>
       </div>

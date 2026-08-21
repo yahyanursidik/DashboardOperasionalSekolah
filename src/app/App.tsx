@@ -162,6 +162,7 @@ import { PortalOnboarding, StaffOnboarding, TeacherOnboarding } from "../modules
 import { PortalProfile } from "../modules/portal/portal-profile";
 import { PortalAttendance } from "../modules/portal/portal-attendance";
 import { PortalRequests } from "../modules/portal/portal-requests";
+import { PortalHbl } from "../modules/portal/portal-hbl";
 
 // Onboarding Imports
 import { OnboardingList, OnboardingCreate, OnboardingEdit, OnboardingShow } from "../modules/onboarding/pages";
@@ -1170,6 +1171,7 @@ export default function App() {
                 <Route path="profile" element={<PortalProfile />} />
                 <Route path="attendance" element={<PortalAttendance />} />
                 <Route path="requests" element={<PortalRequests />} />
+                <Route path="hbl" element={<PortalHbl />} />
                 <Route path="extracurricular" element={<PortalExtracurricular />} />
                 <Route path="finance" element={<PortalFinance />} />
                 <Route path="academic" element={<PortalAcademic />} />
