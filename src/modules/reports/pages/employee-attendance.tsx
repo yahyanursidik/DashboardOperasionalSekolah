@@ -25,9 +25,9 @@ import { toast } from "sonner";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { useCurrentUnit } from "../../../app/providers/UnitProvider";
 import { useAcademicYear } from "../../../app/providers/AcademicYearProvider";
-import { exportToCsv } from "../../../lib/csv";
 import { ReportsSectionNav } from "../components/ReportsSectionNav";
 import { fetchAllReportRows, formatPercent, monthRange, recordReportExport, type ReportQueryFilter } from "../report-utils";
+import { exportEmployeeAttendanceWorkbook, type EmployeeAttendanceDetailExportRow, type EmployeeAttendanceSummaryExportRow } from "../employee-attendance-export";
 
 type ReportMode = "summary" | "daily";
 type AttendanceFilter = "all" | "present" | "late" | "sick" | "leave" | "absent" | "needs_review";
@@ -267,7 +267,7 @@ export const ReportEmployeeAttendance: React.FC = () => {
         || (attendanceFilter === "needs_review" ? needsReview : record.status === attendanceFilter);
       return matchesSearch && matchesAttendance;
   }), [attendanceFilter, normalizedSearch, records]);
-  const employees = (employeeData?.data || []) as EmployeeInfo[];
+  const employees = useMemo(() => (employeeData?.data || []) as EmployeeInfo[], [employeeData?.data]);
   const scopedEmployees = useMemo(() => employees.filter((employee) => {
     if (employeeId && employee.id !== employeeId) return false;
     if (attendanceFilter !== "all") return false;
@@ -339,53 +339,67 @@ export const ReportEmployeeAttendance: React.FC = () => {
         return matchesSearch && matchesAttendance;
       });
       const detailExport = mode === "daily" || Boolean(employeeId);
-      if (detailExport) {
-        exportToCsv(filteredExportRecords.map((record) => ({
-          Tanggal: formatDate(record.date),
-          Nama: record.employees?.full_name || "",
-          NIK: record.employees?.nik || "",
-          Unit: record.employees?.units?.name || "Lintas unit",
-          Jabatan: String(record.employees?.position || "").replace(/_/g, " "),
-          Status: statusLabels[record.status] || record.status,
-          "Jam Acuan Masuk": formatTime(record.expected_start_time),
-          "Jam Absen Masuk": formatTime(record.time_in),
-          "Jam Acuan Pulang": formatTime(record.expected_end_time),
-          "Jam Absen Pulang": formatTime(record.time_out),
-          "Durasi Kerja": formatDuration(getWorkedMinutes(record)),
-          "Menit Terlambat": Number(record.late_minutes || 0),
-          "Menit Pulang Awal": Number(record.early_departure_minutes || 0),
-          "Acuan Kehadiran": ruleLabels[record.attendance_rule_source || ""] || record.attendance_rule_source || "-",
-          Lokasi: record.attendance_sites?.name || record.location_status || "-",
-          Verifikasi: record.verification_status || "-",
-          "Metode Masuk": record.check_in_method || "-",
-          "Metode Pulang": record.check_out_method || "-",
-          Catatan: record.notes || "",
-        })), `Rincian_Kehadiran_${selectedEmployee?.full_name || dateFrom}_${dateFrom}_${dateTo}`);
-      } else {
-        const summary = buildSummaryRows(filteredExportRecords, scopedEmployees);
-        exportToCsv(summary.map((row) => ({
-          NIK: row.employee?.nik || "",
-          Nama: row.employee?.full_name || "",
-          Jabatan: String(row.employee?.position || "").replace(/_/g, " "),
-          Unit: row.employee?.units?.name || "Lintas unit",
-          "Hari Input": row.total,
-          Hadir: row.present,
-          Terlambat: row.late,
-          "Total Menit Terlambat": row.lateMinutes,
-          "Pulang Awal": row.early,
-          "Belum Absen Pulang": row.missedCheckout,
-          Sakit: row.sick,
-          Izin: row.leave,
-          Alpa: row.absent,
-          Terverifikasi: row.verified,
-          "Total Durasi": formatDuration(row.workedMinutes),
-        })), `Rekap_Kehadiran_Pegawai_${dateFrom}_${dateTo}`);
-      }
+      const summary = buildSummaryRows(filteredExportRecords, scopedEmployees);
+      const summaryRows: EmployeeAttendanceSummaryExportRow[] = summary.map((row) => ({
+        NIK: row.employee?.nik || "",
+        Nama: row.employee?.full_name || "",
+        Jabatan: String(row.employee?.position || "").replace(/_/g, " "),
+        Unit: row.employee?.units?.name || "Lintas unit",
+        "Hari Input": row.total,
+        Hadir: row.present,
+        Terlambat: row.late,
+        "Total Menit Terlambat": row.lateMinutes,
+        "Pulang Awal": row.early,
+        "Belum Absen Pulang": row.missedCheckout,
+        Sakit: row.sick,
+        Izin: row.leave,
+        Alpa: row.absent,
+        Terverifikasi: row.verified,
+        "Total Durasi": formatDuration(row.workedMinutes),
+      }));
+      const detailRows: EmployeeAttendanceDetailExportRow[] = filteredExportRecords.map((record) => ({
+        Tanggal: formatDate(record.date),
+        Nama: record.employees?.full_name || "",
+        NIK: record.employees?.nik || "",
+        Unit: record.employees?.units?.name || "Lintas unit",
+        Jabatan: String(record.employees?.position || "").replace(/_/g, " "),
+        Status: statusLabels[record.status] || record.status,
+        "Jam Acuan Masuk": formatTime(record.expected_start_time),
+        "Jam Absen Masuk": formatTime(record.time_in),
+        "Jam Acuan Pulang": formatTime(record.expected_end_time),
+        "Jam Absen Pulang": formatTime(record.time_out),
+        "Durasi Kerja": formatDuration(getWorkedMinutes(record)),
+        "Menit Terlambat": Number(record.late_minutes || 0),
+        "Menit Pulang Awal": Number(record.early_departure_minutes || 0),
+        "Acuan Kehadiran": ruleLabels[record.attendance_rule_source || ""] || record.attendance_rule_source || "-",
+        Lokasi: record.attendance_sites?.name || record.location_status || "-",
+        Verifikasi: record.verification_status || "-",
+        "Metode Masuk": record.check_in_method || "-",
+        "Metode Pulang": record.check_out_method || "-",
+        Catatan: record.notes || "",
+      }));
+      const unitNames = Array.from(new Set(summary.map((row) => row.employee?.units?.name).filter(Boolean)));
+      await exportEmployeeAttendanceWorkbook({
+        filename: `Rekap_Absensi_Pegawai_${selectedEmployee?.full_name || dateFrom}_${dateFrom}_${dateTo}`,
+        periodLabel: `${formatDate(dateFrom)} – ${formatDate(dateTo)}`,
+        unitLabel: unitNames.length ? unitNames.join(", ") : activeUnitId ? "Unit terpilih" : "Konsolidasi semua unit",
+        generatedLabel: new Date().toLocaleString("id-ID"),
+        summaryRows,
+        detailRows,
+        metrics: {
+          employeeCount: summary.length,
+          employeesWithRecords: summary.filter((row) => row.total > 0).length,
+          employeesWithoutRecords: summary.filter((row) => row.total === 0).length,
+          verifiedRecords: filteredExportRecords.filter((record) => verifiedStatuses.has(record.verification_status || "")).length,
+          lateRecords: filteredExportRecords.filter((record) => record.status === "late" || record.is_late).length,
+          reviewRecords: filteredExportRecords.filter((record) => record.status === "absent" || record.is_early_departure || (record.time_in && !record.time_out)).length,
+        },
+      });
       await recordReportExport({
         reportKey: employeeId ? "employee_attendance_individual" : "employee_attendance",
         reportLabel: employeeId ? `Rincian Kehadiran ${selectedEmployee?.full_name || "Pegawai"}` : "Laporan Kehadiran Pegawai",
-        format: "csv",
-        rowCount: detailExport ? filteredExportRecords.length : buildSummaryRows(filteredExportRecords, scopedEmployees).length,
+        format: "xlsx",
+        rowCount: detailExport ? filteredExportRecords.length : summary.length,
         unitId: activeUnitId,
         academicYearId: activeYearId,
         semesterId: activeSemesterId,
@@ -393,7 +407,7 @@ export const ReportEmployeeAttendance: React.FC = () => {
         dateTo,
         filters: { month, employeeId: employeeId || null, attendanceFilter, mode },
       });
-      toast.success("Laporan kehadiran berhasil diekspor.");
+      toast.success("Rekap absensi Excel berhasil diunduh.");
     } catch (error) {
       toast.error("Ekspor kehadiran pegawai gagal", {
         description: error instanceof Error ? error.message : "Kesalahan tidak diketahui",
@@ -416,7 +430,7 @@ export const ReportEmployeeAttendance: React.FC = () => {
             className="inline-flex h-10 items-center gap-2 whitespace-nowrap rounded-md bg-primary px-4 text-sm font-bold text-primary-foreground hover:opacity-90 disabled:opacity-50"
           >
             {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-            Ekspor {mode === "daily" || employeeId ? "Rincian" : "Rekap"}
+            Ekspor Excel
           </button>
         )}
       />
