@@ -30,6 +30,7 @@ import { ReportsSectionNav } from "../components/ReportsSectionNav";
 import { fetchAllReportRows, formatPercent, monthRange, recordReportExport, type ReportQueryFilter } from "../report-utils";
 
 type ReportMode = "summary" | "daily";
+type AttendanceFilter = "all" | "present" | "late" | "sick" | "leave" | "absent" | "needs_review";
 
 type EmployeeInfo = {
   id?: string;
@@ -152,8 +153,26 @@ function formatDuration(minutes: number) {
   return hours ? `${hours}j ${rest}m` : `${rest} menit`;
 }
 
-function buildSummaryRows(records: AttendanceRecord[]) {
+function buildSummaryRows(records: AttendanceRecord[], employees: EmployeeInfo[] = []) {
   const grouped = new Map<string, SummaryRow>();
+  employees.forEach((employee) => {
+    if (!employee.id) return;
+    grouped.set(employee.id, {
+      employee_id: employee.id,
+      employee,
+      total: 0,
+      present: 0,
+      late: 0,
+      sick: 0,
+      leave: 0,
+      absent: 0,
+      verified: 0,
+      early: 0,
+      lateMinutes: 0,
+      workedMinutes: 0,
+      missedCheckout: 0,
+    });
+  });
   records.forEach((record) => {
     const item = grouped.get(record.employee_id) || {
       employee_id: record.employee_id,
@@ -205,6 +224,7 @@ export const ReportEmployeeAttendance: React.FC = () => {
   const [dateTo, setDateTo] = useState(initialRange.end);
   const [employeeId, setEmployeeId] = useState("");
   const [search, setSearch] = useState("");
+  const [attendanceFilter, setAttendanceFilter] = useState<AttendanceFilter>("all");
   const [mode, setMode] = useState<ReportMode>("summary");
   const [currentPage, setCurrentPage] = useState(1);
   const [isExporting, setIsExporting] = useState(false);
@@ -238,17 +258,24 @@ export const ReportEmployeeAttendance: React.FC = () => {
 
   const records = useMemo(() => (data?.data || []) as AttendanceRecord[], [data?.data]);
   const normalizedSearch = search.trim().toLowerCase();
-  const filteredRecords = useMemo(() => {
-    if (!normalizedSearch) return records;
-    return records.filter((record) => {
+  const filteredRecords = useMemo(() => records.filter((record) => {
       const employee = record.employees;
-      return [employee?.full_name, employee?.nik, employee?.position, employee?.units?.name]
+      const matchesSearch = !normalizedSearch || [employee?.full_name, employee?.nik, employee?.position, employee?.units?.name]
         .some((value) => String(value || "").toLowerCase().includes(normalizedSearch));
-    });
-  }, [normalizedSearch, records]);
-
-  const reportRows = useMemo(() => buildSummaryRows(filteredRecords), [filteredRecords]);
+      const needsReview = record.status === "absent" || Boolean(record.is_early_departure) || Boolean(record.time_in && !record.time_out);
+      const matchesAttendance = attendanceFilter === "all"
+        || (attendanceFilter === "needs_review" ? needsReview : record.status === attendanceFilter);
+      return matchesSearch && matchesAttendance;
+  }), [attendanceFilter, normalizedSearch, records]);
   const employees = (employeeData?.data || []) as EmployeeInfo[];
+  const scopedEmployees = useMemo(() => employees.filter((employee) => {
+    if (employeeId && employee.id !== employeeId) return false;
+    if (attendanceFilter !== "all") return false;
+    if (!normalizedSearch) return true;
+    return [employee.full_name, employee.nik, employee.position, employee.units?.name]
+      .some((value) => String(value || "").toLowerCase().includes(normalizedSearch));
+  }), [attendanceFilter, employeeId, employees, normalizedSearch]);
+  const reportRows = useMemo(() => buildSummaryRows(filteredRecords, scopedEmployees), [filteredRecords, scopedEmployees]);
   const selectedEmployee = employees.find((employee) => employee.id === employeeId)
     || filteredRecords.find((record) => record.employee_id === employeeId)?.employees;
 
@@ -258,6 +285,8 @@ export const ReportEmployeeAttendance: React.FC = () => {
   const totalAnomalies = filteredRecords.filter((record) =>
     record.status === "absent" || record.is_early_departure || (record.time_in && !record.time_out)
   ).length;
+  const employeesWithRecords = reportRows.filter((row) => row.total > 0).length;
+  const employeesWithoutRecords = reportRows.filter((row) => row.total === 0).length;
 
   const pageSize = mode === "summary" ? 20 : 15;
   const sourceRows = mode === "summary" ? reportRows : filteredRecords;
@@ -279,6 +308,7 @@ export const ReportEmployeeAttendance: React.FC = () => {
     setDateTo(initialRange.end);
     setEmployeeId("");
     setSearch("");
+    setAttendanceFilter("all");
     setMode("summary");
     setCurrentPage(1);
   };
@@ -299,9 +329,18 @@ export const ReportEmployeeAttendance: React.FC = () => {
         filters,
         "date",
       );
+      const filteredExportRecords = exportRecords.filter((record) => {
+        const employee = record.employees;
+        const matchesSearch = !normalizedSearch || [employee?.full_name, employee?.nik, employee?.position, employee?.units?.name]
+          .some((value) => String(value || "").toLowerCase().includes(normalizedSearch));
+        const needsReview = record.status === "absent" || Boolean(record.is_early_departure) || Boolean(record.time_in && !record.time_out);
+        const matchesAttendance = attendanceFilter === "all"
+          || (attendanceFilter === "needs_review" ? needsReview : record.status === attendanceFilter);
+        return matchesSearch && matchesAttendance;
+      });
       const detailExport = mode === "daily" || Boolean(employeeId);
       if (detailExport) {
-        exportToCsv(exportRecords.map((record) => ({
+        exportToCsv(filteredExportRecords.map((record) => ({
           Tanggal: formatDate(record.date),
           Nama: record.employees?.full_name || "",
           NIK: record.employees?.nik || "",
@@ -323,7 +362,7 @@ export const ReportEmployeeAttendance: React.FC = () => {
           Catatan: record.notes || "",
         })), `Rincian_Kehadiran_${selectedEmployee?.full_name || dateFrom}_${dateFrom}_${dateTo}`);
       } else {
-        const summary = buildSummaryRows(exportRecords);
+        const summary = buildSummaryRows(filteredExportRecords, scopedEmployees);
         exportToCsv(summary.map((row) => ({
           NIK: row.employee?.nik || "",
           Nama: row.employee?.full_name || "",
@@ -346,13 +385,13 @@ export const ReportEmployeeAttendance: React.FC = () => {
         reportKey: employeeId ? "employee_attendance_individual" : "employee_attendance",
         reportLabel: employeeId ? `Rincian Kehadiran ${selectedEmployee?.full_name || "Pegawai"}` : "Laporan Kehadiran Pegawai",
         format: "csv",
-        rowCount: detailExport ? exportRecords.length : buildSummaryRows(exportRecords).length,
+        rowCount: detailExport ? filteredExportRecords.length : buildSummaryRows(filteredExportRecords, scopedEmployees).length,
         unitId: activeUnitId,
         academicYearId: activeYearId,
         semesterId: activeSemesterId,
         dateFrom,
         dateTo,
-        filters: { month, employeeId: employeeId || null, mode },
+        filters: { month, employeeId: employeeId || null, attendanceFilter, mode },
       });
       toast.success("Laporan kehadiran berhasil diekspor.");
     } catch (error) {
@@ -367,13 +406,13 @@ export const ReportEmployeeAttendance: React.FC = () => {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Laporan Kehadiran Pegawai"
-        description="Rekap dan rincian waktu kehadiran guru serta staf berdasarkan unit, jadwal, shift, dan periode kerja."
+        title="Rekap Absensi Pegawai"
+        description="Satu halaman untuk memantau kehadiran guru dan staf per periode, lalu membuka rincian harian bila diperlukan."
         action={(
           <button
             type="button"
             onClick={() => void exportReport()}
-            disabled={isExporting || totalRecords === 0}
+            disabled={isExporting || (mode === "daily" ? totalRecords === 0 : reportRows.length === 0)}
             className="inline-flex h-10 items-center gap-2 whitespace-nowrap rounded-md bg-primary px-4 text-sm font-bold text-primary-foreground hover:opacity-90 disabled:opacity-50"
           >
             {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
@@ -384,7 +423,7 @@ export const ReportEmployeeAttendance: React.FC = () => {
       <ReportsSectionNav />
 
       <section className="rounded-lg border bg-card p-4 shadow-sm">
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-[180px_1fr_1fr_1.3fr_1.2fr_auto]">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-[170px_1fr_1fr_1.2fr_1fr_1.2fr_auto]">
           <label className="min-w-0 text-xs font-bold text-muted-foreground">
             Bulan cepat
             <input
@@ -429,6 +468,22 @@ export const ReportEmployeeAttendance: React.FC = () => {
               {employees.map((employee) => (
                 <option key={employee.id} value={employee.id}>{employee.full_name} {employee.nik ? `(${employee.nik})` : ""}</option>
               ))}
+            </select>
+          </label>
+          <label className="min-w-0 text-xs font-bold text-muted-foreground">
+            Fokus status
+            <select
+              value={attendanceFilter}
+              onChange={(event) => { setAttendanceFilter(event.target.value as AttendanceFilter); setCurrentPage(1); }}
+              className="mt-1.5 h-10 w-full rounded-md border bg-background px-3 text-sm text-foreground"
+            >
+              <option value="all">Semua status</option>
+              <option value="present">Hadir</option>
+              <option value="late">Terlambat</option>
+              <option value="sick">Sakit</option>
+              <option value="leave">Izin</option>
+              <option value="absent">Alpa</option>
+              <option value="needs_review">Perlu ditinjau</option>
             </select>
           </label>
           <label className="min-w-0 text-xs font-bold text-muted-foreground">
@@ -478,6 +533,9 @@ export const ReportEmployeeAttendance: React.FC = () => {
             Dibuat {generatedAt.toLocaleDateString("id-ID")} pukul {generatedAt.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} WIB
           </p>
         </div>
+        <p className="mt-3 rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+          Periode laporan: <span className="font-semibold text-foreground">{formatDate(dateFrom)} – {formatDate(dateTo)}</span>. “Belum ada catatan” berarti belum ada rekaman absensi pada periode ini; status tersebut bukan otomatis alpa.
+        </p>
       </section>
 
       {selectedEmployee ? (
@@ -497,9 +555,11 @@ export const ReportEmployeeAttendance: React.FC = () => {
         </section>
       ) : null}
 
-      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         {[
-          { label: mode === "summary" ? "Pegawai Tercatat" : "Hari Tercatat", value: mode === "summary" ? reportRows.length : totalRecords, icon: Users, tone: "bg-blue-50 text-blue-700" },
+          { label: "Pegawai dalam lingkup", value: reportRows.length, icon: Users, tone: "bg-blue-50 text-blue-700" },
+          { label: "Ada catatan absensi", value: employeesWithRecords, icon: CalendarCheck, tone: "bg-emerald-50 text-emerald-700" },
+          { label: "Belum ada catatan", value: employeesWithoutRecords, icon: FileWarning, tone: "bg-slate-100 text-slate-700" },
           { label: "Terverifikasi", value: formatPercent(totalRecords ? (totalVerified / totalRecords) * 100 : 0), icon: ShieldCheck, tone: "bg-emerald-50 text-emerald-700" },
           { label: "Kejadian Terlambat", value: totalLate, icon: Clock3, tone: "bg-amber-50 text-amber-700" },
           { label: "Perlu Ditinjau", value: totalAnomalies, icon: AlertTriangle, tone: "bg-red-50 text-red-700" },

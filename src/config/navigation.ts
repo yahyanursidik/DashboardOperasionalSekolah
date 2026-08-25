@@ -402,6 +402,13 @@ export const navigationConfig: NavigationGroup[] = [
         resource: "employee_attendance",
       },
       {
+        title: "Rekap Absensi Pegawai",
+        href: "/reports/employee-attendance",
+        icon: BarChart,
+        resource: "employee_attendance",
+        keywords: ["laporan absensi", "rekap kehadiran", "presensi pegawai", "terlambat", "per periode"],
+      },
+      {
         title: "Data Pendaftar",
         href: "/admissions/applicants",
         icon: Users,
