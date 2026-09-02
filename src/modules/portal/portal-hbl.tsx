@@ -7,6 +7,7 @@ import { supabaseClient } from "../../lib/supabase/client";
 import { useAcademicYear } from "../../app/providers/AcademicYearProvider";
 import type { ParentPortalContext } from "./portal-context";
 import { HblMediaPreview } from "../hbl";
+import { PortalHblMeetings } from "./portal-hbl-meetings";
 
 const hblDb = supabaseClient as any;
 
@@ -44,7 +45,7 @@ export const PortalHbl: React.FC = () => {
     const subjectRows = subjectResult.data || [];
     const subjectIds = subjectRows.map((item: any) => item.id);
     const materialResult = subjectIds.length
-      ? await hblDb.from("hbl_materials").select("*").in("subject_id", subjectIds).eq("is_published", true).order("sort_order").order("created_at")
+      ? await hblDb.from("hbl_materials").select("*").in("subject_id", subjectIds).is("meeting_id", null).eq("is_published", true).order("sort_order").order("created_at")
       : { data: [], error: null };
     const materialRows = materialResult.data || [];
     const materialIds = materialRows.map((item: any) => item.id);
@@ -126,6 +127,8 @@ export const PortalHbl: React.FC = () => {
         })}
       </section>;
     })}
+
+    <PortalHblMeetings student={student} parent={parent} programIds={programs.map((program) => program.id)} />
 
     {programs.length === 0 && <div className="rounded-xl border border-dashed bg-white p-10 text-center"><GraduationCap className="mx-auto h-10 w-10 text-gray-300" /><h2 className="mt-3 font-bold text-gray-700">Belum ada program HBL semester aktif</h2><p className="mt-1 text-sm text-gray-500">Program akan muncul setelah sekolah menerbitkan dan menautkannya ke siswa ini pada semester aktif.</p></div>}
   </div>;

@@ -87,6 +87,18 @@ export const navigationConfig: NavigationGroup[] = [
     ],
   },
   {
+    name: "LMS & Pembelajaran Digital",
+    items: [
+      {
+        title: "LMS Homebased Learning",
+        href: "/lms",
+        icon: GraduationCap,
+        resource: "subjects",
+        keywords: ["lms", "hbl", "pertemuan", "live meet", "worksheet", "home project"],
+      },
+    ],
+  },
+  {
     name: "Kesiswaan & Akademik",
     items: [
       {
@@ -123,13 +135,6 @@ export const navigationConfig: NavigationGroup[] = [
         resource: "subjects",
         mobilePriority: 3,
         keywords: ["mata pelajaran", "mapel", "cp", "atp", "prota", "promes"],
-      },
-      {
-        title: "LMS Homebased Learning",
-        href: "/curriculum/hbl",
-        icon: GraduationCap,
-        resource: "subjects",
-        keywords: ["hbl", "belajar rumah", "materi orang tua", "preschool online", "lms"],
       },
       {
         title: "Pola Jadwal Unit",

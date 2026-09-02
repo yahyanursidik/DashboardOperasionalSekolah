@@ -797,7 +797,8 @@ export default function App() {
                 <Route index element={<DashboardPage />} />
                 <Route path="/master-data" element={<MasterDataDashboard />} />
                 <Route path="/settings" element={<SettingsPage />} />
-                <Route path="/hbl" element={<Navigate to="/curriculum/hbl" replace />} />
+                <Route path="/hbl" element={<Navigate to="/lms" replace />} />
+                <Route path="/lms" element={<HblAdminPage />} />
                 <Route path="/communications" element={<CommunicationsPage />} />
                 
                 <Route path="/students">
@@ -1042,7 +1043,7 @@ export default function App() {
                 <Route path="/curriculum">
                   <Route index element={<CurriculumDashboard />} />
                   <Route path="quality" element={<CurriculumQualityControl />} />
-                  <Route path="hbl" element={<HblAdminPage />} />
+                  <Route path="hbl" element={<Navigate to="/lms" replace />} />
                   <Route path="subjects">
                     <Route index element={<SubjectsList />} />
                     <Route path="create" element={<SubjectCreate />} />

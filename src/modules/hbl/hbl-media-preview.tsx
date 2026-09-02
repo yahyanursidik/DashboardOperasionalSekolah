@@ -1,6 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import React from "react";
-import { CirclePlay, ExternalLink, FileText } from "lucide-react";
+import { CirclePlay, ExternalLink, FileAudio, FileText, FileVideo } from "lucide-react";
 
 function youtubeId(url: string) {
   try {
@@ -25,14 +25,17 @@ function drivePreviewUrl(url: string) {
   } catch { return ""; }
 }
 
-export const HblMediaPreview: React.FC<{ type: "youtube" | "google_drive"; url: string; title: string }> = ({ type, url, title }) => {
+export const HblMediaPreview: React.FC<{ type: string; url: string; title: string }> = ({ type, url, title }) => {
   const preview = type === "youtube"
     ? (youtubeId(url) ? `https://www.youtube-nocookie.com/embed/${youtubeId(url)}` : "")
     : drivePreviewUrl(url);
 
+  if (type === "video") return <video controls className="aspect-video w-full rounded-lg border bg-black" src={url}>Video tidak dapat diputar pada perangkat ini.</video>;
+  if (type === "audio") return <div className="flex min-h-24 items-center gap-3 rounded-lg border bg-muted/20 p-4"><FileAudio className="h-6 w-6 text-primary" /><audio controls className="w-full" src={url}>Audio tidak dapat diputar pada perangkat ini.</audio></div>;
+  if (type === "pdf" && /^https:\/\//i.test(url)) return <iframe src={url} title={`Pratinjau ${title}`} loading="lazy" className="h-72 w-full rounded-lg border" />;
   if (!preview) return (
     <a href={url} target="_blank" rel="noreferrer" className="flex min-h-28 items-center justify-center gap-2 rounded-lg border border-dashed bg-muted/20 p-4 text-sm font-semibold text-primary">
-      {type === "youtube" ? <CirclePlay className="h-5 w-5" /> : <FileText className="h-5 w-5" />}
+      {type === "youtube" ? <CirclePlay className="h-5 w-5" /> : type === "video" ? <FileVideo className="h-5 w-5" /> : <FileText className="h-5 w-5" />}
       Buka sumber materi <ExternalLink className="h-4 w-4" />
     </a>
   );
@@ -53,5 +56,6 @@ export const HblMediaPreview: React.FC<{ type: "youtube" | "google_drive"; url: 
 
 export function isValidHblResource(type: string, url: string) {
   if (type === "youtube") return Boolean(youtubeId(url));
-  return Boolean(drivePreviewUrl(url));
+  if (type === "google_drive") return Boolean(drivePreviewUrl(url));
+  return /^https:\/\//i.test(url);
 }
