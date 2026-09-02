@@ -144,7 +144,6 @@ export async function exportEmployeeAttendanceWorkbook({
   const workbook = new ExcelJS.Workbook();
   workbook.creator = "TSLS Admin OS";
   workbook.created = new Date();
-  workbook.properties.title = "Rekap Absensi Pegawai";
 
   const summaryHeaders = Object.keys(summaryRows[0] || {
     NIK: "", Nama: "", Jabatan: "", Unit: "", "Hari Input": 0, Hadir: 0, Terlambat: 0,
