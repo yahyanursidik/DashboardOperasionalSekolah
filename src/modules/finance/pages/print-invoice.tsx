@@ -152,9 +152,9 @@ export const PrintInvoice: React.FC = () => {
                 <Building className="w-4 h-4 text-primary" /> Transfer Bank
               </h3>
               <div className="space-y-1.5 text-sm text-gray-600 bg-white p-3 rounded border">
-                <p>Bank: <strong className="text-gray-900">{financeBankName || "BSI (Bank Syariah Indonesia)"}</strong></p>
-                <p>No. Rekening: <strong className="text-gray-900 text-lg tracking-wider">{financeAccountNumber || "1234567890"}</strong></p>
-                <p>Atas Nama: <strong className="text-gray-900">{financeAccountName || "Yayasan Pendidikan TSLS"}</strong></p>
+                <p>Bank: <strong className="text-gray-900">{financeBankName || "BSI"}</strong></p>
+                <p>No. Rekening: <strong className="text-gray-900 text-lg tracking-wider">{financeAccountNumber || "1551-1441-07"}</strong></p>
+                <p>Atas Nama: <strong className="text-gray-900">{financeAccountName || "TSL Islamic School"}</strong></p>
               </div>
             </div>
             

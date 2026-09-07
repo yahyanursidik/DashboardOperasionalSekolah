@@ -21,9 +21,9 @@ const SettingsContext = createContext<SystemSettings>({
   faviconUrl: "",
   loginCoverUrl: "",
   fontFamily: "Inter",
-  financeBankName: "BSI (Bank Syariah Indonesia)",
-  financeAccountNumber: "1234567890",
-  financeAccountName: "Yayasan Pendidikan TSLS",
+  financeBankName: "BSI",
+  financeAccountNumber: "1551-1441-07",
+  financeAccountName: "TSL Islamic School",
   financeWaNumber: "628111111111",
   isLoading: true,
   refreshSettings: async () => {},
@@ -37,9 +37,9 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [faviconUrl, setFaviconUrl] = useState("");
   const [loginCoverUrl, setLoginCoverUrl] = useState("");
   const [fontFamily, setFontFamily] = useState("Inter");
-  const [financeBankName, setFinanceBankName] = useState("BSI (Bank Syariah Indonesia)");
-  const [financeAccountNumber, setFinanceAccountNumber] = useState("1234567890");
-  const [financeAccountName, setFinanceAccountName] = useState("Yayasan Pendidikan TSLS");
+  const [financeBankName, setFinanceBankName] = useState("BSI");
+  const [financeAccountNumber, setFinanceAccountNumber] = useState("1551-1441-07");
+  const [financeAccountName, setFinanceAccountName] = useState("TSL Islamic School");
   const [financeWaNumber, setFinanceWaNumber] = useState("628111111111");
   const [isLoading, setIsLoading] = useState(true);
 
@@ -70,9 +70,9 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           if (setting.key === "favicon_url") setFaviconUrl(val || "");
           if (setting.key === "login_cover_url") setLoginCoverUrl(val || "");
           if (setting.key === "font_family") setFontFamily(val || "Inter");
-          if (setting.key === "finance_bank_name") setFinanceBankName(val || "BSI (Bank Syariah Indonesia)");
-          if (setting.key === "finance_account_number") setFinanceAccountNumber(val || "1234567890");
-          if (setting.key === "finance_account_name") setFinanceAccountName(val || "Yayasan Pendidikan TSLS");
+          if (setting.key === "finance_bank_name") setFinanceBankName(val || "BSI");
+          if (setting.key === "finance_account_number") setFinanceAccountNumber(val || "1551-1441-07");
+          if (setting.key === "finance_account_name") setFinanceAccountName(val || "TSL Islamic School");
           if (setting.key === "finance_wa_number") setFinanceWaNumber(val || "628111111111");
         });
       }
