@@ -10,6 +10,11 @@ import { classTargetLabel, getQuotaUsage, isAdmissionQuotaSchemaError } from "..
 
 const db = supabaseClient as any;
 const emptyBatch = { unit_id: "", academic_year_id: "", name: "Gelombang 1", registration_start_at: "", registration_end_at: "", registration_fee: "0", announcement_at: "", notes: "", status: "draft" };
+type FeeDraft = { configured: boolean; amount: string; notes: string };
+const emptyFeeDrafts: Record<"regular" | "foundation_staff", FeeDraft> = {
+  regular: { configured: true, amount: "0", notes: "" },
+  foundation_staff: { configured: false, amount: "", notes: "" },
+};
 type QuotaDraft = { new: string; transfer: string; waitlist: boolean };
 type QuotaDrafts = Record<string, QuotaDraft>;
 
@@ -21,8 +26,10 @@ export const AdmissionsSettings: React.FC = () => {
   const [classes, setClasses] = useState<any[]>([]);
   const [batches, setBatches] = useState<any[]>([]);
   const [plans, setPlans] = useState<any[]>([]);
+  const [feeRules, setFeeRules] = useState<any[]>([]);
   const [applicants, setApplicants] = useState<any[]>([]);
   const [form, setForm] = useState(emptyBatch);
+  const [feeDrafts, setFeeDrafts] = useState(emptyFeeDrafts);
   const [quotaDrafts, setQuotaDrafts] = useState<QuotaDrafts>({});
   const [editingBatchId, setEditingBatchId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -33,16 +40,17 @@ export const AdmissionsSettings: React.FC = () => {
 
   const load = async () => {
     setLoading(true);
-    const [u, y, c, b, q, a] = await Promise.all([
+    const [u, y, c, b, q, a, fees] = await Promise.all([
       db.from("units").select("id,name").order("name"),
       db.from("academic_years").select("id,name,is_active,start_date").order("start_date", { ascending: false }),
       db.from("classes").select("id,name,grade_level,capacity,unit_id,academic_year_id").order("grade_level").order("name"),
       db.from("admission_batches").select("*,units(name),academic_years(name)").order("registration_start_at", { ascending: false }),
       db.from("admission_quota_plans").select("*,classes(name,grade_level,capacity),admission_batches(name,unit_id,academic_year_id,status)").order("created_at"),
       db.from("admissions_applicants").select("id,batch_id,desired_class_id,entry_type,workflow_status,status,archived_at"),
+      db.from("admission_fee_rules").select("*").order("created_at"),
     ]);
-    setUnits(u.data || []); setYears(y.data || []); setClasses(c.data || []); setBatches(b.data || []); setPlans(q.data || []); setApplicants(a.data || []);
-    setSchemaMissing(Boolean(b.error || q.error) && (isAdmissionQuotaSchemaError(b.error) || isAdmissionQuotaSchemaError(q.error)));
+    setUnits(u.data || []); setYears(y.data || []); setClasses(c.data || []); setBatches(b.data || []); setPlans(q.data || []); setApplicants(a.data || []); setFeeRules(fees.data || []);
+    setSchemaMissing(Boolean(b.error || q.error || fees.error) && (isAdmissionQuotaSchemaError(b.error) || isAdmissionQuotaSchemaError(q.error) || isAdmissionQuotaSchemaError(fees.error)));
     setLoading(false);
   };
   useEffect(() => { void load(); }, []);
@@ -58,7 +66,7 @@ export const AdmissionsSettings: React.FC = () => {
   const hasOverCapacity = targetClasses.some((row) => row.capacity && Number(quotaDrafts[row.id]?.new || 0) + Number(quotaDrafts[row.id]?.transfer || 0) > row.capacity);
   const input = "w-full h-10 px-3 border rounded-md bg-white outline-none focus:ring-2 focus:ring-emerald-500 disabled:bg-slate-100 disabled:text-slate-500";
 
-  const resetEditor = () => { setForm(emptyBatch); setQuotaDrafts({}); setEditingBatchId(null); setPolicy({ contact_name: "", contact_phone: "", selection_policy: "", announcement_message: "", is_public: true }); };
+  const resetEditor = () => { setForm(emptyBatch); setFeeDrafts(emptyFeeDrafts); setQuotaDrafts({}); setEditingBatchId(null); setPolicy({ contact_name: "", contact_phone: "", selection_policy: "", announcement_message: "", is_public: true }); };
   const changeScope = (key: "unit_id" | "academic_year_id", value: string) => { setForm((current) => ({ ...current, [key]: value })); setQuotaDrafts({}); setEditingBatchId(null); setPolicy({ contact_name: "", contact_phone: "", selection_policy: "", announcement_message: "", is_public: true }); };
   const updateQuota = (classId: string, key: keyof QuotaDraft, value: string | boolean) => setQuotaDrafts((current) => ({ ...current, [classId]: { new: current[classId]?.new || "", transfer: current[classId]?.transfer || "", waitlist: current[classId]?.waitlist ?? true, [key]: value } }));
   const fillClassCapacity = () => setQuotaDrafts(Object.fromEntries(targetClasses.map((row) => [row.id, { new: String(row.capacity || ""), transfer: "", waitlist: true }])));
@@ -81,6 +89,11 @@ export const AdmissionsSettings: React.FC = () => {
     }));
     setEditingBatchId(row.id);
     setForm({ unit_id: row.unit_id, academic_year_id: row.academic_year_id, name: row.name, registration_start_at: toLocalDateTime(row.registration_start_at), registration_end_at: toLocalDateTime(row.registration_end_at), registration_fee: String(row.registration_fee || 0), announcement_at: toLocalDateTime(row.announcement_at), notes: row.notes || "", status: row.status });
+    const rate = (category: "regular" | "foundation_staff"): FeeDraft => {
+      const rule = feeRules.find((item) => item.batch_id === row.id && item.applicant_category === category);
+      return rule ? { configured: Boolean(rule.is_configured), amount: rule.amount == null ? "" : String(rule.amount), notes: rule.notes || "" } : { ...emptyFeeDrafts[category] };
+    };
+    setFeeDrafts({ regular: rate("regular"), foundation_staff: rate("foundation_staff") });
     setQuotaDrafts(drafts);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -96,10 +109,13 @@ export const AdmissionsSettings: React.FC = () => {
       { class_id: row.id, entry_type: "transfer", quota: Number(quotaDrafts[row.id]?.transfer || 0), allow_waitlist: quotaDrafts[row.id]?.waitlist ?? true, is_open: true },
     ]));
     setSaving(true);
-    const batchPayload = { ...form, registration_start_at: new Date(form.registration_start_at).toISOString(), registration_end_at: new Date(form.registration_end_at).toISOString(), announcement_at: form.announcement_at ? new Date(form.announcement_at).toISOString() : null };
-    const { error } = await db.rpc("admission_save_batch_with_quotas", { p_batch_id: editingBatchId, p_batch: batchPayload, p_quotas: quotas, p_policy: policy });
+    if (feeDrafts.regular.configured && (feeDrafts.regular.amount === "" || Number(feeDrafts.regular.amount) < 0)) { toast.error("Isi tarif umum yang valid atau tandai belum ditentukan."); return; }
+    if (feeDrafts.foundation_staff.configured && (feeDrafts.foundation_staff.amount === "" || Number(feeDrafts.foundation_staff.amount) < 0)) { toast.error("Isi tarif staf yang valid atau tandai belum ditentukan."); return; }
+    const batchPayload = { ...form, registration_fee: feeDrafts.regular.configured ? Number(feeDrafts.regular.amount || 0) : 0, registration_start_at: new Date(form.registration_start_at).toISOString(), registration_end_at: new Date(form.registration_end_at).toISOString(), announcement_at: form.announcement_at ? new Date(form.announcement_at).toISOString() : null };
+    const { data: savedBatchId, error } = await db.rpc("admission_save_batch_with_quotas", { p_batch_id: editingBatchId, p_batch: batchPayload, p_quotas: quotas, p_policy: policy });
+    const feeError = error || !savedBatchId ? null : (await db.from("admission_fee_rules").upsert((Object.entries(feeDrafts) as ["regular" | "foundation_staff", FeeDraft][]).map(([applicant_category, rate]) => ({ batch_id: savedBatchId, applicant_category, is_configured: rate.configured, amount: rate.configured ? Number(rate.amount || 0) : null, notes: rate.notes.trim() || null })), { onConflict: "batch_id,applicant_category" })).error;
     setSaving(false);
-    if (error) toast.error(error.message); else { toast.success(editingBatchId ? "Gelombang dan seluruh kuota diperbarui." : "Gelombang dan seluruh kuota berhasil dibuat sekaligus."); resetEditor(); await load(); }
+    if (error || feeError) toast.error((error || feeError)?.message || "Tarif belum dapat disimpan."); else { toast.success(editingBatchId ? "Gelombang, kuota, dan tarif diperbarui." : "Gelombang, kuota, dan tarif berhasil dibuat."); resetEditor(); await load(); }
   };
   const updateBatchStatus = async (id: string, status: string) => { const { error } = await db.from("admission_batches").update({ status }).eq("id", id); if (error) toast.error(error.message); else { toast.success("Status gelombang diperbarui."); await load(); } };
 
@@ -119,8 +135,9 @@ export const AdmissionsSettings: React.FC = () => {
         <Field label="Mulai pendaftaran *"><input type="datetime-local" className={input} value={form.registration_start_at} onChange={(e) => setForm((v) => ({ ...v, registration_start_at: e.target.value }))} /></Field>
         <Field label="Tutup pendaftaran *"><input type="datetime-local" className={input} value={form.registration_end_at} onChange={(e) => setForm((v) => ({ ...v, registration_end_at: e.target.value }))} /></Field>
         <Field label="Rencana pengumuman"><input type="datetime-local" className={input} value={form.announcement_at} onChange={(e) => setForm((v) => ({ ...v, announcement_at: e.target.value }))} /></Field>
-        <Field label="Biaya pendaftaran"><input type="number" min="0" className={input} value={form.registration_fee} onChange={(e) => setForm((v) => ({ ...v, registration_fee: e.target.value }))} /></Field>
       </div></div>
+
+      <div className="border-t p-5 sm:p-6 space-y-5"><SectionTitle icon={UsersRound} title="Tarif Pendaftaran per Kategori" detail="Tarif disimpan ke tagihan setiap pendaftar. Perubahan berikutnya tidak mengubah tagihan yang sudah terbentuk." /><div className="grid lg:grid-cols-2 gap-4">{([['regular','Pendaftar umum','Dipakai untuk seluruh keluarga yang tidak mengajukan fasilitas staf yayasan.'],['foundation_staff','Staf yayasan','Hanya berlaku setelah NIK pegawai aktif diverifikasi oleh admin.']] as const).map(([category,title,detail]) => { const rate=feeDrafts[category]; return <div key={category} className="rounded-lg border p-4 space-y-4"><div><p className="font-bold">{title}</p><p className="text-sm text-slate-600 mt-1">{detail}</p></div><label className="inline-flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={rate.configured} onChange={(e)=>setFeeDrafts((current)=>({...current,[category]:{...current[category],configured:e.target.checked,amount:e.target.checked ? current[category].amount || '0' : ''}}))} />Tarif sudah ditentukan</label>{rate.configured ? <label className="text-sm font-semibold block">Nominal (Rp)<input type="number" min="0" className={`${input} mt-2`} value={rate.amount} onChange={(e)=>setFeeDrafts((current)=>({...current,[category]:{...current[category],amount:e.target.value}}))} /></label> : <div className="rounded-md bg-amber-50 border border-amber-200 p-3 text-sm text-amber-900">Belum ditentukan. Portal akan menahan pembayaran sampai admin menetapkan tarif.</div>}<label className="text-sm font-semibold block">Catatan tarif<textarea className="w-full min-h-20 mt-2 p-3 border rounded-md" value={rate.notes} onChange={(e)=>setFeeDrafts((current)=>({...current,[category]:{...current[category],notes:e.target.value}}))} placeholder={category==='foundation_staff' ? 'Contoh: Gelombang 1 dibebaskan.' : 'Contoh: Tarif reguler tahun ajaran ini.'} /></label></div>; })}</div><p className="text-xs text-slate-500">Contoh kebijakan yang sudah dapat diatur: Elementary umum Rp600.000; Preschool Regular/Onsite umum Rp400.000; Elementary staf Gelombang 1 Rp0, Gelombang 2 Rp300.000, Gelombang 3 Rp420.000. Untuk HBL yang belum ditentukan, nonaktifkan penetapan tarif.</p></div>
 
       <div className="border-t p-5 sm:p-6"><SectionTitle icon={Settings2} title="Kontak dan Kebijakan Portal" detail="Tersimpan bersama gelombang dan kuota; tidak perlu penyimpanan terpisah." /><div className="grid md:grid-cols-2 gap-4 mt-5"><Field label="Nama kontak panitia"><input className={input} value={policy.contact_name} onChange={(e) => setPolicy((v) => ({ ...v, contact_name: e.target.value }))} /></Field><Field label="WhatsApp panitia"><input className={input} value={policy.contact_phone} onChange={(e) => setPolicy((v) => ({ ...v, contact_phone: e.target.value }))} /></Field><label className="text-sm font-semibold">Kebijakan seleksi<textarea className="w-full min-h-20 mt-2 p-3 border rounded-md" value={policy.selection_policy} onChange={(e) => setPolicy((v) => ({ ...v, selection_policy: e.target.value }))} /></label><label className="text-sm font-semibold">Pesan pengumuman<textarea className="w-full min-h-20 mt-2 p-3 border rounded-md" value={policy.announcement_message} onChange={(e) => setPolicy((v) => ({ ...v, announcement_message: e.target.value }))} /></label><label className="md:col-span-2 inline-flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={policy.is_public} onChange={(e) => setPolicy((v) => ({ ...v, is_public: e.target.checked }))} />Tampilkan kontak dan kebijakan di portal pendaftaran</label></div></div>
 

@@ -57,6 +57,8 @@ const emptyForm = {
   address: "",
   residence_country: "Indonesia",
   learning_timezone: detectBrowserTimeZone(),
+  registration_fee_category: "regular",
+  staff_employee_nik: "",
 };
 
 const getInitialForm = (applicant: any | null, user: any) => {
@@ -131,6 +133,10 @@ export const SpmbForm: React.FC = () => {
       toast.error("Asal sekolah wajib diisi untuk siswa pindahan.");
       return;
     }
+    if (form.registration_fee_category === "foundation_staff" && !form.staff_employee_nik.trim()) {
+      toast.error("Masukkan NIK pegawai yayasan untuk pengajuan tarif staf.");
+      return;
+    }
     if (requiresLearningTimezone && (!form.residence_country.trim() || !isValidTimeZone(form.learning_timezone))) {
       toast.error("Lengkapi negara domisili dan zona waktu siswa untuk penyesuaian pembelajaran online.");
       return;
@@ -149,6 +155,8 @@ export const SpmbForm: React.FC = () => {
         ...form,
         residence_country: requiresLearningTimezone ? form.residence_country.trim() : null,
         learning_timezone: requiresLearningTimezone ? form.learning_timezone : null,
+        registration_fee_category: form.registration_fee_category,
+        staff_employee_nik: form.registration_fee_category === "foundation_staff" ? form.staff_employee_nik.trim() : null,
         desired_grade: Number(selectedOption.grade_level),
         user_id: user.id,
         unit_id: selectedOption.unit_id,
@@ -269,6 +277,7 @@ export const SpmbForm: React.FC = () => {
       <label className="text-sm font-semibold">Jenis kelamin *<select className={`${inputClass} mt-2`} value={form.gender} onChange={(e) => set("gender", e.target.value)} disabled={!editable}><option value="L">Laki-laki</option><option value="P">Perempuan</option></select></label>
     </div></section>
     <section className="bg-white border rounded-lg p-5 sm:p-6 space-y-5"><h2 className="font-bold text-lg">Orang Tua / Wali dan Domisili</h2><div className="grid sm:grid-cols-2 gap-4">{([["parent_name", "Nama orang tua / wali *", "text"], ["parent_phone", "Nomor WhatsApp *", "tel"], ["parent_email", "Email", "email"], ["family_card_number", "Nomor Kartu Keluarga", "text"]] as const).map(([key, label, type]) => <label key={key} className="text-sm font-semibold">{label}<input className={`${inputClass} mt-2`} type={type} value={form[key]} onChange={(e) => set(key, e.target.value)} disabled={!editable} /></label>)}<label className="text-sm font-semibold sm:col-span-2">Alamat lengkap *<textarea className="w-full min-h-24 mt-2 p-3 border rounded-md outline-none focus:ring-2 focus:ring-emerald-500 disabled:bg-slate-100" value={form.address} onChange={(e) => set("address", e.target.value)} disabled={!editable} /></label></div></section>
+    <section className="bg-white border rounded-lg p-5 sm:p-6 space-y-4"><div><h2 className="font-bold text-lg">Kategori Biaya Pendaftaran</h2><p className="text-sm text-slate-600 mt-1">Pilih tarif umum, atau ajukan tarif khusus bila orang tua/wali merupakan staf aktif yayasan.</p></div><label className="flex gap-3 rounded-md border p-4 cursor-pointer"><input type="radio" name="registration_fee_category" value="regular" checked={form.registration_fee_category === "regular"} onChange={() => setForm((current) => ({ ...current, registration_fee_category: "regular", staff_employee_nik: "" }))} disabled={!editable} /><span><span className="font-bold block">Pendaftar umum</span><span className="text-sm text-slate-600">Tagihan mengikuti tarif unit dan gelombang yang dipilih.</span></span></label><label className="flex gap-3 rounded-md border p-4 cursor-pointer"><input type="radio" name="registration_fee_category" value="foundation_staff" checked={form.registration_fee_category === "foundation_staff"} onChange={() => set("registration_fee_category", "foundation_staff")} disabled={!editable} /><span><span className="font-bold block">Pengajuan tarif staf yayasan</span><span className="text-sm text-slate-600">Perlu verifikasi NIK pegawai aktif oleh admin sebelum tagihan diterbitkan.</span></span></label>{form.registration_fee_category === "foundation_staff" && <label className="text-sm font-semibold block">NIK pegawai yayasan *<input className={`${inputClass} mt-2`} value={form.staff_employee_nik} onChange={(e) => set("staff_employee_nik", e.target.value.replace(/\D/g, ""))} inputMode="numeric" placeholder="Masukkan NIK pegawai aktif" disabled={!editable} /><span className="block text-xs font-normal text-slate-500 mt-2">NIK ini hanya dipakai untuk memeriksa hak tarif staf, bukan NIK calon murid.</span></label>}</section>
     {editable && <div className="flex flex-col-reverse sm:flex-row justify-end gap-3"><button type="button" onClick={() => save("draft")} disabled={Boolean(saving) || schemaMissing} className="h-11 px-5 border rounded-md font-semibold flex items-center justify-center gap-2 disabled:opacity-50"><Save className="w-4 h-4" />Simpan Draf</button><button type="button" onClick={() => save("submitted")} disabled={Boolean(saving) || schemaMissing} className="h-11 px-5 bg-emerald-700 text-white rounded-md font-semibold flex items-center justify-center gap-2 disabled:opacity-50">{saving === "submitted" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}Kirim ke Panitia</button></div>}
   </div>;
 };
