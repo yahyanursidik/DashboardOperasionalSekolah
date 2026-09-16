@@ -88,8 +88,9 @@ export async function exportAdmissionsApplicantsWorkbook({ rows, filterLabel }: 
   const workbook = new ExcelJS.Workbook();
   workbook.creator = "TSLS Admin OS";
   workbook.created = new Date();
-  workbook.properties.title = "Rekap Pendaftar SPMB";
-  workbook.properties.subject = "Ekspor data pendaftar SPMB";
+  // ExcelJS menempatkan metadata dokumen pada Workbook, bukan WorkbookProperties.
+  workbook.title = "Rekap Pendaftar SPMB";
+  workbook.subject = "Ekspor data pendaftar SPMB";
 
   const statusCounts = rows.reduce<Record<string, number>>((counts, row) => {
     const status = getAdmissionStatus(row);
@@ -101,7 +102,7 @@ export async function exportAdmissionsApplicantsWorkbook({ rows, filterLabel }: 
     views: [{ state: "frozen", ySplit: 6 }],
     pageSetup: { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0 },
   });
-  summarySheet.showGridLines = false;
+  summarySheet.properties.showGridLines = false;
   styleTitle(summarySheet, 6, "REKAP PENDAFTAR SPMB", filterLabel);
   summarySheet.mergeCells(4, 1, 4, 6);
   summarySheet.getCell(4, 1).value = `Dibuat: ${new Intl.DateTimeFormat("id-ID", { dateStyle: "full", timeStyle: "short", timeZone: "Asia/Jakarta" }).format(new Date())} WIB`;
@@ -142,7 +143,7 @@ export async function exportAdmissionsApplicantsWorkbook({ rows, filterLabel }: 
     views: [{ state: "frozen", ySplit: 6, xSplit: 2 }],
     pageSetup: { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0 },
   });
-  applicantsSheet.showGridLines = false;
+  applicantsSheet.properties.showGridLines = false;
   styleTitle(applicantsSheet, headers.length, "DATA PENDAFTAR SPMB", filterLabel);
   applicantsSheet.mergeCells(4, 1, 4, headers.length);
   applicantsSheet.getCell(4, 1).value = "Gunakan filter pada judul kolom untuk menyaring data. Nomor identitas dan WhatsApp diekspor sebagai teks agar tidak berubah di Excel.";
