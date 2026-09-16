@@ -2,7 +2,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Link, Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
 import type { User } from "@supabase/supabase-js";
-import { Baby, FileText, Home, Loader2, LogOut, Plus, UserCircle } from "lucide-react";
+import { Baby, CreditCard, FileText, Home, Loader2, LogOut, Megaphone, Plus, UploadCloud, UserCircle } from "lucide-react";
 import { supabaseClient } from "../../../lib/supabase/client";
 import { BrandLogo } from "../../../components/common/BrandLogo";
 import { SpmbPortalContext } from "./spmb-context";
@@ -64,7 +64,13 @@ export const SpmbLayout: React.FC = () => {
   if (isAuthPage) return <Outlet />;
 
   const signOut = async () => { await supabaseClient.auth.signOut(); navigate("/spmb/login", { replace: true }); };
-  const links = [{ to: "/spmb", label: "Ringkasan", icon: Home }, { to: "/spmb/form", label: "Formulir", icon: FileText }];
+  const links = [
+    { to: "/spmb", label: "Ringkasan", icon: Home },
+    { to: "/spmb/form", label: "Data", icon: FileText },
+    { to: "/spmb/documents", label: "Berkas", icon: UploadCloud },
+    { to: "/spmb/payment", label: "Biaya", icon: CreditCard },
+    { to: "/spmb/announcement", label: "Info", icon: Megaphone },
+  ];
   const applicant = applicants.find((row) => row.id === activeApplicantId) || null;
   const selectApplicant = (applicantId: string | null) => setActiveApplicantId(applicantId);
   const startNewApplication = () => {
@@ -109,7 +115,7 @@ export const SpmbLayout: React.FC = () => {
           </div>
         </div>
         <main className="flex-1 max-w-6xl mx-auto w-full px-4 py-6 sm:py-8 pb-24 sm:pb-8"><Outlet key={activeApplicantId ?? "new"} /></main>
-        <nav className="sm:hidden fixed bottom-0 inset-x-0 z-30 bg-white border-t grid grid-cols-2">{links.map(({ to, label, icon: Icon }) => <Link key={to} to={to} className={`h-16 flex flex-col items-center justify-center gap-1 text-xs font-semibold ${location.pathname === to ? "text-emerald-700" : "text-slate-500"}`}><Icon className="w-5 h-5" />{label}</Link>)}</nav>
+        <nav className="sm:hidden fixed bottom-0 inset-x-0 z-30 bg-white border-t grid grid-cols-5">{links.map(({ to, label, icon: Icon }) => <Link key={to} to={to} className={`h-16 min-w-0 flex flex-col items-center justify-center gap-1 text-[10px] font-semibold ${location.pathname === to ? "text-emerald-700" : "text-slate-500"}`}><Icon className="w-5 h-5" />{label}</Link>)}</nav>
       </div>
     </SpmbPortalContext.Provider>
   );

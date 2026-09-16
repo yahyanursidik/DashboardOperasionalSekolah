@@ -1,14 +1,16 @@
 import { supabaseClient } from "./supabase/client";
 
 export interface EmailParams {
-  to: string | string[];
+  to: string;
   subject: string;
   html: string;
   text?: string;
 }
 
 /**
- * Mengirimkan notifikasi email via Supabase Edge Function 'send-email'
+ * Mengirimkan notifikasi transaksional ke alamat email akun yang sedang masuk.
+ * Token Mailketing hanya dipakai oleh Supabase Edge Function dan tidak pernah
+ * tersedia di browser.
  * 
  * @param params Data email (Penerima, Judul, Isi HTML, Isi Teks Murni)
  * @returns Object response dari Edge Function

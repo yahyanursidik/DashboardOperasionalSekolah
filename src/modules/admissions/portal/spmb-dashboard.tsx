@@ -1,9 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, CalendarDays, CheckCircle2, Circle, Clock3, CreditCard, FileText, Megaphone, UploadCloud, UserPlus } from "lucide-react";
+import { ArrowRight, CalendarDays, CheckCircle2, Clock3, CreditCard, FileText, UploadCloud, UserPlus } from "lucide-react";
 import { supabaseClient } from "../../../lib/supabase/client";
-import { admissionStatusMeta, admissionStatusOrder, formatAdmissionDate, getAdmissionStatus, getRequiredAdmissionDocumentTypes } from "../admissions-config";
+import { admissionStatusMeta, formatAdmissionDate, getAdmissionStatus, getRequiredAdmissionDocumentTypes } from "../admissions-config";
+import { getAdmissionProfileFields } from "../admission-program-profile";
 import { applicantTargetLabel, entryTypeLabel } from "../quota-utils";
 import { timeZoneLabel } from "../../../lib/timezones";
 import { useSpmbPortal } from "./spmb-context";
@@ -34,17 +35,20 @@ export const SpmbDashboard: React.FC = () => {
 
   const status = getAdmissionStatus(applicant);
   const meta = admissionStatusMeta[status];
-  const currentIndex = admissionStatusOrder.indexOf(status);
-  const requiredDocumentTypes = getRequiredAdmissionDocumentTypes(applicant.entry_type);
-  const verifiedDocs = requiredDocumentTypes.filter((type) => documents.some((doc) => doc.document_type === type.value && doc.status === "valid")).length;
+  const requiredDocumentTypes = getRequiredAdmissionDocumentTypes(applicant);
+  const uploadedDocs = requiredDocumentTypes.filter((type) => documents.some((doc) => doc.document_type === type.value && !["rejected", "revision_required"].includes(doc.status))).length;
   const payment = payments[0];
   const feePending = applicant.registration_fee_amount == null;
   const feeWaived = Number(applicant.registration_fee_amount) === 0 && applicant.staff_fee_status === "approved";
+  const admissionProfile = applicant.admission_profile && typeof applicant.admission_profile === "object" ? applicant.admission_profile : {};
+  const profileReady = getAdmissionProfileFields(applicant).filter((field) => field.required).every((field) => String(admissionProfile[field.key] || "").trim());
+  const dataReady = Boolean(applicant.name && applicant.nik && applicant.dob && applicant.parent_name && applicant.parent_phone && applicant.parent_education_level && applicant.address && applicant.domicile_regency && applicant.domicile_province && profileReady);
+  const paymentSubmitted = payment && ["submitted", "verified", "waived"].includes(payment.status);
   const tasks = [
-    { to: "/spmb/form", title: "Data calon murid", detail: status === "draft" ? "Lengkapi dan kirim formulir" : "Lihat data yang telah dikirim", icon: FileText, done: status !== "draft" },
-    { to: "/spmb/documents", title: "Berkas persyaratan", detail: `${verifiedDocs} dari ${requiredDocumentTypes.length} berkas wajib terverifikasi`, icon: UploadCloud, done: verifiedDocs === requiredDocumentTypes.length },
-    { to: "/spmb/payment", title: "Biaya pendaftaran", detail: feePending ? (applicant.staff_fee_status === "pending" ? "Menunggu verifikasi tarif staf" : "Tarif belum ditentukan") : feeWaived ? "Biaya dibebaskan" : payment ? `Status: ${payment.status === "verified" ? "terverifikasi" : payment.status === "rejected" ? "perlu diperbaiki" : "menunggu verifikasi"}` : "Unggah bukti pembayaran", icon: CreditCard, done: payment?.status === "verified" || payment?.status === "waived" },
-    { to: "/spmb/announcement", title: "Hasil seleksi", detail: ["accepted", "waitlisted", "rejected", "enrolled"].includes(status) ? "Keputusan sudah tersedia" : "Tersedia setelah proses seleksi", icon: Megaphone, done: ["accepted", "enrolled"].includes(status) },
+    { to: "/spmb/form", title: "1. Data calon murid", detail: dataReady ? "Data awal telah disimpan" : "Lengkapi data calon murid dan keluarga", icon: FileText, done: dataReady },
+    { to: "/spmb/documents", title: "2. Berkas persyaratan", detail: `${uploadedDocs} dari ${requiredDocumentTypes.length} berkas wajib telah diunggah`, icon: UploadCloud, done: uploadedDocs === requiredDocumentTypes.length },
+    { to: "/spmb/payment", title: "3. Biaya pendaftaran", detail: feePending ? (applicant.staff_fee_status === "pending" ? "Menunggu verifikasi tarif staf" : "Tarif belum ditentukan") : feeWaived ? "Biaya dibebaskan" : payment ? `Bukti ${payment.status === "verified" ? "terverifikasi" : payment.status === "rejected" ? "perlu diperbaiki" : "diterima"}` : "Unggah bukti pembayaran", icon: CreditCard, done: Boolean(paymentSubmitted) },
+    { to: "/spmb/submit", title: "4. Kirim ke panitia", detail: status === "submitted" ? "Pendaftaran telah diterima panitia" : "Tinjau kelengkapan lalu kirim", icon: CheckCircle2, done: status !== "draft" },
   ];
 
   return (
@@ -57,7 +61,7 @@ export const SpmbDashboard: React.FC = () => {
         <div className="bg-white border rounded-lg p-5"><CreditCard className="w-5 h-5 text-amber-700" /><p className="text-xs uppercase font-semibold text-slate-500 mt-4">Biaya pendaftaran</p><p className="font-bold mt-1">{feePending ? "Menunggu penetapan" : Number(applicant.registration_fee_amount).toLocaleString("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 })}</p><p className="text-sm text-slate-600 mt-1">{feePending ? applicant.staff_fee_status === "pending" ? "Pengajuan tarif staf diperiksa" : "Panitia belum menetapkan tarif" : feeWaived ? "Tarif staf yayasan dibebaskan" : payment ? `Bukti ${payment.status}` : "Belum ada bukti pembayaran"}</p></div>
       </section>
 
-      <section className="bg-white border rounded-lg p-5 sm:p-6"><div className="flex items-center justify-between mb-5"><div><h2 className="font-bold text-lg">Tahapan Pendaftaran</h2><p className="text-sm text-slate-600">Jejak proses diperbarui oleh panitia.</p></div></div><div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">{admissionStatusOrder.map((step, index) => { const done = currentIndex >= index || status === "enrolled"; return <div key={step} className="min-w-0"><div className={`w-8 h-8 rounded-full grid place-items-center ${done ? "bg-emerald-700 text-white" : "bg-slate-100 text-slate-400"}`}>{done ? <CheckCircle2 className="w-4 h-4" /> : <Circle className="w-4 h-4" />}</div><p className={`text-xs font-semibold mt-2 ${done ? "text-slate-800" : "text-slate-400"}`}>{admissionStatusMeta[step].label}</p></div>; })}</div></section>
+      <section className="bg-white border rounded-lg p-5 sm:p-6"><div className="flex items-center justify-between mb-5"><div><h2 className="font-bold text-lg">Tahapan Pendaftaran</h2><p className="text-sm text-slate-600">Selesaikan empat tahap berikut sebelum panitia memulai pemeriksaan.</p></div></div><ol className="grid sm:grid-cols-4 gap-3">{tasks.map(({ title, detail, done }, index) => <li key={title} className={`min-w-0 border rounded-lg p-4 ${done ? "border-emerald-200 bg-emerald-50/60" : "border-slate-200"}`}><div className={`w-8 h-8 rounded-full grid place-items-center text-sm font-bold ${done ? "bg-emerald-700 text-white" : "bg-slate-100 text-slate-500"}`}>{done ? <CheckCircle2 className="w-4 h-4" /> : index + 1}</div><p className="text-sm font-bold mt-3">{title.replace(/^\d\. /, "")}</p><p className="text-xs text-slate-600 mt-1">{detail}</p></li>)}</ol></section>
 
       <section><h2 className="font-bold text-lg mb-3">Yang Perlu Diselesaikan</h2><div className="grid sm:grid-cols-2 gap-4">{tasks.map(({ to,title,detail,icon:Icon,done }) => <Link key={to} to={to} className="bg-white border rounded-lg p-5 flex items-center gap-4 hover:border-emerald-300 hover:shadow-sm"><div className={`w-11 h-11 rounded-md grid place-items-center shrink-0 ${done ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}><Icon className="w-5 h-5" /></div><div className="min-w-0 flex-1"><p className="font-bold">{title}</p><p className="text-sm text-slate-600 mt-1">{detail}</p></div><ArrowRight className="w-4 h-4 text-slate-400" /></Link>)}</div></section>
     </div>

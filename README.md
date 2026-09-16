@@ -72,3 +72,14 @@ Before deploying, you must add your Supabase credentials to Netlify:
 3. The `netlify.toml` automatically handles SPA routing by redirecting all paths to `index.html`.
 
 > **Note:** Never commit `.env` or `.env.local` files containing your real Supabase keys to the repository. Only `.env.example` should be tracked.
+
+## Transactional email (Mailketing)
+
+The `send-email` Supabase Edge Function sends transactional receipts through Mailketing using `TS Lab School <no-reply@yts.web.id>`. Store the Mailketing API token only as a Supabase secret, then deploy the function:
+
+```bash
+supabase secrets set MAILKETING_API_TOKEN=YOUR_MAILKETING_TOKEN
+supabase functions deploy send-email
+```
+
+Before sending in production, ensure the sender domain for `no-reply@yts.web.id` has been verified in the Mailketing dashboard. The function requires a signed-in user and only sends a receipt to that user's email address, so it cannot be used as a public email relay.

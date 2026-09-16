@@ -9,3 +9,4 @@ export * from "./spmb-forgot-password";
 export * from "./spmb-reset-password";
 export * from "./spmb-checklist";
 export * from "./spmb-payment";
+export * from "./spmb-submit";

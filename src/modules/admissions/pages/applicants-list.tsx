@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/exhaustive-deps */
 import React, { useEffect, useState } from "react";
-import { Archive, ChevronLeft, ChevronRight, Eye, Filter, Inbox, Loader2, Search, ShieldAlert, Trash2 } from "lucide-react";
+import { Archive, ChevronLeft, ChevronRight, Download, Eye, Filter, Inbox, Loader2, MessageCircle, Search, ShieldAlert, Trash2 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { toast } from "sonner";
 import { PageHeader } from "../../../components/layout/PageHeader";
@@ -9,6 +9,7 @@ import { deleteStoredFile } from "../../../lib/supabase/storage";
 import { isOnlinePreschoolProgram, timeZoneLabel } from "../../../lib/timezones";
 import { admissionStatusMeta, admissionStatuses, formatAdmissionDate, getAdmissionStatus } from "../admissions-config";
 import { applicantTargetLabel, entryTypeLabel } from "../quota-utils";
+import { exportAdmissionsApplicantsWorkbook } from "../admission-applicants-export";
 
 const db = supabaseClient as any;
 const PAGE_SIZE = 15;
@@ -24,21 +25,51 @@ export const ApplicantsList: React.FC = () => {
   const [page, setPage] = useState(1);
   const [count, setCount] = useState(0);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
   const [filters, setFilters] = useState({ search: "", unit: "", year: "", classId: "", entryType: "", status: "" });
 
-  const load = async () => {
-    setLoading(true);
-    let query = db.from("admissions_applicants").select("*, units(name), academic_years(name), admission_batches(name), desired_classes:desired_class_id(name,grade_level)", { count: "exact" }).is("archived_at", null).order("registration_date", { ascending: false }).range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
+  const buildQuery = (countExact = false) => {
+    let query = db.from("admissions_applicants").select("*, units(name), academic_years(name), admission_batches(name), desired_classes:desired_class_id(name,grade_level)", countExact ? { count: "exact" } : undefined).is("archived_at", null).order("registration_date", { ascending: false });
     if (filters.unit) query = query.eq("unit_id", filters.unit);
     if (filters.year) query = query.eq("academic_year_id", filters.year);
     if (filters.classId) query = query.eq("desired_class_id", filters.classId);
     if (filters.entryType) query = query.eq("entry_type", filters.entryType);
     if (filters.status) query = query.eq("workflow_status", filters.status);
     if (filters.search.trim()) { const search = filters.search.trim().replace(/[,%()]/g, " "); query = query.or(`name.ilike.%${search}%,registration_number.ilike.%${search}%,nik.ilike.%${search}%,parent_name.ilike.%${search}%`); }
+    return query;
+  };
+  const load = async () => {
+    setLoading(true);
+    const query = buildQuery(true).range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
     const { data, count: total, error } = await query;
     setLoading(false);
     if (error) { toast.error(`Data pendaftar belum dapat dimuat: ${error.message}`); return; }
     setRows(data || []); setCount(total || 0);
+  };
+  const exportAll = async () => {
+    setExporting(true);
+    try {
+      const exportRows: any[] = [];
+      const batchSize = 1000;
+      for (let start = 0; ; start += batchSize) {
+        const { data, error } = await buildQuery().range(start, start + batchSize - 1);
+        if (error) throw error;
+        const batch = data || [];
+        exportRows.push(...batch);
+        if (batch.length < batchSize) break;
+      }
+      const labels = [
+        filters.unit ? `Unit: ${units.find((item) => item.id === filters.unit)?.name || "Terpilih"}` : "Semua unit",
+        filters.year ? `Tahun ajaran: ${years.find((item) => item.id === filters.year)?.name || "Terpilih"}` : "Semua tahun ajaran",
+        filters.status ? `Status: ${admissionStatusMeta[filters.status as keyof typeof admissionStatusMeta]?.label || filters.status}` : "Semua status",
+      ];
+      await exportAdmissionsApplicantsWorkbook({ rows: exportRows, filterLabel: labels.join(" · ") });
+      toast.success(`${exportRows.length} data pendaftar berhasil diekspor ke Excel.`);
+    } catch (error: any) {
+      toast.error(`Ekspor Excel belum dapat dibuat: ${error?.message || "silakan coba lagi."}`);
+    } finally {
+      setExporting(false);
+    }
   };
   useEffect(() => { Promise.all([
     db.from("units").select("id,name").order("name"),
@@ -85,11 +116,18 @@ export const ApplicantsList: React.FC = () => {
   const visibleClasses = classes.filter((row) => (!filters.unit || row.unit_id === filters.unit) && (!filters.year || row.academic_year_id === filters.year));
   const pages = Math.max(1, Math.ceil(count / PAGE_SIZE));
 
-  return <div className="space-y-6"><PageHeader title="Pendaftar SPMB" description="Periksa calon murid berdasarkan unit, kelas tujuan, jalur masuk, tahapan seleksi, dan daftar ulang." />
+  return <div className="space-y-6"><PageHeader title="Pendaftar SPMB" description="Periksa calon murid berdasarkan unit, kelas tujuan, jalur masuk, tahapan seleksi, dan daftar ulang." action={<button type="button" onClick={() => void exportAll()} disabled={exporting || loading} className="inline-flex h-10 items-center gap-2 rounded-md bg-emerald-700 px-4 text-sm font-semibold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60">{exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}{exporting ? "Menyiapkan Excel…" : "Ekspor Excel"}</button>} />
     <div className="border border-amber-300 bg-amber-50 rounded-md p-4 flex gap-3 text-sm text-amber-950"><ShieldAlert className="w-5 h-5 shrink-0" /><div><p className="font-bold">Pemulihan data teknis</p><p className="mt-1">Gunakan hapus permanen hanya untuk data rusak atau pendaftaran uji. Formulir, berkas, pembayaran, dan proses terkait akan dihapus; kuota yang pernah terpakai akan kembali. Siswa yang sudah aktif dilindungi dari penghapusan.</p></div></div>
     <section className="bg-white border rounded-lg p-4"><div className="grid sm:grid-cols-2 xl:grid-cols-6 gap-3"><label className="relative sm:col-span-2"><Search className="absolute w-4 h-4 left-3 top-3 text-slate-400" /><input value={filters.search} onChange={(e) => setFilter("search", e.target.value)} className="w-full h-10 pl-9 pr-3 border rounded-md" placeholder="Cari nama, nomor daftar, NIK, atau wali" /></label><FilterSelect value={filters.unit} onChange={(v) => setFilter("unit", v)}><option value="">Semua unit</option>{units.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</FilterSelect><FilterSelect value={filters.year} onChange={(v) => setFilter("year", v)}><option value="">Semua tahun</option>{years.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</FilterSelect><FilterSelect value={filters.classId} onChange={(v) => setFilter("classId", v)}><option value="">Semua kelas</option>{visibleClasses.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</FilterSelect><FilterSelect value={filters.entryType} onChange={(v) => setFilter("entryType", v)}><option value="">Semua jalur</option><option value="new">Siswa baru</option><option value="transfer">Siswa pindahan</option></FilterSelect><FilterSelect value={filters.status} onChange={(v) => setFilter("status", v)}><option value="">Semua status</option>{admissionStatuses.map((x) => <option key={x} value={x}>{admissionStatusMeta[x].label}</option>)}</FilterSelect></div><p className="text-xs text-slate-500 mt-3 flex items-center gap-2"><Filter className="w-3.5 h-3.5" />{count} pendaftaran sesuai filter</p></section>
-    <section className="bg-white border rounded-lg overflow-hidden"><div className="overflow-x-auto"><table className="w-full text-sm"><thead className="bg-slate-50 border-b text-slate-600"><tr><th className="text-left px-5 py-3">Calon murid</th><th className="text-left px-5 py-3">Unit / tujuan</th><th className="text-left px-5 py-3">Jalur</th><th className="text-left px-5 py-3">Orang tua / wali</th><th className="text-left px-5 py-3">Status</th><th className="text-left px-5 py-3">Masuk</th><th className="text-right px-5 py-3">Aksi</th></tr></thead><tbody className="divide-y">{loading ? <tr><td colSpan={7} className="py-16 text-center"><Loader2 className="w-7 h-7 animate-spin text-emerald-700 mx-auto" /></td></tr> : rows.length === 0 ? <tr><td colSpan={7} className="py-16 text-center text-slate-500"><Inbox className="w-9 h-9 mx-auto mb-3 text-slate-300" />Belum ada pendaftar sesuai filter.</td></tr> : rows.map((row) => { const status = getAdmissionStatus(row); const protectedStudent = status === "enrolled" || Boolean(row.student_id); return <tr key={row.id} className="hover:bg-slate-50"><td className="px-5 py-4"><p className="font-bold text-slate-900">{row.name}</p><p className="text-xs text-slate-500 mt-1">{row.registration_number || "Nomor dibuat otomatis"}</p></td><td className="px-5 py-4"><p className="font-medium">{row.units?.name || row.unit || "-"}</p><p className="text-xs text-slate-500 mt-1">{applicantTargetLabel(row)} · {row.academic_years?.name || row.academic_year || "-"}</p>{isOnlinePreschoolProgram(row) && <p className={`mt-1 text-xs font-semibold ${row.learning_timezone ? "text-blue-700" : "text-amber-700"}`}>Zona waktu: {row.learning_timezone ? timeZoneLabel(row.learning_timezone) : "Belum diisi"}{row.residence_country ? ` · ${row.residence_country}` : ""}</p>}</td><td className="px-5 py-4"><span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${row.entry_type === "transfer" ? "bg-blue-100 text-blue-800" : "bg-emerald-100 text-emerald-800"}`}>{entryTypeLabel(row.entry_type)}</span></td><td className="px-5 py-4"><p>{row.parent_name || "-"}</p><p className="text-xs text-slate-500 mt-1">{row.parent_phone || "-"}</p></td><td className="px-5 py-4"><span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold ${admissionStatusMeta[status].tone}`}>{admissionStatusMeta[status].label}</span></td><td className="px-5 py-4 text-slate-600">{formatAdmissionDate(row.registration_date)}</td><td className="px-5 py-4"><div className="flex justify-end gap-1"><Link to={`${base}/applicants/${row.registration_number || row.id}`} title="Buka pendaftaran" className="w-9 h-9 grid place-items-center rounded-md border hover:bg-emerald-50 hover:text-emerald-700"><Eye className="w-4 h-4" /></Link><button onClick={() => archive(row)} title="Arsipkan pendaftaran" className="w-9 h-9 grid place-items-center rounded-md border hover:bg-amber-50 hover:text-amber-700"><Archive className="w-4 h-4" /></button><button type="button" onClick={() => void purge(row)} disabled={protectedStudent || deletingId === row.id} title={protectedStudent ? "Data siswa aktif dilindungi" : "Hapus seluruh data pendaftaran"} className="w-9 h-9 grid place-items-center rounded-md border text-rose-700 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-35">{deletingId === row.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}</button></div></td></tr>; })}</tbody></table></div><div className="border-t px-5 py-3 flex items-center justify-between text-sm"><span className="text-slate-600">Halaman {page} dari {pages}</span><div className="flex gap-2"><button title="Halaman sebelumnya" disabled={page <= 1} onClick={() => setPage((v) => v - 1)} className="w-9 h-9 border rounded-md grid place-items-center disabled:opacity-40"><ChevronLeft className="w-4 h-4" /></button><button title="Halaman berikutnya" disabled={page >= pages} onClick={() => setPage((v) => v + 1)} className="w-9 h-9 border rounded-md grid place-items-center disabled:opacity-40"><ChevronRight className="w-4 h-4" /></button></div></div></section>
+      <section className="bg-white border rounded-lg overflow-hidden"><div className="overflow-x-auto"><table className="w-full text-sm"><thead className="bg-slate-50 border-b text-slate-600"><tr><th className="text-left px-5 py-3">Calon murid</th><th className="text-left px-5 py-3">Unit / tujuan</th><th className="text-left px-5 py-3">Jalur</th><th className="text-left px-5 py-3">Orang tua / wali</th><th className="text-left px-5 py-3">Status</th><th className="text-left px-5 py-3">Masuk</th><th className="text-right px-5 py-3">Aksi</th></tr></thead><tbody className="divide-y">{loading ? <tr><td colSpan={7} className="py-16 text-center"><Loader2 className="w-7 h-7 animate-spin text-emerald-700 mx-auto" /></td></tr> : rows.length === 0 ? <tr><td colSpan={7} className="py-16 text-center text-slate-500"><Inbox className="w-9 h-9 mx-auto mb-3 text-slate-300" />Belum ada pendaftar sesuai filter.</td></tr> : rows.map((row) => { const status = getAdmissionStatus(row); const protectedStudent = status === "enrolled" || Boolean(row.student_id); const whatsapp = whatsappNumber(row.parent_phone); return <tr key={row.id} className="hover:bg-slate-50"><td className="px-5 py-4"><p className="font-bold text-slate-900">{row.name}</p><p className="text-xs text-slate-500 mt-1">{row.registration_number || "Nomor dibuat otomatis"}</p></td><td className="px-5 py-4"><p className="font-medium">{row.units?.name || row.unit || "-"}</p><p className="text-xs text-slate-500 mt-1">{applicantTargetLabel(row)} · {row.academic_years?.name || row.academic_year || "-"}</p>{isOnlinePreschoolProgram(row) && <p className={`mt-1 text-xs font-semibold ${row.learning_timezone ? "text-blue-700" : "text-amber-700"}`}>Zona waktu: {row.learning_timezone ? timeZoneLabel(row.learning_timezone) : "Belum diisi"}{row.residence_country ? ` · ${row.residence_country}` : ""}</p>}</td><td className="px-5 py-4"><span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${row.entry_type === "transfer" ? "bg-blue-100 text-blue-800" : "bg-emerald-100 text-emerald-800"}`}>{entryTypeLabel(row.entry_type)}</span></td><td className="px-5 py-4"><p>{row.parent_name || "-"}</p><p className="text-xs text-slate-500 mt-1">{row.parent_phone || "-"}</p></td><td className="px-5 py-4"><span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold ${admissionStatusMeta[status].tone}`}>{admissionStatusMeta[status].label}</span></td><td className="px-5 py-4 text-slate-600">{formatAdmissionDate(row.registration_date)}</td><td className="px-5 py-4"><div className="flex justify-end gap-1"><Link to={`${base}/applicants/${row.registration_number || row.id}`} title="Buka pendaftaran" className="w-9 h-9 grid place-items-center rounded-md border hover:bg-emerald-50 hover:text-emerald-700"><Eye className="w-4 h-4" /></Link>{whatsapp && <a href={`https://wa.me/${whatsapp}?text=${encodeURIComponent(`Assalamu’alaikum, Bapak/Ibu ${row.parent_name || "Orang Tua/Wali"}. Kami dari TS Lab School terkait pendaftaran ${row.name || "calon murid"} (${row.registration_number || "SPMB"}).`)}`} target="_blank" rel="noreferrer" title="Hubungi orang tua melalui WhatsApp" className="w-9 h-9 grid place-items-center rounded-md border text-emerald-700 hover:bg-emerald-50"><MessageCircle className="w-4 h-4" /></a>}<button onClick={() => archive(row)} title="Arsipkan pendaftaran" className="w-9 h-9 grid place-items-center rounded-md border hover:bg-amber-50 hover:text-amber-700"><Archive className="w-4 h-4" /></button><button type="button" onClick={() => void purge(row)} disabled={protectedStudent || deletingId === row.id} title={protectedStudent ? "Data siswa aktif dilindungi" : "Hapus seluruh data pendaftaran"} className="w-9 h-9 grid place-items-center rounded-md border text-rose-700 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-35">{deletingId === row.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}</button></div></td></tr>; })}</tbody></table></div><div className="border-t px-5 py-3 flex items-center justify-between text-sm"><span className="text-slate-600">Halaman {page} dari {pages}</span><div className="flex gap-2"><button title="Halaman sebelumnya" disabled={page <= 1} onClick={() => setPage((v) => v - 1)} className="w-9 h-9 border rounded-md grid place-items-center disabled:opacity-40"><ChevronLeft className="w-4 h-4" /></button><button title="Halaman berikutnya" disabled={page >= pages} onClick={() => setPage((v) => v + 1)} className="w-9 h-9 border rounded-md grid place-items-center disabled:opacity-40"><ChevronRight className="w-4 h-4" /></button></div></div></section>
   </div>;
 };
 
 const FilterSelect = ({ value, onChange, children }: { value: string; onChange: (value: string) => void; children: React.ReactNode }) => <select value={value} onChange={(e) => onChange(e.target.value)} className="h-10 px-3 border rounded-md bg-white">{children}</select>;
+
+const whatsappNumber = (value?: string | null) => {
+  let phone = String(value || "").replace(/\D/g, "");
+  if (phone.startsWith("0")) phone = `62${phone.slice(1)}`;
+  else if (phone.startsWith("8")) phone = `62${phone}`;
+  return /^62\d{8,14}$/.test(phone) ? phone : null;
+};

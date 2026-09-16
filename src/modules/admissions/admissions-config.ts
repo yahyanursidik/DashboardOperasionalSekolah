@@ -37,16 +37,43 @@ export const admissionDocumentTypes = [
   { value: "birth_certificate", label: "Akta Kelahiran", required: true },
   { value: "parent_id_card", label: "KTP Orang Tua / Wali", required: true },
   { value: "photo", label: "Pas Foto", required: true },
+  { value: "health_record", label: "Kartu imunisasi / catatan kesehatan", required: false },
   { value: "previous_report", label: "Rapor / laporan perkembangan terakhir", required: false },
+  { value: "home_learning_commitment", label: "Surat komitmen Homebased Learning", required: false },
   { value: "transfer_letter", label: "Surat pindah (khusus siswa pindahan)", required: false },
 ] as const;
 
-export const isRequiredAdmissionDocument = (documentType: string, entryType?: string | null) =>
-  admissionDocumentTypes.some((document) => document.value === documentType && document.required)
-  || (documentType === "transfer_letter" && entryType === "transfer");
+export type AdmissionRequirementContext = {
+  entry_type?: string | null;
+  unit?: string | null;
+  unit_name?: string | null;
+  units?: { name?: string | null } | null;
+  desired_classes?: { name?: string | null; grade_level?: number | null } | null;
+  desired_grade?: number | null;
+};
 
-export const getRequiredAdmissionDocumentTypes = (entryType?: string | null) =>
-  admissionDocumentTypes.filter((document) => isRequiredAdmissionDocument(document.value, entryType));
+const programText = (context?: AdmissionRequirementContext | string | null) => typeof context === "string"
+  ? ""
+  : `${context?.unit || ""} ${context?.unit_name || ""} ${context?.units?.name || ""} ${context?.desired_classes?.name || ""}`.toLowerCase();
+
+export const isHblApplicant = (context?: AdmissionRequirementContext | string | null) =>
+  /(\bhbl\b|home[ -]?based learning|online|daring)/i.test(programText(context));
+export const isElementaryApplicant = (context?: AdmissionRequirementContext | string | null) =>
+  /(elementary|sd\b|sekolah dasar)/i.test(programText(context));
+export const isPreschoolApplicant = (context?: AdmissionRequirementContext | string | null) =>
+  /(preschool|paud|playgroup|kelompok bermain|taman kanak|\btk\b)/i.test(programText(context));
+
+export const isRequiredAdmissionDocument = (documentType: string, context?: AdmissionRequirementContext | string | null) => {
+  const entryType = typeof context === "string" ? context : context?.entry_type;
+  if (documentType === "transfer_letter") return entryType === "transfer";
+  if (documentType === "previous_report") return entryType === "transfer" || isElementaryApplicant(context);
+  if (documentType === "home_learning_commitment") return isHblApplicant(context);
+  if (documentType === "health_record") return isPreschoolApplicant(context);
+  return admissionDocumentTypes.some((document) => document.value === documentType && document.required);
+};
+
+export const getRequiredAdmissionDocumentTypes = (context?: AdmissionRequirementContext | string | null) =>
+  admissionDocumentTypes.filter((document) => isRequiredAdmissionDocument(document.value, context));
 
 export const legacyToAdmissionStatus = (legacy?: string | null): AdmissionStatus => {
   const map: Record<string, AdmissionStatus> = {

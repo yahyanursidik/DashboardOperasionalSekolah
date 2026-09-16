@@ -9,6 +9,7 @@ import { getDocumentSignedUrl } from "../../../lib/supabase/storage";
 import { isOnlinePreschoolProgram, isValidTimeZone, schoolLocalDateTimeToIso, timeZoneLabel } from "../../../lib/timezones";
 import { LearningTimezoneFields } from "../components/learning-timezone-fields";
 import { admissionDocumentTypes, admissionStatusMeta, formatAdmissionDate, getAdmissionStatus, getRequiredAdmissionDocumentTypes, isRequiredAdmissionDocument, type AdmissionStatus } from "../admissions-config";
+import { getAdmissionProfileFields } from "../admission-program-profile";
 import { applicantTargetLabel, classTargetLabel, entryTypeLabel } from "../quota-utils";
 
 const db = supabaseClient as any;
@@ -171,14 +172,19 @@ export const ApplicantShow: React.FC = () => {
     if (error) toast.error(error.message); else { toast.success("Zona waktu pembelajaran diperbarui."); await load(); }
   };
 
-  const requiredDocumentTypes = getRequiredAdmissionDocumentTypes(applicant?.entry_type);
+  const requiredDocumentTypes = getRequiredAdmissionDocumentTypes(applicant);
   const validDocs = requiredDocumentTypes.filter((type) => documents.some((doc) => doc.document_type === type.value && doc.status === "valid")).length;
   const requiredDocs = requiredDocumentTypes.length;
-  const configuredDocumentRows = admissionDocumentTypes.map((type) => ({ type, document: documents.find((doc) => doc.document_type === type.value), required: isRequiredAdmissionDocument(type.value, applicant?.entry_type) }));
+  const configuredDocumentRows = admissionDocumentTypes.map((type) => ({ type, document: documents.find((doc) => doc.document_type === type.value), required: isRequiredAdmissionDocument(type.value, applicant) }));
   const additionalDocumentRows = documents.filter((document) => !admissionDocumentTypes.some((type) => type.value === document.document_type)).map((document) => ({ type: { value: document.document_type, label: document.document_type.replaceAll("_", " ") }, document, required: false }));
   const documentRows = [...configuredDocumentRows, ...additionalDocumentRows];
   const latestPayment = payments[0];
-  const info = useMemo(() => applicant ? [["Nama lengkap",applicant.name],["NIK",applicant.nik],["NISN",applicant.nisn],["Jenis kelamin",applicant.gender === "P" ? "Perempuan" : "Laki-laki"],["Tempat, tanggal lahir",`${applicant.birth_place || "-"}, ${formatAdmissionDate(applicant.dob)}`],["Asal sekolah",applicant.previous_school],["Orang tua / wali",applicant.parent_name],["WhatsApp",applicant.parent_phone],["Email",applicant.parent_email],["Nomor Kartu Keluarga",applicant.family_card_number],["Negara domisili",applicant.residence_country],["Zona waktu belajar",applicant.learning_timezone ? timeZoneLabel(applicant.learning_timezone) : null],["Alamat",applicant.address]] : [], [applicant]);
+  const info = useMemo(() => {
+    if (!applicant) return [];
+    const profile = applicant.admission_profile && typeof applicant.admission_profile === "object" ? applicant.admission_profile : {};
+    const profileInfo = getAdmissionProfileFields(applicant).map((field) => [field.label, profile[field.key]]);
+    return [["Nama lengkap",applicant.name],["Nama panggilan",applicant.child_nickname],["NIK",applicant.nik],["NISN",applicant.nisn],["Jenis kelamin",applicant.gender === "P" ? "Perempuan" : "Laki-laki"],["Tempat, tanggal lahir",`${applicant.birth_place || "-"}, ${formatAdmissionDate(applicant.dob)}`],["Asal sekolah",applicant.previous_school],["Orang tua / wali",applicant.parent_name],["WhatsApp",applicant.parent_phone],["Pendidikan terakhir orang tua",applicant.parent_education_level],["Pekerjaan orang tua",applicant.parent_occupation],["Orang tua kedua",applicant.second_parent_name],["WhatsApp orang tua kedua",applicant.second_parent_phone],["Pendidikan orang tua kedua",applicant.second_parent_education_level],["Kontak darurat",`${applicant.emergency_contact_name || "-"} · ${applicant.emergency_contact_phone || "-"}`],["Alergi / kesehatan",`${applicant.allergies || "-"}${applicant.medical_notes ? ` · ${applicant.medical_notes}` : ""}`],["Nomor Kartu Keluarga",applicant.family_card_number],["Kota / Kabupaten domisili",applicant.domicile_regency],["Provinsi domisili",applicant.domicile_province],["Negara domisili",applicant.residence_country],["Zona waktu belajar",applicant.learning_timezone ? timeZoneLabel(applicant.learning_timezone) : null],["Pendamping HBL",applicant.hbl_facilitator_name ? `${applicant.hbl_facilitator_name} · ${applicant.hbl_facilitator_relation || "-"}` : null],["Kesiapan onsite",applicant.onsite_transport_plan ? `${applicant.onsite_transport_plan} · ${applicant.toilet_independence || "-"}` : null], ...profileInfo, ["Alamat",applicant.address]];
+  }, [applicant]);
   const showsLearningTimezone = isOnlinePreschoolProgram(applicant) || Boolean(applicant?.learning_timezone);
 
   if (loading) return <div className="py-28 grid place-items-center"><Loader2 className="w-8 h-8 animate-spin text-emerald-700" /></div>;

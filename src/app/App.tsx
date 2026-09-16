@@ -112,7 +112,7 @@ import { PortalQuran } from "../modules/portal/portal-quran";
 import { PortalPaud } from "../modules/portal/portal-paud";
 import { PortalAnnouncements } from "../modules/portal/portal-announcements";
 import { PrintInvoice } from "../modules/finance/pages/print-invoice";
-import { SpmbLayout, SpmbDashboard, SpmbForm, SpmbDocuments, SpmbAnnouncement, SpmbLogin, SpmbRegister, SpmbForgotPassword, SpmbResetPassword, SpmbChecklist, SpmbPayment } from "../modules/admissions/portal";
+import { SpmbLayout, SpmbDashboard, SpmbForm, SpmbDocuments, SpmbAnnouncement, SpmbLogin, SpmbRegister, SpmbForgotPassword, SpmbResetPassword, SpmbChecklist, SpmbPayment, SpmbSubmit } from "../modules/admissions/portal";
 import { CbtPortalLayout } from "../modules/cbt-portal/CbtPortalLayout";
 import { CbtPortalLogin } from "../modules/cbt-portal/CbtPortalLogin";
 import { CbtPortalTestRoom } from "../modules/cbt-portal/CbtPortalTestRoom";
@@ -1219,6 +1219,7 @@ export default function App() {
                 <Route path="documents" element={<SpmbDocuments />} />
                 <Route path="checklist" element={<SpmbChecklist />} />
                 <Route path="payment" element={<SpmbPayment />} />
+                <Route path="submit" element={<SpmbSubmit />} />
                 <Route path="announcement" element={<SpmbAnnouncement />} />
               </Route>
 

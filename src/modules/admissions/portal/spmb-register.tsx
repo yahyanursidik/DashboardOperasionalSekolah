@@ -1,7 +1,9 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { AlertCircle, CheckCircle2, Loader2, Lock, Mail, Phone, User, UserPlus } from "lucide-react";
+import { GraduationCap, Mail, Phone, User } from "lucide-react";
 import { supabaseClient } from "../../../lib/supabase/client";
+import { PortalLoginAlert, PortalLoginButton, PortalLoginShell, PortalPasswordField, PortalTextField } from "../../../components/auth/PortalLoginShell";
+import { SpmbAuthSafetyNote, SpmbExistingAccountCta, SpmbRegistrationSteps, SpmbSuccessHint } from "./spmb-auth-guide";
 
 export const SpmbRegister: React.FC = () => {
   const navigate = useNavigate();
@@ -27,25 +29,27 @@ export const SpmbRegister: React.FC = () => {
     else setMessage({ type: "success", text: "Akun berhasil dibuat. Periksa email untuk konfirmasi, lalu masuk ke Portal SPMB." });
   };
 
-  const fields = [
-    { key: "name", label: "Nama orang tua / wali", type: "text", icon: User, placeholder: "Sesuai identitas resmi" },
-    { key: "phone", label: "Nomor WhatsApp aktif", type: "tel", icon: Phone, placeholder: "08xxxxxxxxxx" },
-    { key: "email", label: "Email", type: "email", icon: Mail, placeholder: "orangtua@email.com" },
-    { key: "password", label: "Kata sandi", type: "password", icon: Lock, placeholder: "Minimal 8 karakter" },
-  ] as const;
-
-  return (
-    <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center px-4 py-10 bg-slate-50">
-      <div className="w-full max-w-lg bg-white border rounded-lg p-6 sm:p-8 shadow-sm">
-        <h1 className="text-2xl font-bold text-slate-950">Buat Akun Pendaftaran</h1>
-        <p className="text-sm text-slate-600 mt-2 mb-7">Satu akun dapat digunakan untuk melanjutkan dan memantau pendaftaran calon murid.</p>
-        {message && <div className={`mb-5 flex gap-2 rounded-md border p-3 text-sm ${message.type === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-rose-200 bg-rose-50 text-rose-800"}`}>{message.type === "success" ? <CheckCircle2 className="w-5 h-5 shrink-0" /> : <AlertCircle className="w-5 h-5 shrink-0" />}{message.text}</div>}
-        <form onSubmit={submit} className="space-y-4">
-          {fields.map(({ key, label, type, icon: Icon, placeholder }) => <label key={key} className="block text-sm font-semibold text-slate-800">{label}<span className="relative block mt-2"><Icon className="absolute left-3 top-3 w-5 h-5 text-slate-400" /><input type={type} value={form[key]} onChange={(e) => setForm((value) => ({ ...value, [key]: e.target.value }))} className="w-full h-11 pl-10 pr-3 border rounded-md outline-none focus:ring-2 focus:ring-emerald-500" placeholder={placeholder} minLength={key === "password" ? 8 : undefined} required /></span></label>)}
-          <button disabled={loading} className="w-full h-11 rounded-md bg-emerald-700 text-white font-semibold hover:bg-emerald-800 disabled:opacity-60 flex items-center justify-center gap-2"><>{loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <UserPlus className="w-5 h-5" />} Buat Akun</></button>
-        </form>
-        <p className="text-sm text-slate-600 text-center mt-6">Sudah memiliki akun? <Link className="font-semibold text-emerald-700 hover:underline" to="/spmb/login">Masuk</Link></p>
-      </div>
-    </div>
-  );
+  return <PortalLoginShell
+    portalName="Portal SPMB"
+    title="Buat akun orang tua"
+    description="Mulai dengan satu akun untuk menyimpan formulir, berkas, pembayaran, dan seluruh informasi pendaftaran anak."
+    icon={GraduationCap}
+    accent="emerald"
+    sideNote="Akun dibuat oleh orang tua atau wali. Setelah itu pendaftaran dapat disimpan sebagai draf dan dilanjutkan kapan pun."
+    footer={<span>Sudah pernah membuat akun? <Link className="font-semibold text-emerald-700 hover:underline" to="/spmb/login">Masuk ke Portal SPMB</Link></span>}
+  >
+    {message?.type === "error" && <PortalLoginAlert>{message.text}</PortalLoginAlert>}
+    {message?.type === "success" ? <div className="space-y-5"><SpmbSuccessHint><div><p className="font-bold">Akun berhasil dibuat</p><p className="mt-1">{message.text}</p></div></SpmbSuccessHint><SpmbExistingAccountCta /></div> : <>
+      <SpmbRegistrationSteps />
+      <form onSubmit={submit} className="mt-6 space-y-5">
+        <PortalTextField id="spmb-register-name" label="Nama orang tua / wali" value={form.name} onChange={(value) => setForm((current) => ({ ...current, name: value }))} placeholder="Sesuai identitas resmi" icon={User} autoComplete="name" />
+        <PortalTextField id="spmb-register-phone" label="Nomor WhatsApp aktif" value={form.phone} onChange={(value) => setForm((current) => ({ ...current, phone: value }))} placeholder="08xxxxxxxxxx" icon={Phone} type="tel" autoComplete="tel" inputMode="tel" />
+        <PortalTextField id="spmb-register-email" label="Email pribadi" value={form.email} onChange={(value) => setForm((current) => ({ ...current, email: value }))} placeholder="orangtua@email.com" icon={Mail} type="email" autoComplete="email" />
+        <PortalPasswordField id="spmb-register-password" label="Buat kata sandi" value={form.password} onChange={(value) => setForm((current) => ({ ...current, password: value }))} autoComplete="new-password" minLength={8} />
+        <SpmbAuthSafetyNote />
+        <PortalLoginButton loading={loading} disabled={!form.name.trim() || !form.phone.trim() || !form.email.trim() || form.password.length < 8} label="Buat Akun & Mulai Formulir" loadingLabel="Membuat akun..." />
+      </form>
+      <div className="mt-4"><SpmbExistingAccountCta /></div>
+    </>}
+  </PortalLoginShell>;
 };
