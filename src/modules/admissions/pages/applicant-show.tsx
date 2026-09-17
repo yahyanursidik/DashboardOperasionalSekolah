@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
 import React, { useEffect, useMemo, useState } from "react";
-import { AlertCircle, ArrowLeft, CalendarDays, CheckCircle2, Clock3, CreditCard, ExternalLink, FileText, GraduationCap, Loader2, Phone, Save, User, XCircle } from "lucide-react";
+import { AlertCircle, ArrowLeft, CalendarDays, CheckCircle2, Clock3, CreditCard, ExternalLink, FileText, GraduationCap, Loader2, PenLine, Phone, Save, User, XCircle } from "lucide-react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { PageHeader } from "../../../components/layout/PageHeader";
@@ -11,6 +11,7 @@ import { LearningTimezoneFields } from "../components/learning-timezone-fields";
 import { admissionDocumentTypes, admissionStatusMeta, formatAdmissionDate, getAdmissionStatus, getRequiredAdmissionDocumentTypes, isRequiredAdmissionDocument, type AdmissionStatus } from "../admissions-config";
 import { getAdmissionProfileFields } from "../admission-program-profile";
 import { applicantTargetLabel, classTargetLabel, entryTypeLabel } from "../quota-utils";
+import { AdmissionApplicantEditor } from "../components/admission-applicant-editor";
 
 const db = supabaseClient as any;
 const transitions: Partial<Record<AdmissionStatus, { value: AdmissionStatus; label: string }[]>> = {
@@ -32,6 +33,7 @@ export const ApplicantShow: React.FC = () => {
   const [payments, setPayments] = useState<any[]>([]);
   const [assessments, setAssessments] = useState<any[]>([]);
   const [history, setHistory] = useState<any[]>([]);
+  const [editLogs, setEditLogs] = useState<any[]>([]);
   const [classes, setClasses] = useState<any[]>([]);
   const [quota, setQuota] = useState<any | null>(null);
   const [quotaOptions, setQuotaOptions] = useState<any[]>([]);
@@ -45,6 +47,7 @@ export const ApplicantShow: React.FC = () => {
   const [schedule, setSchedule] = useState({ assessment_type: "academic_test", scheduled_at: "", location: "", notes: "" });
   const [enrollment, setEnrollment] = useState({ nis: "", class_id: "" });
   const [learningLocation, setLearningLocation] = useState({ residence_country: "Indonesia", learning_timezone: "Asia/Jakarta" });
+  const [editingData, setEditingData] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -60,17 +63,18 @@ export const ApplicantShow: React.FC = () => {
     }
     const row = result.data; setApplicant(row);
     setLearningLocation({ residence_country: row.residence_country || "Indonesia", learning_timezone: row.learning_timezone || "Asia/Jakarta" });
-    const [doc, pay, assess, hist, classResult, quotaResult] = await Promise.all([
+    const [doc, pay, assess, hist, editLog, classResult, quotaResult] = await Promise.all([
       db.from("admission_documents").select("*").eq("applicant_id", row.id).order("created_at"),
       db.from("admission_payments").select("*").eq("applicant_id", row.id).order("created_at", { ascending: false }),
       db.from("admission_assessments").select("*, employees(full_name)").eq("applicant_id", row.id).order("scheduled_at"),
       db.from("admission_status_history").select("*").eq("applicant_id", row.id).order("created_at", { ascending: false }),
+      db.from("admission_applicant_edit_logs").select("*").eq("applicant_id", row.id).order("created_at", { ascending: false }).limit(12),
       db.from("classes").select("id,name,grade_level").eq("unit_id", row.unit_id).eq("academic_year_id", row.academic_year_id).order("grade_level").order("name"),
       db.rpc("admission_quota_snapshot", { p_batch_id: row.batch_id }),
     ]);
-    const relatedError = [doc.error, pay.error, assess.error, hist.error, classResult.error, quotaResult.error].find(Boolean);
+    const relatedError = [doc.error, pay.error, assess.error, hist.error, editLog.error, classResult.error, quotaResult.error].find(Boolean);
     setLoadError(relatedError?.message || "");
-    setDocuments(doc.data || []); setPayments(pay.data || []); setAssessments(assess.data || []); setHistory(hist.data || []); setClasses(classResult.data || []);
+    setDocuments(doc.data || []); setPayments(pay.data || []); setAssessments(assess.data || []); setHistory(hist.data || []); setEditLogs(editLog.data || []); setClasses(classResult.data || []);
     const availableQuotas = Array.isArray(quotaResult.data) ? quotaResult.data : [];
     const currentQuota = availableQuotas.find((item: any) => item.class_id === row.desired_class_id && item.entry_type === (row.entry_type || "new")) || null;
     setQuotaOptions(availableQuotas); setQuota(currentQuota); setTargetPlanId(currentQuota?.quota_id || "");
@@ -190,7 +194,7 @@ export const ApplicantShow: React.FC = () => {
   if (loading) return <div className="py-28 grid place-items-center"><Loader2 className="w-8 h-8 animate-spin text-emerald-700" /></div>;
   if (!applicant) return <div className="max-w-xl mx-auto py-20 text-center"><AlertCircle className="w-10 h-10 text-amber-600 mx-auto" /><h1 className="text-xl font-bold mt-4">{loadError === "Pendaftar tidak ditemukan." ? "Pendaftar tidak ditemukan" : "Data pendaftar belum dapat dimuat"}</h1><p className="text-sm text-slate-600 mt-2">{loadError}</p><Link to={`${base}/applicants`} className="inline-flex mt-5 text-emerald-700 font-semibold">Kembali ke daftar</Link></div>;
 
-  return <div className="space-y-6 max-w-6xl mx-auto"><div className="flex items-start gap-3"><Link to={`${base}/applicants`} title="Kembali" className="w-10 h-10 border rounded-md grid place-items-center shrink-0 hover:bg-slate-50"><ArrowLeft className="w-4 h-4" /></Link><div className="flex-1"><PageHeader title={applicant.name} description={`${applicant.registration_number} · ${applicant.units?.name || applicant.unit} · ${applicantTargetLabel(applicant)} · ${entryTypeLabel(applicant.entry_type)}`} /></div><span className={`hidden sm:inline-flex px-3 py-1.5 rounded-full text-sm font-semibold ${admissionStatusMeta[status].tone}`}>{admissionStatusMeta[status].label}</span></div>
+  return <div className="space-y-6 max-w-6xl mx-auto">{editingData && <AdmissionApplicantEditor applicant={applicant} onClose={() => setEditingData(false)} onSaved={load} />}<div className="flex items-start gap-3"><Link to={`${base}/applicants`} title="Kembali" className="w-10 h-10 border rounded-md grid place-items-center shrink-0 hover:bg-slate-50"><ArrowLeft className="w-4 h-4" /></Link><div className="flex-1"><PageHeader title={applicant.name} description={`${applicant.registration_number} · ${applicant.units?.name || applicant.unit} · ${applicantTargetLabel(applicant)} · ${entryTypeLabel(applicant.entry_type)}`} /></div><div className="flex items-center gap-2"><button type="button" onClick={() => setEditingData(true)} className="inline-flex h-9 items-center gap-2 rounded-md border border-emerald-300 px-3 text-sm font-semibold text-emerald-800 hover:bg-emerald-50"><PenLine className="h-4 w-4" />Edit data</button><span className={`hidden sm:inline-flex px-3 py-1.5 rounded-full text-sm font-semibold ${admissionStatusMeta[status].tone}`}>{admissionStatusMeta[status].label}</span></div></div>
     {loadError && <div className="border border-amber-300 bg-amber-50 rounded-md p-4 flex gap-3 text-sm text-amber-950"><AlertCircle className="w-5 h-5 shrink-0" /><div><p className="font-bold">Sebagian data belum dapat dimuat</p><p className="mt-1">{loadError}</p></div></div>}
     <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4"><Summary icon={FileText} label="Berkas wajib valid" value={`${validDocs}/${requiredDocs}`} detail={validDocs === requiredDocs ? "Persyaratan utama lengkap" : `${requiredDocs - validDocs} berkas belum valid`} /><Summary icon={CreditCard} label="Pembayaran" value={latestPayment?.status === "verified" || latestPayment?.status === "waived" ? "Valid" : applicant.registration_fee_amount == null ? "Menunggu tarif" : latestPayment ? "Diproses" : "Belum ada"} detail={applicant.registration_fee_amount == null ? "Tarif belum ditetapkan / staf belum diverifikasi" : latestPayment ? Number(latestPayment.amount).toLocaleString("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }) : Number(applicant.registration_fee_amount).toLocaleString("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 })} /><Summary icon={CalendarDays} label="Seleksi" value={assessments.some((item) => item.completed_at) ? "Selesai" : assessments.length ? "Terjadwal" : "Belum ada"} detail={assessments[0]?.scheduled_at ? formatAdmissionDate(assessments[0].scheduled_at, true, applicant.learning_timezone || "Asia/Jakarta") : "Jadwal belum dibuat"} /><Summary icon={GraduationCap} label="Kuota tujuan" value={quota ? `${quota.remaining_count} tersisa` : "Belum diatur"} detail={quota ? `${quota.reserved_count}/${quota.quota} kursi terisi · ${entryTypeLabel(applicant.entry_type)}` : "Atur pada Pengaturan SPMB"} /></div>
     <div className="grid lg:grid-cols-[1.55fr_1fr] gap-6"><div className="space-y-6">
@@ -208,6 +212,7 @@ export const ApplicantShow: React.FC = () => {
       {availableActions.length > 0 && <section className="bg-white border rounded-lg p-5"><h2 className="font-bold text-lg">Tindak Lanjut</h2><p className="text-sm text-slate-600 mt-1">Perubahan status masuk ke riwayat audit.</p><select value={action} onChange={(e) => setAction(e.target.value)} className="w-full h-10 px-3 border rounded-md mt-4">{availableActions.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select><textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Catatan keputusan / informasi untuk orang tua" className="w-full min-h-24 p-3 border rounded-md mt-3" /><button onClick={transition} disabled={working} className="w-full h-10 mt-3 bg-emerald-700 text-white rounded-md font-semibold flex items-center justify-center gap-2">{working ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}Terapkan Tindak Lanjut</button></section>}
       {status === "accepted" && <section className="bg-emerald-50 border border-emerald-200 rounded-lg p-5"><h2 className="font-bold text-lg flex items-center gap-2"><GraduationCap className="w-5 h-5" />Daftar Ulang</h2><p className="text-sm text-emerald-900 mt-1">Membuat siswa aktif sekaligus menautkan akun orang tua. Kelas awal mengikuti tujuan pendaftaran.</p><input value={enrollment.nis} onChange={(e) => setEnrollment((v) => ({...v,nis:e.target.value}))} placeholder="NIS baru *" className="w-full h-10 px-3 border rounded-md mt-4 bg-white" /><select value={enrollment.class_id} onChange={(e) => setEnrollment((v) => ({...v,class_id:e.target.value}))} className="w-full h-10 px-3 border rounded-md mt-3 bg-white"><option value="">Pilih kelas</option>{classes.map((item) => <option key={item.id} value={item.id}>{classTargetLabel(item)}</option>)}</select><button onClick={enroll} disabled={working || !enrollment.class_id} className="w-full h-10 mt-3 bg-emerald-700 text-white rounded-md font-semibold disabled:opacity-50">Jadikan Siswa Aktif</button></section>}
       <section className="bg-white border rounded-lg p-5"><h2 className="font-bold text-lg flex items-center gap-2"><Clock3 className="w-5 h-5 text-slate-500" />Riwayat Proses</h2><div className="mt-5 space-y-5">{history.map((item) => <div key={item.id} className="relative pl-5 border-l"><span className="absolute -left-1.5 top-0 w-3 h-3 bg-emerald-600 rounded-full ring-4 ring-white" /><p className="font-semibold text-sm">{admissionStatusMeta[item.to_status as AdmissionStatus]?.label || item.to_status}</p><p className="text-xs text-slate-500 mt-1">{formatAdmissionDate(item.created_at,true)}</p>{item.note && <p className="text-sm text-slate-600 mt-2">{item.note}</p>}</div>)}{history.length === 0 && <p className="text-sm text-slate-500">Belum ada riwayat perubahan.</p>}</div></section>
+      <section className="bg-white border rounded-lg p-5"><h2 className="font-bold text-lg flex items-center gap-2"><PenLine className="w-5 h-5 text-slate-500" />Riwayat Perbaikan Data</h2><p className="mt-1 text-xs text-slate-500">Nilai identitas tidak ditampilkan dalam riwayat demi keamanan data pribadi.</p><div className="mt-4 space-y-4">{editLogs.map((item) => <div key={item.id} className="border-l border-emerald-300 pl-4"><p className="text-sm font-semibold">{item.actor_kind === "admin" ? "Diperbarui panitia" : item.actor_kind === "parent" ? "Diperbarui orang tua / wali" : "Diperbarui sistem"}</p><p className="mt-1 text-xs text-slate-500">{formatAdmissionDate(item.created_at, true)}</p><p className="mt-1 text-xs text-slate-600">{(item.changed_fields || []).map((field: string) => field.replaceAll("_", " ")).join(", ")}</p></div>)}{editLogs.length === 0 && <p className="text-sm text-slate-500">Belum ada perbaikan data yang tercatat.</p>}</div></section>
       <section className="bg-white border rounded-lg p-5"><h2 className="font-bold text-lg flex items-center gap-2"><Phone className="w-5 h-5 text-slate-500" />Kontak Keluarga</h2><p className="font-semibold mt-4">{applicant.parent_name || "-"}</p><a className="text-sm text-emerald-700 mt-2 block hover:underline" href={`https://wa.me/${String(applicant.parent_phone || "").replace(/^0/,"62").replace(/\D/g,"")}`} target="_blank" rel="noreferrer">{applicant.parent_phone || "Nomor belum diisi"}</a></section>
     </aside></div>
   </div>;

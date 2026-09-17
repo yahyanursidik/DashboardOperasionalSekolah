@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, CalendarDays, CheckCircle2, Clock3, CreditCard, FileText, UploadCloud, UserPlus } from "lucide-react";
+import { ArrowRight, CalendarDays, CheckCircle2, Clock3, CreditCard, FileText, PenLine, UploadCloud, UserPlus } from "lucide-react";
 import { supabaseClient } from "../../../lib/supabase/client";
 import { admissionStatusMeta, formatAdmissionDate, getAdmissionStatus, getRequiredAdmissionDocumentTypes } from "../admissions-config";
 import { getAdmissionProfileFields } from "../admission-program-profile";
@@ -16,6 +16,7 @@ export const SpmbDashboard: React.FC = () => {
   const [documents, setDocuments] = useState<any[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
   const [assessment, setAssessment] = useState<any | null>(null);
+  const [editLogs, setEditLogs] = useState<any[]>([]);
 
   useEffect(() => {
     if (!applicant?.id) return;
@@ -23,7 +24,8 @@ export const SpmbDashboard: React.FC = () => {
       db.from("admission_documents").select("*").eq("applicant_id", applicant.id),
       db.from("admission_payments").select("*").eq("applicant_id", applicant.id).order("created_at", { ascending: false }),
       db.from("admission_assessments").select("*").eq("applicant_id", applicant.id).order("scheduled_at").limit(1).maybeSingle(),
-    ]).then(([docResult, paymentResult, assessmentResult]) => { setDocuments(docResult.data || []); setPayments(paymentResult.data || []); setAssessment(assessmentResult.data || null); });
+      db.from("admission_applicant_edit_logs").select("actor_kind,changed_fields,created_at").eq("applicant_id", applicant.id).order("created_at", { ascending: false }).limit(5),
+    ]).then(([docResult, paymentResult, assessmentResult, editLogResult]) => { setDocuments(docResult.data || []); setPayments(paymentResult.data || []); setAssessment(assessmentResult.data || null); setEditLogs(editLogResult.data || []); });
   }, [applicant?.id]);
 
   if (!applicant) return (
@@ -34,6 +36,7 @@ export const SpmbDashboard: React.FC = () => {
   );
 
   const status = getAdmissionStatus(applicant);
+  const canEditData = ["draft", "documents_review"].includes(status);
   const meta = admissionStatusMeta[status];
   const requiredDocumentTypes = getRequiredAdmissionDocumentTypes(applicant);
   const uploadedDocs = requiredDocumentTypes.filter((type) => documents.some((doc) => doc.document_type === type.value && !["rejected", "revision_required"].includes(doc.status))).length;
@@ -63,7 +66,8 @@ export const SpmbDashboard: React.FC = () => {
 
       <section className="bg-white border rounded-lg p-5 sm:p-6"><div className="flex items-center justify-between mb-5"><div><h2 className="font-bold text-lg">Tahapan Pendaftaran</h2><p className="text-sm text-slate-600">Selesaikan empat tahap berikut sebelum panitia memulai pemeriksaan.</p></div></div><ol className="grid sm:grid-cols-4 gap-3">{tasks.map(({ title, detail, done }, index) => <li key={title} className={`min-w-0 border rounded-lg p-4 ${done ? "border-emerald-200 bg-emerald-50/60" : "border-slate-200"}`}><div className={`w-8 h-8 rounded-full grid place-items-center text-sm font-bold ${done ? "bg-emerald-700 text-white" : "bg-slate-100 text-slate-500"}`}>{done ? <CheckCircle2 className="w-4 h-4" /> : index + 1}</div><p className="text-sm font-bold mt-3">{title.replace(/^\d\. /, "")}</p><p className="text-xs text-slate-600 mt-1">{detail}</p></li>)}</ol></section>
 
-      <section><h2 className="font-bold text-lg mb-3">Yang Perlu Diselesaikan</h2><div className="grid sm:grid-cols-2 gap-4">{tasks.map(({ to,title,detail,icon:Icon,done }) => <Link key={to} to={to} className="bg-white border rounded-lg p-5 flex items-center gap-4 hover:border-emerald-300 hover:shadow-sm"><div className={`w-11 h-11 rounded-md grid place-items-center shrink-0 ${done ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}><Icon className="w-5 h-5" /></div><div className="min-w-0 flex-1"><p className="font-bold">{title}</p><p className="text-sm text-slate-600 mt-1">{detail}</p></div><ArrowRight className="w-4 h-4 text-slate-400" /></Link>)}</div></section>
+      <section><div className="mb-3 flex flex-wrap items-end justify-between gap-3"><div><h2 className="font-bold text-lg">Yang Perlu Diselesaikan</h2><p className="mt-1 text-sm text-slate-600">Data dapat disunting selama masih draf atau panitia meminta perbaikan.</p></div>{canEditData ? <Link to="/spmb/form" className="inline-flex h-10 items-center gap-2 rounded-md border border-emerald-300 px-4 text-sm font-semibold text-emerald-800 hover:bg-emerald-50"><PenLine className="h-4 w-4" />Edit data pendaftaran</Link> : <span className="rounded-md bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-600">Data sedang diproses panitia</span>}</div><div className="grid sm:grid-cols-2 gap-4">{tasks.map(({ to,title,detail,icon:Icon,done }) => <Link key={to} to={to} className="bg-white border rounded-lg p-5 flex items-center gap-4 hover:border-emerald-300 hover:shadow-sm"><div className={`w-11 h-11 rounded-md grid place-items-center shrink-0 ${done ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}><Icon className="w-5 h-5" /></div><div className="min-w-0 flex-1"><p className="font-bold">{title}</p><p className="text-sm text-slate-600 mt-1">{detail}</p></div><ArrowRight className="w-4 h-4 text-slate-400" /></Link>)}</div></section>
+      <section className="rounded-lg border bg-white p-5"><h2 className="flex items-center gap-2 font-bold text-lg"><PenLine className="h-5 w-5 text-emerald-700" />Riwayat Perbaikan Data</h2><p className="mt-1 text-sm text-slate-600">Untuk keamanan, riwayat hanya menunjukkan bagian yang diperbarui, bukan nilai data pribadi.</p><div className="mt-4 space-y-3">{editLogs.map((item, index) => <div key={`${item.created_at}-${index}`} className="border-l-2 border-emerald-200 pl-3"><p className="text-sm font-semibold">{item.actor_kind === "admin" ? "Diperbarui panitia" : "Diperbarui oleh Anda"}</p><p className="mt-1 text-xs text-slate-500">{formatAdmissionDate(item.created_at, true, applicant.learning_timezone || "Asia/Jakarta")}</p><p className="mt-1 text-xs text-slate-600">{(item.changed_fields || []).map((field: string) => field.replaceAll("_", " ")).join(", ")}</p></div>)}{editLogs.length === 0 && <p className="text-sm text-slate-500">Belum ada perbaikan data.</p>}</div></section>
     </div>
   );
 };
