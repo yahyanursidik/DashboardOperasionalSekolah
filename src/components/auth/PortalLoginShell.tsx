@@ -1,6 +1,8 @@
 import React from "react";
 import {
   ArrowRight,
+  ChevronLeft,
+  ChevronRight,
   Eye,
   EyeOff,
   Loader2,
@@ -9,6 +11,15 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useSystemSettings } from "../../app/providers/SettingsProvider";
+
+const SCHOOL_LOGIN_HERO_IMAGES = [
+  "/images/login-slideshow/classroom-learning-01.jpg",
+  "/images/login-slideshow/classroom-learning-02.jpg",
+  "/images/login-slideshow/classroom-learning-03.jpg",
+  "/images/login-slideshow/classroom-learning-04.jpg",
+  "/images/login-slideshow/classroom-learning-05.jpg",
+  "/images/login-slideshow/classroom-learning-06.jpg",
+] as const;
 
 export type PortalAccent = "emerald" | "blue" | "amber" | "violet" | "rose" | "cyan";
 
@@ -91,26 +102,26 @@ export function PortalLoginShell({
 }) {
   const { appName, logoUrl, loginCoverUrl } = useSystemSettings();
   const tone = accents[accent];
-  const coverUrl = loginCoverUrl || "/images/portal-login-school.png";
+  const heroImages = React.useMemo(
+    () => loginCoverUrl
+      ? [loginCoverUrl, ...SCHOOL_LOGIN_HERO_IMAGES.filter((image) => image !== loginCoverUrl)]
+      : [...SCHOOL_LOGIN_HERO_IMAGES],
+    [loginCoverUrl],
+  );
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-slate-100 p-3 text-slate-950 sm:p-6 lg:grid lg:place-items-center">
       <div
         aria-hidden="true"
-        className="portal-login-scene absolute inset-0 bg-cover bg-center opacity-[0.12] lg:hidden"
-        style={{ backgroundImage: `url(${coverUrl})` }}
-      />
+        className="absolute inset-0 opacity-[0.12] lg:hidden"
+      ><LoginHeroSlideshow images={heroImages} /></div>
       <div aria-hidden="true" className="absolute inset-0 bg-slate-100/90 lg:hidden" />
 
       <div className="portal-login-card relative mx-auto grid min-h-[calc(100vh-1.5rem)] w-full max-w-5xl overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl sm:min-h-0 lg:grid-cols-[0.92fr_1.08fr]">
         <section
           className={`relative hidden min-h-[650px] overflow-hidden p-10 text-white lg:flex lg:flex-col lg:justify-between ${tone.panel}`}
         >
-          <div
-            aria-hidden="true"
-            className="portal-login-scene absolute inset-0 bg-cover bg-center"
-            style={{ backgroundImage: `url(${coverUrl})` }}
-          />
+          <div className="absolute inset-0"><LoginHeroSlideshow images={heroImages} controls /></div>
           <div aria-hidden="true" className={`absolute inset-0 ${tone.overlay}`} />
           <div className="relative">
             <BrandMark logoUrl={logoUrl} appName={appName} icon={Icon} />
@@ -126,10 +137,7 @@ export function PortalLoginShell({
 
         <section className="relative flex min-w-0 flex-col justify-start overflow-hidden px-5 py-7 sm:px-10 sm:py-10 lg:justify-center lg:px-14">
           <div aria-hidden="true" className="absolute inset-x-0 top-0 h-28 overflow-hidden lg:hidden">
-            <div
-              className="portal-login-scene absolute inset-0 bg-cover bg-center"
-              style={{ backgroundImage: `url(${coverUrl})` }}
-            />
+            <LoginHeroSlideshow images={heroImages} />
             <div className={`absolute inset-0 ${tone.overlay}`} />
           </div>
 
@@ -173,6 +181,75 @@ export function PortalLoginShell({
         </section>
       </div>
     </main>
+  );
+}
+
+function LoginHeroSlideshow({ images, controls = false }: { images: readonly string[]; controls?: boolean }) {
+  const [activeIndex, setActiveIndex] = React.useState(0);
+  const [reduceMotion, setReduceMotion] = React.useState(false);
+  const slideKey = images.join("|");
+
+  React.useEffect(() => {
+    setActiveIndex(0);
+  }, [slideKey]);
+
+  React.useEffect(() => {
+    const query = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const updatePreference = () => setReduceMotion(query.matches);
+    updatePreference();
+    query.addEventListener("change", updatePreference);
+    return () => query.removeEventListener("change", updatePreference);
+  }, []);
+
+  React.useEffect(() => {
+    if (reduceMotion || images.length < 2) return undefined;
+    const timer = window.setInterval(() => {
+      setActiveIndex((current) => (current + 1) % images.length);
+    }, 6500);
+    return () => window.clearInterval(timer);
+  }, [images.length, reduceMotion]);
+
+  const move = (direction: -1 | 1) => {
+    setActiveIndex((current) => (current + direction + images.length) % images.length);
+  };
+
+  return (
+    <div className="absolute inset-0 overflow-hidden">
+      {images.map((image, index) => (
+        <img
+          key={image}
+          src={image}
+          alt=""
+          aria-hidden="true"
+          loading={index === 0 ? "eager" : "lazy"}
+          className={`portal-login-scene absolute inset-0 h-full w-full object-cover transition-opacity duration-700 motion-reduce:transition-none ${index === activeIndex ? "opacity-100" : "opacity-0"}`}
+        />
+      ))}
+      {controls && images.length > 1 && (
+        <>
+          <div className="absolute right-5 top-5 z-10 flex gap-2">
+            <button type="button" onClick={() => move(-1)} aria-label="Foto sebelumnya" className="flex h-9 w-9 items-center justify-center rounded-full border border-white/30 bg-slate-950/30 text-white transition hover:bg-slate-950/55 focus:outline-none focus:ring-2 focus:ring-white">
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+            <button type="button" onClick={() => move(1)} aria-label="Foto berikutnya" className="flex h-9 w-9 items-center justify-center rounded-full border border-white/30 bg-slate-950/30 text-white transition hover:bg-slate-950/55 focus:outline-none focus:ring-2 focus:ring-white">
+              <ChevronRight className="h-5 w-5" />
+            </button>
+          </div>
+          <div className="absolute bottom-5 right-5 z-10 flex gap-1.5" aria-label="Pilih foto hero">
+            {images.map((image, index) => (
+              <button
+                key={image}
+                type="button"
+                onClick={() => setActiveIndex(index)}
+                aria-label={`Tampilkan foto ${index + 1}`}
+                aria-current={index === activeIndex ? "true" : undefined}
+                className={`h-1.5 rounded-full transition-all focus:outline-none focus:ring-2 focus:ring-white ${index === activeIndex ? "w-6 bg-white" : "w-2 bg-white/55 hover:bg-white/85"}`}
+              />
+            ))}
+          </div>
+        </>
+      )}
+    </div>
   );
 }
 

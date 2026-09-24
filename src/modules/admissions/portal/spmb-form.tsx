@@ -11,6 +11,8 @@ import { LearningTimezoneFields } from "../components/learning-timezone-fields";
 import { IndonesiaDomicileSuggest } from "../components/indonesia-domicile-suggest";
 import { admissionEntryTypeMeta, entryTypeLabel, isAdmissionQuotaSchemaError } from "../quota-utils";
 import { useSpmbPortal } from "./spmb-context";
+import { PreschoolOnsiteHero } from "./preschool-onsite-hero";
+import { PreschoolHblHero } from "./preschool-hbl-hero";
 
 const db = supabaseClient as any;
 const publicDb = supabasePublicClient as any;
@@ -327,6 +329,9 @@ export const SpmbForm: React.FC = () => {
           <p className="text-sm mt-1">{selectedOption.remaining_count} dari {selectedOption.quota} kursi masih tersedia.{Number(selectedOption.remaining_count) <= 0 && selectedOption.allow_waitlist ? " Formulir tetap dapat dikirim sebagai antrean; penerimaan menunggu kursi tersedia." : ""}</p>
         </div>
       </div>}
+
+      {selectedOption && programProfile.kind === "preschool_onsite" && <PreschoolOnsiteHero />}
+      {selectedOption && programProfile.kind === "preschool_hbl" && <PreschoolHblHero />}
 
       {requiresLearningTimezone && <LearningTimezoneFields
         idPrefix="spmb-learning"
