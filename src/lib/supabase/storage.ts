@@ -31,19 +31,19 @@ async function callStorageApi(body: Record<string, unknown>) {
 
 export const isContaboStoragePath = (value?: string | null) => String(value || "").startsWith("s3://");
 
-export const uploadDocument = async (file: File, folder: string) => {
+export const uploadDocument = async (file: File, folder: string, contentType = file.type || "application/octet-stream") => {
   const signed = await callStorageApi({
     action: "create_upload",
     folder,
     fileName: file.name,
-    contentType: file.type || "application/octet-stream",
+    contentType,
     fileSize: file.size,
   });
   if (!signed.uploadUrl || !signed.storedPath) throw new Error("URL unggah tidak diterima dari server.");
 
   const uploadResponse = await fetch(signed.uploadUrl, {
     method: "PUT",
-    headers: { "Content-Type": file.type || "application/octet-stream" },
+    headers: { "Content-Type": contentType },
     body: file,
   });
   if (!uploadResponse.ok) throw new Error(`Contabo menolak unggahan (${uploadResponse.status}).`);
@@ -51,7 +51,7 @@ export const uploadDocument = async (file: File, folder: string) => {
   return {
     filePath: signed.storedPath,
     fileName: file.name,
-    mimeType: file.type,
+    mimeType: contentType,
     fileSize: file.size,
   };
 };
