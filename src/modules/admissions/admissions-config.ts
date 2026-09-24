@@ -39,7 +39,7 @@ export const admissionDocumentTypes = [
   { value: "photo", label: "Pas Foto", required: true },
   { value: "health_record", label: "Kartu imunisasi / catatan kesehatan", required: false },
   { value: "previous_report", label: "Rapor / laporan perkembangan terakhir", required: false },
-  { value: "home_learning_commitment", label: "Surat komitmen Homebased Learning", required: false },
+  { value: "home_learning_commitment", label: "Surat komitmen program", required: true },
   { value: "transfer_letter", label: "Surat pindah (khusus siswa pindahan)", required: false },
 ] as const;
 
@@ -67,7 +67,7 @@ export const isRequiredAdmissionDocument = (documentType: string, context?: Admi
   const entryType = typeof context === "string" ? context : context?.entry_type;
   if (documentType === "transfer_letter") return entryType === "transfer";
   if (documentType === "previous_report") return entryType === "transfer" || isElementaryApplicant(context);
-  if (documentType === "home_learning_commitment") return isHblApplicant(context);
+  if (documentType === "home_learning_commitment") return true;
   if (documentType === "health_record") return isPreschoolApplicant(context);
   return admissionDocumentTypes.some((document) => document.value === documentType && document.required);
 };
