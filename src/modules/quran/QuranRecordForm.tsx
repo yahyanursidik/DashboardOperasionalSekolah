@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useForm } from "@refinedev/react-hook-form";
+import { useForm } from "@/lib/refine-hook-form-compat";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { useSelect, useList } from "@refinedev/core";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useSelect, useList } from "@/lib/refine-compat";
+import { useNavigate, useParams, useSearchParams } from "react-router";
 import { ArrowLeft, Award, BookOpen, CheckCircle, FileText, ShieldCheck, Target, Users } from "lucide-react";
 import { useAcademicYear } from "../../app/providers/AcademicYearProvider";
 import { PageHeader } from "../../components/layout/PageHeader";

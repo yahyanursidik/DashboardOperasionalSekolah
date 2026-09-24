@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { useList, useUpdate } from "@refinedev/core";
-import { useNavigate, Link } from "react-router-dom";
+import { useList, useUpdate } from "@/lib/refine-compat";
+import { useNavigate, Link } from "react-router";
 import { Plus, CheckSquare, Clock, AlertCircle, LayoutGrid, List as ListIcon, Calendar, Filter } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
 

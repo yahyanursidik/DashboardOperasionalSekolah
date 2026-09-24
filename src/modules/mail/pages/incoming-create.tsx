@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState } from "react";
-import { useForm, useGetIdentity, useList } from "@refinedev/core";
-import { useNavigate } from "react-router-dom";
+import { useForm, useGetIdentity, useList } from "@/lib/refine-compat";
+import { useNavigate } from "react-router";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { ArrowLeft, Paperclip, Save } from "lucide-react";
 import { useCurrentUnit } from "../../../app/providers/UnitProvider";

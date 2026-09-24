@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router";
 import { AlertTriangle, ArrowLeft, CheckCircle2, FileUp, Loader2, Save, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "../../components/layout/PageHeader";

@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
-import { useList, useDelete } from "@refinedev/core";
-import { Link, useSearchParams } from "react-router-dom";
+import { useList, useDelete } from "@/lib/refine-compat";
+import { Link, useSearchParams } from "react-router";
 import { AlertTriangle, BarChart3, CheckCircle2, ClipboardCheck, Edit, FileText, Filter, Plus, Search, Target, Trash2 } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { useAcademicYear } from "../../../app/providers/AcademicYearProvider";

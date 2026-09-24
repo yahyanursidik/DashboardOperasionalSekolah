@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
-import { useList, useDelete, useOne } from "@refinedev/core";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useList, useDelete, useOne } from "@/lib/refine-compat";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import {
   AlertTriangle,

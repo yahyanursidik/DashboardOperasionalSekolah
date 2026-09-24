@@ -1,6 +1,6 @@
 /* Hallmark · pre-emit critique: P5 H5 E5 S5 R5 V4 */
 import React, { useMemo, useState } from "react";
-import { useList } from "@refinedev/core";
+import { useList } from "@/lib/refine-compat";
 import {
   AlertTriangle,
   BarChart3,

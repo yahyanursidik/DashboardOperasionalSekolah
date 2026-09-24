@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
-import { useSelect } from "@refinedev/core";
-import { Link, Outlet, useLocation } from "react-router-dom";
+import { useSelect } from "@/lib/refine-compat";
+import { Link, Outlet, useLocation } from "react-router";
 import type { LucideIcon } from "lucide-react";
 import {
   Bell,

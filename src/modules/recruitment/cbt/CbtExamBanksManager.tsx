@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
-import { useCreate, useDelete, useList, useOne } from "@refinedev/core";
-import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import { useCreate, useDelete, useList, useOne } from "@/lib/refine-compat";
+import { Link, useLocation, useNavigate, useParams } from "react-router";
 import { AlertTriangle, ArrowLeft, CheckCircle2, Database, FileQuestion, Plus, Trash2 } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { Modal } from "../../../components/common/Modal";

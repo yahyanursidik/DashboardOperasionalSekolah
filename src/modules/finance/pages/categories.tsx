@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useList, useCreate, useUpdate } from "@refinedev/core";
+import { useList, useCreate, useUpdate } from "@/lib/refine-compat";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { Tag, Plus, Edit, Trash2, Repeat, CheckCircle, X } from "lucide-react";
 import { useCurrentUnit } from "../../../app/providers/UnitProvider";

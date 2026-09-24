@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
 import React, { useEffect, useState } from "react";
 import { AlertCircle, ArrowLeft, CheckCircle2, Copy, CreditCard, ExternalLink, Loader2, RefreshCw, UploadCloud } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { toast } from "sonner";
 import { useSystemSettings } from "../../../app/providers/SettingsProvider";
 import { supabaseClient } from "../../../lib/supabase/client";

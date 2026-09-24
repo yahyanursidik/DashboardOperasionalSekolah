@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useMemo, useState } from "react";
-import { useOutletContext, Link } from "react-router-dom";
+import { useOutletContext, Link } from "react-router";
 import { supabaseClient } from "../../lib/supabase/client";
 import { Calendar, Clock, BookOpen, ChevronRight, UserCheck, BarChart3, CalendarCheck, FileText, Megaphone, ListTodo } from "lucide-react";
 import { useAcademicYear } from "../../app/providers/AcademicYearProvider";

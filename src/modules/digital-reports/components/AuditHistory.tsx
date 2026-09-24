@@ -1,5 +1,5 @@
 import React from "react";
-import { useList } from "@refinedev/core";
+import { useList } from "@/lib/refine-compat";
 import { History, FileText, Edit, Activity } from "lucide-react";
 
 interface AuditHistoryProps {

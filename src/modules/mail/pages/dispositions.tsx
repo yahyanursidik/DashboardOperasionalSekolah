@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState } from "react";
-import { useList, useTable, useUpdate } from "@refinedev/core";
-import { Link } from "react-router-dom";
+import { useList, useTable, useUpdate } from "@/lib/refine-compat";
+import { Link } from "react-router";
 import { CalendarClock, CheckCircle2, Clock3, FileSignature, Loader2, MessageSquareText, Workflow } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "../../../components/layout/PageHeader";

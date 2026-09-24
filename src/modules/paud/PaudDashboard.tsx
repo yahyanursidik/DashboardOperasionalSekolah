@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React from "react";
-import { useList } from "@refinedev/core";
-import { Link } from "react-router-dom";
+import { useList } from "@/lib/refine-compat";
+import { Link } from "react-router";
 import {
   AlertTriangle,
   ArrowRight,

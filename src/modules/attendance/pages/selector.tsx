@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { useSelect } from "@refinedev/core";
-import { useNavigate } from "react-router-dom";
+import { useSelect } from "@/lib/refine-compat";
+import { useNavigate } from "react-router";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { CalendarCheck, ArrowRight, Building, Users } from "lucide-react";
 import { useCurrentUnit } from "../../../app/providers/UnitProvider";

@@ -1,8 +1,8 @@
 import React from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { GraduationCap, BookOpen, FileText, FileBadge, TrendingUp, Users } from "lucide-react";
-import { useList } from "@refinedev/core";
+import { useList } from "@/lib/refine-compat";
 
 export const AcademicDashboard: React.FC = () => {
   const { data: students } = useList({ resource: "students", pagination: { mode: "off" } });

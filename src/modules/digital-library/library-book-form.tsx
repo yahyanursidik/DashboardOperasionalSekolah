@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, BookOpen, CheckCircle2, FileText, Image, Loader2, Save, UploadCloud } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { supabaseClient } from "../../lib/supabase/client";

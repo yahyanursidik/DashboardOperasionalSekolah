@@ -1,12 +1,12 @@
 import React, { useState } from "react";
-import { useTable } from "@refinedev/react-table";
+import { useTable } from "@/lib/refine-react-table-compat";
 import { flexRender } from "@tanstack/react-table";
 import type { ColumnDef } from "@tanstack/react-table";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { Eye, Edit, Plus, Users, Search, Filter } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
-import { Link } from "react-router-dom";
-import { useSelect } from "@refinedev/core";
+import { Link } from "react-router";
+import { useSelect } from "@/lib/refine-compat";
 
 export const TeachersList: React.FC = () => {
   const navigate = useNavigate();

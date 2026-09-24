@@ -20,7 +20,7 @@ import {
   UserRoundCheck,
   X,
 } from "lucide-react";
-import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router";
 import { toast } from "sonner";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { supabaseClient } from "../../../lib/supabase/client";

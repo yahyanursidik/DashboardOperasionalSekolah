@@ -1,6 +1,6 @@
 import React from "react";
-import { useList } from "@refinedev/core";
-import { Link, useLocation } from "react-router-dom";
+import { useList } from "@/lib/refine-compat";
+import { Link, useLocation } from "react-router";
 import { BadgeDollarSign, BarChart3, BookOpenCheck, Building2, CalendarDays, CheckCircle2, CreditCard, Landmark, ReceiptText, Settings2, WalletCards } from "lucide-react";
 import { getFinanceBasePath } from "../finance-utils";
 import { useCurrentUnit } from "../../../app/providers/UnitProvider";

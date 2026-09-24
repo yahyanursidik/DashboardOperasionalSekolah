@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, CheckCircle2, Loader2, Save } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { toast } from "sonner";
 import { supabaseClient } from "../../../lib/supabase/client";
 import { getAdmissionProgramProfile, getAdmissionReadinessQuestions } from "../admission-program-profile";

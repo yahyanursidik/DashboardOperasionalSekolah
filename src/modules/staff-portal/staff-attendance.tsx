@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React from "react";
-import { useOutletContext } from "react-router-dom";
+import { useOutletContext } from "react-router";
 import { EmployeeSelfAttendance } from "../attendance/components/employee-self-attendance";
 
 export const StaffAttendance: React.FC = () => {

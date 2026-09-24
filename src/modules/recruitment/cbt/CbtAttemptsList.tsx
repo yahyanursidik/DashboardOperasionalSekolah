@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { Link, useLocation } from "react-router-dom";
-import { useTable, useDelete, useList, useCreate } from "@refinedev/core";
+import { Link, useLocation } from "react-router";
+import { useTable, useDelete, useList, useCreate } from "@/lib/refine-compat";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { Trash2, User, Clock, CheckCircle2, XCircle, Plus, Eye, Search, ChevronLeft, ChevronRight, FileText, Filter } from "lucide-react";
 import { Modal } from "../../../components/common/Modal";

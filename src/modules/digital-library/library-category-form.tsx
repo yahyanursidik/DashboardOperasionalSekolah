@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { ArrowLeft, FolderTree, Loader2, Save } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { supabaseClient } from "../../lib/supabase/client";

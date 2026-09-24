@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useState } from "react";
-import { useShow, useUpdate, useGetIdentity } from "@refinedev/core";
+import { useShow, useUpdate, useGetIdentity } from "@/lib/refine-compat";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { ArrowLeft, CheckCircle2, AlertTriangle, Download, ExternalLink, ShieldCheck } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { getDocumentSignedUrl } from "../../../lib/supabase/storage";
 import { AuditHistory } from "../../../components/common/AuditHistory";
 import { OfficeSectionNav } from "../../mail/components/OfficeSectionNav";

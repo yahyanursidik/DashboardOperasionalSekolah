@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { useForm, useSelect } from "@refinedev/core";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useForm, useSelect } from "@/lib/refine-compat";
+import { useNavigate, useLocation } from "react-router";
 import { Save, ArrowLeft, User, GraduationCap, Briefcase, Info } from "lucide-react";
 import { attendanceModeOptions, canFollowWorkSchedule, canUseTeachingScheduleAttendance, employeePositions, employmentTypeOptions, getAttendanceMode, getEmployeePosition, getRecommendedAttendanceMode } from "../employee-role-config";
 import { PhotoUpload } from "../../../components/common/PhotoUpload";

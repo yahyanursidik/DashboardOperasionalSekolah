@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
 import React, { useEffect, useMemo, useState } from "react";
-import { useOutletContext } from "react-router-dom";
+import { useOutletContext } from "react-router";
 import { supabaseClient } from "../../lib/supabase/client";
 import { Award, BookOpen, CheckCircle, ClipboardCheck, Info, ShieldCheck, Target, Users } from "lucide-react";
 import { useAcademicYear } from "../../app/providers/AcademicYearProvider";

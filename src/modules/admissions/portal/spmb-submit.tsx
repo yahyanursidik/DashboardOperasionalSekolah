@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useMemo, useState } from "react";
 import { AlertCircle, ArrowLeft, CheckCircle2, Loader2, Send } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router";
 import { toast } from "sonner";
 import { sendNotificationEmail } from "../../../lib/email";
 import { supabaseClient } from "../../../lib/supabase/client";

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { useOutletContext } from "react-router-dom";
-import { useList, useCreate } from "@refinedev/core";
+import { useOutletContext } from "react-router";
+import { useList, useCreate } from "@/lib/refine-compat";
 import { Target, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 

@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
-import { useCreate, useDelete, useList, useUpdate } from "@refinedev/core";
+import { Link, useLocation } from "react-router";
+import { useCreate, useDelete, useList, useUpdate } from "@/lib/refine-compat";
 import { AlertTriangle, BarChart3, BookOpen, CheckCircle2, Edit, FileText, Filter, Plus, Search, Settings, Trash2, Users } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { EmptyState } from "../../../components/common/EmptyState";

@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { useList, useGetIdentity } from "@refinedev/core";
+import { useList, useGetIdentity } from "@/lib/refine-compat";
 import { Target, Calendar, Award, Receipt, ArrowRight, Clock, CheckCircle2, User } from "lucide-react";
 import { supabaseClient } from "../../../lib/supabase/client";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 
 export const ExtracurricularPortalDashboard: React.FC = () => {
   const { data: identity } = useGetIdentity<any>();

@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useMemo, useState } from "react";
-import { useList } from "@refinedev/core";
-import { Link, useNavigate } from "react-router-dom";
+import { useList } from "@/lib/refine-compat";
+import { Link, useNavigate } from "react-router";
 import {
   AlertCircle,
   ArrowLeft,

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router";
 import { Target, Loader2, CheckCircle2 } from "lucide-react";
 import { supabaseClient as supabase } from "../../../lib/supabase/client";
 import { toast } from "sonner";

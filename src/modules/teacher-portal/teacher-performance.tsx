@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useOutletContext } from "react-router-dom";
+import { useOutletContext } from "react-router";
 import { BarChart3, CalendarDays, CheckCircle2, ClipboardCheck, Loader2, Target } from "lucide-react";
 import { toast } from "sonner";
 import { supabaseClient } from "../../lib/supabase/client";

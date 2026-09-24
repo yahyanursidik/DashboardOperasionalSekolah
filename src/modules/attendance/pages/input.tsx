@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { useParams, useSearchParams, useNavigate } from "react-router-dom";
-import { useOne, useList, useGetIdentity } from "@refinedev/core";
+import { useParams, useSearchParams, useNavigate } from "react-router";
+import { useOne, useList, useGetIdentity } from "@/lib/refine-compat";
 import { supabaseClient } from "../../../lib/supabase/client";
 import { ArrowLeft, Save, Users, CalendarCheck, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
@@ -71,7 +71,7 @@ export const AttendanceInput: React.FC = () => {
   useEffect(() => {
     if (studentsData?.data && existingRecordsData?.data) {
       const initial: Record<string, LocalAttendanceRecord> = {};
-      const existingMap = new Map(existingRecordsData.data.map((r: any) => [r.student_id, r]));
+      const existingMap = new Map<string, any>(existingRecordsData.data.map((r: any) => [r.student_id, r]));
 
       studentsData.data.forEach((student: any) => {
         const existing = existingMap.get(student.id);

@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/set-state-in-effect */
 import React from "react";
-import { useOutletContext } from "react-router-dom";
+import { useOutletContext } from "react-router";
 import {
   BookOpen,
   Camera,

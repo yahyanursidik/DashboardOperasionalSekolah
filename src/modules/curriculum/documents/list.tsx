@@ -1,9 +1,9 @@
 import React, { useState } from "react";
-import { useTable } from "@refinedev/react-table";
-import { useList, useDelete } from "@refinedev/core";
+import { useTable } from "@/lib/refine-react-table-compat";
+import { useList, useDelete } from "@/lib/refine-compat";
 import { flexRender } from "@tanstack/react-table";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { toast } from "sonner";
 import { FileText, Plus, Trash2, ArrowLeft, ExternalLink, Download } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
@@ -145,7 +145,7 @@ export const CurriculumDocumentsList: React.FC = () => {
     [deleteDocument]
   );
 
-  const filters = [];
+  const filters: Array<{ field: string; operator: string; value: string }> = [];
   if (activeUnitId) filters.push({ field: "subjects.unit_id", operator: "eq", value: activeUnitId }); // Note: requires subjects relation to filter properly if document is tied to subject. For general docs, this might filter them out. We might need client-side filtering if they are global.
   if (filterType) filters.push({ field: "document_type", operator: "eq", value: filterType });
   if (filterSubject) filters.push({ field: "subject_id", operator: "eq", value: filterSubject });

@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useMemo, useState } from "react";
-import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { Link, Outlet, useLocation, useNavigate } from "react-router";
 import { Bell, BookOpenCheck, Calendar, CalendarCheck, FileWarning, Home, Library, ListTodo, LogOut, Menu, PanelLeftClose, PanelLeftOpen, UserRound, Wallet, X } from "lucide-react";
 import { useSystemSettings } from "../../app/providers/SettingsProvider";
 import { supabaseClient } from "../../lib/supabase/client";

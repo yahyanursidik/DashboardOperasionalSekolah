@@ -1,7 +1,7 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import React, { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, BookOpen, CheckCircle2, ChevronLeft, ChevronRight, Edit, ExternalLink, Filter, Library, Loader2, Plus, Search, Star, Trash2, Users } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { toast } from "sonner";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { supabaseClient } from "../../lib/supabase/client";

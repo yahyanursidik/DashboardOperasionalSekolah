@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { StoredImage } from "../../../components/common/StoredImage";
-import { useShow, useList, useDelete } from "@refinedev/core";
+import { useShow, useList, useDelete } from "@/lib/refine-compat";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import {
   User,
@@ -39,7 +39,7 @@ import {
   Mail,
 } from "lucide-react";
 import { AuditHistory } from "../../../components/common/AuditHistory";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router";
 import { calculateCompleteness, getStudentQualitySummary } from "./list";
 import { timeZoneLabel } from "../../../lib/timezones";
 import { ParentForm } from "../../parents/components/parent-form";

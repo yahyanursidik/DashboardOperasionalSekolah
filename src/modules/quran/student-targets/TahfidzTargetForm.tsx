@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { useForm, useList } from "@refinedev/core";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useForm, useList } from "@/lib/refine-compat";
+import { useNavigate, useParams, useSearchParams } from "react-router";
 import { ArrowLeft, Award, BookOpen, CheckCircle2, ClipboardCheck, Save, ShieldCheck, Target, Users } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { useAcademicYear } from "../../../app/providers/AcademicYearProvider";

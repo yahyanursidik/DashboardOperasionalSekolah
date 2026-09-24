@@ -1,8 +1,8 @@
 import React, { useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { AlertTriangle, BookOpen, Briefcase, CheckCircle2, Clock, FileText, UserCheck, Users, UserX } from "lucide-react";
-import { useList } from "@refinedev/core";
+import { useList } from "@/lib/refine-compat";
 import {
   formatPosition,
   formatRecruitmentDate,

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useList, useCreate, useUpdate } from "@refinedev/core";
+import { useList, useCreate, useUpdate } from "@/lib/refine-compat";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { CheckSquare, Loader2, Save } from "lucide-react";
 import { toast } from "sonner";
@@ -68,7 +68,7 @@ export const AttendanceList: React.FC = () => {
     // Refine's useCreate can take an array of values if backend bulk inserts are supported, otherwise we map.
     // Let's assume we need to update existing ones and create new ones.
     
-    let promises = [];
+    const promises: Promise<unknown>[] = [];
     
     for (const memberId of Object.keys(attendanceForm)) {
       const record = attendanceForm[memberId];

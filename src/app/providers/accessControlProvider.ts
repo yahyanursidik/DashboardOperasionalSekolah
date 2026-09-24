@@ -1,4 +1,4 @@
-import type { AccessControlProvider } from "@refinedev/core";
+import type { AccessControlProvider } from "@/lib/refine-compat";
 import { canAccessResource } from "../../lib/permissions";
 import type { UserRoleScope } from "../../lib/permissions";
 import { supabaseClient } from "../../lib/supabase/client";

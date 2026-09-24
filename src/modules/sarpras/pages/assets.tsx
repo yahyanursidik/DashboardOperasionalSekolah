@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect } from "react";
-import { useTable, useCreate, useUpdate, useDelete, useList } from "@refinedev/core";
+import { useTable, useCreate, useUpdate, useDelete, useList } from "@/lib/refine-compat";
 import { 
   Plus, Edit as EditIcon, Trash2, Package, X, 
   Search, Filter, Eye, ChevronLeft, ChevronRight, 

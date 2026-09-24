@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useState } from "react";
 import { ContactRound, FileBarChart, LayoutDashboard, LogOut, Menu, Settings, Users, X } from "lucide-react";
-import { Link, Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { Link, Navigate, Outlet, useLocation, useNavigate } from "react-router";
 import { BrandLogo } from "../../components/common/BrandLogo";
 import { supabaseClient } from "../../lib/supabase/client";
 

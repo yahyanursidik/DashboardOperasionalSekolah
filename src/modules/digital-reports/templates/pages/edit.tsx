@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router";
 import { ArrowLeft, Save, Plus, Trash2, Settings, List, GripVertical, AlertCircle } from "lucide-react";
-import { useSelect, useShow } from "@refinedev/core";
+import { useSelect, useShow } from "@/lib/refine-compat";
 import { useCurrentUnit } from "../../../../app/providers/UnitProvider";
 import { supabaseClient } from "../../../../lib/supabase/client";
 import { toast } from "sonner";
-import { useGetIdentity } from "@refinedev/core";
+import { useGetIdentity } from "@/lib/refine-compat";
 import { logAudit } from "../../../../lib/audit";
 
 type FormValues = {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { useShow, useList, useGetIdentity } from "@refinedev/core";
-import { useParams, useNavigate } from "react-router-dom";
+import { useShow, useList, useGetIdentity } from "@/lib/refine-compat";
+import { useParams, useNavigate } from "react-router";
 import { ArrowLeft, Loader2, CheckCircle, Heart, FileText, Download, Award, User, Clock, AlertCircle } from "lucide-react";
 import { supabaseClient } from "../../../../lib/supabase/client";
 import { toast } from "sonner";

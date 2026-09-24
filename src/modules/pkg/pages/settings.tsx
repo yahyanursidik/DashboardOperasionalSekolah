@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useList, useCreate, useUpdate, useDelete } from "@refinedev/core";
+import { useList, useCreate, useUpdate, useDelete } from "@/lib/refine-compat";
 import { toast } from "sonner";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import {

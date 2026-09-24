@@ -1,9 +1,9 @@
 import React from "react";
-import { useDelete } from "@refinedev/core";
-import { useTable } from "@refinedev/react-table";
+import { useDelete } from "@/lib/refine-compat";
+import { useTable } from "@/lib/refine-react-table-compat";
 import { flexRender } from "@tanstack/react-table";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -148,7 +148,7 @@ export const PaudThemeList: React.FC = () => {
     [deleteTheme, navigate],
   );
 
-  const filters = [];
+  const filters: Array<{ field: string; operator: string; value: string }> = [];
   if (activeUnitId) filters.push({ field: "unit_id", operator: "eq", value: activeUnitId });
 
   const { getHeaderGroups, getRowModel } = useTable({

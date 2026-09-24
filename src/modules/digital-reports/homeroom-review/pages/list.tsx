@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
-import { useList, useGetIdentity } from "@refinedev/core";
-import { useNavigate } from "react-router-dom";
+import { useList, useGetIdentity } from "@/lib/refine-compat";
+import { useNavigate } from "react-router";
 import { PageHeader } from "../../../../components/layout/PageHeader";
 import { Search, UserCircle2, FilterX, Clock, Edit3, Eye, FileText, CheckCircle2, ChevronRight, AlertCircle, AlertTriangle } from "lucide-react";
 import { useCurrentUnit } from "../../../../app/providers/UnitProvider";

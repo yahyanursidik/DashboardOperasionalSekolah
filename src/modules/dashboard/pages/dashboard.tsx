@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useMemo, useState } from "react";
-import { useGetIdentity, useList, useOne } from "@refinedev/core";
-import { Link } from "react-router-dom";
+import { useGetIdentity, useList, useOne } from "@/lib/refine-compat";
+import { Link } from "react-router";
 import {
   Activity,
   AlertCircle,

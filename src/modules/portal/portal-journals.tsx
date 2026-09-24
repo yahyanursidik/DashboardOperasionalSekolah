@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useOutletContext } from "react-router-dom";
+import { useOutletContext } from "react-router";
 import { supabaseClient } from "../../lib/supabase/client";
 import { Clock, Activity, AlertTriangle, HeartPulse, Award } from "lucide-react";
 

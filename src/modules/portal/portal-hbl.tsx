@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { BookOpen, CheckCircle2, ClipboardCheck, ExternalLink, GraduationCap, Loader2, Send } from "lucide-react";
-import { useOutletContext } from "react-router-dom";
+import { useOutletContext } from "react-router";
 import { toast } from "sonner";
 import { supabaseClient } from "../../lib/supabase/client";
 import { useAcademicYear } from "../../app/providers/AcademicYearProvider";

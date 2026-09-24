@@ -1,6 +1,6 @@
 import React from "react";
-import { useList } from "@refinedev/core";
-import { Link, useLocation } from "react-router-dom";
+import { useList } from "@/lib/refine-compat";
+import { Link, useLocation } from "react-router";
 import { Archive, Building2, ClipboardCheck, FileCog, Gauge, Inbox, Send, Workflow } from "lucide-react";
 import { useCurrentUnit } from "../../../app/providers/UnitProvider";
 import { useCurrentRoles } from "../../../hooks/useAuth";

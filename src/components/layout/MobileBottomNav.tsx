@@ -1,6 +1,6 @@
 import React from "react";
-import { Link, useLocation } from "react-router-dom";
-import { useOne } from "@refinedev/core";
+import { Link, useLocation } from "react-router";
+import { useOne } from "@/lib/refine-compat";
 import { navigationConfig } from "../../config/navigation";
 import {
   getActiveNavigationHref,

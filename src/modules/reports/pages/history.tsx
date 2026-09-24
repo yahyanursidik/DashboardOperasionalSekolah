@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState } from "react";
-import { useTable } from "@refinedev/core";
+import { useTable } from "@/lib/refine-compat";
 import { FileClock, FilterX, Loader2, ShieldCheck } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { useCurrentUnit } from "../../../app/providers/UnitProvider";

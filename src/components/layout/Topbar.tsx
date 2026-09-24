@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { useLogout, useSelect } from "@refinedev/core";
+import { Link, useNavigate } from "react-router";
+import { useLogout, useSelect } from "@/lib/refine-compat";
 import {
   Bell,
   Building,

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { useList, type CrudFilters } from "@refinedev/core";
-import { Link, useLocation } from "react-router-dom";
+import { useList, type CrudFilters } from "@/lib/refine-compat";
+import { Link, useLocation } from "react-router";
 import { AlertTriangle, ArrowRight, Banknote, BookOpenCheck, CheckCircle2, Clock3, FileBarChart, ReceiptText, ShieldCheck, WalletCards } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { useCurrentUnit } from "../../../app/providers/UnitProvider";

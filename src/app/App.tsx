@@ -1,6 +1,6 @@
-import { Refine, Authenticated } from "@refinedev/core";
-import { BrowserRouter, Route, Routes, Outlet, Navigate } from "react-router-dom";
-import routerBindings, { CatchAllNavigate, NavigateToResource } from "@refinedev/react-router-v6";
+import { Refine, Authenticated } from "@/lib/refine-compat";
+import { BrowserRouter, Route, Routes, Outlet, Navigate } from "react-router";
+import routerBindings, { CatchAllNavigate, NavigateToResource } from "@refinedev/react-router";
 import { authProvider } from "../lib/supabase/auth-provider";
 import { dataProvider } from "./providers/dataProvider";
 import { LoginPage } from "../modules/auth/LoginPage";

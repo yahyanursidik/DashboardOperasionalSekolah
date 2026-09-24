@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useForm } from "@refinedev/react-hook-form";
+import { useForm } from "@/lib/refine-hook-form-compat";
 import { useWatch } from "react-hook-form";
-import { useList, useOne } from "@refinedev/core";
-import { useNavigate, useSearchParams, Link } from "react-router-dom";
+import { useList, useOne } from "@/lib/refine-compat";
+import { useNavigate, useSearchParams, Link } from "react-router";
 import { AlertTriangle, ArrowLeft, Save, FileText, CalendarDays, BookOpen, LayoutList, Layers3, ClipboardCheck } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { CurriculumFormFields } from "./components/CurriculumFormFields";

@@ -1,7 +1,7 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import React, { useEffect, useMemo, useState } from "react";
 import { BookOpen, Check, Clock3, ExternalLink, FileText, Heart, Library, Loader2, Search, Star, X } from "lucide-react";
-import { useOutletContext } from "react-router-dom";
+import { useOutletContext } from "react-router";
 import { toast } from "sonner";
 import { audienceLabel, gradeLabel, isLibraryPublished, resourceTypeLabel } from "../digital-library/library-config";
 import type { LibraryAudience, LibraryBook } from "../digital-library/library-config";

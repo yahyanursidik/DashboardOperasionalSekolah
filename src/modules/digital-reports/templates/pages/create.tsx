@@ -1,12 +1,12 @@
 import React, { useState } from "react";
 import { useForm, useFieldArray, Controller } from "react-hook-form";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { ArrowLeft, Save, Plus, Trash2, Settings, List, GripVertical } from "lucide-react";
-import { useSelect } from "@refinedev/core";
+import { useSelect } from "@/lib/refine-compat";
 import { useCurrentUnit } from "../../../../app/providers/UnitProvider";
 import { supabaseClient } from "../../../../lib/supabase/client";
 import { toast } from "sonner";
-import { useGetIdentity } from "@refinedev/core";
+import { useGetIdentity } from "@/lib/refine-compat";
 
 type FormValues = {
   name: string;

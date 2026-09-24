@@ -1,5 +1,5 @@
 import React from "react";
-import { Outlet, useLocation } from "react-router-dom";
+import { Outlet, useLocation } from "react-router";
 
 export const CbtPortalLayout: React.FC = () => {
   const location = useLocation();

@@ -1,9 +1,9 @@
 import React from "react";
-import { useForm } from "@refinedev/react-hook-form";
+import { useForm } from "@/lib/refine-hook-form-compat";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { useSelect } from "@refinedev/core";
-import { useNavigate } from "react-router-dom";
+import { useSelect } from "@/lib/refine-compat";
+import { useNavigate } from "react-router";
 import { Save, ArrowLeft, CheckSquare, Calendar, User, Building } from "lucide-react";
 import { useCurrentUnit } from "../../../app/providers/UnitProvider";
 

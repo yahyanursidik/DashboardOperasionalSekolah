@@ -1,8 +1,8 @@
 import React from "react";
-import { useForm } from "@refinedev/react-hook-form";
-import { useNavigate } from "react-router-dom";
+import { useForm } from "@/lib/refine-hook-form-compat";
+import { useNavigate } from "react-router";
 import { ArrowLeft, Save, Clock, Settings, AlertTriangle } from "lucide-react";
-import { useSelect } from "@refinedev/core";
+import { useSelect } from "@/lib/refine-compat";
 import { useCurrentUnit } from "../../../../app/providers/UnitProvider";
 import { ASSESSMENT_BASIS_OPTIONS } from "../../report-period-utils";
 

@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { useList, useOne } from "@refinedev/core";
+import { useList, useOne } from "@/lib/refine-compat";
 import {
   AlertTriangle,
   ArrowRight,
@@ -13,7 +13,7 @@ import {
   School,
   Users,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { useCurrentUnit } from "../../app/providers/UnitProvider";
 import { useAcademicYear } from "../../app/providers/AcademicYearProvider";

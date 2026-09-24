@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { useList, type CrudFilters } from "@refinedev/core";
+import { useList, type CrudFilters } from "@/lib/refine-compat";
 import { ArrowDownLeft, ArrowUpRight, Download, Landmark, Search, WalletCards } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { useCurrentUnit } from "../../../app/providers/UnitProvider";

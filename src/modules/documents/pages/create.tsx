@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState } from "react";
-import { useCreate, useSelect, useGetIdentity } from "@refinedev/core";
-import { useNavigate } from "react-router-dom";
+import { useCreate, useSelect, useGetIdentity } from "@/lib/refine-compat";
+import { useNavigate } from "react-router";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { ArrowLeft, UploadCloud, FileType, CheckSquare } from "lucide-react";
 import { toast } from "sonner";

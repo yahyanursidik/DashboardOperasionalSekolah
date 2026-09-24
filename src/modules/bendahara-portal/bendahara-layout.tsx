@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Outlet, useNavigate, useLocation, Link } from "react-router-dom";
+import { Outlet, useNavigate, useLocation, Link } from "react-router";
 import { supabaseClient } from "../../lib/supabase/client";
 import { Wallet, Receipt, CheckCircle, CreditCard, Users, LogOut, LayoutDashboard, Settings, Landmark, BookOpenCheck, BarChart3, Tags, BadgeDollarSign, Bell, CalendarCheck, MoreHorizontal, UserRound, X } from "lucide-react";
 import { useSystemSettings } from "../../app/providers/SettingsProvider";

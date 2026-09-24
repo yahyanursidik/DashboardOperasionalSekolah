@@ -1,6 +1,6 @@
 import React from "react";
-import { useOne, useList } from "@refinedev/core";
-import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { useOne, useList } from "@/lib/refine-compat";
+import { useParams, useNavigate, useLocation } from "react-router";
 import { ArrowLeft, CheckCircle2, XCircle, Clock, User, Target } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
 

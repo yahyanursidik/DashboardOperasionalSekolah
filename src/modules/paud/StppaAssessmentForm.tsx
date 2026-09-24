@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/set-state-in-effect */
 import React from "react";
-import { useForm, useSelect } from "@refinedev/core";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useForm, useSelect } from "@/lib/refine-compat";
+import { Link, useNavigate, useParams } from "react-router";
 import { ArrowLeft, HeartHandshake, Ruler, Save } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "../../components/layout/PageHeader";

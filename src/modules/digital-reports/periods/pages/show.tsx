@@ -1,6 +1,6 @@
 import React from "react";
-import { useShow } from "@refinedev/core";
-import { useNavigate } from "react-router-dom";
+import { useShow } from "@/lib/refine-compat";
+import { useNavigate } from "react-router";
 import { ArrowLeft, Edit, Calendar, Clock, Settings, Building2, CheckCircle2, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";

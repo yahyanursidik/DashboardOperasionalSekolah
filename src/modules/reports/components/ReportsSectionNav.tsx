@@ -1,6 +1,6 @@
 import React from "react";
-import { useList } from "@refinedev/core";
-import { Link, useLocation } from "react-router-dom";
+import { useList } from "@/lib/refine-compat";
+import { Link, useLocation } from "react-router";
 import { BarChart3, Building2, CalendarCheck, ClipboardList, FileText, Gauge, HeartPulse, History, Users } from "lucide-react";
 import { useCurrentUnit } from "../../../app/providers/UnitProvider";
 import { useAcademicYear } from "../../../app/providers/AcademicYearProvider";

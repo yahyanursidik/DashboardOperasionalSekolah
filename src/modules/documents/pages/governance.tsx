@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useMemo, useState } from "react";
-import { useCreate, useList, useUpdate } from "@refinedev/core";
+import { useCreate, useList, useUpdate } from "@/lib/refine-compat";
 import { Archive, CalendarClock, CheckCircle2, Gavel, Loader2, LockKeyhole, Search } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "../../../components/layout/PageHeader";

@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import React, { useEffect, useMemo, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation } from "react-router";
 import {
   ChevronDown,
   ChevronRight,
@@ -10,7 +10,7 @@ import {
   Star,
   X,
 } from "lucide-react";
-import { useOne } from "@refinedev/core";
+import { useOne } from "@/lib/refine-compat";
 import { navigationConfig, type NavigationItem } from "../../config/navigation";
 import {
   filterNavigationGroups,

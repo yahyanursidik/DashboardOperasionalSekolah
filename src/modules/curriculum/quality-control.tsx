@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { useList, useOne } from "@refinedev/core";
+import { useList, useOne } from "@/lib/refine-compat";
 import {
   AlertTriangle,
   BookOpen,
@@ -15,7 +15,7 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { useAcademicYear } from "../../app/providers/AcademicYearProvider";
 import { useCurrentUnit } from "../../app/providers/UnitProvider";

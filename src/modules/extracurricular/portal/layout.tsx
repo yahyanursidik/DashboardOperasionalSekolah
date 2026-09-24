@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
-import { Outlet, useNavigate, useLocation, Link } from "react-router-dom";
-import { useGetIdentity, useLogout } from "@refinedev/core";
+import { Outlet, useNavigate, useLocation, Link } from "react-router";
+import { useGetIdentity, useLogout } from "@/lib/refine-compat";
 import { Target, LogOut, Menu, User, LayoutDashboard, LayoutList } from "lucide-react";
 import { supabaseClient } from "../../../lib/supabase/client";
 

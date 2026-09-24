@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useList } from "@refinedev/core";
+import { useList } from "@/lib/refine-compat";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { AlertTriangle, CalendarCheck } from "lucide-react";
 

@@ -1,7 +1,7 @@
 import React from "react";
-import { useForm } from "@refinedev/react-hook-form";
-import { useList, useGetIdentity } from "@refinedev/core";
-import { useNavigate, Link } from "react-router-dom";
+import { useForm } from "@/lib/refine-hook-form-compat";
+import { useList, useGetIdentity } from "@/lib/refine-compat";
+import { useNavigate, Link } from "react-router";
 import { ArrowLeft, Save, Link as LinkIcon, Upload } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { useCurrentUnit } from "../../../app/providers/UnitProvider";

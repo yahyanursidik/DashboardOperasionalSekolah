@@ -1,7 +1,7 @@
 import React from "react";
-import { useForm } from "@refinedev/react-hook-form";
-import { useList } from "@refinedev/core";
-import { Link } from "react-router-dom";
+import { useForm } from "@/lib/refine-hook-form-compat";
+import { useList } from "@/lib/refine-compat";
+import { Link } from "react-router";
 import { ArrowLeft, Save } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
 

@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React from "react";
-import { useDelete, useList } from "@refinedev/core";
-import { Link } from "react-router-dom";
+import { useDelete, useList } from "@/lib/refine-compat";
+import { Link } from "react-router";
 import {
   CheckCircle2,
   ChevronLeft,

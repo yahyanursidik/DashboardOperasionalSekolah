@@ -1,6 +1,6 @@
 import React from "react";
-import { useLogin } from "@refinedev/core";
-import { Link, useNavigate } from "react-router-dom";
+import { useLogin } from "@/lib/refine-compat";
+import { Link, useNavigate } from "react-router";
 import { Mail, Target } from "lucide-react";
 import { toast } from "sonner";
 import {

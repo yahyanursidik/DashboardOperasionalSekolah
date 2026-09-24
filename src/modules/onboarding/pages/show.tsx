@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useState } from "react";
-import { useShow } from "@refinedev/core";
-import { Link } from "react-router-dom";
+import { useShow } from "@/lib/refine-compat";
+import { Link } from "react-router";
 import { ArrowLeft, Clock3, Edit3, FileCheck2, Loader2, ShieldCheck, Users } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { supabaseClient } from "../../../lib/supabase/client";

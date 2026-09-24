@@ -1,5 +1,5 @@
 import React from "react";
-import { useLogin } from "@refinedev/core";
+import { useLogin } from "@/lib/refine-compat";
 import { LayoutDashboard, Mail } from "lucide-react";
 import { toast } from "sonner";
 import {

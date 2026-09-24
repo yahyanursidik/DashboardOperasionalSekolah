@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useList, useInvalidate } from "@refinedev/core";
+import { useList, useInvalidate } from "@/lib/refine-compat";
 import { X, Copy, AlertTriangle } from "lucide-react";
 import { supabaseClient } from "../../../lib/supabase/client";
 import { useAcademicYear } from "../../../app/providers/AcademicYearProvider";

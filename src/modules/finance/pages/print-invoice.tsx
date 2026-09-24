@@ -1,6 +1,6 @@
 import React from "react";
-import { useParams } from "react-router-dom";
-import { useOne } from "@refinedev/core";
+import { useParams } from "react-router";
+import { useOne } from "@/lib/refine-compat";
 import { Receipt, Loader2, Printer, Building, QrCode, MessageCircle } from "lucide-react";
 import { useSystemSettings } from "../../../app/providers/SettingsProvider";
 

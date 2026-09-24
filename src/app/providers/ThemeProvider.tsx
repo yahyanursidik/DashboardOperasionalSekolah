@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation } from "react-router";
 
 type Theme = "dark" | "light" | "system";
 type ColorTheme = "emerald" | "ocean" | "rose" | "slate" | "islamic";

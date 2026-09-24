@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useGetIdentity } from "@refinedev/core";
+import { useGetIdentity } from "@/lib/refine-compat";
 import { supabaseClient } from "../../../lib/supabase/client";
 import { User, Phone, MapPin, School, Mail, Loader2, Save, UserCheck } from "lucide-react";
 import { toast } from "sonner";

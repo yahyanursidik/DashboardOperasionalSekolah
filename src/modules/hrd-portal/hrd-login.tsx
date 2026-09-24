@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { BriefcaseBusiness, Mail, User } from "lucide-react";
 import { toast } from "sonner";
 import { supabaseClient } from "../../lib/supabase/client";

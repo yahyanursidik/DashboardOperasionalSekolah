@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { useList, useUpdate, useCreate } from "@refinedev/core";
+import { useParams, useNavigate } from "react-router";
+import { useList, useUpdate, useCreate } from "@/lib/refine-compat";
 import { Clock, AlertTriangle, CheckCircle2 } from "lucide-react";
 
 export const CbtPortalTestRoom: React.FC = () => {

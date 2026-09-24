@@ -1,8 +1,8 @@
 import React, { useState } from "react";
-import { useList } from "@refinedev/core";
+import { useList } from "@/lib/refine-compat";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { ArrowLeft, Printer, Calendar, Filter } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { useSystemSettings } from "../../../app/providers/SettingsProvider";
 import { useCurrentUnit } from "../../../app/providers/UnitProvider";
 import { useAcademicYear } from "../../../app/providers/AcademicYearProvider";

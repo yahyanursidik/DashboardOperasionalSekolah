@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useState } from "react";
-import { useOutletContext } from "react-router-dom";
+import { useOutletContext } from "react-router";
 import { AlertTriangle, Award, Building2, Calendar, CheckCircle2, Clock, LockKeyhole, Mail, MapPin, Phone, ShieldCheck, User, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { supabaseClient } from "../../lib/supabase/client";

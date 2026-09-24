@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
-import { useList } from "@refinedev/core";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useList } from "@/lib/refine-compat";
+import { useParams, useNavigate, Link } from "react-router";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import {
   ArrowLeft, TrendingUp, TrendingDown, Minus,

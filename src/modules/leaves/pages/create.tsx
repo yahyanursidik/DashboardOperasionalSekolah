@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useCreate, useList, useSelect } from "@refinedev/core";
-import { useNavigate } from "react-router-dom";
+import { useCreate, useList, useSelect } from "@/lib/refine-compat";
+import { useNavigate } from "react-router";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { ArrowLeft, Calendar, CheckCircle2, FileText, Info, Save, Upload } from "lucide-react";
 import { useAcademicYear } from "../../../app/providers/AcademicYearProvider";

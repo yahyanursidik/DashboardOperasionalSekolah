@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/exhaustive-deps */
 import React, { useMemo, useState } from "react";
-import { useTable, useUpdate, useCreate, useSelect, useList } from "@refinedev/core";
-import { Link, useSearchParams } from "react-router-dom";
+import { useTable, useUpdate, useCreate, useSelect, useList } from "@/lib/refine-compat";
+import { Link, useSearchParams } from "react-router";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import {
   Users, Clock, Loader2, Play, ChevronLeft, ChevronRight, CalendarCheck,

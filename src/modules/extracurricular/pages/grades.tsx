@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useList, useCreate, useUpdate } from "@refinedev/core";
+import { useList, useCreate, useUpdate } from "@/lib/refine-compat";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { Award, Loader2, Save } from "lucide-react";
 import { toast } from "sonner";
@@ -69,7 +69,7 @@ export const GradesList: React.FC = () => {
   const handleSave = () => {
     if (!selectedProgram || !selectedYear || !selectedSemester) return;
 
-    let promises = [];
+    const promises: Promise<unknown>[] = [];
     
     for (const memberId of Object.keys(gradeForm)) {
       const record = gradeForm[memberId];

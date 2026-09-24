@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { Save, Loader2, Plus, WalletCards } from "lucide-react";
-import { useCreate, useList } from "@refinedev/core";
+import { useCreate, useList } from "@/lib/refine-compat";
 import { useSystemSettings } from "../../../app/providers/SettingsProvider";
 import { supabaseClient } from "../../../lib/supabase/client";
 import { toast } from "sonner";

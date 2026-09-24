@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useList, type CrudFilters } from "@refinedev/core";
+import { useList, type CrudFilters } from "@/lib/refine-compat";
 import { AlertTriangle, Download, FileBarChart, ShieldCheck, TrendingUp } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { useCurrentUnit } from "../../../app/providers/UnitProvider";

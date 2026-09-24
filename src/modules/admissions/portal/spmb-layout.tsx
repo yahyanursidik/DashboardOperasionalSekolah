@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useCallback, useEffect, useState } from "react";
-import { Link, Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { Link, Navigate, Outlet, useLocation, useNavigate } from "react-router";
 import type { User } from "@supabase/supabase-js";
 import { Baby, CreditCard, FileText, Home, Loader2, LogOut, Megaphone, Plus, UploadCloud, UserCircle } from "lucide-react";
 import { supabaseClient } from "../../../lib/supabase/client";

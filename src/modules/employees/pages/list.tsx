@@ -1,9 +1,9 @@
 import React, { useState, useMemo } from "react";
-import { useTable } from "@refinedev/react-table";
+import { useTable } from "@/lib/refine-react-table-compat";
 import { flexRender } from "@tanstack/react-table";
 import type { ColumnDef } from "@tanstack/react-table";
-import { useNavigate, Link, useLocation } from "react-router-dom";
-import { useSelect, useList, useDelete } from "@refinedev/core";
+import { useNavigate, Link, useLocation } from "react-router";
+import { useSelect, useList, useDelete } from "@/lib/refine-compat";
 import {
   Eye, Edit, Plus, Search, Users, Shield, BookOpen,
   Filter, LayoutGrid, LayoutList, Phone, Building2,

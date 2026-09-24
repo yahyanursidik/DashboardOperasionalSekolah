@@ -1,6 +1,6 @@
 import React from "react";
-import { useShow } from "@refinedev/core";
-import { useNavigate } from "react-router-dom";
+import { useShow } from "@/lib/refine-compat";
+import { useNavigate } from "react-router";
 import { ArrowLeft, Edit, FileText, CheckCircle2, XCircle, List, Eye, EyeOff } from "lucide-react";
 
 export const ReportTemplateShow: React.FC = () => {

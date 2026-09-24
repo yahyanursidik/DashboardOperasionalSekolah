@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
-import { useDelete, useList, useSelect } from "@refinedev/core";
-import { Link } from "react-router-dom";
+import { useDelete, useList, useSelect } from "@/lib/refine-compat";
+import { Link } from "react-router";
 import {
   AlertTriangle,
   Award,

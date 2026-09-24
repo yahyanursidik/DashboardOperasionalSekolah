@@ -1,9 +1,9 @@
 import React, { useState, useMemo } from "react";
-import { useList, useCreate, useUpdate, useDelete } from "@refinedev/core";
+import { useList, useCreate, useUpdate, useDelete } from "@/lib/refine-compat";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { Plus, Edit2, Trash2, Search, Activity, Loader2, Save, X, ArrowUpDown, Target, ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { 
   useReactTable, 
   getCoreRowModel, 

@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useState } from "react";
-import { useTable } from "@refinedev/core";
-import { Link } from "react-router-dom";
+import { useTable } from "@/lib/refine-compat";
+import { Link } from "react-router";
 import { ChevronLeft, ChevronRight, Eye, Inbox, Plus, Search } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { useCurrentUnit } from "../../../app/providers/UnitProvider";

@@ -1,6 +1,6 @@
 import React from "react";
-import { useList } from "@refinedev/core";
-import { Link, useLocation } from "react-router-dom";
+import { useList } from "@/lib/refine-compat";
+import { Link, useLocation } from "react-router";
 import { Building2, CalendarCheck, ClipboardCheck, Gauge, Package, ShoppingCart, Truck, Wrench } from "lucide-react";
 import { useCurrentUnit } from "../../../app/providers/UnitProvider";
 import { useCurrentRoles } from "../../../hooks/useAuth";

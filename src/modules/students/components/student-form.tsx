@@ -1,9 +1,9 @@
 import React from "react";
-import { useForm } from "@refinedev/react-hook-form";
+import { useForm } from "@/lib/refine-hook-form-compat";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { useSelect } from "@refinedev/core";
-import { useNavigate } from "react-router-dom";
+import { useSelect } from "@/lib/refine-compat";
+import { useNavigate } from "react-router";
 import {
   Save,
   ArrowLeft,
@@ -24,7 +24,7 @@ import {
 import { useCurrentUnit } from "../../../app/providers/UnitProvider";
 import { PhotoUpload } from "../../../components/common/PhotoUpload";
 import { getStudentQualitySummary } from "../pages/list";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 
 const studentSchema = z.object({
   full_name: z.string().min(1, "Nama Lengkap wajib diisi"),

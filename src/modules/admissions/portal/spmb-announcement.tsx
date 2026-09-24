@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useState } from "react";
 import { Award, CalendarDays, ChevronLeft, Clock3, Megaphone, XCircle } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { supabaseClient } from "../../../lib/supabase/client";
 import { formatAdmissionDate, getAdmissionStatus } from "../admissions-config";
 import { useSpmbPortal } from "./spmb-context";

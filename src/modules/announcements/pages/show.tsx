@@ -1,6 +1,6 @@
 import React from "react";
-import { useShow, useUpdate, useGetIdentity } from "@refinedev/core";
-import { useNavigate } from "react-router-dom";
+import { useShow, useUpdate, useGetIdentity } from "@/lib/refine-compat";
+import { useNavigate } from "react-router";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { ArrowLeft, CheckCircle2, Clock, XCircle, Send, Users, Building, ShieldCheck, Eye } from "lucide-react";
 import { AuditHistory } from "../../../components/common/AuditHistory";

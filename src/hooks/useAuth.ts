@@ -1,4 +1,4 @@
-import { useGetIdentity, usePermissions } from "@refinedev/core";
+import { useGetIdentity, usePermissions } from "@/lib/refine-compat";
 import type { UserRoleScope } from "../lib/permissions";
 
 export const useCurrentUser = () => {

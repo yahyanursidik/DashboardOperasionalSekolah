@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Outlet, useNavigate, useLocation, Link } from "react-router-dom";
+import { Outlet, useNavigate, useLocation, Link } from "react-router";
 import { supabaseClient } from "../../lib/supabase/client";
 import { Home, Wallet, BookOpen, LogOut, Smile, ClipboardList, Bell, Target, FileText, MoreHorizontal, X, Users, UserRound, CalendarCheck, LifeBuoy, Library, GraduationCap } from "lucide-react";
 import { useSystemSettings } from "../../app/providers/SettingsProvider";

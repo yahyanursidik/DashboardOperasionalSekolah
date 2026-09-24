@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useState } from "react";
-import { useList, useDelete } from "@refinedev/core";
-import { Link, useNavigate } from "react-router-dom";
+import { useList, useDelete } from "@/lib/refine-compat";
+import { Link, useNavigate } from "react-router";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { Megaphone, Plus, Trash2, Edit, CheckCircle2, Clock, Eye, XCircle, AlertCircle } from "lucide-react";
 import { publishDueAnnouncements } from "../../../lib/announcements/publish-due";

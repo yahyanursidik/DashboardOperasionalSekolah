@@ -1,6 +1,5 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@config "../tailwind.config.js";
+@import "tailwindcss";
 
 /* Staff portal is intentionally light and must not inherit an admin theme preset. */
 .staff-light-theme {

@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useMemo, useState } from "react";
 import { AlertCircle, ArrowRight, CalendarClock, CheckCircle2, ClipboardCheck, ContactRound, FileClock, Loader2, Users, UsersRound } from "lucide-react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation } from "react-router";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { supabaseClient } from "../../../lib/supabase/client";
 import { admissionStatusMeta, formatAdmissionDate, getAdmissionStatus } from "../admissions-config";

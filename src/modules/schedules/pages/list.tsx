@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/set-state-in-effect */
 import React, { useMemo, useState } from "react";
-import { useList, useDelete, useSelect } from "@refinedev/core";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useList, useDelete, useSelect } from "@/lib/refine-compat";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import {
   Calendar, Plus, Filter, Clock, MapPin, Trash2, Edit, BookOpen, Shield, Copy,

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useCreate, useList, useSelect } from "@refinedev/core";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useCreate, useList, useSelect } from "@/lib/refine-compat";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import {
   ArrowLeft,

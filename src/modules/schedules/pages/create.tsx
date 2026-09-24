@@ -1,7 +1,7 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import React, { useEffect, useState } from "react";
-import { useOne, useSelect } from "@refinedev/core";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useOne, useSelect } from "@/lib/refine-compat";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { ArrowLeft, Save, Calendar, Clock, MapPin, AlertTriangle, CheckCircle2, CalendarRange, CalendarPlus, TimerReset } from "lucide-react";
 import { useAcademicYear } from "../../../app/providers/AcademicYearProvider";

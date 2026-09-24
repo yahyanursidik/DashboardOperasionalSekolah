@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState } from "react";
-import { useTable, useList, useCreate } from "@refinedev/core";
+import { useTable, useList, useCreate } from "@/lib/refine-compat";
 import { Plus, Check, X, RotateCcw, X as XIcon } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "../../../components/layout/PageHeader";

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { useCreate, useUpdate, useOne, useList, useSelect } from "@refinedev/core";
-import { useNavigate, useParams } from "react-router-dom";
+import { useCreate, useUpdate, useOne, useList, useSelect } from "@/lib/refine-compat";
+import { useNavigate, useParams } from "react-router";
 import { toast } from "sonner";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import {

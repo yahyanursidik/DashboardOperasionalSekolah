@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useState } from "react";
-import { Link, useOutletContext } from "react-router-dom";
+import { Link, useOutletContext } from "react-router";
 import { BookOpen, CalendarDays, CheckCircle2, GraduationCap, IdCard, Mail, MapPin, Phone, School, UserRound } from "lucide-react";
 import { useAcademicYear } from "../../app/providers/AcademicYearProvider";
 import { LessonSchedulePanel } from "../schedules/components/LessonSchedulePanel";

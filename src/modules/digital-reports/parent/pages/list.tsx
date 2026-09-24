@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
-import { useList } from "@refinedev/core";
-import { useNavigate, useOutletContext } from "react-router-dom";
+import { useList } from "@/lib/refine-compat";
+import { useNavigate, useOutletContext } from "react-router";
 import { FileText, Download, Eye, User, Clock, AlertCircle } from "lucide-react";
 import { getAssessmentBasisLabel } from "../../report-period-utils";
 

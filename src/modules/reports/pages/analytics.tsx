@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useMemo, useState } from "react";
-import { useList } from "@refinedev/core";
-import { Link } from "react-router-dom";
+import { useList } from "@/lib/refine-compat";
+import { Link } from "react-router";
 import { Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { AlertTriangle, BookOpenCheck, CalendarDays, CheckCircle2, CircleDollarSign, Download, FileCheck2, HeartPulse, Loader2, TrendingUp } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";

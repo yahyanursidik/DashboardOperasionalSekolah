@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
-import { useShow, useList, useCreate, useDelete } from "@refinedev/core";
-import { Link, useParams } from "react-router-dom";
+import { useShow, useList, useCreate, useDelete } from "@/lib/refine-compat";
+import { Link, useParams } from "react-router";
 import { ArrowLeft, AlertTriangle, Award, BarChart3, BookOpen, CheckCircle2, ClipboardCheck, Clock, FileText, Filter, Search, Target, Trash2, UserPlus, Users, X } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { DeleteConfirmModal } from "../../../components/common/DeleteConfirmModal";

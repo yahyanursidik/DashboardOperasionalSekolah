@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
-import { useOne, useUpdate, useList } from "@refinedev/core";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useOne, useUpdate, useList } from "@/lib/refine-compat";
+import { useParams, useNavigate, Link } from "react-router";
 import { toast } from "sonner";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import {

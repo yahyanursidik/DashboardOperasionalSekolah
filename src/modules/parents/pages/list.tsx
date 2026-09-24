@@ -1,9 +1,9 @@
 import React, { useState, useMemo } from "react";
-import { useTable } from "@refinedev/react-table";
+import { useTable } from "@/lib/refine-react-table-compat";
 import { flexRender } from "@tanstack/react-table";
 import type { ColumnDef } from "@tanstack/react-table";
-import { useNavigate, Link } from "react-router-dom";
-import { useList, useDelete } from "@refinedev/core";
+import { useNavigate, Link } from "react-router";
+import { useList, useDelete } from "@/lib/refine-compat";
 import {
   Eye, Edit, Plus, Search, Users, Phone, LayoutGrid, LayoutList,
   UploadCloud, Download, FileSpreadsheet, UserCheck, Shield, Mail, Briefcase, UserX, Trash2, Loader2, AlertTriangle,

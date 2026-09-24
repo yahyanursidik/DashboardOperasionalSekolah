@@ -1,7 +1,7 @@
 import React from "react";
 import { ParentForm } from "../components/parent-form";
 import { PageHeader } from "../../../components/layout/PageHeader";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { ArrowLeft } from "lucide-react";
 
 export const ParentCreate: React.FC = () => {

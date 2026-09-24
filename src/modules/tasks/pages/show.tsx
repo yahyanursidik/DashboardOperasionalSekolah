@@ -1,9 +1,9 @@
 import React from "react";
-import { useShow, useUpdate } from "@refinedev/core";
+import { useShow, useUpdate } from "@/lib/refine-compat";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { CheckSquare, Edit, ArrowLeft, Calendar, User, Building, Clock, AlertCircle, History } from "lucide-react";
 import { AuditHistory } from "../../../components/common/AuditHistory";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router";
 
 const statusConfig: Record<string, { label: string, color: string }> = {
   belum_mulai: { label: "Belum Mulai", color: "bg-slate-100 border-slate-200 text-slate-800" },

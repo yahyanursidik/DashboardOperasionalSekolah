@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useCreate, useList, useUpdate, type CrudFilters } from "@refinedev/core";
+import { useCreate, useList, useUpdate, type CrudFilters } from "@/lib/refine-compat";
 import { BookOpenCheck, CheckCircle2, CircleDollarSign, Plus, Scale, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "../../../components/layout/PageHeader";

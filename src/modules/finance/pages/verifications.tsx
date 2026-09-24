@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useList, useUpdate, type CrudFilters } from "@refinedev/core";
+import { useList, useUpdate, type CrudFilters } from "@/lib/refine-compat";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { CheckCircle, XCircle, Eye, Clock, X } from "lucide-react";
 import { useCurrentUnit } from "../../../app/providers/UnitProvider";

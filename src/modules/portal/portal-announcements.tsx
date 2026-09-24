@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useOutletContext } from "react-router-dom";
+import { useOutletContext } from "react-router";
 import { Bell, Calendar, CheckCheck, ChevronDown, Clock, Megaphone } from "lucide-react";
 import { supabaseClient } from "../../lib/supabase/client";
 import type { ParentPortalContext } from "./portal-context";

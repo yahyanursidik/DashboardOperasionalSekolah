@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { useCreate, useList, useUpdate } from "@refinedev/core";
+import { useCreate, useList, useUpdate } from "@/lib/refine-compat";
 import { BadgeDollarSign, CheckCircle2, Layers3, Plus, Power, X } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "../../../components/layout/PageHeader";

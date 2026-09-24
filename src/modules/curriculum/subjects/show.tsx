@@ -1,6 +1,6 @@
 import React from "react";
-import { useDelete, useList, useShow } from "@refinedev/core";
-import { Link, useParams } from "react-router-dom";
+import { useDelete, useList, useShow } from "@/lib/refine-compat";
+import { Link, useParams } from "react-router";
 import { toast } from "sonner";
 import { ArrowLeft, BookOpen, CalendarDays, CheckCircle2, Circle, Edit, FileText, Layers3, Plus, Trash2 } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";

@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
-import { useDelete, useList, useTable } from "@refinedev/core";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useDelete, useList, useTable } from "@/lib/refine-compat";
+import { Link, useLocation, useNavigate } from "react-router";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import {
   BarChart3,

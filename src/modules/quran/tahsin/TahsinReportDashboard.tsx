@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useList, useSelect } from "@refinedev/core";
-import { Link, useSearchParams } from "react-router-dom";
+import { useList, useSelect } from "@/lib/refine-compat";
+import { Link, useSearchParams } from "react-router";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { useAcademicYear } from "../../../app/providers/AcademicYearProvider";
 import {

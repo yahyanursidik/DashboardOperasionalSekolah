@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
-import { useDelete, useList } from "@refinedev/core";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useDelete, useList } from "@/lib/refine-compat";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import { toast } from "sonner";
 import {
   AlertCircle,

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router";
 import { GraduationCap, Loader2 } from "lucide-react";
 import { supabaseClient } from "../../../lib/supabase/client";
 import { PortalLoginAlert, PortalLoginButton, PortalLoginShell, PortalPasswordField } from "../../../components/auth/PortalLoginShell";

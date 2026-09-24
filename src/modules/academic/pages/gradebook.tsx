@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useList } from "@refinedev/core";
-import { useSearchParams } from "react-router-dom";
+import { useList } from "@/lib/refine-compat";
+import { useSearchParams } from "react-router";
 import { BookOpenCheck, FilterX, Save } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "../../../components/layout/PageHeader";

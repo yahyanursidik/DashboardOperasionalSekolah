@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { useList } from "@refinedev/core";
+import { useList } from "@/lib/refine-compat";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { Save, FilterX, FileBadge, WandSparkles } from "lucide-react";
 import { supabaseClient } from "../../../lib/supabase/client";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { toast } from "sonner";
 
 export const ReportCards: React.FC = () => {

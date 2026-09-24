@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useMemo, useState } from "react";
-import { useDelete, useList, useUpdate } from "@refinedev/core";
-import { Link } from "react-router-dom";
+import { useDelete, useList, useUpdate } from "@/lib/refine-compat";
+import { Link } from "react-router";
 import {
   AlertTriangle,
   CheckCircle2,

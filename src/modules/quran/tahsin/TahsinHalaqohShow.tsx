@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
-import { useCreate, useDelete, useList, useShow } from "@refinedev/core";
-import { Link, useParams } from "react-router-dom";
+import { useCreate, useDelete, useList, useShow } from "@/lib/refine-compat";
+import { Link, useParams } from "react-router";
 import {
   ArrowLeft,
   AlertTriangle,

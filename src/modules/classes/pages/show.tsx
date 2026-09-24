@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { useShow, useList, useUpdate } from "@refinedev/core";
+import { useShow, useList, useUpdate } from "@/lib/refine-compat";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { AlertTriangle, ArrowLeft, BarChart3, BookOpen, CalendarCheck, CheckCircle2, ClipboardCheck, Edit, GraduationCap, Plus, ShieldCheck, UserCheck, UserMinus, Users, X } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router";
 import { useAcademicYear } from "../../../app/providers/AcademicYearProvider";
 import { loadStudentLearningSchedules } from "../../schedules/schedule-data";
 

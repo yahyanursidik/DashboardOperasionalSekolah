@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { useList, useCreate, useUpdate, useDelete, useOne, useCreateMany } from "@refinedev/core";
-import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { useList, useCreate, useUpdate, useDelete, useOne, useCreateMany } from "@/lib/refine-compat";
+import { useParams, useNavigate, useLocation } from "react-router";
 import { ArrowLeft, Plus, Trash2, Edit, Save, CheckCircle2, Upload } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { Modal } from "../../../components/common/Modal";

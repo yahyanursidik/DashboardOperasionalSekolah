@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/set-state-in-effect */
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useOutletContext } from "react-router-dom";
+import { useOutletContext } from "react-router";
 import { Activity, AlertTriangle, Award, BookOpen, CheckCircle2, ChevronRight, HeartPulse, Loader2, Search, User } from "lucide-react";
 import { toast } from "sonner";
 import { useAcademicYear } from "../../app/providers/AcademicYearProvider";

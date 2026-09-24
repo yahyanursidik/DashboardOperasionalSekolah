@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useOutletContext, Link } from "react-router-dom";
+import { useOutletContext, Link } from "react-router";
 import { supabaseClient } from "../../lib/supabase/client";
 import { Wallet, BookOpen, Clock, Calendar, Megaphone, Target, FileText, Award, AlertTriangle, CheckCircle2, ClipboardCheck, LifeBuoy } from "lucide-react";
 import { useAcademicYear } from "../../app/providers/AcademicYearProvider";

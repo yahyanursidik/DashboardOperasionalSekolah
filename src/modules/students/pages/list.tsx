@@ -1,10 +1,10 @@
 import React, { useState } from "react";
 import { StoredImage } from "../../../components/common/StoredImage";
-import { useTable } from "@refinedev/react-table";
-import { useList, useDelete } from "@refinedev/core";
+import { useTable } from "@/lib/refine-react-table-compat";
+import { useList, useDelete } from "@/lib/refine-compat";
 import { flexRender } from "@tanstack/react-table";
 import type { ColumnDef } from "@tanstack/react-table";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import {
   Eye,
   Edit,
@@ -26,7 +26,7 @@ import {
   Users,
 } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { useCurrentUnit } from "../../../app/providers/UnitProvider";
 import Papa from "papaparse";
 import { supabaseClient } from "../../../lib/supabase/client";

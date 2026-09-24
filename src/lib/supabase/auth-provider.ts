@@ -1,4 +1,4 @@
-import type { AuthBindings } from "@refinedev/core";
+import type { AuthBindings } from "@/lib/refine-compat";
 import { supabaseClient } from "./client";
 
 const getRedirectPath = () => {

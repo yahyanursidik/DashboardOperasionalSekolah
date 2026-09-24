@@ -1,6 +1,6 @@
 import React from "react";
-import { useShow } from "@refinedev/core";
-import { Link, useNavigate } from "react-router-dom";
+import { useShow } from "@/lib/refine-compat";
+import { Link, useNavigate } from "react-router";
 import {
   AlignLeft,
   ArrowLeft,

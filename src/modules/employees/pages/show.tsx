@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import {
   useShow, useList, useCreate, useSelect, useUpdate
-} from "@refinedev/core";
-import { useNavigate, useParams, useLocation, useSearchParams } from "react-router-dom";
+} from "@/lib/refine-compat";
+import { useNavigate, useParams, useLocation, useSearchParams } from "react-router";
 import { useAcademicYear } from "../../../app/providers/AcademicYearProvider";
 import {
   User, Edit, ArrowLeft, GraduationCap, Building2,
@@ -10,7 +10,7 @@ import {
   BookOpen, Calendar, Clock, CheckCircle2, XCircle,
   Award, ClipboardList, UserCheck, Star, AlertCircle, LockKeyhole
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import {
   academicAssignmentTypes,

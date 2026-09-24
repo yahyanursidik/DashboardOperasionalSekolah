@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useForm, useList } from "@refinedev/core";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useForm, useList } from "@/lib/refine-compat";
+import { useNavigate, useParams, useSearchParams } from "react-router";
 import {
   ArrowLeft,
   Award,

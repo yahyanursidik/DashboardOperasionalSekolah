@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { useGetIdentity, useUpdate, useList, useCreate, useDelete } from "@refinedev/core";
+import { useGetIdentity, useUpdate, useList, useCreate, useDelete } from "@/lib/refine-compat";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { User, Users, Bell, Shield, Moon, Sun, Monitor, Palette, Check, Save, Type, Image as ImageIcon, Globe, Search, Filter, Trash2, Edit2, SearchX, Loader2, UserPlus, AlertTriangle, ChevronLeft, ChevronRight, Wallet, LockKeyhole, ArrowRight } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { useTheme } from "../../../app/providers/ThemeProvider";
 import { useSystemSettings } from "../../../app/providers/SettingsProvider";
 import { supabaseClient } from "../../../lib/supabase/client";

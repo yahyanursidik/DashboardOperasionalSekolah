@@ -1,8 +1,8 @@
 import React from "react";
-import { useForm } from "@refinedev/react-hook-form";
-import { useNavigate } from "react-router-dom";
+import { useForm } from "@/lib/refine-hook-form-compat";
+import { useNavigate } from "react-router";
 import { ArrowLeft, Save, Calendar, FileText, Settings, Building2, Clock } from "lucide-react";
-import { useSelect, useGetIdentity } from "@refinedev/core";
+import { useSelect, useGetIdentity } from "@/lib/refine-compat";
 import { useCurrentUnit } from "../../../../app/providers/UnitProvider";
 import { logAudit } from "../../../../lib/audit";
 import { ASSESSMENT_BASIS_OPTIONS } from "../../report-period-utils";

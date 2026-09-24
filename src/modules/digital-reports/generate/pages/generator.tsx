@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { useList, useGetIdentity } from "@refinedev/core";
+import { useList, useGetIdentity } from "@/lib/refine-compat";
 import { supabaseClient } from "../../../../lib/supabase/client";
 import { PageHeader } from "../../../../components/layout/PageHeader";
 import { FileBadge, Search, CheckCircle2, AlertCircle, Loader2, Play, Settings } from "lucide-react";
@@ -77,7 +77,7 @@ export const ReportGenerator: React.FC = () => {
   // 3. Process Data for Preview
   const previewData = useMemo(() => {
     if (!students?.data) return [];
-    const reportsMap = new Map((existingReports?.data || []).map(r => [r.student_id, r]));
+    const reportsMap = new Map<string, any>((existingReports?.data || []).map((r: any) => [r.student_id, r]));
     
     return students.data.map(student => {
       const existingReport = reportsMap.get(student.id);

@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
-import { useList, useGetIdentity, useCreate } from "@refinedev/core";
+import { useList, useGetIdentity, useCreate } from "@/lib/refine-compat";
 import { Target, Calendar, User, Info, CheckCircle2, Loader2, ArrowRight } from "lucide-react";
 import { supabaseClient } from "../../../lib/supabase/client";
 import { toast } from "sonner";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 
 export const ExtracurricularPortalPrograms: React.FC = () => {
   const { data: identity } = useGetIdentity<any>();

@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
-import { useList } from "@refinedev/core";
-import { useNavigate, Link } from "react-router-dom";
+import { useList } from "@/lib/refine-compat";
+import { useNavigate, Link } from "react-router";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import {
   Plus, Filter, ClipboardCheck, Users, TrendingUp,

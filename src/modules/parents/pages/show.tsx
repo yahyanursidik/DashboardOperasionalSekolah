@@ -1,12 +1,12 @@
 import React from "react";
-import { useShow, useList, useDelete } from "@refinedev/core";
+import { useShow, useList, useDelete } from "@/lib/refine-compat";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { 
   User, Edit, ArrowLeft, Phone, Mail, MapPin, GraduationCap, 
   Users, Briefcase, CreditCard, BookOpen, Heart, Map, ExternalLink, Trash2, Loader2, AlertTriangle,
   ShieldCheck, Link2, MessageSquare, ClipboardCheck, Receipt, Megaphone, UserCheck, Wallet
 } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router";
 import { toast } from "sonner";
 import { getParentQualitySummary } from "./list";
 import { supabaseClient } from "../../../lib/supabase/client";

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { useList, useGetIdentity } from "@refinedev/core";
+import { useList, useGetIdentity } from "@/lib/refine-compat";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import {
   ArrowLeft,
@@ -19,7 +19,7 @@ import {
   History,
   ShieldCheck,
 } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router";
 import { supabaseClient } from "../../../lib/supabase/client";
 import { toast } from "sonner";
 

@@ -1,6 +1,6 @@
 import React from "react";
-import { useForm, useList, useOne } from "@refinedev/core";
-import { useNavigate, useLocation, useParams } from "react-router-dom";
+import { useForm, useList, useOne } from "@/lib/refine-compat";
+import { useNavigate, useLocation, useParams } from "react-router";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { ArrowLeft, Save } from "lucide-react";
 import { recruitmentPositions } from "../recruitment-utils";

@@ -1,4 +1,4 @@
-import type { AuditLogProvider } from "@refinedev/core";
+import type { AuditLogProvider } from "@/lib/refine-compat";
 import { supabaseClient } from "../../lib/supabase/client";
 
 export const auditLogProvider: AuditLogProvider = {

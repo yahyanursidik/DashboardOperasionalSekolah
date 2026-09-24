@@ -1,7 +1,7 @@
 import React from "react";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { StudentForm } from "../components/student-form";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router";
 import { ArrowLeft, Eye } from "lucide-react";
 
 export const StudentEdit: React.FC = () => {

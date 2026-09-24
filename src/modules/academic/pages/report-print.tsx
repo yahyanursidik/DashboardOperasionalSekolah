@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation } from "react-router";
 import { supabaseClient } from "../../../lib/supabase/client";
 import { Printer } from "lucide-react";
 import { calculateFinalScore, getFinalAssessmentType } from "../../curriculum/assessment-policy";

@@ -1,5 +1,5 @@
 import React from "react";
-import { useLogList } from "@refinedev/core";
+import { useLogList } from "@/lib/refine-compat";
 import { Clock, Edit, Plus, Trash2, ShieldAlert } from "lucide-react";
 
 interface AuditHistoryProps {

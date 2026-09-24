@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/set-state-in-effect */
 import React, { useEffect, useState } from "react";
-import { useForm, useList, useSelect } from "@refinedev/core";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useForm, useList, useSelect } from "@/lib/refine-compat";
+import { Link, useNavigate, useParams } from "react-router";
 import { ArrowLeft, Award, BookOpen, CheckCircle2, ClipboardCheck, Clock, Save, ShieldCheck, Target, Users } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { useAcademicYear } from "../../../app/providers/AcademicYearProvider";

@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
 import React, { useEffect, useState } from "react";
 import { AlertCircle, ArrowLeft, CheckCircle2, ExternalLink, Loader2, UploadCloud } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { toast } from "sonner";
 import { deleteStoredFile, uploadDocument, getDocumentSignedUrl } from "../../../lib/supabase/storage";
 import { supabaseClient } from "../../../lib/supabase/client";

@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useForm } from "@refinedev/react-hook-form";
+import { useForm } from "@/lib/refine-hook-form-compat";
 import { Controller, useWatch } from "react-hook-form";
 import MDEditor from "@uiw/react-md-editor";
 import rehypeSanitize from "rehype-sanitize";
-import { useList } from "@refinedev/core";
-import { Link, useParams } from "react-router-dom";
+import { useList } from "@/lib/refine-compat";
+import { Link, useParams } from "react-router";
 import { toast } from "sonner";
 import {
   ArrowLeft,

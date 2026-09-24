@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useList, useCreate, useUpdate } from "@refinedev/core";
+import { useList, useCreate, useUpdate } from "@/lib/refine-compat";
 import { X, Save, GraduationCap } from "lucide-react";
 
 interface AcademicHistoryModalProps {

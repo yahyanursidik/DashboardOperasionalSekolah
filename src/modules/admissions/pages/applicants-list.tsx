@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/exhaustive-deps */
 import React, { useEffect, useState } from "react";
 import { Archive, ChevronLeft, ChevronRight, Download, Eye, Filter, Inbox, Loader2, MessageCircle, Search, ShieldAlert, Trash2 } from "lucide-react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation } from "react-router";
 import { toast } from "sonner";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { supabaseClient } from "../../../lib/supabase/client";

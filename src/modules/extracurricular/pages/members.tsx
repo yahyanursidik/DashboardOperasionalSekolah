@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useList, useUpdate, useDelete } from "@refinedev/core";
+import { useList, useUpdate, useDelete } from "@/lib/refine-compat";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { 
   Users, Search, Loader2, Check, X, Trash2, Eye, Activity,

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useDelete, useList, useSelect, type CrudFilter } from "@refinedev/core";
-import { Link, useSearchParams } from "react-router-dom";
+import { useDelete, useList, useSelect, type CrudFilter } from "@/lib/refine-compat";
+import { Link, useSearchParams } from "react-router";
 import {
   AlertTriangle,
   Award,

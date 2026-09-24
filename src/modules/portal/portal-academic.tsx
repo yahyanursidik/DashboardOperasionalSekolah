@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useMemo, useState } from "react";
-import { Link, useOutletContext } from "react-router-dom";
+import { Link, useOutletContext } from "react-router";
 import { BookOpen, Download } from "lucide-react";
 import { useAcademicYear } from "../../app/providers/AcademicYearProvider";
 import { supabaseClient } from "../../lib/supabase/client";

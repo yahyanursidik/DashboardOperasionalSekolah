@@ -1,9 +1,9 @@
 import React, { useState } from "react";
-import { useForm } from "@refinedev/react-hook-form";
+import { useForm } from "@/lib/refine-hook-form-compat";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { useSelect, useGetIdentity } from "@refinedev/core";
-import { useNavigate } from "react-router-dom";
+import { useSelect, useGetIdentity } from "@/lib/refine-compat";
+import { useNavigate } from "react-router";
 import { Save, ArrowLeft, Send, MessageSquare, Target } from "lucide-react";
 
 const formSchema = z.object({

@@ -1,5 +1,6 @@
 import React from "react";
-import { useList, useNavigation } from "@refinedev/core";
+import { useList } from "@/lib/refine-compat";
+import { useNavigate } from "react-router";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { 
   Activity, Users, UserCheck, Award, 
@@ -23,7 +24,7 @@ export const ExtracurricularDashboard: React.FC = () => {
     ]
   });
 
-  const { push } = useNavigation();
+  const navigate = useNavigate();
 
   // Stats Calculations
   const activePrograms = programsData?.data.filter(p => p.is_active).length || 0;
@@ -126,7 +127,7 @@ export const ExtracurricularDashboard: React.FC = () => {
             </h3>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                <div 
-                  onClick={() => push("/extracurricular/programs")} 
+                  onClick={() => navigate("/extracurricular/programs")}
                   className="group p-5 border rounded-xl bg-slate-50 hover:bg-white hover:shadow-md hover:border-blue-200 cursor-pointer transition-all text-center flex flex-col items-center justify-center gap-3"
                 >
                   <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center group-hover:scale-110 group-hover:bg-blue-600 group-hover:text-white transition-all">
@@ -136,7 +137,7 @@ export const ExtracurricularDashboard: React.FC = () => {
                </div>
                
                <div 
-                  onClick={() => push("/extracurricular/members")} 
+                  onClick={() => navigate("/extracurricular/members")}
                   className="group p-5 border rounded-xl bg-slate-50 hover:bg-white hover:shadow-md hover:border-emerald-200 cursor-pointer transition-all text-center flex flex-col items-center justify-center gap-3"
                 >
                   <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center group-hover:scale-110 group-hover:bg-emerald-600 group-hover:text-white transition-all">
@@ -146,7 +147,7 @@ export const ExtracurricularDashboard: React.FC = () => {
                </div>
                
                <div 
-                  onClick={() => push("/extracurricular/attendance")} 
+                  onClick={() => navigate("/extracurricular/attendance")}
                   className="group p-5 border rounded-xl bg-slate-50 hover:bg-white hover:shadow-md hover:border-indigo-200 cursor-pointer transition-all text-center flex flex-col items-center justify-center gap-3"
                 >
                   <div className="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center group-hover:scale-110 group-hover:bg-indigo-600 group-hover:text-white transition-all">
@@ -156,7 +157,7 @@ export const ExtracurricularDashboard: React.FC = () => {
                </div>
                
                <div 
-                  onClick={() => push("/extracurricular/grades")} 
+                  onClick={() => navigate("/extracurricular/grades")}
                   className="group p-5 border rounded-xl bg-slate-50 hover:bg-white hover:shadow-md hover:border-orange-200 cursor-pointer transition-all text-center flex flex-col items-center justify-center gap-3"
                 >
                   <div className="w-12 h-12 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center group-hover:scale-110 group-hover:bg-orange-600 group-hover:text-white transition-all">
@@ -174,7 +175,7 @@ export const ExtracurricularDashboard: React.FC = () => {
                 <PieChart className="w-5 h-5 text-primary" /> Statistik Program
               </h3>
               <button 
-                onClick={() => push("/extracurricular/programs")} 
+                onClick={() => navigate("/extracurricular/programs")}
                 className="text-sm font-medium text-primary hover:text-primary/80 flex items-center gap-1"
               >
                 Lihat Semua <ArrowRight className="w-4 h-4" />
@@ -269,7 +270,7 @@ export const ExtracurricularDashboard: React.FC = () => {
                     const name = isInternal ? member.students?.full_name : member.external_students?.full_name;
                     
                     return (
-                      <div key={member.id} className="p-4 hover:bg-slate-50 transition-colors flex items-center justify-between group cursor-pointer" onClick={() => push("/extracurricular/members")}>
+                      <div key={member.id} className="p-4 hover:bg-slate-50 transition-colors flex items-center justify-between group cursor-pointer" onClick={() => navigate("/extracurricular/members")}>
                         <div className="flex items-center gap-3 overflow-hidden">
                           <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 font-bold text-sm ${isInternal ? 'bg-indigo-100 text-indigo-700' : 'bg-orange-100 text-orange-700'}`}>
                             {name ? name.substring(0, 2).toUpperCase() : '??'}
@@ -294,7 +295,7 @@ export const ExtracurricularDashboard: React.FC = () => {
             </div>
             <div className="p-4 border-t bg-slate-50 text-center">
               <button 
-                onClick={() => push("/extracurricular/members")}
+                onClick={() => navigate("/extracurricular/members")}
                 className="text-sm font-bold text-primary hover:underline"
               >
                 Lihat Semua Pendaftar

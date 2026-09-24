@@ -4,7 +4,7 @@
  */
 import React from "react";
 import { ArrowRight, CheckCircle2, CreditCard, FilePenLine, FileUp, LockKeyhole, LogIn, UserPlus } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 
 export const SpmbNewParentCta = () => (
   <section className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 sm:p-5">

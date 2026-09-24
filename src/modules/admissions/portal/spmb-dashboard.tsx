@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { ArrowRight, CalendarDays, CheckCircle2, Clock3, CreditCard, FileText, PenLine, UploadCloud, UserPlus } from "lucide-react";
 import { supabaseClient } from "../../../lib/supabase/client";
 import { admissionStatusMeta, formatAdmissionDate, getAdmissionStatus, getRequiredAdmissionDocumentTypes } from "../admissions-config";

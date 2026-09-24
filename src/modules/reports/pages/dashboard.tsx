@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useMemo } from "react";
-import { useList } from "@refinedev/core";
-import { Link } from "react-router-dom";
+import { useList } from "@/lib/refine-compat";
+import { Link } from "react-router";
 import { AlertTriangle, ArrowRight, BarChart3, BookOpenCheck, CalendarCheck, CheckCircle2, CircleDollarSign, ClipboardCheck, FileClock, GraduationCap, HeartPulse, Loader2, PackageSearch, Users } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { useCurrentUnit } from "../../../app/providers/UnitProvider";

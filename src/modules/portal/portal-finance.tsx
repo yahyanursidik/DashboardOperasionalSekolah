@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
-import { useList } from "@refinedev/core";
-import { useOutletContext } from "react-router-dom";
+import { useList } from "@/lib/refine-compat";
+import { useOutletContext } from "react-router";
 import { supabaseClient } from "../../lib/supabase/client";
 import { uploadDocument } from "../../lib/supabase/storage";
 import { Receipt, CheckCircle, Clock, Upload, X, History, XCircle, AlertTriangle, Banknote } from "lucide-react";

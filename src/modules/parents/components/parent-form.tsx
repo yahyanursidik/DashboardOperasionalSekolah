@@ -1,8 +1,8 @@
 import React from "react";
-import { useForm } from "@refinedev/react-hook-form";
+import { useForm } from "@/lib/refine-hook-form-compat";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router";
 import { Save, ArrowLeft, User, Phone, MapPin, Briefcase, CreditCard, Heart, BookOpen, Mail, ShieldCheck, CheckCircle, AlertTriangle, Link2 } from "lucide-react";
 import { getParentQualitySummary } from "../pages/list";
 

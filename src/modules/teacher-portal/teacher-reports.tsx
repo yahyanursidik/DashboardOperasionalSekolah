@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useMemo, useState } from "react";
-import { Link, useOutletContext } from "react-router-dom";
+import { Link, useOutletContext } from "react-router";
 import { AlertCircle, CalendarDays, CheckCircle2, ChevronRight, FileText, Filter, Loader2, Users } from "lucide-react";
 import { toast } from "sonner";
 import { useAcademicYear } from "../../app/providers/AcademicYearProvider";

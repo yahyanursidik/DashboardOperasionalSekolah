@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
-import { useForm, useList } from "@refinedev/core";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useForm, useList } from "@/lib/refine-compat";
+import { useLocation, useNavigate } from "react-router";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { ArrowLeft, CheckCircle2, Save } from "lucide-react";
 import { toast } from "sonner";

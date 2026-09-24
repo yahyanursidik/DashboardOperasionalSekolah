@@ -1,9 +1,9 @@
 import React, { useState } from "react";
-import { useTable } from "@refinedev/react-table";
-import { useList, useDelete } from "@refinedev/core";
+import { useTable } from "@/lib/refine-react-table-compat";
+import { useList, useDelete } from "@/lib/refine-compat";
 import { flexRender } from "@tanstack/react-table";
 import type { ColumnDef } from "@tanstack/react-table";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link } from "react-router";
 import { Eye, Edit, Plus, Search, FilterX, Trash2, AlertTriangle, Loader2, Calendar } from "lucide-react";
 import { PageHeader } from "../../../../components/layout/PageHeader";
 import { useCurrentUnit } from "../../../../app/providers/UnitProvider";

@@ -1,8 +1,8 @@
 import React, { useState } from "react";
-import { useShow, useList, useCreate, useDelete, useSelect } from "@refinedev/core";
+import { useShow, useList, useCreate, useDelete, useSelect } from "@/lib/refine-compat";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { User, Edit, ArrowLeft, Briefcase, GraduationCap, Building, Phone, Mail, MapPin, X, Plus, Trash2, FolderOpen, History } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router";
 import { useAcademicYear } from "../../../app/providers/AcademicYearProvider";
 
 export const TeacherShow: React.FC = () => {

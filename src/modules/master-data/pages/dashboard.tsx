@@ -1,7 +1,7 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import React, { useEffect, useMemo, useState } from "react";
 import { Archive, BookOpen, Building2, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, CircleAlert, Clock3, Edit3, GraduationCap, Loader2, Plus, RefreshCw, Save, Search, Settings2, ShieldCheck, Users, X } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { toast } from "sonner";
 import { useAcademicYear } from "../../../app/providers/AcademicYearProvider";
 import { PageHeader } from "../../../components/layout/PageHeader";

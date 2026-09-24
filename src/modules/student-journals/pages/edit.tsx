@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { useUpdate, useOne, useSelect } from "@refinedev/core";
-import { useNavigate, useParams } from "react-router-dom";
+import { useUpdate, useOne, useSelect } from "@/lib/refine-compat";
+import { useNavigate, useParams } from "react-router";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { ArrowLeft, Save, BookOpen, User, Calendar, FileText, AlertTriangle, Eye, ShieldAlert, Award, Activity, Star } from "lucide-react";
 import { useCurrentUnit } from "../../../app/providers/UnitProvider";

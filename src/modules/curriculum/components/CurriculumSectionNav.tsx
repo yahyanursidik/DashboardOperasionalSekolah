@@ -1,6 +1,6 @@
 import React from "react";
 import { BookOpen, ClipboardCheck, FileText, GraduationCap, LayoutDashboard, Palette, Users } from "lucide-react";
-import { NavLink } from "react-router-dom";
+import { NavLink } from "react-router";
 
 const items = [
   { to: "/curriculum", label: "Ringkasan", icon: LayoutDashboard, end: true },

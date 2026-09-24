@@ -1,6 +1,6 @@
 import React from "react";
-import { Link, useLocation } from "react-router-dom";
-import { useTable, useDelete, useCreate, useUpdate } from "@refinedev/core";
+import { Link, useLocation } from "react-router";
+import { useTable, useDelete, useCreate, useUpdate } from "@/lib/refine-compat";
 import { Plus, Trash2, Edit, BookOpen } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { EmptyState } from "../../../components/common/EmptyState";

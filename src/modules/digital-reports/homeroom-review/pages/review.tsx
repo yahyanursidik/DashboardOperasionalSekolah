@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { useShow, useList, useGetIdentity } from "@refinedev/core";
-import { useParams, useNavigate } from "react-router-dom";
+import { useShow, useList, useGetIdentity } from "@/lib/refine-compat";
+import { useParams, useNavigate } from "react-router";
 import { PageHeader } from "../../../../components/layout/PageHeader";
 import { ArrowLeft, Save, Loader2, CheckCircle2, AlertTriangle, Send, History } from "lucide-react";
 import { supabaseClient } from "../../../../lib/supabase/client";

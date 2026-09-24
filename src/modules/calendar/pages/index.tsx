@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, AlertCircle, Clock, Info, X, Save } from "lucide-react";
 import { supabaseClient } from "../../../lib/supabase/client";
-import { useCreate } from "@refinedev/core";
+import { useCreate } from "@/lib/refine-compat";
 import { toast } from "sonner";
 
 interface HijriDetails {
@@ -11,6 +11,9 @@ interface HijriDetails {
   year: number;
   monthIndex: number;
 }
+
+type CalendarDay = { date: Date; isCurrentMonth: boolean };
+type CalendarEvent = { title: string; type: string };
 
 // Map Intl format month names to more standard Indonesian/Islamic ones
 const hijriMonthNames: Record<string, string> = {
@@ -127,7 +130,7 @@ export const AcademicCalendar: React.FC = () => {
     const lastDay = new Date(currentYear, currentMonth + 1, 0);
     const startOffset = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1; // Mon=0, Sun=6
     
-    const days = [];
+    const days: CalendarDay[] = [];
     
     // Previous month filler
     const prevMonthLastDay = new Date(currentYear, currentMonth, 0).getDate();
@@ -153,7 +156,7 @@ export const AcademicCalendar: React.FC = () => {
   };
 
   const getIslamicEvents = (date: Date, hijri: HijriDetails) => {
-    const eventsList = [];
+    const eventsList: CalendarEvent[] = [];
     const gregorianDayOfWeek = date.getDay(); // 0=Sun, 1=Mon, ..., 4=Thu
 
     // Puasa Sunnah Senin Kamis
@@ -214,7 +217,7 @@ export const AcademicCalendar: React.FC = () => {
   const midHijri = getHijriDateDetails(midMonthDate);
 
   // Generate Upcoming Events for Sidebar
-  const upcomingEvents = [];
+  const upcomingEvents: Array<CalendarEvent & { date: Date }> = [];
   const todayDate = new Date();
   todayDate.setHours(0,0,0,0);
   

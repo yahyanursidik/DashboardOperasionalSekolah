@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { MessageSquare, Send, Users, Smartphone, FileText, CheckCircle2 } from "lucide-react";
-import { useList } from "@refinedev/core";
+import { useList } from "@/lib/refine-compat";
 
 export const CommunicationsPage: React.FC = () => {
   const [targetType, setTargetType] = useState<"all_parents" | "class_parents" | "all_teachers">("class_parents");

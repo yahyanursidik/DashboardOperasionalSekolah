@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useMemo, useState } from "react";
-import { useList, useUpdate } from "@refinedev/core";
+import { useList, useUpdate } from "@/lib/refine-compat";
 import { CheckCircle2, ClipboardCheck, Loader2, MapPin, PackageCheck, Play, Search, TriangleAlert } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "../../../components/layout/PageHeader";
