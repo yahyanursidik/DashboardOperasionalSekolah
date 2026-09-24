@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Download, FileText, Sparkles } from "lucide-react";
-import { CommitmentLetterKind, getCommitmentLetterKind, getCommitmentLetterTemplate, downloadCommitmentLetterTemplate } from "../commitment-letter-templates";
+import { getCommitmentLetterKind, getCommitmentLetterTemplate, downloadCommitmentLetterTemplate } from "../commitment-letter-templates";
+import type { CommitmentLetterKind } from "../commitment-letter-templates";
 
 const kindLabels: Record<CommitmentLetterKind, string> = {
   elementary: "Elementary",
