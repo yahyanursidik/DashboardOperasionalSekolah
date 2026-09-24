@@ -5,14 +5,22 @@ export type AuthBindings = refine.AuthProvider;
 
 const withQueryAliases = (value: any) => {
   const query = value?.query ?? value?.tableQuery;
+
+  // Refine 5 auth hooks (`useGetIdentity` and `usePermissions`) return a
+  // TanStack query result directly. Data hooks may still expose it beneath
+  // `query`/`tableQuery`. Only project the legacy aliases when that nested
+  // query exists; otherwise the direct result (including `data`) must remain
+  // intact. Overwriting it with `undefined` hid every role-bound menu.
+  if (!query) return value;
+
   return {
     ...value,
-    data: query?.data,
-    error: query?.error,
-    isLoading: query?.isLoading,
-    isFetching: query?.isFetching,
-    isError: query?.isError,
-    refetch: query?.refetch,
+    data: query.data ?? value?.data,
+    error: query.error ?? value?.error,
+    isLoading: query.isLoading ?? value?.isLoading,
+    isFetching: query.isFetching ?? value?.isFetching,
+    isError: query.isError ?? value?.isError,
+    refetch: query.refetch ?? value?.refetch,
   };
 };
 
