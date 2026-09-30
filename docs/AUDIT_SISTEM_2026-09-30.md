@@ -383,3 +383,11 @@ Setelahnya, ~35 migrasi lama lain yang **sudah lengkap di skema** (hasil probe "
 Enam migrasi di atas (`20260715110000`, `20260716080000`, `20260715090000`, `20260716090000`, `20260716100000`, `20260726000000`) **sudah diterapkan dan dicatat** setelah persetujuan. Probe objek: semuanya lengkap (onboarding 21/21 termasuk 3 kebijakan `storage.objects`). Tidak ada kebijakan tulis longgar baru (tetap 4 yang disengaja).
 
 Sisa rekonsiliasi: ~35 migrasi lama yang sudah lengkap di skema cukup dicatat (`migration repair --status applied`), dan 6 migrasi "hampir lengkap" dilengkapi per bagian.
+
+### Rekonsiliasi drift selesai
+- 40 migrasi yang efeknya sudah ada di skema (37 terverifikasi objek-per-objek, 3 berupa constraint/RLS yang dicek langsung) dicatat dengan `migration repair` tanpa menjalankan SQL.
+- 4 migrasi parsial dilengkapi dengan **hanya** pernyataan yang hilang (bukan menjalankan ulang file, agar fungsi helper yang sudah diperbarui migrasi berikutnya tidak tertimpa):
+  - `20260715040000` — 22 kebijakan guru (nilai, absensi kelas, jurnal, rapor, PKG) → 34/34
+  - `20260716110000` — trigger riwayat status awal pendaftar SPMB + 2 kebijakan keuangan SPMB (sebelumnya gagal karena fungsi `finance_can_access_unit` belum ada) → 51/51
+  - `20260821080000`, `20260902090000` — kebijakan orang tua membaca materi & pertemuan HBL → lengkap
+- Hasil: riwayat migrasi produksi **99/99 sinkron**, `supabase db push` kembali aman dipakai. Kebijakan tulis longgar: 4 (disengaja). Uji persona: 21/21 lolos.
