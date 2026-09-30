@@ -165,6 +165,13 @@ export const navigationConfig: NavigationGroup[] = [
         resource: "academic_report_cards",
       },
       {
+        title: "BK & Tata Tertib",
+        href: "/counseling",
+        icon: ShieldCheck,
+        resource: "student_conduct",
+        keywords: ["bk", "bimbingan konseling", "pelanggaran", "poin", "prestasi", "tata tertib", "konseling"],
+      },
+      {
         title: "Jurnal & Rekam Jejak",
         href: "/student-journals",
         icon: BookOpen,

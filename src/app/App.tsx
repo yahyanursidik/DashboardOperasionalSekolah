@@ -101,6 +101,9 @@ const ExtracurricularPortalProfile = lazyPage(() => import("../modules/extracurr
 const SettingsPage = lazyPage(() => import("../modules/settings"), "SettingsPage");
 const StudentMassPromotion = lazyPage(() => import("../modules/students/pages/mass-promotion"), "StudentMassPromotion");
 const CommunicationsPage = lazyPage(() => import("../modules/communications"), "CommunicationsPage");
+const CounselingPage = lazyPage(() => import("../modules/counseling/pages/counseling"), "CounselingPage");
+const TeacherConduct = lazyPage(() => import("../modules/teacher-portal/teacher-conduct"), "TeacherConduct");
+const PortalConduct = lazyPage(() => import("../modules/portal/portal-conduct"), "PortalConduct");
 const EmailLogPage = lazyPage(() => import("../modules/communications"), "EmailLogPage");
 const StudentJournalsList = lazyPage(() => import("../modules/student-journals/pages"), "StudentJournalsList");
 const StudentJournalCreate = lazyPage(() => import("../modules/student-journals/pages"), "StudentJournalCreate");
@@ -954,6 +957,7 @@ export default function App() {
                 <Route path="/lms" element={<HblAdminPage />} />
                 <Route path="/communications" element={<CommunicationsPage />} />
                 <Route path="/communications/email-log" element={<EmailLogPage />} />
+                <Route path="/counseling" element={<CounselingPage />} />
                 
                 <Route path="/students">
                 <Route index element={<StudentsList />} />
@@ -1336,6 +1340,7 @@ export default function App() {
                 <Route path="quran" element={<PortalQuran />} />
                 <Route path="paud" element={<PortalPaud />} />
                 <Route path="journals" element={<PortalJournals />} />
+                <Route path="conduct" element={<PortalConduct />} />
                 <Route path="library" element={<PortalLibrary />} />
                 <Route path="onboarding" element={<PortalOnboarding />} />
                 <Route path="announcements" element={<PortalAnnouncements />} />
@@ -1386,6 +1391,7 @@ export default function App() {
                 <Route path="quran" element={<TeacherQuran />} />
                 <Route path="paud" element={<TeacherPaud />} />
                 <Route path="journals" element={<TeacherJournals />} />
+                <Route path="conduct" element={<TeacherConduct />} />
                 <Route path="attendance" element={<TeacherAttendance />} />
                 <Route path="leaves" element={<TeacherLeaves />} />
                 <Route path="schedules" element={<TeacherSchedules />} />

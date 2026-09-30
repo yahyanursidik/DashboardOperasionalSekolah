@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState, Suspense } from "reac
 import { Outlet, useNavigate, useLocation, Link } from "react-router";
 import { NotificationBell } from "../../components/common/NotificationBell";
 import { supabaseClient } from "../../lib/supabase/client";
-import { Home, Wallet, BookOpen, LogOut, Smile, ClipboardList, Bell, Target, FileText, MoreHorizontal, X, Users, UserRound, CalendarCheck, LifeBuoy, Library, GraduationCap } from "lucide-react";
+import { Home, Wallet, BookOpen, LogOut, Smile, ClipboardList, Bell, Target, FileText, MoreHorizontal, X, Users, UserRound, CalendarCheck, LifeBuoy, Library, GraduationCap, Award } from "lucide-react";
 import { useSystemSettings } from "../../app/providers/SettingsProvider";
 import type { ParentPortalParent, ParentPortalStudent } from "./portal-context";
 import { publishDueAnnouncements } from "../../lib/announcements/publish-due";
@@ -115,6 +115,7 @@ export const PortalLayout: React.FC = () => {
       { name: "Akademik & Jadwal", path: "/portal/academic", icon: BookOpen },
       { name: "e-Rapor", path: "/portal/reports", icon: FileText },
       { name: "Catatan Siswa", path: "/portal/journals", icon: ClipboardList },
+      { name: "Sikap & Prestasi", path: "/portal/conduct", icon: Award },
       { name: "Qur'an", path: "/portal/quran", icon: BookOpen },
       ...(isPaudStudent ? [{ name: "KB/TK", path: "/portal/paud", icon: Smile }] : []),
       { name: "Ekstrakurikuler", path: "/portal/extracurricular", icon: Target },

@@ -16,6 +16,7 @@ import {
   ListTodo,
   Star,
   UserRound,
+  ShieldAlert,
 } from "lucide-react";
 import { useAcademicYear } from "../../app/providers/AcademicYearProvider";
 import { RolePortalShell, type RolePortalNavGroup } from "../../components/layout/RolePortalShell";
@@ -161,6 +162,7 @@ export const TeacherLayout: React.FC = () => {
         ...(hasQuranAssignment ? [{ to: "/teacher/quran", label: "Pembelajaran Qur'an", icon: BookOpen, keywords: ["tahfidz", "tahsin", "mutabaah"] }] : []),
         ...(hasPaudAssignment ? [{ to: "/teacher/paud", label: "Perkembangan KB/TK", icon: Star }] : []),
         { to: "/teacher/journals", label: "Jurnal & Tindak Lanjut Siswa", icon: ClipboardList },
+        { to: "/teacher/conduct", label: "Tata Tertib & Prestasi", icon: ShieldAlert, keywords: ["poin", "pelanggaran", "bk"] },
         { to: "/teacher/library", label: "Perpustakaan Digital", icon: Library },
       ] },
       { label: "Pekerjaan", items: [

@@ -391,3 +391,21 @@ Sisa rekonsiliasi: ~35 migrasi lama yang sudah lengkap di skema cukup dicatat (`
   - `20260716110000` — trigger riwayat status awal pendaftar SPMB + 2 kebijakan keuangan SPMB (sebelumnya gagal karena fungsi `finance_can_access_unit` belum ada) → 51/51
   - `20260821080000`, `20260902090000` — kebijakan orang tua membaca materi & pertemuan HBL → lengkap
 - Hasil: riwayat migrasi produksi **99/99 sinkron**, `supabase db push` kembali aman dipakai. Kebijakan tulis longgar: 4 (disengaja). Uji persona: 21/21 lolos.
+
+---
+
+## 11. Lanjutan (1 Okt 2026)
+
+**Code-splitting** — 285 halaman dimuat per rute (`lazyPage`, dengan muat-ulang otomatis bila chunk lama hilang setelah deploy). Muatan awal turun dari ±7,3 MB ke ±0,9 MB; ExcelJS/grafik hanya diunduh saat halamannya dibuka. File duplikat `* (1).tsx` dihapus (cadangan: `artifacts/duplikat-(1)-arsip-2026-09-30.zip`).
+
+**Bug akses orang tua (diperbaiki di produksi, `20261001080000`)** — `is_parent_of_student` membandingkan `parents.id` dengan `auth.uid()` sehingga selalu *false*; 9 kebijakan (rapor terbit, nilai rapor, catatan, PDF, tanda terima, nilai, jurnal) tidak pernah berlaku untuk orang tua dan sebelumnya tertutupi kebijakan longgar. Kini memeriksa `parents.user_id`, status aktif, dan izin portal pada tautan. Tanda terima rapor sekarang menyimpan `parents.id` (sebelumnya ID akun → melanggar FK). Halaman staf "Tanda Terima" memakai embed ambigu `parents(profiles(...))` yang ditolak PostgREST (`PGRST201`) — diperbaiki.
+
+**Fitur baru: BK & Tata Tertib (`20261001090000`)**
+- Katalog poin pelanggaran/prestasi (15 aturan awal, dapat diubah pengelola BK).
+- Catatan kejadian: semua staf dapat melapor; kelas/unit/tahun ajaran & pelapor tersnapshot otomatis; pelapor atau pengelola BK dapat menindaklanjuti; pilihan dibagikan ke orang tua atau internal.
+- Rekap poin bersih per siswa dengan tangga pembinaan (25/50/75/100).
+- Sesi konseling rahasia — hanya pengelola BK & pimpinan.
+- Portal guru: menu **Tata Tertib & Prestasi** (lapor untuk kelas yang diajar/diwalikan). Portal orang tua: menu **Sikap & Prestasi** + notifikasi saat catatan dibagikan.
+- Diuji 16 skenario (PGlite) dan dry-run produksi dengan akun nyata guru & orang tua.
+
+Riwayat migrasi produksi: 101/101 sinkron. Uji persona: 21/21.

@@ -58,15 +58,25 @@ export const ParentReportShow: React.FC = () => {
     queryOptions: { enabled: !!id }
   });
 
+  // Read receipts reference parents.id (the family record), not the auth user id.
+  const [parentId, setParentId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    void supabaseClient.from("parents").select("id").eq("user_id", user.id).maybeSingle()
+      .then(({ data }) => { if (!cancelled) setParentId((data as { id?: string } | null)?.id || null); });
+    return () => { cancelled = true; };
+  }, [user?.id]);
+
   // Check if Parent has read
   const { data: readLog, refetch: refetchReadLog } = useList({
     resource: "parent_report_reads",
     pagination: { mode: "off" },
     filters: [
       { field: "report_id", operator: "eq", value: id },
-      { field: "parent_id", operator: "eq", value: user?.id }
+      { field: "parent_id", operator: "eq", value: parentId }
     ],
-    queryOptions: { enabled: !!id && !!user?.id }
+    queryOptions: { enabled: !!id && !!parentId }
   });
 
   const [scoresMap, setScoresMap] = useState<Record<string, any>>({});
@@ -97,13 +107,18 @@ export const ParentReportShow: React.FC = () => {
 
   const handleAcknowledge = async () => {
     if (!user?.id) return;
+    if (!parentId) {
+      toast.error("Akun ini belum tertaut dengan data orang tua. Hubungi Tata Usaha.");
+      return;
+    }
     setIsSubmitting(true);
     try {
-      await supabaseClient.from('parent_report_reads').insert({
+      const { error } = await supabaseClient.from('parent_report_reads').insert({
         report_id: id,
-        parent_id: user.id,
+        parent_id: parentId,
         device_info: navigator.userAgent
       });
+      if (error) throw error;
 
       // Log Audit
       await logAudit(
