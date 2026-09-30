@@ -102,6 +102,7 @@ const SettingsPage = lazyPage(() => import("../modules/settings"), "SettingsPage
 const StudentMassPromotion = lazyPage(() => import("../modules/students/pages/mass-promotion"), "StudentMassPromotion");
 const CommunicationsPage = lazyPage(() => import("../modules/communications"), "CommunicationsPage");
 const StudentCbtPage = lazyPage(() => import("../modules/academic/cbt/student-cbt"), "StudentCbtPage");
+const DapodikPage = lazyPage(() => import("../modules/dapodik/pages/dapodik"), "DapodikPage");
 const CounselingPage = lazyPage(() => import("../modules/counseling/pages/counseling"), "CounselingPage");
 const TeacherConduct = lazyPage(() => import("../modules/teacher-portal/teacher-conduct"), "TeacherConduct");
 const PortalConduct = lazyPage(() => import("../modules/portal/portal-conduct"), "PortalConduct");
@@ -959,6 +960,7 @@ export default function App() {
                 <Route path="/communications" element={<CommunicationsPage />} />
                 <Route path="/communications/email-log" element={<EmailLogPage />} />
                 <Route path="/counseling" element={<CounselingPage />} />
+                <Route path="/dapodik" element={<DapodikPage />} />
                 
                 <Route path="/students">
                 <Route index element={<StudentsList />} />

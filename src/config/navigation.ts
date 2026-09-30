@@ -666,6 +666,13 @@ export const navigationConfig: NavigationGroup[] = [
         resource: "mail_dispositions",
       },
       {
+        title: "Data Dapodik",
+        href: "/dapodik",
+        icon: Database,
+        resource: "dapodik",
+        keywords: ["dapodik", "nisn", "nik", "nuptk", "data pokok", "ekspor", "emis"],
+      },
+      {
         title: "Arsip Dokumen Sekolah",
         href: "/documents",
         icon: FileText,
