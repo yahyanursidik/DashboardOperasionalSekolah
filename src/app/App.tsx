@@ -1,5 +1,8 @@
 import { Refine, Authenticated } from "@/lib/refine-compat";
+import { Suspense } from "react";
 import { BrowserRouter, Route, Routes, Outlet, Navigate } from "react-router";
+import { lazyPage } from "./lazy-page";
+import { PageLoader } from "../components/common/PageLoader";
 import routerBindings, { CatchAllNavigate, NavigateToResource } from "@refinedev/react-router";
 import { authProvider } from "../lib/supabase/auth-provider";
 import { dataProvider } from "./providers/dataProvider";
@@ -18,156 +21,301 @@ import { AcademicYearProvider } from "./providers/AcademicYearProvider";
 import { ThemeProvider } from "./providers/ThemeProvider";
 import { SettingsProvider } from "./providers/SettingsProvider";
 
-import { StudentsList, StudentCreate, StudentEdit, StudentShow } from "../modules/students";
-import { TeachersList, TeacherCreate, TeacherEdit, TeacherShow } from "../modules/teachers";
-import { ClassesList, ClassCreate, ClassEdit, ClassShow } from "../modules/classes";
-import { ParentsList, ParentCreate, ParentEdit, ParentShow, ParentPortalRequestsAdmin } from "../modules/parents";
-import { TasksList, TaskCreate, TaskEdit, TaskShow } from "../modules/tasks";
-import { AttendanceSelector, AttendanceInput, AttendanceReports } from "../modules/attendance";
-import { DocumentsList, DocumentTypesList, DocumentCreate, DocumentShow, DocumentGovernance } from "../modules/documents";
-import { AnnouncementsList, AnnouncementCreate, AnnouncementEdit, AnnouncementShow } from "../modules/announcements";
-import { AuditLogsList } from "../modules/audit-logs";
-import { ReportsDashboard, StudentReport, AttendanceReport, DocumentReport, TaskReport, ReportEmployeeAttendance, ReportLeaves, VisualAnalytics, ReportExportHistory } from "../modules/reports";
+const StudentsList = lazyPage(() => import("../modules/students"), "StudentsList");
+const StudentCreate = lazyPage(() => import("../modules/students"), "StudentCreate");
+const StudentEdit = lazyPage(() => import("../modules/students"), "StudentEdit");
+const StudentShow = lazyPage(() => import("../modules/students"), "StudentShow");
+const TeachersList = lazyPage(() => import("../modules/teachers"), "TeachersList");
+const TeacherCreate = lazyPage(() => import("../modules/teachers"), "TeacherCreate");
+const TeacherEdit = lazyPage(() => import("../modules/teachers"), "TeacherEdit");
+const TeacherShow = lazyPage(() => import("../modules/teachers"), "TeacherShow");
+const ClassesList = lazyPage(() => import("../modules/classes"), "ClassesList");
+const ClassCreate = lazyPage(() => import("../modules/classes"), "ClassCreate");
+const ClassEdit = lazyPage(() => import("../modules/classes"), "ClassEdit");
+const ClassShow = lazyPage(() => import("../modules/classes"), "ClassShow");
+const ParentsList = lazyPage(() => import("../modules/parents"), "ParentsList");
+const ParentCreate = lazyPage(() => import("../modules/parents"), "ParentCreate");
+const ParentEdit = lazyPage(() => import("../modules/parents"), "ParentEdit");
+const ParentShow = lazyPage(() => import("../modules/parents"), "ParentShow");
+const ParentPortalRequestsAdmin = lazyPage(() => import("../modules/parents"), "ParentPortalRequestsAdmin");
+const TasksList = lazyPage(() => import("../modules/tasks"), "TasksList");
+const TaskCreate = lazyPage(() => import("../modules/tasks"), "TaskCreate");
+const TaskEdit = lazyPage(() => import("../modules/tasks"), "TaskEdit");
+const TaskShow = lazyPage(() => import("../modules/tasks"), "TaskShow");
+const AttendanceSelector = lazyPage(() => import("../modules/attendance"), "AttendanceSelector");
+const AttendanceInput = lazyPage(() => import("../modules/attendance"), "AttendanceInput");
+const AttendanceReports = lazyPage(() => import("../modules/attendance"), "AttendanceReports");
+const DocumentsList = lazyPage(() => import("../modules/documents"), "DocumentsList");
+const DocumentTypesList = lazyPage(() => import("../modules/documents"), "DocumentTypesList");
+const DocumentCreate = lazyPage(() => import("../modules/documents"), "DocumentCreate");
+const DocumentShow = lazyPage(() => import("../modules/documents"), "DocumentShow");
+const DocumentGovernance = lazyPage(() => import("../modules/documents"), "DocumentGovernance");
+const AnnouncementsList = lazyPage(() => import("../modules/announcements"), "AnnouncementsList");
+const AnnouncementCreate = lazyPage(() => import("../modules/announcements"), "AnnouncementCreate");
+const AnnouncementEdit = lazyPage(() => import("../modules/announcements"), "AnnouncementEdit");
+const AnnouncementShow = lazyPage(() => import("../modules/announcements"), "AnnouncementShow");
+const AuditLogsList = lazyPage(() => import("../modules/audit-logs"), "AuditLogsList");
+const ReportsDashboard = lazyPage(() => import("../modules/reports"), "ReportsDashboard");
+const StudentReport = lazyPage(() => import("../modules/reports"), "StudentReport");
+const AttendanceReport = lazyPage(() => import("../modules/reports"), "AttendanceReport");
+const DocumentReport = lazyPage(() => import("../modules/reports"), "DocumentReport");
+const TaskReport = lazyPage(() => import("../modules/reports"), "TaskReport");
+const ReportEmployeeAttendance = lazyPage(() => import("../modules/reports"), "ReportEmployeeAttendance");
+const ReportLeaves = lazyPage(() => import("../modules/reports"), "ReportLeaves");
+const VisualAnalytics = lazyPage(() => import("../modules/reports"), "VisualAnalytics");
+const ReportExportHistory = lazyPage(() => import("../modules/reports"), "ReportExportHistory");
 
-import { EmployeesList, EmployeeCreate, EmployeeEdit, EmployeeShow } from "../modules/employees";
-import { EmployeeAttendanceList } from "../modules/attendance/pages/employee-attendance";
-import { AttendanceSettings } from "../modules/attendance/pages/attendance-settings";
-import { AttendanceReviews } from "../modules/attendance/pages/attendance-reviews";
-import { AttendanceEvents } from "../modules/attendance/pages/attendance-events";
-import { AttendanceOvertime } from "../modules/attendance/pages/attendance-overtime";
-import { StaffOperationalReportsAdmin } from "../modules/attendance/pages/staff-operational-reports";
-import { SchedulesList, ScheduleCreate, ScheduleEdit, UnitSchedulePatterns } from "../modules/schedules";
-import { LeavesList, LeaveCreate, LeaveShow } from "../modules/leaves";
-import { SubstitutesList, SubstituteCreate, SubstituteEdit } from "../modules/substitutes";
-import { DashboardPage } from "../modules/dashboard";
-import { MasterDataDashboard } from "../modules/master-data";
-import { 
-  ExtracurricularDashboard, 
-  ProgramsList,
-  MembersList,
-  AttendanceList,
-  GradesList
-} from "../modules/extracurricular";
-import { 
-  ExtracurricularPortalLayout, 
-  ExtracurricularPortalDashboard, 
-  ExtracurricularPortalLogin, 
-  ExtracurricularPortalRegister,
-  ExtracurricularPortalPrograms,
-  ExtracurricularPortalProfile
-} from "../modules/extracurricular/portal";
-import { SettingsPage } from "../modules/settings";
-import { StudentMassPromotion } from "../modules/students/pages/mass-promotion";
-import { CommunicationsPage, EmailLogPage } from "../modules/communications";
-import { StudentJournalsList, StudentJournalCreate, StudentJournalEdit } from "../modules/student-journals/pages";
-import { FinanceDashboard, InvoicesList, PaymentVerifications, SchoolExpenses, FinanceCategories, SpmbFeesConfig, FinanceSettings, FinanceCashbook, FinanceBudgets, FinanceAccounting, FinanceReports, FinanceTariffs, FinanceReceipts } from "../modules/finance/pages";
-import { CurriculumDashboard } from "../modules/curriculum/dashboard";
-import { HblAdminPage } from "../modules/hbl";
-import { CurriculumQualityControl } from "../modules/curriculum/quality-control";
-import { SubjectsList, SubjectCreate, SubjectEdit, SubjectShow, SubjectTeacherDirectory } from "../modules/curriculum/subjects";
-import { SubjectCurriculumCreate, SubjectCurriculumEdit } from "../modules/curriculum/subject-curriculums";
-import { PaudThemeList } from "../modules/curriculum/paud-curriculums/list";
-import { PaudThemeCreate } from "../modules/curriculum/paud-curriculums/create";
-import { PaudThemeEdit } from "../modules/curriculum/paud-curriculums/edit";
-import { PaudThemeShow } from "../modules/curriculum/paud-curriculums/show";
-import { CurriculumDocumentsList, CurriculumDocumentCreate } from "../modules/curriculum/documents";
-import { MailDashboard, IncomingMailList, OutgoingMailList, DispositionsList, IncomingMailCreate, OutgoingMailCreate, MailShow } from "../modules/mail";
-import { RecruitmentDashboard, VacanciesList, ApplicantsList, ApplicantShow, VacancyCreate, VacancyEdit, ApplicantCreate } from "../modules/recruitment";
-import { CbtBanksList } from "../modules/recruitment/cbt/CbtBanksList";
-import { CbtQuestionsManager } from "../modules/recruitment/cbt/CbtQuestionsManager";
-import { CbtExamsList } from "../modules/recruitment/cbt/CbtExamsList";
-import { CbtExamBanksManager } from "../modules/recruitment/cbt/CbtExamBanksManager";
-import { CbtAttemptsList } from "../modules/recruitment/cbt/CbtAttemptsList";
-import { CbtAttemptShow } from "../modules/recruitment/cbt/CbtAttemptShow";
-import { AdmissionsDashboard, AdmissionsSettings, AdmissionsReports, ApplicantsList as AdmissionsApplicantsList, ApplicantShow as AdmissionsApplicantShow, AdmissionCrm, AdmissionLeadShow } from "../modules/admissions/pages";
-import { AcademicDashboard, Gradebook, ReportCards, ReportPrint } from "../modules/academic";
-import { SarprasDashboard, AssetLoansList, ProcurementsList, UnifiedAssetsDashboard, RoomsList, RoomSchedulesList, MaintenanceList, StocktakesList } from "../modules/sarpras";
-import { AcademicCalendar } from "../modules/calendar";
-import { PkgList, PkgCreate, PkgShow, PkgHistory, PkgSettings } from "../modules/pkg";
-import { 
-  QuranRecordsList, QuranRecordForm, 
-  QuranTargetsList, QuranTargetForm,
-  QuranAssessmentsList, QuranAssessmentForm,
-  HalaqohsList, HalaqohForm, HalaqohShow,
-  TahfidzTargetsList, TahfidzTargetForm,
-  TahfidzReportDashboard,
-  TahsinHalaqohsList, TahsinHalaqohForm, TahsinHalaqohShow,
-  TahsinTargetsList, TahsinTargetForm,
-  TahsinRecordsList, TahsinAssessmentsList, TahsinReportDashboard, TahsinRecordForm, TahsinAssessmentForm
-} from "../modules/quran";
+const EmployeesList = lazyPage(() => import("../modules/employees"), "EmployeesList");
+const EmployeeCreate = lazyPage(() => import("../modules/employees"), "EmployeeCreate");
+const EmployeeEdit = lazyPage(() => import("../modules/employees"), "EmployeeEdit");
+const EmployeeShow = lazyPage(() => import("../modules/employees"), "EmployeeShow");
+const EmployeeAttendanceList = lazyPage(() => import("../modules/attendance/pages/employee-attendance"), "EmployeeAttendanceList");
+const AttendanceSettings = lazyPage(() => import("../modules/attendance/pages/attendance-settings"), "AttendanceSettings");
+const AttendanceReviews = lazyPage(() => import("../modules/attendance/pages/attendance-reviews"), "AttendanceReviews");
+const AttendanceEvents = lazyPage(() => import("../modules/attendance/pages/attendance-events"), "AttendanceEvents");
+const AttendanceOvertime = lazyPage(() => import("../modules/attendance/pages/attendance-overtime"), "AttendanceOvertime");
+const StaffOperationalReportsAdmin = lazyPage(() => import("../modules/attendance/pages/staff-operational-reports"), "StaffOperationalReportsAdmin");
+const SchedulesList = lazyPage(() => import("../modules/schedules"), "SchedulesList");
+const ScheduleCreate = lazyPage(() => import("../modules/schedules"), "ScheduleCreate");
+const ScheduleEdit = lazyPage(() => import("../modules/schedules"), "ScheduleEdit");
+const UnitSchedulePatterns = lazyPage(() => import("../modules/schedules"), "UnitSchedulePatterns");
+const LeavesList = lazyPage(() => import("../modules/leaves"), "LeavesList");
+const LeaveCreate = lazyPage(() => import("../modules/leaves"), "LeaveCreate");
+const LeaveShow = lazyPage(() => import("../modules/leaves"), "LeaveShow");
+const SubstitutesList = lazyPage(() => import("../modules/substitutes"), "SubstitutesList");
+const SubstituteCreate = lazyPage(() => import("../modules/substitutes"), "SubstituteCreate");
+const SubstituteEdit = lazyPage(() => import("../modules/substitutes"), "SubstituteEdit");
+const DashboardPage = lazyPage(() => import("../modules/dashboard"), "DashboardPage");
+const MasterDataDashboard = lazyPage(() => import("../modules/master-data"), "MasterDataDashboard");
+const ExtracurricularDashboard = lazyPage(() => import("../modules/extracurricular"), "ExtracurricularDashboard");
+const ProgramsList = lazyPage(() => import("../modules/extracurricular"), "ProgramsList");
+const MembersList = lazyPage(() => import("../modules/extracurricular"), "MembersList");
+const AttendanceList = lazyPage(() => import("../modules/extracurricular"), "AttendanceList");
+const GradesList = lazyPage(() => import("../modules/extracurricular"), "GradesList");
+const ExtracurricularPortalLayout = lazyPage(() => import("../modules/extracurricular/portal"), "ExtracurricularPortalLayout");
+const ExtracurricularPortalDashboard = lazyPage(() => import("../modules/extracurricular/portal"), "ExtracurricularPortalDashboard");
+const ExtracurricularPortalLogin = lazyPage(() => import("../modules/extracurricular/portal"), "ExtracurricularPortalLogin");
+const ExtracurricularPortalRegister = lazyPage(() => import("../modules/extracurricular/portal"), "ExtracurricularPortalRegister");
+const ExtracurricularPortalPrograms = lazyPage(() => import("../modules/extracurricular/portal"), "ExtracurricularPortalPrograms");
+const ExtracurricularPortalProfile = lazyPage(() => import("../modules/extracurricular/portal"), "ExtracurricularPortalProfile");
+const SettingsPage = lazyPage(() => import("../modules/settings"), "SettingsPage");
+const StudentMassPromotion = lazyPage(() => import("../modules/students/pages/mass-promotion"), "StudentMassPromotion");
+const CommunicationsPage = lazyPage(() => import("../modules/communications"), "CommunicationsPage");
+const EmailLogPage = lazyPage(() => import("../modules/communications"), "EmailLogPage");
+const StudentJournalsList = lazyPage(() => import("../modules/student-journals/pages"), "StudentJournalsList");
+const StudentJournalCreate = lazyPage(() => import("../modules/student-journals/pages"), "StudentJournalCreate");
+const StudentJournalEdit = lazyPage(() => import("../modules/student-journals/pages"), "StudentJournalEdit");
+const FinanceDashboard = lazyPage(() => import("../modules/finance/pages"), "FinanceDashboard");
+const InvoicesList = lazyPage(() => import("../modules/finance/pages"), "InvoicesList");
+const PaymentVerifications = lazyPage(() => import("../modules/finance/pages"), "PaymentVerifications");
+const SchoolExpenses = lazyPage(() => import("../modules/finance/pages"), "SchoolExpenses");
+const FinanceCategories = lazyPage(() => import("../modules/finance/pages"), "FinanceCategories");
+const SpmbFeesConfig = lazyPage(() => import("../modules/finance/pages"), "SpmbFeesConfig");
+const FinanceSettings = lazyPage(() => import("../modules/finance/pages"), "FinanceSettings");
+const FinanceCashbook = lazyPage(() => import("../modules/finance/pages"), "FinanceCashbook");
+const FinanceBudgets = lazyPage(() => import("../modules/finance/pages"), "FinanceBudgets");
+const FinanceAccounting = lazyPage(() => import("../modules/finance/pages"), "FinanceAccounting");
+const FinanceReports = lazyPage(() => import("../modules/finance/pages"), "FinanceReports");
+const FinanceTariffs = lazyPage(() => import("../modules/finance/pages"), "FinanceTariffs");
+const FinanceReceipts = lazyPage(() => import("../modules/finance/pages"), "FinanceReceipts");
+const CurriculumDashboard = lazyPage(() => import("../modules/curriculum/dashboard"), "CurriculumDashboard");
+const HblAdminPage = lazyPage(() => import("../modules/hbl"), "HblAdminPage");
+const CurriculumQualityControl = lazyPage(() => import("../modules/curriculum/quality-control"), "CurriculumQualityControl");
+const SubjectsList = lazyPage(() => import("../modules/curriculum/subjects"), "SubjectsList");
+const SubjectCreate = lazyPage(() => import("../modules/curriculum/subjects"), "SubjectCreate");
+const SubjectEdit = lazyPage(() => import("../modules/curriculum/subjects"), "SubjectEdit");
+const SubjectShow = lazyPage(() => import("../modules/curriculum/subjects"), "SubjectShow");
+const SubjectTeacherDirectory = lazyPage(() => import("../modules/curriculum/subjects"), "SubjectTeacherDirectory");
+const SubjectCurriculumCreate = lazyPage(() => import("../modules/curriculum/subject-curriculums"), "SubjectCurriculumCreate");
+const SubjectCurriculumEdit = lazyPage(() => import("../modules/curriculum/subject-curriculums"), "SubjectCurriculumEdit");
+const PaudThemeList = lazyPage(() => import("../modules/curriculum/paud-curriculums/list"), "PaudThemeList");
+const PaudThemeCreate = lazyPage(() => import("../modules/curriculum/paud-curriculums/create"), "PaudThemeCreate");
+const PaudThemeEdit = lazyPage(() => import("../modules/curriculum/paud-curriculums/edit"), "PaudThemeEdit");
+const PaudThemeShow = lazyPage(() => import("../modules/curriculum/paud-curriculums/show"), "PaudThemeShow");
+const CurriculumDocumentsList = lazyPage(() => import("../modules/curriculum/documents"), "CurriculumDocumentsList");
+const CurriculumDocumentCreate = lazyPage(() => import("../modules/curriculum/documents"), "CurriculumDocumentCreate");
+const MailDashboard = lazyPage(() => import("../modules/mail"), "MailDashboard");
+const IncomingMailList = lazyPage(() => import("../modules/mail"), "IncomingMailList");
+const OutgoingMailList = lazyPage(() => import("../modules/mail"), "OutgoingMailList");
+const DispositionsList = lazyPage(() => import("../modules/mail"), "DispositionsList");
+const IncomingMailCreate = lazyPage(() => import("../modules/mail"), "IncomingMailCreate");
+const OutgoingMailCreate = lazyPage(() => import("../modules/mail"), "OutgoingMailCreate");
+const MailShow = lazyPage(() => import("../modules/mail"), "MailShow");
+const RecruitmentDashboard = lazyPage(() => import("../modules/recruitment"), "RecruitmentDashboard");
+const VacanciesList = lazyPage(() => import("../modules/recruitment"), "VacanciesList");
+const ApplicantsList = lazyPage(() => import("../modules/recruitment"), "ApplicantsList");
+const ApplicantShow = lazyPage(() => import("../modules/recruitment"), "ApplicantShow");
+const VacancyCreate = lazyPage(() => import("../modules/recruitment"), "VacancyCreate");
+const VacancyEdit = lazyPage(() => import("../modules/recruitment"), "VacancyEdit");
+const ApplicantCreate = lazyPage(() => import("../modules/recruitment"), "ApplicantCreate");
+const CbtBanksList = lazyPage(() => import("../modules/recruitment/cbt/CbtBanksList"), "CbtBanksList");
+const CbtQuestionsManager = lazyPage(() => import("../modules/recruitment/cbt/CbtQuestionsManager"), "CbtQuestionsManager");
+const CbtExamsList = lazyPage(() => import("../modules/recruitment/cbt/CbtExamsList"), "CbtExamsList");
+const CbtExamBanksManager = lazyPage(() => import("../modules/recruitment/cbt/CbtExamBanksManager"), "CbtExamBanksManager");
+const CbtAttemptsList = lazyPage(() => import("../modules/recruitment/cbt/CbtAttemptsList"), "CbtAttemptsList");
+const CbtAttemptShow = lazyPage(() => import("../modules/recruitment/cbt/CbtAttemptShow"), "CbtAttemptShow");
+const AdmissionsDashboard = lazyPage(() => import("../modules/admissions/pages"), "AdmissionsDashboard");
+const AdmissionsSettings = lazyPage(() => import("../modules/admissions/pages"), "AdmissionsSettings");
+const AdmissionsReports = lazyPage(() => import("../modules/admissions/pages"), "AdmissionsReports");
+const AdmissionsApplicantsList = lazyPage(() => import("../modules/admissions/pages"), "ApplicantsList");
+const AdmissionsApplicantShow = lazyPage(() => import("../modules/admissions/pages"), "ApplicantShow");
+const AdmissionCrm = lazyPage(() => import("../modules/admissions/pages"), "AdmissionCrm");
+const AdmissionLeadShow = lazyPage(() => import("../modules/admissions/pages"), "AdmissionLeadShow");
+const AcademicDashboard = lazyPage(() => import("../modules/academic"), "AcademicDashboard");
+const Gradebook = lazyPage(() => import("../modules/academic"), "Gradebook");
+const ReportCards = lazyPage(() => import("../modules/academic"), "ReportCards");
+const ReportPrint = lazyPage(() => import("../modules/academic"), "ReportPrint");
+const SarprasDashboard = lazyPage(() => import("../modules/sarpras"), "SarprasDashboard");
+const AssetLoansList = lazyPage(() => import("../modules/sarpras"), "AssetLoansList");
+const ProcurementsList = lazyPage(() => import("../modules/sarpras"), "ProcurementsList");
+const UnifiedAssetsDashboard = lazyPage(() => import("../modules/sarpras"), "UnifiedAssetsDashboard");
+const RoomsList = lazyPage(() => import("../modules/sarpras"), "RoomsList");
+const RoomSchedulesList = lazyPage(() => import("../modules/sarpras"), "RoomSchedulesList");
+const MaintenanceList = lazyPage(() => import("../modules/sarpras"), "MaintenanceList");
+const StocktakesList = lazyPage(() => import("../modules/sarpras"), "StocktakesList");
+const AcademicCalendar = lazyPage(() => import("../modules/calendar"), "AcademicCalendar");
+const PkgList = lazyPage(() => import("../modules/pkg"), "PkgList");
+const PkgCreate = lazyPage(() => import("../modules/pkg"), "PkgCreate");
+const PkgShow = lazyPage(() => import("../modules/pkg"), "PkgShow");
+const PkgHistory = lazyPage(() => import("../modules/pkg"), "PkgHistory");
+const PkgSettings = lazyPage(() => import("../modules/pkg"), "PkgSettings");
+const QuranRecordsList = lazyPage(() => import("../modules/quran"), "QuranRecordsList");
+const QuranRecordForm = lazyPage(() => import("../modules/quran"), "QuranRecordForm");
+const QuranTargetsList = lazyPage(() => import("../modules/quran"), "QuranTargetsList");
+const QuranTargetForm = lazyPage(() => import("../modules/quran"), "QuranTargetForm");
+const QuranAssessmentsList = lazyPage(() => import("../modules/quran"), "QuranAssessmentsList");
+const QuranAssessmentForm = lazyPage(() => import("../modules/quran"), "QuranAssessmentForm");
+const HalaqohsList = lazyPage(() => import("../modules/quran"), "HalaqohsList");
+const HalaqohForm = lazyPage(() => import("../modules/quran"), "HalaqohForm");
+const HalaqohShow = lazyPage(() => import("../modules/quran"), "HalaqohShow");
+const TahfidzTargetsList = lazyPage(() => import("../modules/quran"), "TahfidzTargetsList");
+const TahfidzTargetForm = lazyPage(() => import("../modules/quran"), "TahfidzTargetForm");
+const TahfidzReportDashboard = lazyPage(() => import("../modules/quran"), "TahfidzReportDashboard");
+const TahsinHalaqohsList = lazyPage(() => import("../modules/quran"), "TahsinHalaqohsList");
+const TahsinHalaqohForm = lazyPage(() => import("../modules/quran"), "TahsinHalaqohForm");
+const TahsinHalaqohShow = lazyPage(() => import("../modules/quran"), "TahsinHalaqohShow");
+const TahsinTargetsList = lazyPage(() => import("../modules/quran"), "TahsinTargetsList");
+const TahsinTargetForm = lazyPage(() => import("../modules/quran"), "TahsinTargetForm");
+const TahsinRecordsList = lazyPage(() => import("../modules/quran"), "TahsinRecordsList");
+const TahsinAssessmentsList = lazyPage(() => import("../modules/quran"), "TahsinAssessmentsList");
+const TahsinReportDashboard = lazyPage(() => import("../modules/quran"), "TahsinReportDashboard");
+const TahsinRecordForm = lazyPage(() => import("../modules/quran"), "TahsinRecordForm");
+const TahsinAssessmentForm = lazyPage(() => import("../modules/quran"), "TahsinAssessmentForm");
 
-import {
-  PaudDashboard,
-  PaudActivitiesList, PaudActivityForm,
-  StppaAssessmentsList, StppaAssessmentForm
-} from "../modules/paud";
+const PaudDashboard = lazyPage(() => import("../modules/paud"), "PaudDashboard");
+const PaudActivitiesList = lazyPage(() => import("../modules/paud"), "PaudActivitiesList");
+const PaudActivityForm = lazyPage(() => import("../modules/paud"), "PaudActivityForm");
+const StppaAssessmentsList = lazyPage(() => import("../modules/paud"), "StppaAssessmentsList");
+const StppaAssessmentForm = lazyPage(() => import("../modules/paud"), "StppaAssessmentForm");
 
-import { PortalLayout } from "../modules/portal/portal-layout";
-import { PortalLogin } from "../modules/portal/portal-login";
-import { PortalDashboard } from "../modules/portal/portal-dashboard";
-import { PortalExtracurricular } from "../modules/portal/portal-extracurricular";
-import { PortalFinance } from "../modules/portal/portal-finance";
-import { PortalAcademic } from "../modules/portal/portal-academic";
-import { PortalJournals } from "../modules/portal/portal-journals";
-import { PortalQuran } from "../modules/portal/portal-quran";
-import { PortalPaud } from "../modules/portal/portal-paud";
-import { PortalAnnouncements } from "../modules/portal/portal-announcements";
-import { PrintInvoice } from "../modules/finance/pages/print-invoice";
-import { SpmbLayout, SpmbDashboard, SpmbForm, SpmbDocuments, SpmbAnnouncement, SpmbLogin, SpmbRegister, SpmbForgotPassword, SpmbResetPassword, SpmbChecklist, SpmbPayment, SpmbSubmit } from "../modules/admissions/portal";
-import { CbtPortalLayout } from "../modules/cbt-portal/CbtPortalLayout";
-import { CbtPortalLogin } from "../modules/cbt-portal/CbtPortalLogin";
-import { CbtPortalTestRoom } from "../modules/cbt-portal/CbtPortalTestRoom";
+const PortalLayout = lazyPage(() => import("../modules/portal/portal-layout"), "PortalLayout");
+const PortalLogin = lazyPage(() => import("../modules/portal/portal-login"), "PortalLogin");
+const PortalDashboard = lazyPage(() => import("../modules/portal/portal-dashboard"), "PortalDashboard");
+const PortalExtracurricular = lazyPage(() => import("../modules/portal/portal-extracurricular"), "PortalExtracurricular");
+const PortalFinance = lazyPage(() => import("../modules/portal/portal-finance"), "PortalFinance");
+const PortalAcademic = lazyPage(() => import("../modules/portal/portal-academic"), "PortalAcademic");
+const PortalJournals = lazyPage(() => import("../modules/portal/portal-journals"), "PortalJournals");
+const PortalQuran = lazyPage(() => import("../modules/portal/portal-quran"), "PortalQuran");
+const PortalPaud = lazyPage(() => import("../modules/portal/portal-paud"), "PortalPaud");
+const PortalAnnouncements = lazyPage(() => import("../modules/portal/portal-announcements"), "PortalAnnouncements");
+const PrintInvoice = lazyPage(() => import("../modules/finance/pages/print-invoice"), "PrintInvoice");
+const SpmbLayout = lazyPage(() => import("../modules/admissions/portal"), "SpmbLayout");
+const SpmbDashboard = lazyPage(() => import("../modules/admissions/portal"), "SpmbDashboard");
+const SpmbForm = lazyPage(() => import("../modules/admissions/portal"), "SpmbForm");
+const SpmbDocuments = lazyPage(() => import("../modules/admissions/portal"), "SpmbDocuments");
+const SpmbAnnouncement = lazyPage(() => import("../modules/admissions/portal"), "SpmbAnnouncement");
+const SpmbLogin = lazyPage(() => import("../modules/admissions/portal"), "SpmbLogin");
+const SpmbRegister = lazyPage(() => import("../modules/admissions/portal"), "SpmbRegister");
+const SpmbForgotPassword = lazyPage(() => import("../modules/admissions/portal"), "SpmbForgotPassword");
+const SpmbResetPassword = lazyPage(() => import("../modules/admissions/portal"), "SpmbResetPassword");
+const SpmbChecklist = lazyPage(() => import("../modules/admissions/portal"), "SpmbChecklist");
+const SpmbPayment = lazyPage(() => import("../modules/admissions/portal"), "SpmbPayment");
+const SpmbSubmit = lazyPage(() => import("../modules/admissions/portal"), "SpmbSubmit");
+const CbtPortalLayout = lazyPage(() => import("../modules/cbt-portal/CbtPortalLayout"), "CbtPortalLayout");
+const CbtPortalLogin = lazyPage(() => import("../modules/cbt-portal/CbtPortalLogin"), "CbtPortalLogin");
+const CbtPortalTestRoom = lazyPage(() => import("../modules/cbt-portal/CbtPortalTestRoom"), "CbtPortalTestRoom");
 
-import { TeacherLayout } from "../modules/teacher-portal/teacher-layout";
-import { TeacherLogin } from "../modules/teacher-portal/teacher-login";
-import { TeacherDashboard } from "../modules/teacher-portal/teacher-dashboard";
-import { TeacherClasses } from "../modules/teacher-portal/teacher-classes";
-import { TeacherJournals } from "../modules/teacher-portal/teacher-journals";
-import { TeacherLeaves } from "../modules/teacher-portal/teacher-leaves";
-import { TeacherAttendance } from "../modules/teacher-portal/teacher-attendance";
-import { TeacherSchedules } from "../modules/teacher-portal/teacher-schedules";
-import { TeacherQuran } from "../modules/teacher-portal/teacher-quran";
-import { TeacherPaud } from "../modules/teacher-portal/teacher-paud";
-import { TeacherAnnouncements } from "../modules/teacher-portal/teacher-announcements";
-import { TeacherProfile } from "../modules/teacher-portal/teacher-profile";
-import { TeacherTasks } from "../modules/teacher-portal/teacher-tasks";
-import { TeacherReports } from "../modules/teacher-portal/teacher-reports";
-import { TeacherPerformance } from "../modules/teacher-portal/teacher-performance";
+const TeacherLayout = lazyPage(() => import("../modules/teacher-portal/teacher-layout"), "TeacherLayout");
+const TeacherLogin = lazyPage(() => import("../modules/teacher-portal/teacher-login"), "TeacherLogin");
+const TeacherDashboard = lazyPage(() => import("../modules/teacher-portal/teacher-dashboard"), "TeacherDashboard");
+const TeacherClasses = lazyPage(() => import("../modules/teacher-portal/teacher-classes"), "TeacherClasses");
+const TeacherJournals = lazyPage(() => import("../modules/teacher-portal/teacher-journals"), "TeacherJournals");
+const TeacherLeaves = lazyPage(() => import("../modules/teacher-portal/teacher-leaves"), "TeacherLeaves");
+const TeacherAttendance = lazyPage(() => import("../modules/teacher-portal/teacher-attendance"), "TeacherAttendance");
+const TeacherSchedules = lazyPage(() => import("../modules/teacher-portal/teacher-schedules"), "TeacherSchedules");
+const TeacherQuran = lazyPage(() => import("../modules/teacher-portal/teacher-quran"), "TeacherQuran");
+const TeacherPaud = lazyPage(() => import("../modules/teacher-portal/teacher-paud"), "TeacherPaud");
+const TeacherAnnouncements = lazyPage(() => import("../modules/teacher-portal/teacher-announcements"), "TeacherAnnouncements");
+const TeacherProfile = lazyPage(() => import("../modules/teacher-portal/teacher-profile"), "TeacherProfile");
+const TeacherTasks = lazyPage(() => import("../modules/teacher-portal/teacher-tasks"), "TeacherTasks");
+const TeacherReports = lazyPage(() => import("../modules/teacher-portal/teacher-reports"), "TeacherReports");
+const TeacherPerformance = lazyPage(() => import("../modules/teacher-portal/teacher-performance"), "TeacherPerformance");
 
-import { BendaharaLayout, BendaharaLogin } from "../modules/bendahara-portal";
-import { AdminSpmbLayout, AdminSpmbLogin } from "../modules/admin-spmb-portal";
-import { HrdPortalLayout, HrdPortalLogin, HrdDashboard } from "../modules/hrd-portal";
-import { StaffLogin, StaffLayout, StaffDashboard, StaffAttendance, StaffLeaves, StaffAnnouncements, StaffSchedules, StaffProfile, StaffTasks, StaffOperationalReports } from "../modules/staff-portal";
+const BendaharaLayout = lazyPage(() => import("../modules/bendahara-portal"), "BendaharaLayout");
+const BendaharaLogin = lazyPage(() => import("../modules/bendahara-portal"), "BendaharaLogin");
+const AdminSpmbLayout = lazyPage(() => import("../modules/admin-spmb-portal"), "AdminSpmbLayout");
+const AdminSpmbLogin = lazyPage(() => import("../modules/admin-spmb-portal"), "AdminSpmbLogin");
+const HrdPortalLayout = lazyPage(() => import("../modules/hrd-portal"), "HrdPortalLayout");
+const HrdPortalLogin = lazyPage(() => import("../modules/hrd-portal"), "HrdPortalLogin");
+const HrdDashboard = lazyPage(() => import("../modules/hrd-portal"), "HrdDashboard");
+const StaffLogin = lazyPage(() => import("../modules/staff-portal"), "StaffLogin");
+const StaffLayout = lazyPage(() => import("../modules/staff-portal"), "StaffLayout");
+const StaffDashboard = lazyPage(() => import("../modules/staff-portal"), "StaffDashboard");
+const StaffAttendance = lazyPage(() => import("../modules/staff-portal"), "StaffAttendance");
+const StaffLeaves = lazyPage(() => import("../modules/staff-portal"), "StaffLeaves");
+const StaffAnnouncements = lazyPage(() => import("../modules/staff-portal"), "StaffAnnouncements");
+const StaffSchedules = lazyPage(() => import("../modules/staff-portal"), "StaffSchedules");
+const StaffProfile = lazyPage(() => import("../modules/staff-portal"), "StaffProfile");
+const StaffTasks = lazyPage(() => import("../modules/staff-portal"), "StaffTasks");
+const StaffOperationalReports = lazyPage(() => import("../modules/staff-portal"), "StaffOperationalReports");
 
-import { ReportPeriodsList, ReportPeriodCreate, ReportPeriodEdit, ReportPeriodShow } from "../modules/digital-reports/periods/pages";
-import { ReportTemplatesList, ReportTemplateCreate, ReportTemplateEdit, ReportTemplateShow } from "../modules/digital-reports/templates/pages";
-import { ReportGenerator } from "../modules/digital-reports/generate/pages";
-import { TeacherInputList, TeacherInputForm } from "../modules/digital-reports/teacher-input/pages";
-import { HomeroomReviewList, HomeroomReviewForm } from "../modules/digital-reports/homeroom-review/pages";
-import { WakasekReviewList, WakasekReviewForm } from "../modules/digital-reports/wakasek-review/pages";
-import { PrincipalApprovalList, PrincipalApprovalForm } from "../modules/digital-reports/principal-approval/pages";
-import { PublishReportList } from "../modules/digital-reports/publish/pages";
-import { ParentReportList, ParentReportShow } from "../modules/digital-reports/parent/pages";
-import { ReadReceiptsList } from "../modules/digital-reports/read-receipts/pages";
-import { GeneratePDFList } from "../modules/digital-reports/pdf/pages";
-import { MonitoringDashboard } from "../modules/digital-reports/monitoring/pages";
+const ReportPeriodsList = lazyPage(() => import("../modules/digital-reports/periods/pages"), "ReportPeriodsList");
+const ReportPeriodCreate = lazyPage(() => import("../modules/digital-reports/periods/pages"), "ReportPeriodCreate");
+const ReportPeriodEdit = lazyPage(() => import("../modules/digital-reports/periods/pages"), "ReportPeriodEdit");
+const ReportPeriodShow = lazyPage(() => import("../modules/digital-reports/periods/pages"), "ReportPeriodShow");
+const ReportTemplatesList = lazyPage(() => import("../modules/digital-reports/templates/pages"), "ReportTemplatesList");
+const ReportTemplateCreate = lazyPage(() => import("../modules/digital-reports/templates/pages"), "ReportTemplateCreate");
+const ReportTemplateEdit = lazyPage(() => import("../modules/digital-reports/templates/pages"), "ReportTemplateEdit");
+const ReportTemplateShow = lazyPage(() => import("../modules/digital-reports/templates/pages"), "ReportTemplateShow");
+const ReportGenerator = lazyPage(() => import("../modules/digital-reports/generate/pages"), "ReportGenerator");
+const TeacherInputList = lazyPage(() => import("../modules/digital-reports/teacher-input/pages"), "TeacherInputList");
+const TeacherInputForm = lazyPage(() => import("../modules/digital-reports/teacher-input/pages"), "TeacherInputForm");
+const HomeroomReviewList = lazyPage(() => import("../modules/digital-reports/homeroom-review/pages"), "HomeroomReviewList");
+const HomeroomReviewForm = lazyPage(() => import("../modules/digital-reports/homeroom-review/pages"), "HomeroomReviewForm");
+const WakasekReviewList = lazyPage(() => import("../modules/digital-reports/wakasek-review/pages"), "WakasekReviewList");
+const WakasekReviewForm = lazyPage(() => import("../modules/digital-reports/wakasek-review/pages"), "WakasekReviewForm");
+const PrincipalApprovalList = lazyPage(() => import("../modules/digital-reports/principal-approval/pages"), "PrincipalApprovalList");
+const PrincipalApprovalForm = lazyPage(() => import("../modules/digital-reports/principal-approval/pages"), "PrincipalApprovalForm");
+const PublishReportList = lazyPage(() => import("../modules/digital-reports/publish/pages"), "PublishReportList");
+const ParentReportList = lazyPage(() => import("../modules/digital-reports/parent/pages"), "ParentReportList");
+const ParentReportShow = lazyPage(() => import("../modules/digital-reports/parent/pages"), "ParentReportShow");
+const ReadReceiptsList = lazyPage(() => import("../modules/digital-reports/read-receipts/pages"), "ReadReceiptsList");
+const GeneratePDFList = lazyPage(() => import("../modules/digital-reports/pdf/pages"), "GeneratePDFList");
+const MonitoringDashboard = lazyPage(() => import("../modules/digital-reports/monitoring/pages"), "MonitoringDashboard");
 
 // Digital Library Imports
-import { DigitalLibraryCategoriesList } from "../modules/digital-library/categories-list";
-import { DigitalLibraryCategoriesCreate } from "../modules/digital-library/categories-create";
-import { DigitalLibraryCategoriesEdit } from "../modules/digital-library/categories-edit";
-import { DigitalLibraryBooksList } from "../modules/digital-library/books-list";
-import { DigitalLibraryBooksCreate } from "../modules/digital-library/books-create";
-import { DigitalLibraryBooksEdit } from "../modules/digital-library/books-edit";
-import { PortalLibrary, StaffLibrary, TeacherLibrary } from "../modules/portal/portal-library";
-import { PortalOnboarding, StaffOnboarding, TeacherOnboarding } from "../modules/portal/portal-onboarding";
-import { PortalProfile } from "../modules/portal/portal-profile";
-import { PortalAttendance } from "../modules/portal/portal-attendance";
-import { PortalRequests } from "../modules/portal/portal-requests";
-import { PortalHbl } from "../modules/portal/portal-hbl";
+const DigitalLibraryCategoriesList = lazyPage(() => import("../modules/digital-library/categories-list"), "DigitalLibraryCategoriesList");
+const DigitalLibraryCategoriesCreate = lazyPage(() => import("../modules/digital-library/categories-create"), "DigitalLibraryCategoriesCreate");
+const DigitalLibraryCategoriesEdit = lazyPage(() => import("../modules/digital-library/categories-edit"), "DigitalLibraryCategoriesEdit");
+const DigitalLibraryBooksList = lazyPage(() => import("../modules/digital-library/books-list"), "DigitalLibraryBooksList");
+const DigitalLibraryBooksCreate = lazyPage(() => import("../modules/digital-library/books-create"), "DigitalLibraryBooksCreate");
+const DigitalLibraryBooksEdit = lazyPage(() => import("../modules/digital-library/books-edit"), "DigitalLibraryBooksEdit");
+const PortalLibrary = lazyPage(() => import("../modules/portal/portal-library"), "PortalLibrary");
+const StaffLibrary = lazyPage(() => import("../modules/portal/portal-library"), "StaffLibrary");
+const TeacherLibrary = lazyPage(() => import("../modules/portal/portal-library"), "TeacherLibrary");
+const PortalOnboarding = lazyPage(() => import("../modules/portal/portal-onboarding"), "PortalOnboarding");
+const StaffOnboarding = lazyPage(() => import("../modules/portal/portal-onboarding"), "StaffOnboarding");
+const TeacherOnboarding = lazyPage(() => import("../modules/portal/portal-onboarding"), "TeacherOnboarding");
+const PortalProfile = lazyPage(() => import("../modules/portal/portal-profile"), "PortalProfile");
+const PortalAttendance = lazyPage(() => import("../modules/portal/portal-attendance"), "PortalAttendance");
+const PortalRequests = lazyPage(() => import("../modules/portal/portal-requests"), "PortalRequests");
+const PortalHbl = lazyPage(() => import("../modules/portal/portal-hbl"), "PortalHbl");
 
 // Onboarding Imports
-import { OnboardingList, OnboardingCreate, OnboardingEdit, OnboardingShow } from "../modules/onboarding/pages";
+const OnboardingList = lazyPage(() => import("../modules/onboarding/pages"), "OnboardingList");
+const OnboardingCreate = lazyPage(() => import("../modules/onboarding/pages"), "OnboardingCreate");
+const OnboardingEdit = lazyPage(() => import("../modules/onboarding/pages"), "OnboardingEdit");
+const OnboardingShow = lazyPage(() => import("../modules/onboarding/pages"), "OnboardingShow");
 
 export default function App() {
   // Supabase falls back to the configured Site URL when a requested recovery
@@ -787,6 +935,7 @@ export default function App() {
       >
         <AcademicYearProvider>
           <UnitProvider>
+            <Suspense fallback={<PageLoader fullScreen />}>
             <Routes>
               <Route
                 element={
@@ -1315,6 +1464,7 @@ export default function App() {
               <Route path="*" element={<NotFoundPage />} />
 
             </Routes>
+            </Suspense>
           </UnitProvider>
         </AcademicYearProvider>
       </Refine>

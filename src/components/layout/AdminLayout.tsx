@@ -1,9 +1,10 @@
-import React, { useState } from "react";
+import React, { Suspense, useState } from "react";
 import { Outlet } from "react-router";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
 import { MobileBottomNav } from "./MobileBottomNav";
 import { AdminPanelGate, AdminRouteGuard } from "../auth/AdminRouteGuard";
+import { PageLoader } from "../common/PageLoader";
 
 export const AdminLayout: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -34,7 +35,9 @@ export const AdminLayout: React.FC = () => {
           <main className="flex flex-1 flex-col overflow-y-auto pb-16 md:pb-0">
             <div className="p-4 md:p-8 max-w-7xl mx-auto w-full flex-1">
               <AdminRouteGuard>
-                <Outlet />
+                <Suspense fallback={<PageLoader />}>
+                  <Outlet />
+                </Suspense>
               </AdminRouteGuard>
             </div>
             <footer className="w-full py-4 text-center text-xs text-muted-foreground mt-auto bg-card border-t shadow-sm">

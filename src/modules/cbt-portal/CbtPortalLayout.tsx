@@ -1,10 +1,11 @@
-import React from "react";
+import React, { Suspense } from "react";
 import { Outlet, useLocation } from "react-router";
+import { PageLoader } from "../../components/common/PageLoader";
 
 export const CbtPortalLayout: React.FC = () => {
   const location = useLocation();
   const isLogin = location.pathname === "/cbt" || location.pathname === "/cbt/login";
-  if (isLogin) return <Outlet />;
+  if (isLogin) return <Suspense fallback={<PageLoader />}><Outlet /></Suspense>;
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
@@ -23,7 +24,7 @@ export const CbtPortalLayout: React.FC = () => {
       </header>
 
       <main className="flex-1 flex flex-col items-center justify-center py-12 px-4">
-        <Outlet />
+        <Suspense fallback={<PageLoader />}><Outlet /></Suspense>
       </main>
 
       <footer className="py-6 text-center text-sm text-slate-400 bg-white border-t mt-auto">

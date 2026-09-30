@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, Suspense } from "react";
 import { useSelect } from "@/lib/refine-compat";
 import { Link, Outlet, useLocation } from "react-router";
 import { NotificationBell } from "../common/NotificationBell";
@@ -16,6 +16,7 @@ import {
 import { useAcademicYear } from "../../app/providers/AcademicYearProvider";
 import { BrandLogo } from "../common/BrandLogo";
 import { StoredImage } from "../common/StoredImage";
+import { PageLoader } from "../common/PageLoader";
 
 export interface RolePortalNavItem {
   to: string;
@@ -228,7 +229,7 @@ export const RolePortalShell: React.FC<RolePortalShellProps> = ({
         </header>
 
         <main className="flex flex-1 flex-col overflow-y-auto pb-16 md:pb-0">
-          <div className="mx-auto w-full max-w-7xl flex-1 p-4 md:p-8"><Outlet context={outletContext} /></div>
+          <div className="mx-auto w-full max-w-7xl flex-1 p-4 md:p-8"><Suspense fallback={<PageLoader />}><Outlet context={outletContext} /></Suspense></div>
           <footer className="mt-auto border-t bg-card py-4 text-center text-xs text-muted-foreground">&copy; {new Date().getFullYear()} TS Lab School. {portalLabel}.</footer>
         </main>
       </div>

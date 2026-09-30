@@ -1,8 +1,9 @@
-import React, { useEffect } from "react";
+import React, { useEffect, Suspense } from "react";
 import { Outlet, useNavigate, useLocation, Link } from "react-router";
 import { useGetIdentity, useLogout } from "@/lib/refine-compat";
 import { Target, LogOut, Menu, User, LayoutDashboard, LayoutList } from "lucide-react";
 import { supabaseClient } from "../../../lib/supabase/client";
+import { PageLoader } from "../../../components/common/PageLoader";
 
 export const ExtracurricularPortalLayout: React.FC = () => {
   const { data: identity } = useGetIdentity<any>();
@@ -23,7 +24,7 @@ export const ExtracurricularPortalLayout: React.FC = () => {
   const isAuthPage = location.pathname.includes('/login') || location.pathname.includes('/register');
 
   if (isAuthPage) {
-    return <Outlet />;
+    return <Suspense fallback={<PageLoader />}><Outlet /></Suspense>;
   }
 
   const isProgramsPage = location.pathname.includes('/ekskul-portal/programs');
@@ -89,7 +90,7 @@ export const ExtracurricularPortalLayout: React.FC = () => {
 
       {/* Main Content */}
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
-        <Outlet />
+        <Suspense fallback={<PageLoader />}><Outlet /></Suspense>
       </main>
       
       <footer className="bg-white border-t py-6 mt-auto">

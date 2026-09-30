@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, Suspense } from "react";
 import { Outlet, useNavigate, useLocation, Link } from "react-router";
 import { supabaseClient } from "../../lib/supabase/client";
 import { Wallet, Receipt, CheckCircle, CreditCard, Users, LogOut, LayoutDashboard, Settings, Landmark, BookOpenCheck, BarChart3, Tags, BadgeDollarSign, Bell, CalendarCheck, MoreHorizontal, UserRound, X } from "lucide-react";
 import { useSystemSettings } from "../../app/providers/SettingsProvider";
 import { BrandLogo } from "../../components/common/BrandLogo";
+import { PageLoader } from "../../components/common/PageLoader";
 
 type FinanceEmployee = { full_name?: string | null; position?: string | null; role?: string | null };
 type RoleRow = { roles?: { name?: string | null } | null };
@@ -146,7 +147,7 @@ export const BendaharaLayout: React.FC = () => {
         {/* Content */}
         <main className="flex-1 overflow-y-auto p-4 md:p-8 pb-24 md:pb-8">
           <div className="max-w-6xl mx-auto w-full">
-            <Outlet />
+            <Suspense fallback={<PageLoader />}><Outlet /></Suspense>
           </div>
         </main>
 

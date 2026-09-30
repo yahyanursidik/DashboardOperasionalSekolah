@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, Suspense } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router";
 import { NotificationBell } from "../../components/common/NotificationBell";
 import { Bell, BookOpenCheck, Calendar, CalendarCheck, FileWarning, Home, Library, ListTodo, LogOut, Menu, PanelLeftClose, PanelLeftOpen, UserRound, Wallet, X } from "lucide-react";
@@ -7,6 +7,7 @@ import { useSystemSettings } from "../../app/providers/SettingsProvider";
 import { supabaseClient } from "../../lib/supabase/client";
 import { formatStaffPosition, getInitials, staffPortalPositions } from "./staff-utils";
 import { publishDueAnnouncements } from "../../lib/announcements/publish-due";
+import { PageLoader } from "../../components/common/PageLoader";
 
 type NavItem = { to: string; label: string; icon: React.ElementType; exact?: boolean; badge?: number };
 type NavGroup = { label: string; items: NavItem[] };
@@ -112,7 +113,7 @@ export const StaffLayout: React.FC = () => {
         <div className="flex min-w-0 items-center gap-3"><button type="button" onClick={() => setIsMoreOpen(true)} aria-label="Buka menu utama" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-primary hover:bg-muted md:hidden"><Menu className="h-6 w-6" /></button><div className="min-w-0"><p className="text-xs font-semibold text-primary">Portal Staf</p><p className="truncate text-sm font-bold text-foreground">Ruang Kerja Operasional</p></div></div>
         <div className="flex shrink-0 items-center gap-1.5"><NotificationBell fallbackHref="/staff/announcements" fallbackBadge={badges.announcements} /><Link to="/staff/profile" className="flex items-center gap-2 border-l pl-2 sm:pl-3"><div className="hidden max-w-40 text-right lg:block"><p className="truncate text-sm font-semibold leading-none">{employee.full_name}</p><p className="mt-1 truncate text-xs text-muted-foreground">{formatStaffPosition(employee.position)}</p></div><div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">{getInitials(employee.full_name)}</div></Link><button type="button" onClick={() => void logout()} title="Keluar" aria-label="Keluar dari portal" className="flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"><LogOut className="h-4 w-4" /></button></div>
       </header>
-      <main className="flex flex-1 flex-col overflow-y-auto pb-16 md:pb-0"><div className="mx-auto w-full max-w-7xl flex-1 p-4 md:p-8"><Outlet context={{ employee }} /></div><footer className="mt-auto w-full border-t border-slate-200 bg-white py-4 text-center text-xs text-slate-500">&copy; {new Date().getFullYear()} TS Lab School</footer></main>
+      <main className="flex flex-1 flex-col overflow-y-auto pb-16 md:pb-0"><div className="mx-auto w-full max-w-7xl flex-1 p-4 md:p-8"><Suspense fallback={<PageLoader />}><Outlet context={{ employee }} /></Suspense></div><footer className="mt-auto w-full border-t border-slate-200 bg-white py-4 text-center text-xs text-slate-500">&copy; {new Date().getFullYear()} TS Lab School</footer></main>
     </div>
     <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-slate-200 bg-white md:hidden"><div className="grid grid-cols-4 px-2">{mobileItems.map((item) => { const Icon = item.icon; const active = isActive(item); return <Link key={item.to} to={item.to} aria-current={active ? "page" : undefined} className={`flex min-h-16 flex-col items-center justify-center gap-1 ${active ? "text-primary" : "text-muted-foreground"}`}><Icon className="h-5 w-5" /><span className="text-[10px] font-semibold">{item.label.replace(" Saya", "")}</span></Link>; })}<button type="button" onClick={() => setIsMoreOpen(true)} className="flex min-h-16 flex-col items-center justify-center gap-1 text-muted-foreground"><Menu className="h-5 w-5" /><span className="text-[10px] font-semibold">Menu</span></button></div></nav>
   </div>;

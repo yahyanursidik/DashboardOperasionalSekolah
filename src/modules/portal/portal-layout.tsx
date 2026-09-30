@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState, Suspense } from "react";
 import { Outlet, useNavigate, useLocation, Link } from "react-router";
 import { NotificationBell } from "../../components/common/NotificationBell";
 import { supabaseClient } from "../../lib/supabase/client";
@@ -7,6 +7,7 @@ import { useSystemSettings } from "../../app/providers/SettingsProvider";
 import type { ParentPortalParent, ParentPortalStudent } from "./portal-context";
 import { publishDueAnnouncements } from "../../lib/announcements/publish-due";
 import { StoredImage } from "../../components/common/StoredImage";
+import { PageLoader } from "../../components/common/PageLoader";
 
 type AnnouncementIdRow = { id: string };
 type AnnouncementReadRow = { announcement_id: string };
@@ -248,7 +249,7 @@ export const PortalLayout: React.FC = () => {
                 </select>
               </div>
             )}
-            <Outlet context={parentContext} />
+            <Suspense fallback={<PageLoader />}><Outlet context={parentContext} /></Suspense>
           </div>
 
           <footer className="mt-8 text-center text-[10px] md:text-sm text-muted-foreground w-full pb-4 md:pb-0">
