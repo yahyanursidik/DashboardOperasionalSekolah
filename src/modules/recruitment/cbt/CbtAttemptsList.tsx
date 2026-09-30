@@ -15,6 +15,7 @@ export const CbtAttemptsList: React.FC = () => {
 
   const { tableQueryResult, current, setCurrent, pageCount, setFilters } = useTable({
     resource: "cbt_participants",
+    filters: { permanent: [{ field: "applicant_id", operator: "nnull", value: true }] },
     meta: {
       select: "*, recruitment_applicants(full_name, email), cbt_exams(title, passing_grade)"
     },
@@ -49,6 +50,7 @@ export const CbtAttemptsList: React.FC = () => {
   
   const { data: examsData } = useList({ 
     resource: "cbt_exams",
+    filters: [{ field: "audience", operator: "eq", value: "recruitment" }],
     pagination: { pageSize: 1000 }
   });
 

@@ -101,6 +101,7 @@ const ExtracurricularPortalProfile = lazyPage(() => import("../modules/extracurr
 const SettingsPage = lazyPage(() => import("../modules/settings"), "SettingsPage");
 const StudentMassPromotion = lazyPage(() => import("../modules/students/pages/mass-promotion"), "StudentMassPromotion");
 const CommunicationsPage = lazyPage(() => import("../modules/communications"), "CommunicationsPage");
+const StudentCbtPage = lazyPage(() => import("../modules/academic/cbt/student-cbt"), "StudentCbtPage");
 const CounselingPage = lazyPage(() => import("../modules/counseling/pages/counseling"), "CounselingPage");
 const TeacherConduct = lazyPage(() => import("../modules/teacher-portal/teacher-conduct"), "TeacherConduct");
 const PortalConduct = lazyPage(() => import("../modules/portal/portal-conduct"), "PortalConduct");
@@ -1284,6 +1285,9 @@ export default function App() {
                   <Route path="gradebook" element={<Gradebook />} />
                   <Route path="reports" element={<ReportCards />} />
                   <Route path="report-print" element={<ReportPrint />} />
+                  <Route path="cbt" element={<StudentCbtPage />} />
+                  <Route path="cbt/banks" element={<CbtBanksList />} />
+                  <Route path="cbt/banks/:bankId/questions" element={<CbtQuestionsManager />} />
                 </Route>
 
                 <Route path="/sarpras">
@@ -1392,6 +1396,9 @@ export default function App() {
                 <Route path="paud" element={<TeacherPaud />} />
                 <Route path="journals" element={<TeacherJournals />} />
                 <Route path="conduct" element={<TeacherConduct />} />
+                <Route path="cbt" element={<StudentCbtPage />} />
+                <Route path="cbt/banks" element={<CbtBanksList />} />
+                <Route path="cbt/banks/:bankId/questions" element={<CbtQuestionsManager />} />
                 <Route path="attendance" element={<TeacherAttendance />} />
                 <Route path="leaves" element={<TeacherLeaves />} />
                 <Route path="schedules" element={<TeacherSchedules />} />

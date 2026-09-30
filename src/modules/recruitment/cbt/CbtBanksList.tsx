@@ -1,5 +1,6 @@
 import React from "react";
 import { Link, useLocation } from "react-router";
+import { getCbtScope } from "./cbt-scope";
 import { useTable, useDelete, useCreate, useUpdate } from "@/lib/refine-compat";
 import { Plus, Trash2, Edit, BookOpen } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
@@ -8,10 +9,11 @@ import { Modal } from "../../../components/common/Modal";
 
 export const CbtBanksList: React.FC = () => {
   const location = useLocation();
-  const basePath = location.pathname.startsWith("/hrd") ? "/hrd/cbt/banks" : "/recruitment/cbt/banks";
+  const { audience, banksPath: basePath } = getCbtScope(location.pathname);
 
   const { tableQueryResult } = useTable({
     resource: "cbt_banks",
+    filters: { permanent: [{ field: "audience", operator: "eq", value: audience }] },
     sorters: { initial: [{ field: "created_at", order: "desc" }] },
   });
 
@@ -36,7 +38,7 @@ export const CbtBanksList: React.FC = () => {
     } else {
       createBank({
         resource: "cbt_banks",
-        values: formData,
+        values: { ...formData, audience },
       }, { onSuccess: () => setIsModalOpen(false) });
     }
   };
@@ -52,7 +54,7 @@ export const CbtBanksList: React.FC = () => {
       <div className="flex justify-between items-center">
         <PageHeader 
           title="Bank Soal (CBT)" 
-          description="Kelola kategori dan kumpulan soal untuk ujian rekrutmen."
+          description={audience === "student" ? "Kelola kumpulan soal untuk ulangan, STS, SAS, dan ASAT siswa." : "Kelola kategori dan kumpulan soal untuk ujian rekrutmen."}
         />
         <button
           onClick={() => {

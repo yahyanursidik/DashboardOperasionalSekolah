@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useList, useCreate, useUpdate, useDelete, useOne, useCreateMany } from "@/lib/refine-compat";
 import { useParams, useNavigate, useLocation } from "react-router";
+import { getCbtScope } from "./cbt-scope";
 import { ArrowLeft, Plus, Trash2, Edit, Save, CheckCircle2, Upload } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { Modal } from "../../../components/common/Modal";
@@ -9,7 +10,7 @@ export const CbtQuestionsManager: React.FC = () => {
   const { bankId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const basePath = location.pathname.startsWith("/hrd") ? "/hrd/cbt/banks" : "/recruitment/cbt/banks";
+  const { banksPath: basePath } = getCbtScope(location.pathname);
 
   const { data: bankData } = useOne({ resource: "cbt_banks", id: bankId as string });
   const bank = bankData?.data;

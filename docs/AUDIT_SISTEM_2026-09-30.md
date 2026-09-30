@@ -409,3 +409,11 @@ Sisa rekonsiliasi: ~35 migrasi lama yang sudah lengkap di skema cukup dicatat (`
 - Diuji 16 skenario (PGlite) dan dry-run produksi dengan akun nyata guru & orang tua.
 
 Riwayat migrasi produksi: 101/101 sinkron. Uji persona: 21/21.
+
+**Fitur baru: CBT Ujian Siswa (`20261002090000`)** — memakai mesin CBT aman yang sama dengan rekrutmen.
+- Bank soal & ujian dibedakan per audiens (`recruitment` khusus HRD, `student` dikelola staf/guru); bank rekrutmen tidak bisa dipasang ke ujian siswa.
+- Ujian siswa: mapel, semester, jenis penilaian (formatif/STS/SAS/ASAT), durasi, KKM, jendela buka–tutup, acak soal, tampilkan nilai (opsional).
+- Daftarkan satu kelas sekaligus (token acak per siswa), cetak kartu token, rekap hasil (tuntas & rata-rata).
+- Nilai dihitung di server dan otomatis ditulis ke Gradebook (`academic_grades`, komponen sesuai jenis penilaian), plus tombol kirim ulang.
+- Menu: panel admin **Ujian CBT Siswa** (`/academic/cbt`) dan portal guru **Ujian CBT** (kelas dibatasi ke kelas yang diajar/diwalikan). Ruang ujian menampilkan status belum dibuka/ditutup dan nilai bila diizinkan.
+- Diuji 20 skenario (PGlite, termasuk regresi CBT rekrutmen) dan dry-run produksi end-to-end (guru → 17 siswa terdaftar → skor 100 → baris Gradebook). Riwayat migrasi 102/102 sinkron.

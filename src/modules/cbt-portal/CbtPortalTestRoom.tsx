@@ -13,10 +13,13 @@ const db = supabaseClient as unknown as {
 
 type CbtQuestion = { id: string; question_text: string; options: Array<{ id: string; text: string }> };
 type CbtSession = {
-  status: "in_progress" | "completed";
+  status: "in_progress" | "completed" | "not_started" | "closed";
   applicant_name?: string;
   exam_title?: string;
+  starts_at?: string;
   ends_at?: string;
+  score?: number | null;
+  is_passed?: boolean | null;
   server_now?: string;
   questions?: CbtQuestion[];
   answers?: Record<string, string>;
@@ -110,7 +113,8 @@ export const CbtPortalTestRoom: React.FC = () => {
       void loadSession();
       return;
     }
-    setSession((prev) => ({ ...(prev || {}), status: "completed" }));
+    // Reload from the server so the score appears when the exam allows it.
+    void loadSession();
   };
   const handleSubmit = () => void submitExam(false);
   // eslint-disable-next-line react-hooks/refs -- keep the timer pointed at the latest submit handler
@@ -131,12 +135,39 @@ export const CbtPortalTestRoom: React.FC = () => {
     );
   }
 
+  if (session.status === 'not_started' || session.status === 'closed') {
+    const opensAt = session.starts_at ? new Date(session.starts_at).toLocaleString("id-ID", { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }) : null;
+    return (
+      <div className="bg-white p-8 rounded-2xl shadow-xl text-center max-w-md w-full border border-amber-100">
+        <Clock className="w-12 h-12 text-amber-500 mx-auto mb-4" />
+        <h2 className="text-xl font-bold text-slate-800">{session.status === 'not_started' ? "Ujian Belum Dibuka" : "Ujian Sudah Ditutup"}</h2>
+        <p className="text-slate-600 mt-1 font-medium">{session.exam_title}</p>
+        <p className="text-slate-500 mt-2 mb-6">
+          {session.status === 'not_started'
+            ? `Halo ${session.applicant_name || "peserta"}, ujian dibuka ${opensAt || "sesuai jadwal"}. Muat ulang halaman ini saat waktunya tiba.`
+            : "Waktu pengerjaan ujian ini telah berakhir. Hubungi guru atau panitia bila ada kendala."}
+        </p>
+        <div className="flex justify-center gap-2">
+          {session.status === 'not_started' && <button onClick={() => void loadSession()} className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium">Muat ulang</button>}
+          <button onClick={() => navigate("/cbt/login")} className="px-6 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 font-medium">Kembali</button>
+        </div>
+      </div>
+    );
+  }
+
   if (session.status === 'completed') {
     return (
       <div className="bg-white p-8 rounded-2xl shadow-xl text-center max-w-md w-full border border-emerald-100">
         <CheckCircle2 className="w-16 h-16 text-emerald-500 mx-auto mb-4" />
         <h2 className="text-2xl font-bold text-slate-800">Ujian Selesai</h2>
         <p className="text-slate-500 mt-2 mb-6">Terima kasih, Anda telah menyelesaikan ujian ini. Hasil ujian telah direkam oleh sistem.</p>
+        {session.score !== undefined && session.score !== null && (
+          <div className="mb-6 rounded-xl bg-slate-50 p-4">
+            <p className="text-sm text-slate-500">Nilai Anda</p>
+            <p className={`text-4xl font-bold ${session.is_passed ? "text-emerald-600" : "text-rose-600"}`}>{session.score}</p>
+            <p className="text-sm text-slate-500 mt-1">{session.is_passed ? "Tuntas" : "Belum tuntas"}</p>
+          </div>
+        )}
         <button onClick={() => navigate("/cbt/login")} className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium">Selesai</button>
       </div>
     );

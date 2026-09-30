@@ -17,6 +17,7 @@ import {
   Star,
   UserRound,
   ShieldAlert,
+  Laptop,
 } from "lucide-react";
 import { useAcademicYear } from "../../app/providers/AcademicYearProvider";
 import { RolePortalShell, type RolePortalNavGroup } from "../../components/layout/RolePortalShell";
@@ -159,6 +160,7 @@ export const TeacherLayout: React.FC = () => {
       { label: "Pembelajaran", items: [
         { to: "/teacher/classes", label: "Kelas, Absensi & Nilai", icon: CheckSquare, keywords: ["siswa", "penilaian"] },
         { to: "/teacher/reports", label: "Rapor Digital", icon: FileText, keywords: ["sas", "asat", "semester"] },
+        { to: "/teacher/cbt", label: "Ujian CBT", icon: Laptop, keywords: ["ujian online", "bank soal", "token", "sts", "sas"] },
         ...(hasQuranAssignment ? [{ to: "/teacher/quran", label: "Pembelajaran Qur'an", icon: BookOpen, keywords: ["tahfidz", "tahsin", "mutabaah"] }] : []),
         ...(hasPaudAssignment ? [{ to: "/teacher/paud", label: "Perkembangan KB/TK", icon: Star }] : []),
         { to: "/teacher/journals", label: "Jurnal & Tindak Lanjut Siswa", icon: ClipboardList },

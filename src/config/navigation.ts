@@ -159,6 +159,13 @@ export const navigationConfig: NavigationGroup[] = [
         keywords: ["gradebook", "sas", "asat", "sts"],
       },
       {
+        title: "Ujian CBT Siswa",
+        href: "/academic/cbt",
+        icon: ClipboardCheck,
+        resource: "academic_grades",
+        keywords: ["cbt", "ujian online", "sts", "sas", "asat", "ulangan", "bank soal", "token"],
+      },
+      {
         title: "Kelengkapan Rapor",
         href: "/academic/reports",
         icon: FileBadge,

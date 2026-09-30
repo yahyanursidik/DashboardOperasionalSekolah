@@ -20,6 +20,7 @@ export const CbtExamsList: React.FC = () => {
 
   const { data: examsData, isLoading } = useList({
     resource: "cbt_exams",
+    filters: [{ field: "audience", operator: "eq", value: "recruitment" }],
     meta: {
       select: "*, recruitment_vacancies(title, position, status), cbt_exam_banks(id, question_count, cbt_banks(name))",
     },
@@ -35,6 +36,7 @@ export const CbtExamsList: React.FC = () => {
 
   const { data: participantsData } = useList({
     resource: "cbt_participants",
+    filters: [{ field: "applicant_id", operator: "nnull", value: true }],
     meta: { select: "id, exam_id, status, score, is_passed" },
     pagination: { pageSize: 500 },
   });
