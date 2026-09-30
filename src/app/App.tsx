@@ -252,6 +252,7 @@ const TeacherAttendance = lazyPage(() => import("../modules/teacher-portal/teach
 const TeacherSchedules = lazyPage(() => import("../modules/teacher-portal/teacher-schedules"), "TeacherSchedules");
 const TeacherQuran = lazyPage(() => import("../modules/teacher-portal/teacher-quran"), "TeacherQuran");
 const TeacherPaud = lazyPage(() => import("../modules/teacher-portal/teacher-paud"), "TeacherPaud");
+const TeacherHbl = lazyPage(() => import("../modules/teacher-portal/teacher-hbl"), "TeacherHbl");
 const TeacherAnnouncements = lazyPage(() => import("../modules/teacher-portal/teacher-announcements"), "TeacherAnnouncements");
 const TeacherProfile = lazyPage(() => import("../modules/teacher-portal/teacher-profile"), "TeacherProfile");
 const TeacherTasks = lazyPage(() => import("../modules/teacher-portal/teacher-tasks"), "TeacherTasks");
@@ -1399,6 +1400,7 @@ export default function App() {
                 <Route path="reports/:id" element={<TeacherInputForm />} />
                 <Route path="quran" element={<TeacherQuran />} />
                 <Route path="paud" element={<TeacherPaud />} />
+                <Route path="hbl" element={<TeacherHbl />} />
                 <Route path="journals" element={<TeacherJournals />} />
                 <Route path="conduct" element={<TeacherConduct />} />
                 <Route path="payslips" element={<MyPayslips />} />

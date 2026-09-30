@@ -455,3 +455,26 @@ Riwayat migrasi: 104/104 sinkron. Uji persona: 21/21.
 - Master Data unit: pilihan **Layanan belajar** (Reguler / Online HBL). Profil siswa: ringkasan asesmen PAUD yang benar.
 
 **Verifikasi**: dry-run produksi (trigger learning mode HBL, `published_at`, notifikasi, blokir duplikat fase, akses orang tua hanya laporan terbit, tanggapan tidak dapat diubah langsung, akses wali kelas), validasi seluruh query PostgREST ke skema produksi, uji render portal orang tua & editor asesmen dengan data contoh, `tsc`, `eslint`, `npm run build`.
+
+## 13. Preschool HBL — Pertemuan Tematik (5 Okt 2026)
+
+**Masalah yang ditemukan**
+- LMS HBL disusun per **mata pelajaran & materi**, tidak sesuai pembelajaran PAUD yang tematik; halaman admin menumpuk tiga pengelola (program + mapel/materi, Learning Journey, Pertemuan LMS) sehingga pertemuan dapat dibuat di dua tempat.
+- Peserta program didaftarkan manual: 0 dari 16 siswa TSLS Preschool HBL terdaftar; siswa KB-HBL (level `kbhbl`) tidak pernah muncul sebagai kandidat karena pencocokan jenjang.
+- Hanya admin unit/kepsek yang dapat mengelola HBL; guru kelas HBL tidak punya akses maupun menu di portal guru.
+- Kehadiran live meet tidak tercatat; catatan perkembangan dari pertemuan tidak masuk ke asesmen PAUD.
+
+**Migrasi `20261005090000_hbl_thematic_meetings`**
+- `hbl_programs.class_id`: satu program per kelas HBL per semester; peserta otomatis mengikuti daftar kelas (trigger saat program ditautkan dan saat siswa pindah kelas/berubah status) + RPC `hbl_sync_program_students`.
+- `hbl_can_manage_program` kini juga mengizinkan guru yang mengampu kelas program; guru dapat membaca program kelasnya.
+- `hbl_meetings.media_links` (lagu/video/cerita) dan `cp_elements` (elemen Capaian Pembelajaran yang dituju).
+- RPC `hbl_record_meeting_attendance`: kehadiran pertemuan ditulis ke presensi harian (`attendance_records`) sehingga ikut terhitung di rekap asesmen PAUD.
+- Notifikasi in-app ke orang tua saat pertemuan terbit (tema juga harus terbit).
+
+**Aplikasi**
+- Menu **Preschool HBL · Pertemuan** (admin) dan **Pertemuan HBL** (portal guru, untuk guru unit online): Program kelas → **Tema & Subtema** (tanggal, fokus, panduan orang tua) → **Pertemuan** (jadwal, live meet, tujuan, elemen CP, alur kegiatan, persiapan orang tua, media pendukung, lembar kerja, home project).
+- Detail pertemuan: **Kegiatan anak** (bersama orang tua, bukti opsional/wajib), **Kehadiran & catatan** (hadir/izin/sakit/tidak hadir + catatan perkembangan per anak yang masuk ke Jurnal Observasi PAUD sebagai bukti *live meet*), **Laporan keluarga** (review kegiatan & home project).
+- Struktur mata pelajaran/materi dihapus dari antarmuka (tabel lama dibiarkan; tidak ada data materi).
+- Portal orang tua **Homebased Learning**: pertemuan hari ini/berikutnya dengan tombol live meet, rekap kehadiran, tab tema, kartu pertemuan (tujuan, persiapan, media, kegiatan + unggah bukti, lembar kerja, home project + tanggapan guru), cerita keluarga per tema, tautan ke laporan perkembangan KB/TK.
+
+**Verifikasi**: dry-run produksi (11 siswa TK-A HBL otomatis terdaftar, keluar/masuk mengikuti status, guru kelas dapat membuat tema & pertemuan, kehadiran 11 anak tersimpan, elemen CP tervalidasi), validasi seluruh query ke skema produksi, uji render ruang kerja admin, detail pertemuan, formulir pertemuan, dan portal orang tua dengan data contoh; `tsc`, `eslint`, `npm run build`.

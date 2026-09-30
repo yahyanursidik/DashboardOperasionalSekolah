@@ -37,6 +37,7 @@ export const TeacherLayout: React.FC = () => {
   const [unreadAnnouncements, setUnreadAnnouncements] = useState(0);
   const [attendanceActions, setAttendanceActions] = useState(0);
   const [hasPaudAssignment, setHasPaudAssignment] = useState(false);
+  const [hasHblAssignment, setHasHblAssignment] = useState(false);
   const [hasQuranAssignment, setHasQuranAssignment] = useState(false);
   const navigate = useNavigate();
   const { activeYearId, activeSemesterId } = useAcademicYear();
@@ -118,13 +119,14 @@ export const TeacherLayout: React.FC = () => {
       const { data: assignedUnits } = accessibleUnitIds.size
         ? await supabaseClient
             .from("units")
-            .select("id,name,education_level")
+            .select("id,name,education_level,delivery_mode")
             .in("id", [...accessibleUnitIds] as string[])
         : { data: [] as any[] };
       setHasPaudAssignment((assignedUnits || []).some((unit: any) => {
         const name = String(unit.name || "").toLowerCase();
         return unit.education_level === "preschool" || ["paud", "tk", "kb", "preschool"].some((term) => name.includes(term));
       }));
+      setHasHblAssignment((assignedUnits || []).some((unit: any) => unit.delivery_mode === "online"));
       const hasScheduledQuran = (scheduledResult.data || []).some((row: any) =>
         Boolean(row.subjects?.quran_program_type)
       );
@@ -164,6 +166,7 @@ export const TeacherLayout: React.FC = () => {
         { to: "/teacher/cbt", label: "Ujian CBT", icon: Laptop, keywords: ["ujian online", "bank soal", "token", "sts", "sas"] },
         ...(hasQuranAssignment ? [{ to: "/teacher/quran", label: "Pembelajaran Qur'an", icon: BookOpen, keywords: ["tahfidz", "tahsin", "mutabaah"] }] : []),
         ...(hasPaudAssignment ? [{ to: "/teacher/paud", label: "Perkembangan KB/TK", icon: Star }] : []),
+        ...(hasHblAssignment ? [{ to: "/teacher/hbl", label: "Pertemuan HBL", icon: Laptop, keywords: ["homeschooling", "live meet", "tema"] }] : []),
         { to: "/teacher/journals", label: "Jurnal & Tindak Lanjut Siswa", icon: ClipboardList },
         { to: "/teacher/conduct", label: "Tata Tertib & Prestasi", icon: ShieldAlert, keywords: ["poin", "pelanggaran", "bk"] },
         { to: "/teacher/library", label: "Perpustakaan Digital", icon: Library },
@@ -182,7 +185,7 @@ export const TeacherLayout: React.FC = () => {
       ] },
       { label: "Akun", items: [{ to: "/teacher/profile", label: "Profil & Keamanan", icon: UserRound }] },
     ];
-  }, [attendanceActions, employee, hasPaudAssignment, hasQuranAssignment, pendingTasks, unreadAnnouncements]);
+  }, [attendanceActions, employee, hasHblAssignment, hasPaudAssignment, hasQuranAssignment, pendingTasks, unreadAnnouncements]);
 
   const handleLogout = async () => {
     await supabaseClient.auth.signOut();

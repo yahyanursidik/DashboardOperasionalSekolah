@@ -1,5 +1,4 @@
-export * from "./hbl-admin-settings";
 export * from "./hbl-admin-page";
-export * from "./hbl-journey-manager";
+export * from "./hbl-config";
 export * from "./hbl-media-preview";
-export * from "./hbl-meeting-manager";
+export * from "./hbl-workspace";

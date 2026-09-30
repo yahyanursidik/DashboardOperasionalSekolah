@@ -90,11 +90,11 @@ export const navigationConfig: NavigationGroup[] = [
     name: "LMS & Pembelajaran Digital",
     items: [
       {
-        title: "LMS Homebased Learning",
+        title: "Preschool HBL · Pertemuan",
         href: "/lms",
         icon: GraduationCap,
         resource: "subjects",
-        keywords: ["lms", "hbl", "pertemuan", "live meet", "worksheet", "home project"],
+        keywords: ["lms", "hbl", "homebased", "homeschooling", "pertemuan", "tema", "subtema", "live meet", "worksheet", "home project"],
       },
     ],
   },
