@@ -8,6 +8,7 @@ export const AttendanceReports: React.FC = () => {
 
   // Fetch today's records
   const { data, isLoading } = useList({
+    pagination: { mode: "off" },
     resource: "attendance_records",
     filters: [{ field: "attendance_date", operator: "eq", value: selectedDate }],
     meta: { select: "*, classes(name), students(full_name)" }

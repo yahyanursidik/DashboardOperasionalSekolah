@@ -15,6 +15,7 @@ export const CbtAttemptsList: React.FC = () => {
 
   const { tableQueryResult, current, setCurrent, pageCount, setFilters } = useTable({
     resource: "cbt_participants",
+    filters: { permanent: [{ field: "applicant_id", operator: "nnull", value: true }] },
     meta: {
       select: "*, recruitment_applicants(full_name, email), cbt_exams(title, passing_grade)"
     },
@@ -49,6 +50,7 @@ export const CbtAttemptsList: React.FC = () => {
   
   const { data: examsData } = useList({ 
     resource: "cbt_exams",
+    filters: [{ field: "audience", operator: "eq", value: "recruitment" }],
     pagination: { pageSize: 1000 }
   });
 
@@ -59,8 +61,10 @@ export const CbtAttemptsList: React.FC = () => {
     exam_id: ""
   });
 
+  // The token is the participant's only credential, so it must not be guessable.
   const generateToken = () => {
-    return Math.random().toString(36).substring(2, 8).toUpperCase();
+    const bytes = crypto.getRandomValues(new Uint8Array(5));
+    return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("").toUpperCase();
   };
 
   const handleEnroll = () => {

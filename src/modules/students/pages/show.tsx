@@ -107,6 +107,7 @@ export const StudentShow: React.FC = () => {
 
   // Parents data
   const { data: parentsData, isLoading: parentsLoading, refetch: refetchParents } = useList({
+    pagination: { mode: "off" },
     resource: "student_parent_links",
     filters: [
       { field: "student_id", operator: "eq", value: record?.id }
@@ -117,6 +118,7 @@ export const StudentShow: React.FC = () => {
 
   // Journals data
   const { data: journalsData, isLoading: journalsLoading } = useList({
+    pagination: { mode: "off" },
     resource: "student_journals",
     filters: [{ field: "student_id", operator: "eq", value: record?.id }],
     sorters: [{ field: "date_recorded", order: "desc" }],
@@ -131,6 +133,7 @@ export const StudentShow: React.FC = () => {
 
   // Academic History
   const { data: historyData, isLoading: historyLoading, refetch: refetchHistory } = useList({
+    pagination: { mode: "off" },
     resource: "student_academic_history",
     filters: [{ field: "student_id", operator: "eq", value: record?.id }],
     meta: { select: "*, units(name), classes(name), academic_years(name)" },
@@ -140,6 +143,7 @@ export const StudentShow: React.FC = () => {
 
   // Quran data
   const { data: quranData, isLoading: quranLoading } = useList({
+    pagination: { mode: "off" },
     resource: "quran_records",
     filters: [{ field: "student_id", operator: "eq", value: record?.id }],
     sorters: [{ field: "date", order: "desc" }],
@@ -149,6 +153,7 @@ export const StudentShow: React.FC = () => {
 
   // PAUD STPPA data
   const { data: stppaData, isLoading: stppaLoading } = useList({
+    pagination: { mode: "off" },
     resource: "paud_stppa_assessments",
     filters: [{ field: "student_id", operator: "eq", value: record?.id }],
     sorters: [{ field: "date", order: "desc" }],

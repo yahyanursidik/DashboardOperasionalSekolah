@@ -47,14 +47,16 @@ export const AttendanceInput: React.FC = () => {
 
   // Fetch Students in this class
   const { data: studentsData, isLoading: studentsLoading } = useList({
+    pagination: { mode: "off" },
     resource: "students",
-    filters: [{ field: "class_id", operator: "eq", value: classId }],
+    filters: [{ field: "class_id", operator: "eq", value: classId }, { field: "status", operator: "eq", value: "active" }],
     sorters: [{ field: "full_name", order: "asc" }],
     queryOptions: { enabled: !!classId }
   });
 
   // Fetch Existing Attendance for this date to pre-fill state
   const { data: existingRecordsData, isLoading: existingLoading } = useList({
+    pagination: { mode: "off" },
     resource: "attendance_records",
     filters: [
       { field: "class_id", operator: "eq", value: classId },

@@ -24,12 +24,14 @@ export const ExtracurricularPortalPrograms: React.FC = () => {
   }, [identity]);
 
   const { data: programsData, isLoading: loadingPrograms } = useList({
+    pagination: { mode: "off" },
     resource: "extracurriculars",
     filters: [{ field: "is_active", operator: "eq", value: true }],
     sorters: [{ field: "name", order: "asc" }]
   });
 
   const { data: myMemberships, isLoading: loadingMemberships, refetch: refetchMemberships } = useList({
+    pagination: { mode: "off" },
     resource: "extracurricular_members",
     filters: [
       { field: "external_student_id", operator: "eq", value: externalProfile?.id || "" }

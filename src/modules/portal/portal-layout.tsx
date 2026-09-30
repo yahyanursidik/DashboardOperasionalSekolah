@@ -1,11 +1,13 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState, Suspense } from "react";
 import { Outlet, useNavigate, useLocation, Link } from "react-router";
+import { NotificationBell } from "../../components/common/NotificationBell";
 import { supabaseClient } from "../../lib/supabase/client";
-import { Home, Wallet, BookOpen, LogOut, Smile, ClipboardList, Bell, Target, FileText, MoreHorizontal, X, Users, UserRound, CalendarCheck, LifeBuoy, Library, GraduationCap } from "lucide-react";
+import { Home, Wallet, BookOpen, LogOut, Smile, ClipboardList, Bell, Target, FileText, MoreHorizontal, X, Users, UserRound, CalendarCheck, LifeBuoy, Library, GraduationCap, Award } from "lucide-react";
 import { useSystemSettings } from "../../app/providers/SettingsProvider";
 import type { ParentPortalParent, ParentPortalStudent } from "./portal-context";
 import { publishDueAnnouncements } from "../../lib/announcements/publish-due";
 import { StoredImage } from "../../components/common/StoredImage";
+import { PageLoader } from "../../components/common/PageLoader";
 
 type AnnouncementIdRow = { id: string };
 type AnnouncementReadRow = { announcement_id: string };
@@ -113,6 +115,7 @@ export const PortalLayout: React.FC = () => {
       { name: "Akademik & Jadwal", path: "/portal/academic", icon: BookOpen },
       { name: "e-Rapor", path: "/portal/reports", icon: FileText },
       { name: "Catatan Siswa", path: "/portal/journals", icon: ClipboardList },
+      { name: "Sikap & Prestasi", path: "/portal/conduct", icon: Award },
       { name: "Qur'an", path: "/portal/quran", icon: BookOpen },
       ...(isPaudStudent ? [{ name: "KB/TK", path: "/portal/paud", icon: Smile }] : []),
       { name: "Ekstrakurikuler", path: "/portal/extracurricular", icon: Target },
@@ -222,10 +225,11 @@ export const PortalLayout: React.FC = () => {
                   </select>
                 </div>
               )}
-              <button title="Pengumuman" onClick={() => navigate("/portal/announcements")} className="p-2 text-gray-500 hover:text-emerald-600 rounded-full hover:bg-emerald-50 transition-colors relative">
-                <Bell className="w-5 h-5" />
-                {unreadAnnouncements > 0 && <span className="absolute -right-0.5 -top-0.5 min-w-4 rounded-full bg-red-500 px-1 text-center text-[9px] font-bold leading-4 text-white">{unreadAnnouncements > 9 ? "9+" : unreadAnnouncements}</span>}
-              </button>
+              <NotificationBell
+                fallbackHref="/portal/announcements"
+                fallbackBadge={unreadAnnouncements}
+                buttonClassName="relative flex h-9 w-9 items-center justify-center rounded-full text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
+              />
             </div>
           </div>
         </header>
@@ -246,7 +250,7 @@ export const PortalLayout: React.FC = () => {
                 </select>
               </div>
             )}
-            <Outlet context={parentContext} />
+            <Suspense fallback={<PageLoader />}><Outlet context={parentContext} /></Suspense>
           </div>
 
           <footer className="mt-8 text-center text-[10px] md:text-sm text-muted-foreground w-full pb-4 md:pb-0">

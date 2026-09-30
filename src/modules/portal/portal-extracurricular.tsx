@@ -9,11 +9,13 @@ export const PortalExtracurricular: React.FC = () => {
   const [selectedProgram, setSelectedProgram] = useState<string | null>(null);
 
   const { data: programsData, isLoading: loadingPrograms } = useList({
+    pagination: { mode: "off" },
     resource: "extracurriculars",
     filters: [{ field: "is_active", operator: "eq", value: true }]
   });
 
   const { data: myPrograms, isLoading: loadingMyPrograms, refetch } = useList({
+    pagination: { mode: "off" },
     resource: "extracurricular_members",
     meta: {
       select: "*, extracurriculars(name, schedule, coach_name)"

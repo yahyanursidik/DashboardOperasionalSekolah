@@ -43,6 +43,7 @@ export const SubjectShow: React.FC = () => {
   const subject = queryResult?.data?.data;
 
   const { data: curriculumsData, isLoading: curriculumsLoading } = useList({
+    pagination: { mode: "off" },
     resource: "subject_curriculums",
     filters: [
       { field: "subject_id", operator: "eq", value: subjectId },

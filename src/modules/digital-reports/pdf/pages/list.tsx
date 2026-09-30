@@ -5,14 +5,15 @@ import { Search, FilterX, Loader2, FileDown, Printer, CheckCircle } from "lucide
 import { useCurrentUnit } from "../../../../app/providers/UnitProvider";
 import { supabaseClient } from "../../../../lib/supabase/client";
 import { toast } from "sonner";
-import html2canvas from "html2canvas";
-import jsPDF from "jspdf";
 import { ReportCardPDF } from "../components/ReportCardPDF";
+import { loadReportIdentity, renderElementToPdf } from "../report-pdf-utils";
+import { useSystemSettings } from "../../../../app/providers/SettingsProvider";
 import { getDocumentSignedUrl, uploadDocument } from "../../../../lib/supabase/storage";
 
 export const GeneratePDFList: React.FC = () => {
   const { activeUnitId } = useCurrentUnit();
   const { data: user } = useGetIdentity<any>();
+  const { appName, logoUrl } = useSystemSettings();
 
   const [filterUnit, setFilterUnit] = useState<string>(activeUnitId || "");
   const [filterClass, setFilterClass] = useState<string>("");
@@ -64,9 +65,10 @@ export const GeneratePDFList: React.FC = () => {
 
     try {
       // 1. Fetch scores & notes for this specific report to render
-      const [scoresRes, notesRes] = await Promise.all([
+      const [scoresRes, notesRes, identity] = await Promise.all([
         supabaseClient.from('student_report_scores').select('*').eq('report_id', report.id),
-        supabaseClient.from('student_report_notes').select('*').eq('report_id', report.id).eq('parent_visible', true)
+        supabaseClient.from('student_report_notes').select('*').eq('report_id', report.id).eq('parent_visible', true),
+        loadReportIdentity(report, { appName, logoUrl }),
       ]);
 
       const scoresMap: Record<string, any> = {};
@@ -83,7 +85,8 @@ export const GeneratePDFList: React.FC = () => {
         scoresMap,
         homeroomNote,
         homeAdviceNote,
-        principalNote
+        principalNote,
+        identity
       });
 
       // 3. Wait for React to render the hidden component
@@ -92,18 +95,9 @@ export const GeneratePDFList: React.FC = () => {
 
       if (!printRef.current) throw new Error("Reference to PDF component missing");
 
-      // 4. Capture Canvas
-      const canvas = await html2canvas(printRef.current, { scale: 2, useCORS: true, logging: false });
-      const imgData = canvas.toDataURL("image/jpeg", 1.0);
-
-      // 5. Create PDF
+      // 4-5. Capture and split into A4 pages
       toast.loading("Mengonversi ke PDF...", { id: `pdf-${report.id}` });
-      const pdf = new jsPDF("p", "mm", "a4");
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-      
-      pdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight);
-      const pdfBlob = pdf.output('blob');
+      const pdfBlob = await renderElementToPdf(printRef.current);
 
       // 6. Upload through the Contabo S3 signer
       toast.loading("Mengunggah ke server...", { id: `pdf-${report.id}` });
@@ -292,6 +286,7 @@ export const GeneratePDFList: React.FC = () => {
             homeroomNote={renderData.homeroomNote}
             homeAdviceNote={renderData.homeAdviceNote}
             principalNote={renderData.principalNote}
+            identity={renderData.identity}
           />
         )}
       </div>

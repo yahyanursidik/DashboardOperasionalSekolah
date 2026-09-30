@@ -11,12 +11,18 @@ export const AuditLogsList: React.FC = () => {
   if (filterResource) filters.push({ field: "resource_name", operator: "eq", value: filterResource });
   if (filterAction) filters.push({ field: "action", operator: "eq", value: filterAction });
 
+  const [page, setPage] = useState(1);
+  const pageSize = 50;
+
   const { data, isLoading } = useList({
     resource: "audit_logs",
     meta: { select: "*, profiles!user_id(full_name)" },
     filters,
-    sorters: [{ field: "created_at", order: "desc" }]
+    sorters: [{ field: "created_at", order: "desc" }],
+    pagination: { currentPage: page, pageSize, mode: "server" },
   });
+  const total = Number(data?.total || 0);
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   return (
     <div className="space-y-6">
@@ -29,7 +35,7 @@ export const AuditLogsList: React.FC = () => {
         <Filter className="w-4 h-4 text-muted-foreground ml-2" />
         <select 
           value={filterResource}
-          onChange={(e) => setFilterResource(e.target.value)}
+          onChange={(e) => { setFilterResource(e.target.value); setPage(1); }}
           className="border rounded-md px-3 py-1.5 text-sm bg-background"
         >
           <option value="">Semua Resource</option>
@@ -44,7 +50,7 @@ export const AuditLogsList: React.FC = () => {
         
         <select 
           value={filterAction}
-          onChange={(e) => setFilterAction(e.target.value)}
+          onChange={(e) => { setFilterAction(e.target.value); setPage(1); }}
           className="border rounded-md px-3 py-1.5 text-sm bg-background"
         >
           <option value="">Semua Aksi</option>
@@ -113,6 +119,13 @@ export const AuditLogsList: React.FC = () => {
                 )}
               </tbody>
             </table>
+            <div className="flex items-center justify-between gap-3 border-t px-6 py-3 text-xs text-muted-foreground">
+              <span>{total.toLocaleString("id-ID")} catatan · Halaman {page} dari {totalPages}</span>
+              <div className="flex gap-2">
+                <button type="button" disabled={page <= 1} onClick={() => setPage((p) => p - 1)} className="rounded-md border px-3 py-1.5 font-medium disabled:opacity-40">Sebelumnya</button>
+                <button type="button" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)} className="rounded-md border px-3 py-1.5 font-medium disabled:opacity-40">Berikutnya</button>
+              </div>
+            </div>
           </div>
         )}
       </div>

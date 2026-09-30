@@ -1,4 +1,5 @@
 import React from 'react';
+import type { ReportIdentity } from '../report-pdf-utils';
 
 interface ReportCardPDFProps {
   reportData: any;
@@ -6,48 +7,55 @@ interface ReportCardPDFProps {
   homeroomNote: string;
   homeAdviceNote: string;
   principalNote: string;
+  identity: ReportIdentity;
 }
 
+const SignatureName: React.FC<{ name: string }> = ({ name }) => (
+  <p className="font-bold underline">{name ? name : '( ...................................... )'}</p>
+);
+
 export const ReportCardPDF = React.forwardRef<HTMLDivElement, ReportCardPDFProps>(
-  ({ reportData, scoresMap, homeroomNote, homeAdviceNote, principalNote }, ref) => {
-    
+  ({ reportData, scoresMap, homeroomNote, homeAdviceNote, principalNote, identity }, ref) => {
+
     if (!reportData) return null;
 
     const student = reportData.students || {};
-    const period = reportData.report_periods || {};
     const classes = reportData.classes || {};
     const template = reportData.report_templates || {};
-    
+    const contact = [identity.phone && `Telp: ${identity.phone}`, identity.email && `Email: ${identity.email}`].filter(Boolean).join(' | ');
+    const issuedDate = new Date(identity.issuedAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+
     const sortedSections = [...(template.sections || [])]
       .filter((s: any) => s.parent_visible !== false)
       .sort((a, b) => a.display_order - b.display_order);
 
     return (
-      <div 
-        ref={ref} 
-        className="bg-white text-black p-[20mm] box-border" 
-        style={{ 
-          width: '210mm', 
-          minHeight: '297mm', // Not exactly fixed height because a report can be multiple pages, html2canvas will capture the whole scrollHeight, and jspdf handles page splits if we do it right, but for simple MVP we capture one long image and auto-scale it or cut it. Wait, actually we usually want to let it grow.
-          fontFamily: "'Times New Roman', Times, serif" 
+      <div
+        ref={ref}
+        className="bg-white text-black p-[20mm] box-border"
+        style={{
+          width: '210mm',
+          minHeight: '297mm', // Grows with content; renderElementToPdf splits it into A4 pages at row boundaries.
+          fontFamily: "'Times New Roman', Times, serif"
         }}
       >
         {/* KOP SURAT (Header) */}
-        <div className="flex items-center border-b-4 border-black pb-4 mb-6">
-          <div className="w-24 h-24 bg-gray-200 flex items-center justify-center shrink-0 rounded-full border border-gray-400">
-            <span className="text-gray-500 text-xs">LOGO</span>
+        <div data-pdf-block className="flex items-center border-b-4 border-black pb-4 mb-6">
+          <div className="w-24 h-24 flex items-center justify-center shrink-0">
+            {identity.logoUrl ? <img src={identity.logoUrl} alt="" crossOrigin="anonymous" className="max-h-24 max-w-24 object-contain" /> : null}
           </div>
           <div className="flex-1 text-center px-4">
-            <h1 className="text-2xl font-bold uppercase tracking-wider">Sekolah Dasar TSLS</h1>
-            <p className="text-sm mt-1">Jl. Pendidikan No. 123, Kota Cerdas, Indonesia 12345</p>
-            <p className="text-sm">Telp: (021) 1234567 | Email: info@tsls.sch.id | Web: www.tsls.sch.id</p>
+            <h1 className="text-2xl font-bold uppercase tracking-wider">{identity.schoolName}</h1>
+            {identity.address && <p className="text-sm mt-1">{identity.address}</p>}
+            {contact && <p className="text-sm">{contact}</p>}
           </div>
           <div className="w-24 h-24"></div> {/* Spacer for centering */}
         </div>
 
         {/* TITLE */}
-        <div className="text-center mb-8">
+        <div data-pdf-block className="text-center mb-8">
           <h2 className="text-xl font-bold uppercase underline">Laporan Hasil Belajar Peserta Didik</h2>
+          {reportData.report_periods?.name && <p className="text-sm mt-1">{reportData.report_periods.name}</p>}
         </div>
 
         {/* STUDENT INFO */}
@@ -67,15 +75,15 @@ export const ReportCardPDF = React.forwardRef<HTMLDivElement, ReportCardPDFProps
               <td className="py-1">{student.nisn || '-'}</td>
               <td className="py-1 font-bold">Semester</td>
               <td className="py-1">:</td>
-              <td className="py-1">{period.semester_id === 1 ? '1 (Ganjil)' : period.semester_id === 2 ? '2 (Genap)' : '-'}</td>
+              <td className="py-1">{identity.semesterName || '-'}</td>
             </tr>
             <tr>
               <td className="py-1 font-bold">Nama Sekolah</td>
               <td className="py-1">:</td>
-              <td className="py-1">SD TSLS</td>
+              <td className="py-1">{identity.schoolName}</td>
               <td className="py-1 font-bold">Tahun Pelajaran</td>
               <td className="py-1">:</td>
-              <td className="py-1">{period.academic_year_id}</td>
+              <td className="py-1">{identity.academicYearName || '-'}</td>
             </tr>
           </tbody>
         </table>
@@ -108,7 +116,7 @@ export const ReportCardPDF = React.forwardRef<HTMLDivElement, ReportCardPDFProps
                       <tr key={item.id}>
                         <td className="border border-black px-2 py-2 text-center align-top">{idx + 1}</td>
                         <td className="border border-black px-2 py-2 align-top font-medium">{item.name}</td>
-                        <td className="border border-black px-2 py-2 text-center align-top">{score.score_numeric || '-'}</td>
+                        <td className="border border-black px-2 py-2 text-center align-top">{score.score_numeric ?? '-'}</td>
                         <td className="border border-black px-2 py-2 text-center align-top">{score.score_predicate || '-'}</td>
                         <td className="border border-black px-2 py-2 align-top italic text-xs">{score.score_narrative || '-'}</td>
                       </tr>
@@ -142,21 +150,19 @@ export const ReportCardPDF = React.forwardRef<HTMLDivElement, ReportCardPDFProps
         </div>
 
         {/* SIGNATURES */}
-        <div className="flex justify-between mt-12 text-sm page-break-inside-avoid px-8">
+        <div data-pdf-block className="flex justify-between mt-12 text-sm page-break-inside-avoid px-8">
           <div className="text-center">
             <p className="mb-16">Mengetahui,<br/>Orang Tua / Wali</p>
-            <p className="font-bold underline">( ...................................... )</p>
+            <SignatureName name="" />
           </div>
           <div className="text-center">
-            <p className="mb-16">Kota Cerdas, {new Date().toLocaleDateString('id-ID', {day: 'numeric', month: 'long', year: 'numeric'})}<br/>Wali Kelas</p>
-            <p className="font-bold underline">( Nama Wali Kelas )</p>
-            <p>NIP. -</p>
+            <p className="mb-16">{issuedDate}<br/>Wali Kelas</p>
+            <SignatureName name={identity.homeroomName} />
           </div>
         </div>
-        <div className="text-center mt-12 text-sm page-break-inside-avoid">
+        <div data-pdf-block className="text-center mt-12 text-sm page-break-inside-avoid">
             <p className="mb-16">Mengetahui,<br/>Kepala Sekolah</p>
-            <p className="font-bold underline">( Nama Kepala Sekolah )</p>
-            <p>NIP. -</p>
+            <SignatureName name={identity.principalName} />
         </div>
 
       </div>

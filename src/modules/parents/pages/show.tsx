@@ -124,6 +124,7 @@ export const ParentShow: React.FC = () => {
 
   // Fetch linked children
   const { data: childrenData, isLoading: childrenLoading, refetch: refetchChildren } = useList({
+    pagination: { mode: "off" },
     resource: "student_parent_links",
     filters: [
       { field: "parent_id", operator: "eq", value: record?.id }
@@ -138,6 +139,7 @@ export const ParentShow: React.FC = () => {
 
   // Fetch spouse (other parent of the same children)
   const { data: spouseLinksData } = useList({
+    pagination: { mode: "off" },
     resource: "student_parent_links",
     filters: [
       { field: "student_id", operator: "in", value: studentIds.length > 0 ? studentIds : ["empty"] },

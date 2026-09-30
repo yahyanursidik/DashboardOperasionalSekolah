@@ -5,11 +5,12 @@ import { CheckSquare, Loader2, Save } from "lucide-react";
 import { toast } from "sonner";
 
 export const AttendanceList: React.FC = () => {
-  const { data: programsData, isLoading: loadingPrograms } = useList({ resource: "extracurriculars", filters: [{ field: "is_active", operator: "eq", value: true }] });
+  const { data: programsData, isLoading: loadingPrograms } = useList({ pagination: { mode: "off" }, resource: "extracurriculars", filters: [{ field: "is_active", operator: "eq", value: true }] });
   const [selectedProgram, setSelectedProgram] = useState<string>("");
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
 
   const { data: membersData, isLoading: loadingMembers } = useList({ 
+    pagination: { mode: "off" },
     resource: "extracurricular_members",
     meta: {
       select: "*, students(full_name), external_students(full_name)"
@@ -22,6 +23,7 @@ export const AttendanceList: React.FC = () => {
   });
 
   const { data: attendanceData, isLoading: loadingAttendance, refetch } = useList({
+    pagination: { mode: "off" },
     resource: "extracurricular_attendances",
     filters: [
       { field: "extracurricular_id", operator: "eq", value: selectedProgram },

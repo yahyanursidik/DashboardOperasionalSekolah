@@ -24,7 +24,7 @@ export const VacancyEdit: React.FC = () => {
     id: id as string
   });
 
-  const { data: units } = useList({ resource: "units" });
+  const { data: units } = useList({ pagination: { mode: "off" }, resource: "units" });
 
   const vacancy = vacancyData?.data;
 

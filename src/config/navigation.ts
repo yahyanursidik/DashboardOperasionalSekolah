@@ -159,10 +159,24 @@ export const navigationConfig: NavigationGroup[] = [
         keywords: ["gradebook", "sas", "asat", "sts"],
       },
       {
+        title: "Ujian CBT Siswa",
+        href: "/academic/cbt",
+        icon: ClipboardCheck,
+        resource: "academic_grades",
+        keywords: ["cbt", "ujian online", "sts", "sas", "asat", "ulangan", "bank soal", "token"],
+      },
+      {
         title: "Kelengkapan Rapor",
         href: "/academic/reports",
         icon: FileBadge,
         resource: "academic_report_cards",
+      },
+      {
+        title: "BK & Tata Tertib",
+        href: "/counseling",
+        icon: ShieldCheck,
+        resource: "student_conduct",
+        keywords: ["bk", "bimbingan konseling", "pelanggaran", "poin", "prestasi", "tata tertib", "konseling"],
       },
       {
         title: "Jurnal & Rekam Jejak",
@@ -193,6 +207,13 @@ export const navigationConfig: NavigationGroup[] = [
         href: "/admissions",
         icon: GraduationCap,
         resource: "admissions",
+      },
+      {
+        title: "Data Pendaftar",
+        href: "/admissions/applicants",
+        icon: Users,
+        resource: "admissions",
+        keywords: ["pendaftar", "calon murid", "ppdb", "spmb"],
       },
       {
         title: "Pengaturan SPMB",
@@ -414,12 +435,6 @@ export const navigationConfig: NavigationGroup[] = [
         keywords: ["laporan absensi", "rekap kehadiran", "presensi pegawai", "terlambat", "per periode"],
       },
       {
-        title: "Data Pendaftar",
-        href: "/admissions/applicants",
-        icon: Users,
-        resource: "admissions",
-      },
-      {
         title: "Rapat & Kegiatan Pegawai",
         href: "/attendance/events",
         icon: ClipboardCheck,
@@ -444,6 +459,13 @@ export const navigationConfig: NavigationGroup[] = [
         href: "/attendance/settings",
         icon: Settings,
         resource: "employee_attendance",
+      },
+      {
+        title: "Penggajian",
+        href: "/payroll",
+        icon: Wallet,
+        resource: "payroll",
+        keywords: ["gaji", "payroll", "slip gaji", "tunjangan", "potongan", "bpjs", "lembur"],
       },
       {
         title: "Pengajuan Izin",
@@ -651,6 +673,13 @@ export const navigationConfig: NavigationGroup[] = [
         resource: "mail_dispositions",
       },
       {
+        title: "Data Dapodik",
+        href: "/dapodik",
+        icon: Database,
+        resource: "dapodik",
+        keywords: ["dapodik", "nisn", "nik", "nuptk", "data pokok", "ekspor", "emis"],
+      },
+      {
         title: "Arsip Dokumen Sekolah",
         href: "/documents",
         icon: FileText,
@@ -692,7 +721,15 @@ export const navigationConfig: NavigationGroup[] = [
         title: "Komunikasi",
         href: "/communications",
         icon: MessageSquare,
-        resource: "students",
+        resource: "announcements",
+        keywords: ["broadcast", "email", "kirim pesan"],
+      },
+      {
+        title: "Log Email",
+        href: "/communications/email-log",
+        icon: Inbox,
+        resource: "email_messages",
+        keywords: ["email", "mailketing", "notifikasi", "terkirim", "gagal"],
       },
       {
         title: "Laporan Manajemen",

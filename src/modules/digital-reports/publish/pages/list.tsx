@@ -6,6 +6,7 @@ import { useCurrentUnit } from "../../../../app/providers/UnitProvider";
 import { supabaseClient } from "../../../../lib/supabase/client";
 import { toast } from "sonner";
 import { logAudit } from "../../../../lib/audit";
+import { describeNotificationResult, sendNotificationEvent } from "../../../../lib/email";
 
 const Modal: React.FC<{ isOpen: boolean; title: string; children: React.ReactNode; onClose: () => void }> = ({ isOpen, title, children, onClose }) => {
   if (!isOpen) return null;
@@ -153,6 +154,12 @@ export const PublishReportList: React.FC = () => {
       }
 
       toast.success(`Berhasil mem-publish ${selectedIds.length} rapor!`);
+      // Notify parents by email in the background; the portal already shows the report.
+      const publishedIds = [...selectedIds];
+      void sendNotificationEvent("report_published", publishedIds).then((result) => {
+        if (result.success && !result.totals?.failed) toast.success(describeNotificationResult(result));
+        else toast.error(describeNotificationResult(result));
+      });
       setSelectedIds([]);
       refetch();
     } catch (error: any) {

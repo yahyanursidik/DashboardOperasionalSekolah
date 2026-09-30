@@ -17,6 +17,7 @@ export const ClassShow: React.FC = () => {
 
   // Fetch Students in this class
   const { data: studentsData, isLoading: studentsLoading, refetch: refetchStudents } = useList({
+    pagination: { mode: "off" },
     resource: "students",
     filters: [
       { field: "class_id", operator: "eq", value: record?.id }
@@ -26,6 +27,7 @@ export const ClassShow: React.FC = () => {
 
   // Fetch Teacher Assignments for this class
   const { data: assignmentsData, isLoading: assignmentsLoading } = useList({
+    pagination: { mode: "off" },
     resource: "teacher_assignments",
     filters: [
       { field: "class_id", operator: "eq", value: record?.id }
@@ -51,6 +53,7 @@ export const ClassShow: React.FC = () => {
 
   const classGrade = Number(record?.grade_level || record?.level || 0);
   const { data: curriculumsData } = useList({
+    pagination: { mode: "off" },
     resource: "subject_curriculums",
     filters: [
       { field: "grade_level", operator: "eq", value: classGrade },
@@ -68,6 +71,7 @@ export const ClassShow: React.FC = () => {
   // Fetch available students (those without a class or just all students in the unit)
   // For simplicity, we fetch students in the same unit who don't have this class_id
   const { data: availableStudentsData } = useList({
+    pagination: { mode: "off" },
     resource: "students",
     filters: [
       { field: "unit_id", operator: "eq", value: record?.unit_id },

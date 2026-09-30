@@ -39,6 +39,7 @@ export const QuranTargetsList: React.FC = () => {
   });
   
   const { data, isLoading } = useList({
+    pagination: { mode: "off" },
     resource: "quran_targets",
     filters: [
       ...(activeYearId ? [{ field: "academic_year_id", operator: "eq" as const, value: activeYearId }] : []),

@@ -95,8 +95,14 @@ export function useTable<TData = any, TError = any>(...args: any[]): any {
   };
 }
 
+/**
+ * Refine's useSelect fetches only 10 options unless told otherwise, which silently cut every
+ * class/student/employee dropdown to its first 10 rows. Load all options by default; a caller
+ * that needs server-side paging can still pass its own `pagination`.
+ */
 export function useSelect<TData = any, TError = any, TOption = any>(...args: any[]): any {
-  const value = (refine.useSelect as any)(...args);
+  const [props, ...rest] = args;
+  const value = (refine.useSelect as any)({ ...props, pagination: props?.pagination ?? { mode: "off" } }, ...rest);
   return { ...value, queryResult: value?.query, ...withQueryAliases(value) };
 }
 

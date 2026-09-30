@@ -20,6 +20,7 @@ export const ExtracurricularPortalDashboard: React.FC = () => {
   }, [identity]);
 
   const { data: membersData, isLoading: loadingMembers } = useList({
+    pagination: { mode: "off" },
     resource: "extracurricular_members",
     meta: {
       select: "*, extracurriculars(name, schedule, coach_name)"
@@ -31,6 +32,7 @@ export const ExtracurricularPortalDashboard: React.FC = () => {
   });
 
   const { data: invoicesData, isLoading: loadingInvoices } = useList({
+    pagination: { mode: "off" },
     resource: "student_invoices",
     filters: [
       { field: "external_student_id", operator: "eq", value: externalProfile?.id || "" }

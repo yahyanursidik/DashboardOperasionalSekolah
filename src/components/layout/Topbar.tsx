@@ -1,8 +1,8 @@
 import React, { useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router";
+import { useNavigate } from "react-router";
+import { NotificationBell } from "../common/NotificationBell";
 import { useLogout, useSelect } from "@/lib/refine-compat";
 import {
-  Bell,
   Building,
   CalendarDays,
   GraduationCap,
@@ -177,9 +177,7 @@ export const Topbar: React.FC<TopbarProps> = ({ onMenuClick }) => {
           </label>
         ) : null}
 
-        <Link to="/announcements" title="Buka pengumuman" aria-label="Buka pengumuman" className="flex h-10 w-10 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground">
-          <Bell className="h-5 w-5" />
-        </Link>
+        <NotificationBell fallbackHref="/announcements" />
 
         <div className="flex items-center gap-2 border-l pl-2 sm:pl-3">
           <div className="hidden max-w-36 flex-col items-end lg:flex">

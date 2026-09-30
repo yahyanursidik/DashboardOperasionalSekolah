@@ -31,6 +31,7 @@ export const CbtExamBanksManager: React.FC = () => {
 
   const { data: allBanksData } = useList({
     resource: "cbt_banks",
+    filters: [{ field: "audience", operator: "eq", value: "recruitment" }],
     sorters: [{ field: "created_at", order: "desc" }],
     pagination: { pageSize: 100 },
   });

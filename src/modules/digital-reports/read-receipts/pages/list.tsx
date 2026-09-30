@@ -43,7 +43,7 @@ export const ReadReceiptsList: React.FC = () => {
       ...(filterPeriod ? [{ field: "report_period_id", operator: "eq", value: filterPeriod } as any] : [])
     ],
     meta: {
-      select: "*, students(full_name, nisn, student_parent_links(parents(profiles(full_name)))), classes!inner(unit_id, name), report_periods(name, publish_date), parent_report_reads(read_at)"
+      select: "*, students(full_name, nisn, student_parent_links(parents(full_name))), classes!inner(unit_id, name), report_periods(name, publish_date), parent_report_reads(read_at)"
     }
   });
 
@@ -223,7 +223,7 @@ export const ReadReceiptsList: React.FC = () => {
                 {filteredReports.map((report, idx) => {
                   const student = report.students as any;
                   const parentLinks = student?.student_parent_links || [];
-                  const parentNames = parentLinks.map((link: any) => link.parents?.profiles?.full_name).filter(Boolean).join(", ");
+                  const parentNames = parentLinks.map((link: any) => link.parents?.full_name).filter(Boolean).join(", ");
                   
                   const reads = report.parent_report_reads || [];
                   const isRead = reads.length > 0;

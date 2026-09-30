@@ -808,9 +808,11 @@ const UsersTab: React.FC = () => {
     if (!newUserFormData.email || !newUserFormData.password || !newUserFormData.fullName || !newUserFormData.role_id) return;
     setIsSubmitting(true);
     try {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if (!session?.access_token) throw new Error("Sesi admin tidak ditemukan. Silakan masuk kembali.");
       const response = await fetch("/api/create-user", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
         body: JSON.stringify({
           email: newUserFormData.email,
           password: newUserFormData.password,
@@ -820,7 +822,7 @@ const UsersTab: React.FC = () => {
         }),
       });
 
-      const data = await response.json();
+      const data = await response.json().catch(() => ({ error: "Layanan pembuatan akun belum tersedia di server." }));
       
       if (!response.ok) {
         throw new Error(data.error || "Gagal membuat user");
@@ -1095,7 +1097,7 @@ const UsersTab: React.FC = () => {
               value={newUserFormData.password} 
               onChange={e => setNewUserFormData({...newUserFormData, password: e.target.value})} 
               className="w-full border rounded-md px-3 py-2 outline-none focus:border-primary bg-background"
-              placeholder="Minimal 6 karakter"
+              placeholder="Minimal 8 karakter"
             />
             <p className="text-xs text-muted-foreground">Password ini digunakan user untuk login pertama kali.</p>
           </div>

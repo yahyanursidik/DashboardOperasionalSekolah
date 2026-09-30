@@ -1,11 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState, Suspense } from "react";
 import { Link, Navigate, Outlet, useLocation, useNavigate } from "react-router";
 import type { User } from "@supabase/supabase-js";
 import { Baby, CreditCard, FileText, Home, Loader2, LogOut, Megaphone, Plus, UploadCloud, UserCircle } from "lucide-react";
 import { supabaseClient } from "../../../lib/supabase/client";
 import { BrandLogo } from "../../../components/common/BrandLogo";
 import { SpmbPortalContext } from "./spmb-context";
+import { PageLoader } from "../../../components/common/PageLoader";
 
 const db = supabaseClient as any;
 
@@ -61,7 +62,7 @@ export const SpmbLayout: React.FC = () => {
   if (loading) return <div className="min-h-screen grid place-items-center bg-slate-50"><Loader2 className="w-8 h-8 animate-spin text-emerald-700" /></div>;
   if (!user && !isAuthPage) return <Navigate to="/spmb/login" replace state={{ from: location.pathname }} />;
   if (user && isGuestAuthPage) return <Navigate to="/spmb" replace />;
-  if (isAuthPage) return <Outlet />;
+  if (isAuthPage) return <Suspense fallback={<PageLoader />}><Outlet /></Suspense>;
 
   const signOut = async () => { await supabaseClient.auth.signOut(); navigate("/spmb/login", { replace: true }); };
   const links = [
@@ -114,7 +115,7 @@ export const SpmbLayout: React.FC = () => {
             </button>}
           </div>
         </div>
-        <main className="flex-1 max-w-6xl mx-auto w-full px-4 py-6 sm:py-8 pb-24 sm:pb-8"><Outlet key={activeApplicantId ?? "new"} /></main>
+        <main className="flex-1 max-w-6xl mx-auto w-full px-4 py-6 sm:py-8 pb-24 sm:pb-8"><Suspense fallback={<PageLoader />}><Outlet key={activeApplicantId ?? "new"} /></Suspense></main>
         <nav className="sm:hidden fixed bottom-0 inset-x-0 z-30 bg-white border-t grid grid-cols-5">{links.map(({ to, label, icon: Icon }) => <Link key={to} to={to} className={`h-16 min-w-0 flex flex-col items-center justify-center gap-1 text-[10px] font-semibold ${location.pathname === to ? "text-emerald-700" : "text-slate-500"}`}><Icon className="w-5 h-5" />{label}</Link>)}</nav>
       </div>
     </SpmbPortalContext.Provider>

@@ -16,6 +16,9 @@ import {
   ListTodo,
   Star,
   UserRound,
+  ShieldAlert,
+  Laptop,
+  Wallet,
 } from "lucide-react";
 import { useAcademicYear } from "../../app/providers/AcademicYearProvider";
 import { RolePortalShell, type RolePortalNavGroup } from "../../components/layout/RolePortalShell";
@@ -158,9 +161,11 @@ export const TeacherLayout: React.FC = () => {
       { label: "Pembelajaran", items: [
         { to: "/teacher/classes", label: "Kelas, Absensi & Nilai", icon: CheckSquare, keywords: ["siswa", "penilaian"] },
         { to: "/teacher/reports", label: "Rapor Digital", icon: FileText, keywords: ["sas", "asat", "semester"] },
+        { to: "/teacher/cbt", label: "Ujian CBT", icon: Laptop, keywords: ["ujian online", "bank soal", "token", "sts", "sas"] },
         ...(hasQuranAssignment ? [{ to: "/teacher/quran", label: "Pembelajaran Qur'an", icon: BookOpen, keywords: ["tahfidz", "tahsin", "mutabaah"] }] : []),
         ...(hasPaudAssignment ? [{ to: "/teacher/paud", label: "Perkembangan KB/TK", icon: Star }] : []),
         { to: "/teacher/journals", label: "Jurnal & Tindak Lanjut Siswa", icon: ClipboardList },
+        { to: "/teacher/conduct", label: "Tata Tertib & Prestasi", icon: ShieldAlert, keywords: ["poin", "pelanggaran", "bk"] },
         { to: "/teacher/library", label: "Perpustakaan Digital", icon: Library },
       ] },
       { label: "Pekerjaan", items: [
@@ -172,6 +177,7 @@ export const TeacherLayout: React.FC = () => {
       { label: "Kepegawaian", items: [
         { to: "/teacher/attendance", label: "Absensi, Kegiatan & Lembur", icon: CalendarCheck, badge: attendanceActions },
         { to: "/teacher/leaves", label: "Izin & Cuti", icon: Clock },
+        { to: "/teacher/payslips", label: "Slip Gaji", icon: Wallet },
         { to: "/teacher/performance", label: "Kinerja / PKG", icon: BarChart3 },
       ] },
       { label: "Akun", items: [{ to: "/teacher/profile", label: "Profil & Keamanan", icon: UserRound }] },

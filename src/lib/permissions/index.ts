@@ -1,19 +1,22 @@
-export type RoleName = 
-  | 'super_admin'
-  | 'ketua_yayasan'
-  | 'kepsek'
-  | 'wakasek'
-  | 'kepala_tu'
-  | 'admin_tu'
-  | 'admin_sekolah'
-  | 'admin_unit'
-  | 'admin_keuangan'
-  | 'admin_dokumen'
-  | 'admin_spmb'
-  | 'operator_absensi'
-  | 'guru'
-  | 'wali_kelas'
-  | 'hrd';
+export const ROLE_NAMES = [
+  'super_admin',
+  'ketua_yayasan',
+  'kepsek',
+  'wakasek',
+  'kepala_tu',
+  'admin_tu',
+  'admin_sekolah',
+  'admin_unit',
+  'admin_keuangan',
+  'admin_dokumen',
+  'admin_spmb',
+  'operator_absensi',
+  'guru',
+  'wali_kelas',
+  'hrd',
+] as const;
+
+export type RoleName = typeof ROLE_NAMES[number];
 
 export interface UserRoleScope {
   role: RoleName;
@@ -30,7 +33,12 @@ export const hasAnyRole = (scopes: UserRoleScope[] | undefined, roleNames: RoleN
   return scopes.some(scope => roleNames.includes(scope.role));
 };
 
-export const canAccessUnit = (scopes: UserRoleScope[] | undefined, unitId: string): boolean => {
+// The admin panel is for accounts holding at least one staff role. Parent, SPMB, and
+// extracurricular self-registered accounts are authenticated but have none.
+export const hasAdminPanelAccess = (scopes: UserRoleScope[] | undefined): boolean =>
+  hasAnyRole(scopes, [...ROLE_NAMES]);
+
+export const canAccessUnit =(scopes: UserRoleScope[] | undefined, unitId: string): boolean => {
   if (!scopes) return false;
   // Super admin & ketua yayasan can access all units
   if (hasAnyRole(scopes, ['super_admin', 'ketua_yayasan'])) return true;
@@ -79,11 +87,17 @@ const ResourceAccessMap: Record<string, RoleName[]> = {
   'settings': ['super_admin', 'ketua_yayasan'],
   'master_data': ['super_admin', 'ketua_yayasan', 'kepsek', 'wakasek', 'kepala_tu', 'admin_tu', 'admin_sekolah', 'admin_unit'],
   'admin_tasks': ['super_admin', 'ketua_yayasan', 'kepsek', 'wakasek', 'kepala_tu', 'admin_tu', 'admin_sekolah', 'admin_unit', 'guru'],
+  // Mirrors public.email_log_viewer() in supabase/migrations/20260930110000_email_outbox.sql
+  'email_messages': ['super_admin', 'ketua_yayasan', 'kepsek', 'wakasek', 'kepala_tu', 'admin_tu', 'admin_sekolah', 'admin_unit', 'admin_keuangan'],
   'announcements': ['super_admin', 'ketua_yayasan', 'kepsek', 'wakasek', 'kepala_tu', 'admin_tu', 'admin_sekolah', 'admin_unit'],
   'audit_logs': ['super_admin', 'ketua_yayasan'],
   'quran_records': ['super_admin', 'ketua_yayasan', 'kepsek', 'admin_unit', 'guru', 'wali_kelas'],
   'quran_targets': ['super_admin', 'ketua_yayasan', 'kepsek', 'admin_unit', 'guru', 'wali_kelas'],
   'quran_assessments': ['super_admin', 'ketua_yayasan', 'kepsek', 'admin_unit', 'guru', 'wali_kelas'],
+  // Mirrors public.is_payroll_manager()
+  'payroll': ['super_admin', 'ketua_yayasan', 'hrd', 'admin_keuangan', 'kepala_tu'],
+  'dapodik': ['super_admin', 'ketua_yayasan', 'kepsek', 'kepala_tu', 'admin_tu', 'admin_sekolah', 'admin_unit'],
+  'student_conduct': ['super_admin', 'ketua_yayasan', 'kepsek', 'wakasek', 'kepala_tu', 'admin_tu', 'admin_sekolah', 'admin_unit', 'guru', 'wali_kelas'],
   'student_journals': ['super_admin', 'ketua_yayasan', 'kepsek', 'wakasek', 'admin_sekolah', 'admin_unit', 'guru', 'wali_kelas'],
   'tahfidz_halaqohs': ['super_admin', 'ketua_yayasan', 'kepsek', 'wakasek', 'admin_sekolah', 'admin_unit', 'guru', 'wali_kelas'],
   'tahfidz_student_targets': ['super_admin', 'ketua_yayasan', 'kepsek', 'wakasek', 'admin_sekolah', 'admin_unit', 'guru', 'wali_kelas'],
@@ -140,6 +154,18 @@ const ResourceAccessMap: Record<string, RoleName[]> = {
   'mail_dispositions': ['super_admin', 'ketua_yayasan', 'kepsek', 'kepala_tu', 'admin_tu', 'admin_sekolah', 'admin_unit', 'admin_dokumen'],
   'digital_library_books': ['super_admin', 'ketua_yayasan', 'kepsek', 'wakasek', 'kepala_tu', 'admin_tu', 'admin_sekolah', 'admin_unit', 'admin_dokumen'],
   'digital_library_categories': ['super_admin', 'ketua_yayasan', 'kepsek', 'wakasek', 'kepala_tu', 'admin_tu', 'admin_sekolah', 'admin_unit', 'admin_dokumen'],
+  // Resources registered in Refine that previously had no entry (default deny for everyone but super_admin).
+  'parents': ['super_admin', 'ketua_yayasan', 'kepsek', 'wakasek', 'kepala_tu', 'admin_tu', 'admin_sekolah', 'admin_unit', 'guru', 'wali_kelas'],
+  'student_academic_history': ['super_admin', 'ketua_yayasan', 'kepsek', 'wakasek', 'kepala_tu', 'admin_tu', 'admin_sekolah', 'admin_unit'],
+  'units': ['super_admin', 'ketua_yayasan', 'kepsek', 'wakasek', 'kepala_tu', 'admin_tu', 'admin_sekolah', 'admin_unit'],
+  'academic_years': ['super_admin', 'ketua_yayasan', 'kepsek', 'wakasek', 'kepala_tu', 'admin_tu', 'admin_sekolah', 'admin_unit'],
+  'semesters': ['super_admin', 'ketua_yayasan', 'kepsek', 'wakasek', 'kepala_tu', 'admin_tu', 'admin_sekolah', 'admin_unit'],
+  'curriculum_documents': ['super_admin', 'ketua_yayasan', 'kepsek', 'wakasek', 'admin_sekolah', 'admin_unit'],
+  'extracurriculars': ['super_admin', 'ketua_yayasan', 'kepsek', 'wakasek', 'kepala_tu', 'admin_tu', 'admin_sekolah', 'admin_unit', 'guru', 'wali_kelas'],
+  'extracurricular_members': ['super_admin', 'ketua_yayasan', 'kepsek', 'wakasek', 'kepala_tu', 'admin_tu', 'admin_sekolah', 'admin_unit', 'guru', 'wali_kelas'],
+  'extracurricular_attendances': ['super_admin', 'ketua_yayasan', 'kepsek', 'wakasek', 'kepala_tu', 'admin_tu', 'admin_sekolah', 'admin_unit', 'guru', 'wali_kelas'],
+  'extracurricular_grades': ['super_admin', 'ketua_yayasan', 'kepsek', 'wakasek', 'kepala_tu', 'admin_tu', 'admin_sekolah', 'admin_unit', 'guru', 'wali_kelas'],
+  'recruitment': ['super_admin', 'ketua_yayasan', 'kepsek', 'wakasek', 'kepala_tu', 'admin_tu', 'admin_sekolah', 'admin_unit', 'hrd'],
   'onboarding_materials': ['super_admin', 'ketua_yayasan', 'kepsek', 'kepala_tu', 'admin_tu', 'admin_sekolah', 'admin_unit', 'admin_dokumen', 'hrd'],
 };
 

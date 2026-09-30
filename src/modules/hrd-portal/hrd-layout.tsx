@@ -16,6 +16,7 @@ import {
   Settings2,
   UserCheck,
   Users,
+  Wallet,
 } from "lucide-react";
 import { RolePortalShell, type RolePortalNavGroup } from "../../components/layout/RolePortalShell";
 import { supabaseClient } from "../../lib/supabase/client";
@@ -77,6 +78,7 @@ export const HrdPortalLayout: React.FC = () => {
     ] },
     { label: "Kehadiran & Hak Pegawai", items: [
       { to: "/attendance/employees", label: "Absensi Pegawai", icon: UserCheck },
+      { to: "/payroll", label: "Penggajian", icon: Wallet, keywords: ["gaji", "slip", "tunjangan"] },
       { to: "/attendance/reviews", label: "Koreksi Absensi", icon: ClipboardCheck, badge: pendingReviews },
       { to: "/attendance/events", label: "Rapat & Kegiatan", icon: CalendarCheck },
       { to: "/attendance/overtime", label: "Lembur & Kompensasi", icon: Clock3 },
