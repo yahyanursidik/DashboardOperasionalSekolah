@@ -126,7 +126,11 @@ export const TeacherLayout: React.FC = () => {
         const name = String(unit.name || "").toLowerCase();
         return unit.education_level === "preschool" || ["paud", "tk", "kb", "preschool"].some((term) => name.includes(term));
       }));
-      setHasHblAssignment((assignedUnits || []).some((unit: any) => unit.delivery_mode === "online"));
+      // HBL menu: the teacher teaches a class linked to an HBL program (any level), or an online unit.
+      const { count: hblProgramCount } = classIds.size
+        ? await (supabaseClient as any).from("hbl_programs").select("id", { count: "exact", head: true }).in("class_id", [...classIds]).neq("status", "archived")
+        : { count: 0 };
+      setHasHblAssignment(Boolean(hblProgramCount) || (assignedUnits || []).some((unit: any) => unit.delivery_mode === "online"));
       const hasScheduledQuran = (scheduledResult.data || []).some((row: any) =>
         Boolean(row.subjects?.quran_program_type)
       );

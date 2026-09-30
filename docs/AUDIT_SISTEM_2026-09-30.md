@@ -478,3 +478,13 @@ Riwayat migrasi: 104/104 sinkron. Uji persona: 21/21.
 - Portal orang tua **Homebased Learning**: pertemuan hari ini/berikutnya dengan tombol live meet, rekap kehadiran, tab tema, kartu pertemuan (tujuan, persiapan, media, kegiatan + unggah bukti, lembar kerja, home project + tanggapan guru), cerita keluarga per tema, tautan ke laporan perkembangan KB/TK.
 
 **Verifikasi**: dry-run produksi (11 siswa TK-A HBL otomatis terdaftar, keluar/masuk mengikuti status, guru kelas dapat membuat tema & pertemuan, kehadiran 11 anak tersimpan, elemen CP tervalidasi), validasi seluruh query ke skema produksi, uji render ruang kerja admin, detail pertemuan, formulir pertemuan, dan portal orang tua dengan data contoh; `tsc`, `eslint`, `npm run build`.
+
+## 14. Redesain /lms — Homebased Learning multi-pola (6 Okt 2026)
+
+- **Pola belajar** (`src/modules/hbl/hbl-patterns.ts`): struktur sama Program kelas → Kelompok → Pertemuan → Kegiatan, dengan kosakata dan blok yang berbeda per jenjang: **Tematik PAUD** (Tema/Subtema, kegiatan main, elemen CP Fase Fondasi, catatan perkembangan → jurnal PAUD) dan **Mapel SD** (Pekan belajar, pertemuan per mata pelajaran dari master mapel, materi, tugas & latihan). Pola mengikuti jenjang unit kelas; pola baru cukup ditambahkan di registri.
+- **Halaman /lms**: (1) kartu program per kelas dikelompokkan per unit dengan ringkasan peserta, tema/pekan, pertemuan terbit, pertemuan berikutnya, dan laporan menunggu; panduan "Cara kerja" per pola. (2) Ruang program bertab: **Ringkasan** (langkah kerja 1–5 dengan status, pertemuan hari ini/berikutnya, daftar "butuh perhatian"), **Rencana Belajar** (tema/pekan berurutan beserta pertemuannya), **Kehadiran** (matriks anak × pertemuan + persentase), **Laporan Keluarga** (kiriman kegiatan/home project dengan filter menunggu, serta cerita keluarga yang sebelumnya tidak terlihat guru), **Pengaturan** (info program, sambutan orang tua, kelas, status, peserta).
+- Formulir tema/pekan, pertemuan (5 langkah), dan detail pertemuan dibuka di panel samping.
+- Menu guru **Pertemuan HBL** muncul bila guru mengampu kelas yang punya program HBL (termasuk SD ke depan).
+- Portal orang tua menyesuaikan pola (label Tema/Pekan, chip mapel, tautan laporan KB/TK atau Nilai & e-Rapor).
+- Migrasi `20261006090000_hbl_learning_patterns`: `hbl_meetings.subject_id` → master `subjects`; fungsi `hbl_program_overview` (mengikuti RLS pemanggil).
+- Verifikasi: dry-run produksi fungsi ringkasan, validasi seluruh query ke skema produksi, uji render seluruh tab, panel, formulir (PAUD & SD), dan portal orang tua kedua pola dengan data contoh; `tsc`, `eslint`, `npm run build`.
