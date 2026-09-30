@@ -18,6 +18,7 @@ import {
   UserRound,
   ShieldAlert,
   Laptop,
+  Wallet,
 } from "lucide-react";
 import { useAcademicYear } from "../../app/providers/AcademicYearProvider";
 import { RolePortalShell, type RolePortalNavGroup } from "../../components/layout/RolePortalShell";
@@ -176,6 +177,7 @@ export const TeacherLayout: React.FC = () => {
       { label: "Kepegawaian", items: [
         { to: "/teacher/attendance", label: "Absensi, Kegiatan & Lembur", icon: CalendarCheck, badge: attendanceActions },
         { to: "/teacher/leaves", label: "Izin & Cuti", icon: Clock },
+        { to: "/teacher/payslips", label: "Slip Gaji", icon: Wallet },
         { to: "/teacher/performance", label: "Kinerja / PKG", icon: BarChart3 },
       ] },
       { label: "Akun", items: [{ to: "/teacher/profile", label: "Profil & Keamanan", icon: UserRound }] },

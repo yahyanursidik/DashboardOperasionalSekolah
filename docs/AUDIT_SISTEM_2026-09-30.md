@@ -417,3 +417,15 @@ Riwayat migrasi produksi: 101/101 sinkron. Uji persona: 21/21.
 - Nilai dihitung di server dan otomatis ditulis ke Gradebook (`academic_grades`, komponen sesuai jenis penilaian), plus tombol kirim ulang.
 - Menu: panel admin **Ujian CBT Siswa** (`/academic/cbt`) dan portal guru **Ujian CBT** (kelas dibatasi ke kelas yang diajar/diwalikan). Ruang ujian menampilkan status belum dibuka/ditutup dan nilai bila diizinkan.
 - Diuji 20 skenario (PGlite, termasuk regresi CBT rekrutmen) dan dry-run produksi end-to-end (guru → 17 siswa terdaftar → skor 100 → baris Gradebook). Riwayat migrasi 102/102 sinkron.
+
+**Fitur baru: Data Dapodik (`20261003090000`)**
+- Kolom data pokok peserta didik (NIK, No. KK, agama, rincian alamat, jenis tinggal, transportasi, data periodik, registrasi, KIP), orang tua (tahun lahir, penghasilan), dan PTK (NUPTK, NIP, tempat lahir, agama, NIK KTP). NIK KTP pegawai disimpan di `national_id` karena `employees.nik` dipakai sebagai ID login portal (seluruh 20 pegawai memakai format non-KTP).
+- Menu **Data Dapodik**: skor kelengkapan per siswa & PTK, formulir melengkapi (termasuk membuat & menautkan data ayah/ibu), ekspor Excel (sheet Peserta Didik 45 kolom, PTK, Rombel, Validasi; nomor identitas sebagai teks).
+
+**Fitur baru: Penggajian (`20261003100000`)**
+- Komponen gaji dapat dikonfigurasi (tetap, per hari hadir, per menit terlambat, per hari tidak hadir, per jam lembur berkompensasi dibayar, persen gaji pokok; awal: gaji pokok, tunjangan jabatan/transport/makan, lembur, potongan telat/alpa, BPJS Kesehatan 1% & JHT 2%) dan gaji per pegawai.
+- Periode gaji bulanan per unit: Hitung (server, dari absensi/izin/lembur) → Setujui (slip dirilis ke portal) → Dibayar; buka kembali; ekspor Excel rekap.
+- Slip gaji di portal guru & staf (cetak); menu Penggajian di panel admin & portal HRD. Data gaji hanya untuk super admin, ketua yayasan, HRD, admin keuangan, kepala TU.
+- Diuji 20 skenario (PGlite, termasuk perhitungan angka) — menemukan & memperbaiki rekursi kebijakan RLS sebelum produksi — dan dry-run produksi dengan data absensi nyata (20 slip).
+
+Riwayat migrasi: 104/104 sinkron. Uji persona: 21/21.

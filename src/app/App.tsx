@@ -102,6 +102,8 @@ const SettingsPage = lazyPage(() => import("../modules/settings"), "SettingsPage
 const StudentMassPromotion = lazyPage(() => import("../modules/students/pages/mass-promotion"), "StudentMassPromotion");
 const CommunicationsPage = lazyPage(() => import("../modules/communications"), "CommunicationsPage");
 const StudentCbtPage = lazyPage(() => import("../modules/academic/cbt/student-cbt"), "StudentCbtPage");
+const PayrollPage = lazyPage(() => import("../modules/payroll/pages/payroll"), "PayrollPage");
+const MyPayslips = lazyPage(() => import("../modules/payroll/pages/my-payslips"), "MyPayslips");
 const DapodikPage = lazyPage(() => import("../modules/dapodik/pages/dapodik"), "DapodikPage");
 const CounselingPage = lazyPage(() => import("../modules/counseling/pages/counseling"), "CounselingPage");
 const TeacherConduct = lazyPage(() => import("../modules/teacher-portal/teacher-conduct"), "TeacherConduct");
@@ -961,6 +963,7 @@ export default function App() {
                 <Route path="/communications/email-log" element={<EmailLogPage />} />
                 <Route path="/counseling" element={<CounselingPage />} />
                 <Route path="/dapodik" element={<DapodikPage />} />
+                <Route path="/payroll" element={<PayrollPage />} />
                 
                 <Route path="/students">
                 <Route index element={<StudentsList />} />
@@ -1398,6 +1401,7 @@ export default function App() {
                 <Route path="paud" element={<TeacherPaud />} />
                 <Route path="journals" element={<TeacherJournals />} />
                 <Route path="conduct" element={<TeacherConduct />} />
+                <Route path="payslips" element={<MyPayslips />} />
                 <Route path="cbt" element={<StudentCbtPage />} />
                 <Route path="cbt/banks" element={<CbtBanksList />} />
                 <Route path="cbt/banks/:bankId/questions" element={<CbtQuestionsManager />} />
@@ -1423,6 +1427,7 @@ export default function App() {
                 <Route path="schedules" element={<StaffSchedules />} />
                 <Route path="tasks" element={<StaffTasks />} />
                 <Route path="reports" element={<StaffOperationalReports />} />
+                <Route path="payslips" element={<MyPayslips />} />
                 <Route path="profile" element={<StaffProfile />} />
               </Route>
 

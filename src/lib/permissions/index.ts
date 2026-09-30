@@ -94,6 +94,8 @@ const ResourceAccessMap: Record<string, RoleName[]> = {
   'quran_records': ['super_admin', 'ketua_yayasan', 'kepsek', 'admin_unit', 'guru', 'wali_kelas'],
   'quran_targets': ['super_admin', 'ketua_yayasan', 'kepsek', 'admin_unit', 'guru', 'wali_kelas'],
   'quran_assessments': ['super_admin', 'ketua_yayasan', 'kepsek', 'admin_unit', 'guru', 'wali_kelas'],
+  // Mirrors public.is_payroll_manager()
+  'payroll': ['super_admin', 'ketua_yayasan', 'hrd', 'admin_keuangan', 'kepala_tu'],
   'dapodik': ['super_admin', 'ketua_yayasan', 'kepsek', 'kepala_tu', 'admin_tu', 'admin_sekolah', 'admin_unit'],
   'student_conduct': ['super_admin', 'ketua_yayasan', 'kepsek', 'wakasek', 'kepala_tu', 'admin_tu', 'admin_sekolah', 'admin_unit', 'guru', 'wali_kelas'],
   'student_journals': ['super_admin', 'ketua_yayasan', 'kepsek', 'wakasek', 'admin_sekolah', 'admin_unit', 'guru', 'wali_kelas'],

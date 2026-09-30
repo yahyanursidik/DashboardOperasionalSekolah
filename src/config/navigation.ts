@@ -461,6 +461,13 @@ export const navigationConfig: NavigationGroup[] = [
         resource: "employee_attendance",
       },
       {
+        title: "Penggajian",
+        href: "/payroll",
+        icon: Wallet,
+        resource: "payroll",
+        keywords: ["gaji", "payroll", "slip gaji", "tunjangan", "potongan", "bpjs", "lembur"],
+      },
+      {
         title: "Pengajuan Izin",
         href: "/leaves",
         icon: ClipboardList,

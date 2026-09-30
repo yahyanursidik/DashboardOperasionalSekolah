@@ -72,6 +72,7 @@ export const StaffLayout: React.FC = () => {
     { label: "Kepegawaian", items: [
       { to: "/staff/attendance", label: "Absensi & Lembur", icon: CalendarCheck, badge: badges.events + badges.overtime },
       { to: "/staff/leaves", label: "Izin & Cuti", icon: Calendar },
+      { to: "/staff/payslips", label: "Slip Gaji", icon: Wallet },
     ] },
     { label: "Informasi & Akun", items: [
       { to: "/staff/announcements", label: "Informasi Sekolah", icon: Bell, badge: badges.announcements },
