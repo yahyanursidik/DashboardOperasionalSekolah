@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Outlet, useNavigate, useLocation, Link } from "react-router";
+import { NotificationBell } from "../../components/common/NotificationBell";
 import { supabaseClient } from "../../lib/supabase/client";
 import { Home, Wallet, BookOpen, LogOut, Smile, ClipboardList, Bell, Target, FileText, MoreHorizontal, X, Users, UserRound, CalendarCheck, LifeBuoy, Library, GraduationCap } from "lucide-react";
 import { useSystemSettings } from "../../app/providers/SettingsProvider";
@@ -222,10 +223,11 @@ export const PortalLayout: React.FC = () => {
                   </select>
                 </div>
               )}
-              <button title="Pengumuman" onClick={() => navigate("/portal/announcements")} className="p-2 text-gray-500 hover:text-emerald-600 rounded-full hover:bg-emerald-50 transition-colors relative">
-                <Bell className="w-5 h-5" />
-                {unreadAnnouncements > 0 && <span className="absolute -right-0.5 -top-0.5 min-w-4 rounded-full bg-red-500 px-1 text-center text-[9px] font-bold leading-4 text-white">{unreadAnnouncements > 9 ? "9+" : unreadAnnouncements}</span>}
-              </button>
+              <NotificationBell
+                fallbackHref="/portal/announcements"
+                fallbackBadge={unreadAnnouncements}
+                buttonClassName="relative flex h-9 w-9 items-center justify-center rounded-full text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
+              />
             </div>
           </div>
         </header>

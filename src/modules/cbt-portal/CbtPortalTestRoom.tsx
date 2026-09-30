@@ -1,225 +1,137 @@
-import React, { useState, useEffect } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router";
-import { useList, useUpdate, useCreate } from "@/lib/refine-compat";
 import { Clock, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { toast } from "sonner";
+import { supabaseClient } from "../../lib/supabase/client";
+
+// CBT tables are closed to participants; every read/write goes through token-scoped RPCs
+// (supabase/migrations/20260930090000_cbt_secure_exam_rpc.sql). Questions arrive without the
+// answer key and the score is computed on the server.
+const db = supabaseClient as unknown as {
+  rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }>;
+};
+
+type CbtQuestion = { id: string; question_text: string; options: Array<{ id: string; text: string }> };
+type CbtSession = {
+  status: "in_progress" | "completed";
+  applicant_name?: string;
+  exam_title?: string;
+  ends_at?: string;
+  server_now?: string;
+  questions?: CbtQuestion[];
+  answers?: Record<string, string>;
+};
 
 export const CbtPortalTestRoom: React.FC = () => {
-  const { token } = useParams();
+  const { token = "" } = useParams();
   const navigate = useNavigate();
 
-  // Fetch Participant
-  const { data: participantData, isLoading: isLoadingParticipant } = useList({
-    resource: "cbt_participants",
-    filters: [{ field: "token", operator: "eq", value: token }],
-    meta: { select: "*, cbt_exams(*, cbt_exam_banks(bank_id, question_count)), recruitment_applicants(full_name)" }
-  });
-
-  const participant = participantData?.data[0];
-  const exam = participant?.cbt_exams;
-
-  // Fetch Questions
-  // In a real app, you would fetch only questions mapped to this exam via an RPC or backend endpoint to avoid exposing all questions.
-  // For this MVP, we fetch questions based on the bank_ids associated with the exam.
-  const bankIds = exam?.cbt_exam_banks?.map((eb: any) => eb.bank_id) || [];
-  
-  const { data: questionsData, isLoading: isLoadingQuestions } = useList({
-    resource: "cbt_questions",
-    pagination: { mode: "off" },
-    filters: [{ field: "bank_id", operator: "in", value: bankIds.length > 0 ? bankIds : ['00000000-0000-0000-0000-000000000000'] }],
-    queryOptions: { enabled: !!exam && bankIds.length > 0 }
-  });
-
-  // Fetch Existing Answers
-  const { data: answersData } = useList({
-    resource: "cbt_answers",
-    filters: [{ field: "participant_id", operator: "eq", value: participant?.id }],
-    queryOptions: { enabled: !!participant?.id }
-  });
-
-  const { mutate: createAnswer } = useCreate();
-  const { mutate: updateAnswer } = useUpdate();
-  const { mutate: updateParticipant } = useUpdate();
-
-  const [questions, setQuestions] = useState<any[]>([]);
+  const [session, setSession] = useState<CbtSession | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [questions, setQuestions] = useState<CbtQuestion[]>([]);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({}); // question_id -> option_id
-  const [answerRecordIds, setAnswerRecordIds] = useState<Record<string, string>>({}); // question_id -> answer_record_id
-  const [isAnswersLoaded, setIsAnswersLoaded] = useState(false);
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
+  const [endsAtMs, setEndsAtMs] = useState<number | null>(null);
+  const clockOffsetRef = useRef(0); // server clock - client clock
+  const isSubmittingRef = useRef(false);
+  const submitRef = useRef<(auto?: boolean) => void>(() => {});
 
-  // Initialize Data
-  useEffect(() => {
-    if (questionsData?.data && exam && participant && questions.length === 0) {
-      const hashString = (str: string) => {
-        let hash = 0;
-        for (let i = 0; i < str.length; i++) {
-          hash = Math.imul(31, hash) + str.charCodeAt(i) | 0;
-        }
-        return hash;
-      };
-
-      const examBanks = exam.cbt_exam_banks || [];
-      let finalQuestions: any[] = [];
-
-      // For each bank, pick the configured question_count
-      examBanks.forEach((eb: any) => {
-         const bankQuestions = questionsData.data.filter((q: any) => q.bank_id === eb.bank_id);
-         
-         // Deterministic shuffle for this participant (so page refresh doesn't change the subset)
-         bankQuestions.sort((a: any, b: any) => {
-            const hashA = hashString(participant.id + a.id);
-            const hashB = hashString(participant.id + b.id);
-            return hashA - hashB;
-         });
-
-         // Slice the required count
-         finalQuestions = [...finalQuestions, ...bankQuestions.slice(0, eb.question_count)];
-      });
-
-      // Randomize the final combined list if needed (also deterministic)
-      if (exam.randomize_questions) {
-         finalQuestions.sort((a: any, b: any) => {
-            const hashA = hashString("order_" + participant.id + a.id);
-            const hashB = hashString("order_" + participant.id + b.id);
-            return hashA - hashB;
-         });
-      }
-      
-      setQuestions(finalQuestions);
-    }
-  }, [questionsData, exam, participant]);
-
-  // Load existing answers
-  useEffect(() => {
-    if (answersData?.data && !isAnswersLoaded) {
-      const existingAnswers: Record<string, string> = {};
-      const existingIds: Record<string, string> = {};
-      answersData.data.forEach((ans: any) => {
-        existingAnswers[ans.question_id] = ans.selected_option_id;
-        existingIds[ans.question_id] = ans.id;
-      });
-      setAnswers(existingAnswers);
-      setAnswerRecordIds(existingIds);
-      setIsAnswersLoaded(true);
-    }
-  }, [answersData, isAnswersLoaded]);
-
-  // Timer logic
-  useEffect(() => {
-    if (!participant || !exam) return;
-
-    if (participant.status === 'completed') return;
-
-    let endTime: Date;
-    
-    if (!participant.started_at) {
-      // First time starting
-      const now = new Date();
-      updateParticipant({
-        resource: "cbt_participants",
-        id: participant.id,
-        values: { status: 'in_progress', started_at: now.toISOString() }
-      });
-      endTime = new Date(now.getTime() + exam.duration_minutes * 60000);
+  const loadSession = useCallback(async () => {
+    setIsLoading(true);
+    const { data, error } = await db.rpc("cbt_session", { p_token: token });
+    if (error) {
+      setLoadError(error.message);
+      setSession(null);
     } else {
-      endTime = new Date(new Date(participant.started_at).getTime() + exam.duration_minutes * 60000);
+      const next = data as CbtSession | null;
+      setLoadError("");
+      setSession(next);
+      if (next?.status === "in_progress") {
+        setQuestions(next.questions || []);
+        setAnswers(next.answers || {});
+        clockOffsetRef.current = new Date(next.server_now || Date.now()).getTime() - Date.now();
+        setEndsAtMs(next.ends_at ? new Date(next.ends_at).getTime() : null);
+      }
     }
+    setIsLoading(false);
+  }, [token]);
 
-    const interval = setInterval(() => {
-      const now = new Date();
-      const diff = Math.max(0, Math.floor((endTime.getTime() - now.getTime()) / 1000));
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial fetch of the exam session
+    void loadSession();
+  }, [loadSession]);
+
+  // Timer follows the server deadline, so reloading the page or changing the device clock does not add time.
+  useEffect(() => {
+    if (session?.status !== "in_progress" || !endsAtMs) return;
+    const tick = () => {
+      const diff = Math.max(0, Math.floor((endsAtMs - (Date.now() + clockOffsetRef.current)) / 1000));
       setTimeLeft(diff);
-
       if (diff === 0) {
         clearInterval(interval);
-        handleSubmit(); // Auto submit
+        submitRef.current(true);
       }
-    }, 1000);
-
+    };
+    const interval = setInterval(tick, 1000);
+    tick();
     return () => clearInterval(interval);
-  }, [participant, exam]);
+  }, [session?.status, endsAtMs]);
 
-  const handleSelectOption = (questionId: string, optionId: string) => {
-    if (!participant) return;
-
-    setAnswers(prev => ({ ...prev, [questionId]: optionId }));
-
-    const recordId = answerRecordIds[questionId];
-    
-    // Auto save
-    if (recordId) {
-      updateAnswer({
-        resource: "cbt_answers",
-        id: recordId,
-        values: { selected_option_id: optionId }
+  const handleSelectOption = async (questionId: string, optionId: string) => {
+    if (session?.status !== "in_progress" || isSubmittingRef.current) return;
+    const previous = answers[questionId];
+    setAnswers((prev) => ({ ...prev, [questionId]: optionId }));
+    const { error } = await db.rpc("cbt_save_answer", { p_token: token, p_question_id: questionId, p_option_id: optionId });
+    if (error) {
+      setAnswers((prev) => {
+        const next = { ...prev };
+        if (previous) next[questionId] = previous; else delete next[questionId];
+        return next;
       });
-    } else {
-      createAnswer({
-        resource: "cbt_answers",
-        values: {
-          participant_id: participant.id,
-          question_id: questionId,
-          selected_option_id: optionId
-        }
-      }, {
-        onSuccess: (data: any) => {
-          setAnswerRecordIds(prev => ({ ...prev, [questionId]: data.data.id }));
-        }
-      });
+      toast.error(`Jawaban belum tersimpan: ${error.message}`);
+      if (/habis|tidak aktif/i.test(error.message)) void loadSession();
     }
   };
 
-  const handleSubmit = () => {
-    if (!participant) return;
-    
-    if (confirm("Apakah Anda yakin ingin menyelesaikan ujian ini? Jawaban tidak dapat diubah lagi.")) {
-      // Calculate Score
-      const totalWeight = questions.reduce((sum, q) => sum + (q.weight || 1), 0);
-      
-      let earnedWeight = 0;
-      Object.entries(answers).forEach(([qId, optId]) => {
-        const q = questions.find(x => x.id === qId);
-        if (q && q.correct_option_id === optId) {
-          earnedWeight += (q.weight || 1);
-        }
-      });
-      
-      const finalScore = totalWeight > 0 ? Math.round((earnedWeight / totalWeight) * 100) : 0;
-      const isPassed = finalScore >= (exam?.passing_grade || 0);
-
-      updateParticipant({
-        resource: "cbt_participants",
-        id: participant!.id,
-        values: { 
-          status: 'completed', 
-          completed_at: new Date().toISOString(),
-          score: finalScore,
-          is_passed: isPassed
-        }
-      }, {
-        onSuccess: () => {
-          window.location.reload(); // Simple way to show completed state
-        }
-      });
+  const submitExam = async (auto = false) => {
+    if (session?.status !== "in_progress" || isSubmittingRef.current) return;
+    if (!auto) {
+      const unanswered = questions.length - Object.keys(answers).length;
+      const warning = unanswered > 0 ? `\n\nMasih ada ${unanswered} soal yang belum dijawab.` : "";
+      if (!confirm(`Apakah Anda yakin ingin menyelesaikan ujian ini? Jawaban tidak dapat diubah lagi.${warning}`)) return;
     }
+    isSubmittingRef.current = true;
+    const { error } = await db.rpc("cbt_submit", { p_token: token });
+    isSubmittingRef.current = false;
+    if (error) {
+      toast.error(auto ? "Waktu habis. Memuat status ujian..." : `Gagal mengumpulkan jawaban: ${error.message}`);
+      void loadSession();
+      return;
+    }
+    setSession((prev) => ({ ...(prev || {}), status: "completed" }));
   };
+  const handleSubmit = () => void submitExam(false);
+  // eslint-disable-next-line react-hooks/refs -- keep the timer pointed at the latest submit handler
+  submitRef.current = submitExam;
 
-  if (isLoadingParticipant || isLoadingQuestions) {
+  if (isLoading && !session) {
     return <div className="text-center p-12">Mempersiapkan ruangan ujian...</div>;
   }
 
-  if (!participant) {
+  if (!session) {
     return (
       <div className="bg-white p-8 rounded-2xl shadow-xl text-center max-w-md w-full border border-red-100">
         <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-        <h2 className="text-xl font-bold text-slate-800">Token Tidak Valid</h2>
-        <p className="text-slate-500 mt-2 mb-6">Token ujian yang Anda masukkan salah atau tidak ditemukan.</p>
+        <h2 className="text-xl font-bold text-slate-800">{loadError ? "Ruang Ujian Tidak Dapat Dimuat" : "Token Tidak Valid"}</h2>
+        <p className="text-slate-500 mt-2 mb-6">{loadError || "Token ujian yang Anda masukkan salah atau tidak ditemukan."}</p>
         <button onClick={() => navigate("/cbt/login")} className="px-6 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 font-medium">Kembali</button>
       </div>
     );
   }
 
-  if (participant.status === 'completed') {
+  if (session.status === 'completed') {
     return (
       <div className="bg-white p-8 rounded-2xl shadow-xl text-center max-w-md w-full border border-emerald-100">
         <CheckCircle2 className="w-16 h-16 text-emerald-500 mx-auto mb-4" />
@@ -255,7 +167,7 @@ export const CbtPortalTestRoom: React.FC = () => {
               <p className="text-lg text-slate-700 leading-relaxed mb-8">{currentQuestion.question_text}</p>
               
               <div className="space-y-3">
-                {currentQuestion.options?.map((opt: any) => (
+                {currentQuestion.options?.map((opt) => (
                   <label 
                     key={opt.id} 
                     onClick={() => handleSelectOption(currentQuestion.id, opt.id)}
@@ -312,8 +224,8 @@ export const CbtPortalTestRoom: React.FC = () => {
       <div className="md:col-span-1 space-y-6">
         <div className="bg-white rounded-2xl shadow-sm border p-6 text-center">
           <div className="mb-4 pb-4 border-b">
-            <h3 className="text-sm font-semibold text-slate-800">{participant?.recruitment_applicants?.full_name || "Peserta Ujian"}</h3>
-            <p className="text-xs text-slate-500 uppercase tracking-wider">{exam?.title}</p>
+            <h3 className="text-sm font-semibold text-slate-800">{session.applicant_name || "Peserta Ujian"}</h3>
+            <p className="text-xs text-slate-500 uppercase tracking-wider">{session.exam_title}</p>
           </div>
           <Clock className="w-8 h-8 text-indigo-600 mx-auto mb-2" />
           <h3 className="text-sm font-medium text-slate-500 uppercase tracking-wider">Sisa Waktu</h3>

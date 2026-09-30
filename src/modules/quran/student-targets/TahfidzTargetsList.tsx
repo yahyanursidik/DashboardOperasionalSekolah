@@ -21,6 +21,7 @@ export const TahfidzTargetsList: React.FC = () => {
   const [search, setSearch] = useState("");
   
   const { data, isLoading } = useList({
+    pagination: { mode: "off" },
     resource: "tahfidz_student_targets",
     filters: [
       { field: "academic_year_id", operator: "eq", value: activeYearId },

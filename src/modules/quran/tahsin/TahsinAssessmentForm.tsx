@@ -52,6 +52,9 @@ export const TahsinAssessmentForm: React.FC = () => {
     resource: "quran_assessments",
     action: isEdit ? "edit" : "create",
     id,
+    // quran_assessments' list route is Munaqosyah Tahfidz; return to the Tahsin exam list instead.
+    redirect: false,
+    onMutationSuccess: () => navigate(selectedHalaqoh ? `/tahsin-assessments?halaqoh_id=${selectedHalaqoh}` : "/tahsin-assessments"),
     meta: {
       select: "*, students(id, full_name, nis, class_id, classes(name, units(name))), classes(name, units(name))",
     },

@@ -9,6 +9,7 @@ import { AuthLayout } from "../components/layout/AuthLayout";
 
 import { Toaster } from "sonner";
 import { NetworkDetector } from "../components/common/NetworkDetector";
+import { NotFoundPage } from "../components/common/NotFoundPage";
 
 import { accessControlProvider } from "./providers/accessControlProvider";
 import { auditLogProvider } from "./providers/auditLogProvider";
@@ -57,7 +58,7 @@ import {
 } from "../modules/extracurricular/portal";
 import { SettingsPage } from "../modules/settings";
 import { StudentMassPromotion } from "../modules/students/pages/mass-promotion";
-import { CommunicationsPage } from "../modules/communications";
+import { CommunicationsPage, EmailLogPage } from "../modules/communications";
 import { StudentJournalsList, StudentJournalCreate, StudentJournalEdit } from "../modules/student-journals/pages";
 import { FinanceDashboard, InvoicesList, PaymentVerifications, SchoolExpenses, FinanceCategories, SpmbFeesConfig, FinanceSettings, FinanceCashbook, FinanceBudgets, FinanceAccounting, FinanceReports, FinanceTariffs, FinanceReceipts } from "../modules/finance/pages";
 import { CurriculumDashboard } from "../modules/curriculum/dashboard";
@@ -212,7 +213,6 @@ export default function App() {
             list: "/student-journals",
             create: "/student-journals/create",
             edit: "/student-journals/edit/:id",
-            show: "/student-journals/show/:id",
             meta: {
               canDelete: true,
             },
@@ -222,7 +222,6 @@ export default function App() {
             list: "/quran",
             create: "/quran/create",
             edit: "/quran/edit/:id",
-            show: "/quran/show/:id",
             meta: {
               canDelete: true,
             },
@@ -289,15 +288,15 @@ export default function App() {
           {
             name: "tahsin_records",
             list: "/tahsin-records",
-            create: "/quran/create",
-            edit: "/quran/edit/:id",
+            create: "/tahsin-records/create",
+            edit: "/tahsin-records/edit/:id",
             meta: { canDelete: true },
           },
           {
             name: "tahsin_assessments",
             list: "/tahsin-assessments",
-            create: "/quran-assessments/create",
-            edit: "/quran-assessments/edit/:id",
+            create: "/tahsin-assessments/create",
+            edit: "/tahsin-assessments/edit/:id",
             meta: { canDelete: true },
           },
           {
@@ -429,6 +428,11 @@ export default function App() {
             meta: { canDelete: true },
           },
           {
+            name: "email_messages",
+            list: "/communications/email-log",
+            meta: { label: "Log Email", canDelete: false },
+          },
+          {
             name: "audit_logs",
             list: "/audit-logs",
             meta: { canDelete: false },
@@ -558,7 +562,7 @@ export default function App() {
             meta: { canDelete: true },
           },
           {
-            name: "substitutes",
+            name: "substitute_assignments",
             list: "/substitutes",
             create: "/substitutes/create",
             edit: "/substitutes/edit/:id",
@@ -800,6 +804,7 @@ export default function App() {
                 <Route path="/hbl" element={<Navigate to="/lms" replace />} />
                 <Route path="/lms" element={<HblAdminPage />} />
                 <Route path="/communications" element={<CommunicationsPage />} />
+                <Route path="/communications/email-log" element={<EmailLogPage />} />
                 
                 <Route path="/students">
                 <Route index element={<StudentsList />} />
@@ -1307,7 +1312,7 @@ export default function App() {
               </Route>
 
               {/* Catch-all route for unknown URLs (404) to prevent blank screen */}
-              <Route path="*" element={<Navigate to="/login" replace />} />
+              <Route path="*" element={<NotFoundPage />} />
 
             </Routes>
           </UnitProvider>

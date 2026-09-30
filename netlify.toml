@@ -8,6 +8,11 @@
   status = 200
 
 [[redirects]]
+  from = "/api/create-user"
+  to = "/.netlify/functions/create-user"
+  status = 200
+
+[[redirects]]
   from = "/api/storage"
   to = "/.netlify/functions/storage"
   status = 200

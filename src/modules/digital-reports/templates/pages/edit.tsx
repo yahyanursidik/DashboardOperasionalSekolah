@@ -8,6 +8,8 @@ import { supabaseClient } from "../../../../lib/supabase/client";
 import { toast } from "sonner";
 import { useGetIdentity } from "@/lib/refine-compat";
 import { logAudit } from "../../../../lib/audit";
+import { ItemSubjectSelect } from "../item-subject-select";
+import { useReportSubjects, type ReportSubjectOption } from "../report-subjects";
 
 type FormValues = {
   name: string;
@@ -29,6 +31,7 @@ type FormValues = {
       assessment_type: string;
       scale_type: string;
       max_score: number | null;
+      subject_id?: string | null;
       display_order: number;
       parent_visible: boolean;
       is_required: boolean;
@@ -100,6 +103,7 @@ export const ReportTemplateEdit: React.FC = () => {
   });
 
   const { options: unitOptions } = useSelect({ resource: "units" });
+  const reportSubjects = useReportSubjects(activeUnitId || (queryData?.data as any)?.unit_id);
 
   const onSubmit = async (data: FormValues) => {
     if (!user?.id || !id) {
@@ -136,7 +140,7 @@ export const ReportTemplateEdit: React.FC = () => {
         
         if (sectionId) {
           // Update existing section
-          await supabaseClient.from('report_template_sections').update({
+          const { error: sectionError } = await supabaseClient.from('report_template_sections').update({
             title: sec.title,
             description: sec.description,
             display_order: i + 1,
@@ -144,6 +148,7 @@ export const ReportTemplateEdit: React.FC = () => {
             is_active: sec.is_active,
             updated_by: user.id
           }).eq('id', sectionId);
+          if (sectionError) throw sectionError;
         } else {
           // Insert new section
           const { data: newSec, error } = await supabaseClient.from('report_template_sections').insert({
@@ -170,17 +175,19 @@ export const ReportTemplateEdit: React.FC = () => {
             let itemId = item.id;
 
             if (itemId) {
-              await supabaseClient.from('report_template_items').update({
+              const { error: itemError } = await supabaseClient.from('report_template_items').update({
                 name: item.name,
                 description: item.description,
                 assessment_type: item.assessment_type,
                 scale_type: item.scale_type || null,
                 max_score: item.max_score || null,
+                subject_id: item.subject_id || null,
                 display_order: j + 1,
                 parent_visible: item.parent_visible,
                 is_required: item.is_required,
                 updated_by: user.id
               }).eq('id', itemId);
+              if (itemError) throw itemError;
             } else {
               const { data: newItem, error } = await supabaseClient.from('report_template_items').insert({
                 section_id: sectionId,
@@ -189,6 +196,7 @@ export const ReportTemplateEdit: React.FC = () => {
                 assessment_type: item.assessment_type,
                 scale_type: item.scale_type || null,
                 max_score: item.max_score || null,
+                subject_id: item.subject_id || null,
                 display_order: j + 1,
                 parent_visible: item.parent_visible,
                 is_required: item.is_required,
@@ -378,7 +386,7 @@ export const ReportTemplateEdit: React.FC = () => {
 
               <div className="p-4 bg-muted/10">
                 <h4 className="text-sm font-semibold mb-3 flex items-center gap-2"><List className="w-4 h-4 text-primary" /> Item Penilaian</h4>
-                <SectionItems control={control} register={register} sectionIndex={sIndex} />
+                <SectionItems control={control} register={register} sectionIndex={sIndex} subjects={reportSubjects} />
               </div>
             </div>
           ))}
@@ -388,7 +396,7 @@ export const ReportTemplateEdit: React.FC = () => {
   );
 };
 
-const SectionItems = ({ control, register, sectionIndex }: { control: any, register: any, sectionIndex: number }) => {
+const SectionItems = ({ control, register, sectionIndex, subjects }: { control: any, register: any, sectionIndex: number, subjects: ReportSubjectOption[] }) => {
   const { fields, append, remove } = useFieldArray({
     control,
     name: `sections.${sectionIndex}.items`
@@ -434,6 +442,7 @@ const SectionItems = ({ control, register, sectionIndex }: { control: any, regis
                 Wajib Isi
               </label>
             </div>
+            <ItemSubjectSelect register={register} name={`sections.${sectionIndex}.items.${iIndex}.subject_id`} subjects={subjects} />
           </div>
 
           <button type="button" onClick={() => remove(iIndex)} className="p-2 text-muted-foreground hover:text-red-600 rounded-md hover:bg-red-50 self-start lg:self-center shrink-0">
@@ -444,7 +453,7 @@ const SectionItems = ({ control, register, sectionIndex }: { control: any, regis
 
       <button
         type="button"
-        onClick={() => append({ name: "", description: "", assessment_type: "numeric", scale_type: "", max_score: 100, display_order: fields.length + 1, parent_visible: true, is_required: true })}
+        onClick={() => append({ name: "", description: "", assessment_type: "numeric", scale_type: "", max_score: 100, subject_id: "", display_order: fields.length + 1, parent_visible: true, is_required: true })}
         className="text-sm font-medium text-primary hover:text-primary/80 transition-colors flex items-center gap-1 mt-2 pl-2"
       >
         <Plus className="w-3.5 h-3.5" /> Tambah Item

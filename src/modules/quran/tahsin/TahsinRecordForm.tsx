@@ -48,7 +48,9 @@ export const TahsinRecordForm: React.FC = () => {
       action: isEdit ? "edit" : "create",
       resource: "quran_records",
       id,
-      redirect: "list",
+      // quran_records' list route is the Tahfidz journal; return to the Tahsin journal instead.
+      redirect: false,
+      onMutationSuccess: () => navigate("/tahsin-records"),
     },
     defaultValues: {
       academic_year_id: activeYearId || "",

@@ -23,8 +23,8 @@ export const AssetLoansList: React.FC<{ isTabMode?: boolean }> = ({ isTabMode })
 
   const assetFilters: any[] = [{ field: "status", operator: "eq", value: "Tersedia" }];
   if (activeUnitId) assetFilters.push({ field: "unit_id", operator: "eq", value: activeUnitId });
-  const { data: assets } = useList({ resource: "assets", filters: assetFilters });
-  const { data: employees } = useList({ resource: "employees" });
+  const { data: assets } = useList({ pagination: { mode: "off" }, resource: "assets", filters: assetFilters });
+  const { data: employees } = useList({ pagination: { mode: "off" }, resource: "employees" });
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [returnLoan, setReturnLoan] = useState<any>(null);

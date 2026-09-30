@@ -23,9 +23,9 @@ export const ProcurementsList: React.FC<{ isTabMode?: boolean }> = ({ isTabMode 
   const { mutateAsync: createExpense } = useCreate();
   const { mutateAsync: createProcurement } = useCreate();
 
-  const { data: employees } = useList({ resource: "employees" });
-  const { data: units } = useList({ resource: "units" });
-  const { data: financeCategories } = useList({ resource: "finance_categories", filters: [{ field: "type", operator: "eq", value: "expense" }] });
+  const { data: employees } = useList({ pagination: { mode: "off" }, resource: "employees" });
+  const { data: units } = useList({ pagination: { mode: "off" }, resource: "units" });
+  const { data: financeCategories } = useList({ pagination: { mode: "off" }, resource: "finance_categories", filters: [{ field: "type", operator: "eq", value: "expense" }] });
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);

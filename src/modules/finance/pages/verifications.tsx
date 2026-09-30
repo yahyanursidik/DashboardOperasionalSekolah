@@ -8,6 +8,7 @@ import { FinanceSectionNav } from "../components/FinanceSectionNav";
 import { getDocumentSignedUrl } from "../../../lib/supabase/storage";
 import { belongsToFinanceUnit } from "../finance-utils";
 import { toast } from "sonner";
+import { describeNotificationResult, sendNotificationEvent } from "../../../lib/email";
 
 type PaymentTransaction = {
   id: string;
@@ -71,7 +72,17 @@ export const PaymentVerifications: React.FC = () => {
         resource: "payment_transactions",
         id,
         values: { status: newStatus, verified_at: new Date().toISOString(), ...(isApproved && !transaction?.cash_account_id ? { cash_account_id: defaultAccountId || null } : {}), ...(reason ? { rejection_reason: reason, notes: reason } : {}) }
-      }, { onSuccess: () => { setRejectingId(null); setRejectionReason(""); } });
+      }, { onSuccess: () => {
+        setRejectingId(null);
+        setRejectionReason("");
+        // Send the parent a payment confirmation by email; the verification itself is already saved.
+        if (isApproved) {
+          void sendNotificationEvent("payment_verified", [id]).then((result) => {
+            if (result.success && result.recipients && !result.totals?.failed) toast.success(describeNotificationResult(result));
+            else if (!result.success || result.totals?.failed) toast.error(describeNotificationResult(result));
+          });
+        }
+      } });
     }
   };
 

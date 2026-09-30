@@ -8,7 +8,7 @@ import {
 import { toast } from "sonner";
 
 export const MembersList: React.FC = () => {
-  const { data: programsData } = useList({ resource: "extracurriculars" });
+  const { data: programsData } = useList({ pagination: { mode: "off" }, resource: "extracurriculars" });
   const [selectedProgram, setSelectedProgram] = useState<string>("");
   const [searchTerm, setSearchTerm] = useState("");
 

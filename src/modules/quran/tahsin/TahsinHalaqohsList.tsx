@@ -35,6 +35,7 @@ export const TahsinHalaqohsList: React.FC = () => {
   });
 
   const { data, isLoading } = useList({
+    pagination: { mode: "off" },
     resource: "tahfidz_halaqohs",
     filters: [
       ...(activeYearId ? [{ field: "academic_year_id", operator: "eq" as const, value: activeYearId }] : []),

@@ -5,15 +5,16 @@ import { Award, Loader2, Save } from "lucide-react";
 import { toast } from "sonner";
 
 export const GradesList: React.FC = () => {
-  const { data: programsData, isLoading: loadingPrograms } = useList({ resource: "extracurriculars", filters: [{ field: "is_active", operator: "eq", value: true }] });
-  const { data: yearsData } = useList({ resource: "academic_years", sorters: [{ field: "name", order: "desc" }] });
-  const { data: semestersData } = useList({ resource: "semesters" });
+  const { data: programsData, isLoading: loadingPrograms } = useList({ pagination: { mode: "off" }, resource: "extracurriculars", filters: [{ field: "is_active", operator: "eq", value: true }] });
+  const { data: yearsData } = useList({ pagination: { mode: "off" }, resource: "academic_years", sorters: [{ field: "name", order: "desc" }] });
+  const { data: semestersData } = useList({ pagination: { mode: "off" }, resource: "semesters" });
 
   const [selectedProgram, setSelectedProgram] = useState<string>("");
   const [selectedYear, setSelectedYear] = useState<string>("");
   const [selectedSemester, setSelectedSemester] = useState<string>("");
 
   const { data: membersData, isLoading: loadingMembers } = useList({ 
+    pagination: { mode: "off" },
     resource: "extracurricular_members",
     meta: {
       select: "*, students(full_name), external_students(full_name)"
@@ -26,6 +27,7 @@ export const GradesList: React.FC = () => {
   });
 
   const { data: gradesData, isLoading: loadingGrades, refetch } = useList({
+    pagination: { mode: "off" },
     resource: "extracurricular_grades",
     filters: [
       { field: "extracurricular_id", operator: "eq", value: selectedProgram },

@@ -32,6 +32,7 @@ export const AnnouncementsList: React.FC = () => {
   if (filterTarget) filters.push({ field: "target_type", operator: "eq", value: filterTarget });
 
   const { data, isLoading, refetch } = useList({
+    pagination: { mode: "off" },
     resource: "announcements",
     meta: { select: "*, author:profiles!created_by(full_name), units(name), classes(name)" },
     filters,

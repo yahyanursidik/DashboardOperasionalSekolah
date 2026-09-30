@@ -138,11 +138,9 @@ export const authProvider: AuthBindings = {
         .from("user_roles")
         .select("unit_id, roles(name)")
         .eq("user_id", authData.user.id);
-      
-      console.log("DEBUG getPermissions userRoles:", userRoles, "error:", error);
 
       if (error) {
-        console.error("DEBUG getPermissions error fetching roles:", error);
+        console.error("Gagal memuat peran pengguna:", error.message);
       }
 
       if (!userRoles) return [];
@@ -152,7 +150,7 @@ export const authProvider: AuthBindings = {
         unit_id: ur.unit_id,
       }));
     } catch (e) {
-      console.error("DEBUG getPermissions exception:", e);
+      console.error("Gagal memuat peran pengguna:", e);
       return [];
     }
   },
@@ -186,7 +184,9 @@ export const authProvider: AuthBindings = {
     return null;
   },
   onError: async (error: any) => {
-    if (error?.status === 401 || error?.status === 403 || error?.code === "PGRST301") {
+    // Only an invalid/expired session should end the session. A 403 is an RLS/permission
+    // denial on a single request and must not log the user out of the whole app.
+    if (error?.status === 401 || error?.code === "PGRST301" || error?.code === "PGRST303") {
       return {
         logout: true,
         redirectTo: getRedirectPath(),

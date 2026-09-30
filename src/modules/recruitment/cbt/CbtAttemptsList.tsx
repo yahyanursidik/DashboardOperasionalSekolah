@@ -59,8 +59,10 @@ export const CbtAttemptsList: React.FC = () => {
     exam_id: ""
   });
 
+  // The token is the participant's only credential, so it must not be guessable.
   const generateToken = () => {
-    return Math.random().toString(36).substring(2, 8).toUpperCase();
+    const bytes = crypto.getRandomValues(new Uint8Array(5));
+    return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("").toUpperCase();
   };
 
   const handleEnroll = () => {

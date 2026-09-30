@@ -1,10 +1,13 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useList, useGetIdentity } from "@/lib/refine-compat";
 import { useNavigate } from "react-router";
 import { PageHeader } from "../../../../components/layout/PageHeader";
 import { Search, Edit3, FilterX, UserCircle2, Clock, CheckCircle2, ChevronRight, AlertCircle } from "lucide-react";
 import { useCurrentUnit } from "../../../../app/providers/UnitProvider";
 import { useCurrentRoles } from "../../../../hooks/useAuth";
+import { hasAnyRole } from "../../../../lib/permissions";
+import { supabaseClient } from "../../../../lib/supabase/client";
+import { loadTeacherAssignedClassIds } from "../../../teacher-portal/teacher-assignment-data";
 
 export const TeacherInputList: React.FC = () => {
   const navigate = useNavigate();
@@ -12,17 +15,33 @@ export const TeacherInputList: React.FC = () => {
   const { data: user } = useGetIdentity<any>();
   const { roles } = useCurrentRoles();
 
-  // Determine allowed classes based on assignments
-  // For MVP, if teacher is homeroom, they see their class.
-  // If subject teacher, they see classes they teach.
-  // Since we don't have deep class assignment filtering in standard supabase auth yet, 
-  // we will fetch classes within the unit, but ideally filtered by their assignments.
-  const myClassIds = React.useMemo(() => {
-    if (!roles) return [];
-    return Array.from(new Set(roles.map(r => (r as any).class_id).filter(Boolean))) as string[];
-  }, [roles]);
+  // Leaders see every class in the unit; teachers only the classes they teach or homeroom.
+  const isManager = hasAnyRole(roles, ["super_admin", "ketua_yayasan", "kepsek", "wakasek", "admin_sekolah", "admin_unit"]);
+  const [assignedClassIds, setAssignedClassIds] = useState<string[]>([]);
+  const myClassIds = isManager ? null : assignedClassIds; // null = unrestricted
 
-  const [filterClass, setFilterClass] = useState<string>(myClassIds.length === 1 ? myClassIds[0] : "");
+  useEffect(() => {
+    if (!roles || !user?.id || isManager) return;
+    let cancelled = false;
+    void (async () => {
+      const employeeResult = await supabaseClient.from("employees").select("id").eq("user_id", user.id).maybeSingle();
+      const employeeId = (employeeResult.data as unknown as { id?: string } | null)?.id;
+      if (!employeeId) {
+        if (!cancelled) setAssignedClassIds([]);
+        return;
+      }
+      const [assigned, homeroom] = await Promise.all([
+        loadTeacherAssignedClassIds(employeeId),
+        supabaseClient.from("classes").select("id").eq("homeroom_teacher_id", employeeId),
+      ]);
+      if (cancelled) return;
+      const homeroomRows = (homeroom.data || []) as unknown as Array<{ id: string }>;
+      setAssignedClassIds(Array.from(new Set<string>([...(assigned.data || []), ...homeroomRows.map((row) => row.id)])));
+    })();
+    return () => { cancelled = true; };
+  }, [roles, user?.id, isManager]);
+
+  const [filterClass, setFilterClass] = useState<string>("");
   const [filterPeriod, setFilterPeriod] = useState<string>("");
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -31,6 +50,16 @@ export const TeacherInputList: React.FC = () => {
     pagination: { mode: "off" },
     filters: activeUnitId ? [{ field: "unit_id", operator: "eq", value: activeUnitId } as any] : []
   });
+
+  const visibleClasses = useMemo(
+    () => (classes?.data || []).filter((item: any) => myClassIds === null || myClassIds.includes(String(item.id))),
+    [classes?.data, myClassIds],
+  );
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- preselect the only class a teacher can open
+    if (!filterClass && visibleClasses.length === 1) setFilterClass(String(visibleClasses[0].id));
+  }, [filterClass, visibleClasses]);
 
   const { data: periods } = useList({
     resource: "report_periods",
@@ -105,7 +134,7 @@ export const TeacherInputList: React.FC = () => {
               className="w-full border rounded-md px-3 py-2 text-sm bg-background"
             >
               <option value="">-- Pilih Kelas --</option>
-              {classes?.data?.map(c => <option key={c.id} value={c.id as string}>{c.name}</option>)}
+              {visibleClasses.map((c: any) => <option key={c.id} value={c.id as string}>{c.name}</option>)}
             </select>
           </div>
 

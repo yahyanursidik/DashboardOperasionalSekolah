@@ -17,7 +17,7 @@ export const VacancyCreate: React.FC = () => {
     mutationMode: "pessimistic"
   });
 
-  const { data: units } = useList({ resource: "units" });
+  const { data: units } = useList({ pagination: { mode: "off" }, resource: "units" });
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();

@@ -30,6 +30,7 @@ export const TasksList: React.FC = () => {
   if (filterPriority) filters.push({ field: "priority", operator: "eq", value: filterPriority });
 
   const { data, isLoading, refetch } = useList({
+    pagination: { mode: "off" },
     resource: "admin_tasks",
     meta: { select: "*, units(name), assigned:profiles!assigned_to(full_name)" },
     filters

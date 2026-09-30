@@ -1,13 +1,14 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useShow, useList, useGetIdentity } from "@/lib/refine-compat";
 import { useParams, useNavigate, useLocation } from "react-router";
 import { PageHeader } from "../../../../components/layout/PageHeader";
-import { ArrowLeft, Save, Loader2, CheckCircle2, AlertCircle, MessageSquare } from "lucide-react";
+import { ArrowLeft, Loader2, CheckCircle2, MessageSquare, BookOpenCheck } from "lucide-react";
 import { supabaseClient } from "../../../../lib/supabase/client";
 import { toast } from "sonner";
 import { useCurrentRoles } from "../../../../hooks/useAuth";
 import { hasRole } from "../../../../lib/permissions";
 import { logAudit } from "../../../../lib/audit";
+import { loadGradebookFinalScores, scaleToItemMax } from "../../gradebook-sync";
 
 export const TeacherInputForm: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -23,7 +24,7 @@ export const TeacherInputForm: React.FC = () => {
     resource: "student_reports",
     id,
     meta: {
-      select: "*, students(full_name, nisn), classes(name), report_periods(name), report_templates(*, sections:report_template_sections(*, items:report_template_items(*)))"
+      select: "*, students(full_name, nisn), classes(name), report_periods(name, semester_id, semesters(name)), report_templates(*, sections:report_template_sections(*, items:report_template_items(*)))"
     }
   });
   const reportQuery = queryResult;
@@ -70,6 +71,12 @@ export const TeacherInputForm: React.FC = () => {
   const [activeSectionId, setActiveSectionId] = useState<string>("");
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [gradebookScores, setGradebookScores] = useState<Record<string, number>>({});
+  const savedIdsRef = useRef<Record<string, string>>({});
+  const reportStatusRef = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (reportData?.status && reportStatusRef.current === undefined) reportStatusRef.current = reportData.status;
+  }, [reportData?.status]);
 
   useEffect(() => {
     if (scoresData?.data) {
@@ -101,8 +108,9 @@ export const TeacherInputForm: React.FC = () => {
     }));
   };
 
-  const handleSaveItem = async (itemId: string) => {
-    const scoreRow = scoresMap[itemId];
+  // Persists the given row. Callers that change a value and save in the same event pass the new
+  // row explicitly, because `scoresMap` in this closure still holds the previous render's state.
+  const persistScore = async (itemId: string, scoreRow: any) => {
     if (!scoreRow || !user?.id) return;
 
     setIsSaving(true);
@@ -110,31 +118,32 @@ export const TeacherInputForm: React.FC = () => {
       const payload = {
         report_id: id,
         item_id: itemId,
-        score_numeric: scoreRow.score_numeric ?? null,
+        score_numeric: scoreRow.score_numeric === "" ? null : scoreRow.score_numeric ?? null,
         score_predicate: scoreRow.score_predicate ?? null,
         score_narrative: scoreRow.score_narrative ?? null,
         updated_by: user.id
       };
 
-      if (scoreRow.id) {
-        // Update
-        await supabaseClient.from('student_report_scores').update(payload).eq('id', scoreRow.id);
+      const existingId = scoreRow.id || savedIdsRef.current[itemId];
+      if (existingId) {
+        const { error } = await supabaseClient.from('student_report_scores').update(payload).eq('id', existingId);
+        if (error) throw error;
       } else {
-        // Insert
         const payloadToInsert = { ...payload, created_by: user.id };
         const { data, error } = await supabaseClient.from('student_report_scores').insert(payloadToInsert).select('id').single();
         if (error) throw error;
-        // Update local map with new ID
+        const newId = (data as any).id;
+        savedIdsRef.current[itemId] = newId;
         setScoresMap(prev => ({
           ...prev,
-          [itemId]: { ...prev[itemId], id: (data as any).id }
+          [itemId]: { ...prev[itemId], id: newId }
         }));
       }
 
       // Automatically update the main report status to teacher_input if it was draft
-      if (reportData.status === 'draft') {
-        await supabaseClient.from('student_reports').update({ status: 'teacher_input' }).eq('id', id);
-        reportData.status = 'teacher_input';
+      if (reportStatusRef.current === 'draft') {
+        const { error } = await supabaseClient.from('student_reports').update({ status: 'teacher_input' }).eq('id', id);
+        if (!error) reportStatusRef.current = 'teacher_input';
       }
 
       // Log audit
@@ -148,12 +157,58 @@ export const TeacherInputForm: React.FC = () => {
       );
 
       setLastSaved(new Date());
-    } catch (error) {
+    } catch (error: any) {
       console.error("Auto-save failed:", error);
-      toast.error("Gagal menyimpan nilai secara otomatis.");
+      toast.error("Gagal menyimpan nilai.", { description: error?.message });
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleSaveItem = (itemId: string) => persistScore(itemId, scoresMap[itemId]);
+
+  const setAndSave = (itemId: string, field: 'score_numeric' | 'score_predicate' | 'score_narrative', value: any) => {
+    const nextRow = { ...scoresMap[itemId], item_id: itemId, report_id: id, [field]: value };
+    setScoresMap(prev => ({ ...prev, [itemId]: nextRow }));
+    void persistScore(itemId, nextRow);
+  };
+
+  // Gradebook integration: items linked to a subject can take the subject's final Gradebook score.
+  const semesterId = reportData?.report_periods?.semester_id as string | undefined;
+  const semesterName = reportData?.report_periods?.semesters?.name as string | undefined;
+  const hasLinkedItems = Boolean(template?.sections?.some((section: any) => section.items?.some((item: any) => item.subject_id)));
+  useEffect(() => {
+    if (!reportData?.student_id || !semesterId || !hasLinkedItems) return;
+    let cancelled = false;
+    void loadGradebookFinalScores(reportData.student_id, semesterId, semesterName).then(({ scores, error }) => {
+      if (cancelled) return;
+      if (error) toast.error("Nilai Gradebook belum dapat dimuat", { description: error.message });
+      setGradebookScores(scores);
+    });
+    return () => { cancelled = true; };
+  }, [reportData?.student_id, semesterId, semesterName, hasLinkedItems]);
+
+  const gradebookValueFor = (item: any) => {
+    if (!item.subject_id || item.assessment_type !== 'numeric') return null;
+    const score = gradebookScores[item.subject_id];
+    return score === undefined ? null : scaleToItemMax(score, item.max_score);
+  };
+  const pendingGradebookItems = (template?.sections || [])
+    .flatMap((section: any) => section.items || [])
+    .filter((item: any) => {
+      const value = gradebookValueFor(item);
+      return value !== null && Number(scoresMap[item.id]?.score_numeric) !== value;
+    });
+
+  const applyGradebookScores = async () => {
+    for (const item of pendingGradebookItems) {
+      const value = gradebookValueFor(item);
+      if (value === null) continue;
+      const nextRow = { ...scoresMap[item.id], item_id: item.id, report_id: id, score_numeric: value };
+      setScoresMap(prev => ({ ...prev, [item.id]: nextRow }));
+      await persistScore(item.id, nextRow);
+    }
+    toast.success("Nilai Gradebook diterapkan ke rapor.");
   };
 
   if (reportQuery.isLoading || isScoresLoading) {
@@ -192,6 +247,16 @@ export const TeacherInputForm: React.FC = () => {
         </div>
 
         <div className="flex flex-col md:flex-row items-center gap-3">
+          {pendingGradebookItems.length > 0 && (
+            <button
+              onClick={() => void applyGradebookScores()}
+              disabled={isSaving}
+              title="Isi item rapor yang tertaut mapel dengan nilai akhir Gradebook"
+              className="inline-flex items-center gap-2 rounded-md border border-primary/30 bg-primary/5 px-3 py-1.5 text-sm font-semibold text-primary hover:bg-primary/10 disabled:opacity-60"
+            >
+              <BookOpenCheck className="h-4 w-4" /> Tarik nilai Gradebook ({pendingGradebookItems.length})
+            </button>
+          )}
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             {isSaving && <span className="flex items-center gap-1"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Menyimpan...</span>}
             {!isSaving && lastSaved && <span className="flex items-center gap-1 text-emerald-600"><CheckCircle2 className="w-3.5 h-3.5" /> Tersimpan {lastSaved.toLocaleTimeString()}</span>}
@@ -259,6 +324,7 @@ export const TeacherInputForm: React.FC = () => {
                   ) : (
                     items.map((item: any, index: number) => {
                       const scoreRow = scoresMap[item.id] || {};
+                      const gradebookValue = gradebookValueFor(item);
                       
                       return (
                         <div key={item.id} className="bg-background border rounded-lg p-5 space-y-4 shadow-sm relative">
@@ -279,11 +345,22 @@ export const TeacherInputForm: React.FC = () => {
                                   type="number" 
                                   max={item.max_score || 100}
                                   min={0}
-                                  value={scoreRow.score_numeric || ''}
+                                  value={scoreRow.score_numeric ?? ''}
                                   onChange={(e) => handleScoreChange(item.id, 'score_numeric', e.target.value)}
                                   onBlur={() => handleSaveItem(item.id)}
                                   className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-primary/50 text-lg font-bold"
                                 />
+                                {item.subject_id && gradebookValue === null && (
+                                  <p className="text-xs text-muted-foreground">Tertaut Gradebook — nilai akhir mapel belum lengkap.</p>
+                                )}
+                                {gradebookValue !== null && Number(scoreRow.score_numeric) === gradebookValue && (
+                                  <p className="flex items-center gap-1 text-xs text-emerald-700"><BookOpenCheck className="h-3.5 w-3.5" /> Sesuai nilai akhir Gradebook.</p>
+                                )}
+                                {gradebookValue !== null && Number(scoreRow.score_numeric) !== gradebookValue && (
+                                  <button type="button" onClick={() => setAndSave(item.id, 'score_numeric', gradebookValue)} className="flex items-center gap-1 text-xs font-semibold text-primary hover:underline">
+                                    <BookOpenCheck className="h-3.5 w-3.5" /> Gunakan nilai Gradebook: {gradebookValue}
+                                  </button>
+                                )}
                               </div>
                             )}
 
@@ -293,8 +370,7 @@ export const TeacherInputForm: React.FC = () => {
                                 <label className="text-sm font-medium">Predikat (A/B/C/D)</label>
                                 <select
                                   value={scoreRow.score_predicate || ''}
-                                  onChange={(e) => handleScoreChange(item.id, 'score_predicate', e.target.value)}
-                                  onBlur={() => handleSaveItem(item.id)}
+                                  onChange={(e) => setAndSave(item.id, 'score_predicate', e.target.value)}
                                   className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-primary/50 font-medium"
                                 >
                                   <option value="">-- Pilih Predikat --</option>
@@ -317,9 +393,7 @@ export const TeacherInputForm: React.FC = () => {
                                       <button
                                         key={val}
                                         onClick={() => {
-                                          handleScoreChange(item.id, 'score_predicate', val);
-                                          // Small delay to let state update before saving
-                                          setTimeout(() => handleSaveItem(item.id), 50);
+                                          setAndSave(item.id, 'score_predicate', val);
                                         }}
                                         className={`px-4 py-2 text-sm border rounded-md font-medium transition-colors ${scoreRow.score_predicate === val ? 'bg-primary text-primary-foreground border-primary shadow-sm' : 'bg-background hover:bg-muted'}`}
                                       >
@@ -342,8 +416,7 @@ export const TeacherInputForm: React.FC = () => {
                                       name={`check_${item.id}`} 
                                       checked={scoreRow.score_predicate === 'Ya'}
                                       onChange={() => {
-                                        handleScoreChange(item.id, 'score_predicate', 'Ya');
-                                        setTimeout(() => handleSaveItem(item.id), 50);
+                                        setAndSave(item.id, 'score_predicate', 'Ya');
                                       }}
                                       className="w-4 h-4 text-primary focus:ring-primary"
                                     />
@@ -355,8 +428,7 @@ export const TeacherInputForm: React.FC = () => {
                                       name={`check_${item.id}`} 
                                       checked={scoreRow.score_predicate === 'Tidak'}
                                       onChange={() => {
-                                        handleScoreChange(item.id, 'score_predicate', 'Tidak');
-                                        setTimeout(() => handleSaveItem(item.id), 50);
+                                        setAndSave(item.id, 'score_predicate', 'Tidak');
                                       }}
                                       className="w-4 h-4 text-destructive focus:ring-destructive"
                                     />

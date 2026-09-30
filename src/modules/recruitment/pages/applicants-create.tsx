@@ -27,6 +27,7 @@ export const ApplicantCreate: React.FC = () => {
   });
 
   const { data: vacancies } = useList({
+    pagination: { mode: "off" },
     resource: "recruitment_vacancies",
     filters: [{ field: "status", operator: "eq", value: "open" }],
     sorters: [{ field: "deadline", order: "asc" }],

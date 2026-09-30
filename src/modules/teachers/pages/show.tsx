@@ -18,6 +18,7 @@ export const TeacherShow: React.FC = () => {
 
   // Assignments data
   const { data: assignmentsData, isLoading: assignmentsLoading, refetch: refetchAssignments } = useList({
+    pagination: { mode: "off" },
     resource: "teacher_assignments",
     filters: [
       { field: "employee_id", operator: "eq", value: record?.id },

@@ -195,6 +195,13 @@ export const navigationConfig: NavigationGroup[] = [
         resource: "admissions",
       },
       {
+        title: "Data Pendaftar",
+        href: "/admissions/applicants",
+        icon: Users,
+        resource: "admissions",
+        keywords: ["pendaftar", "calon murid", "ppdb", "spmb"],
+      },
+      {
         title: "Pengaturan SPMB",
         href: "/admissions/settings",
         icon: Settings,
@@ -412,12 +419,6 @@ export const navigationConfig: NavigationGroup[] = [
         icon: BarChart,
         resource: "employee_attendance",
         keywords: ["laporan absensi", "rekap kehadiran", "presensi pegawai", "terlambat", "per periode"],
-      },
-      {
-        title: "Data Pendaftar",
-        href: "/admissions/applicants",
-        icon: Users,
-        resource: "admissions",
       },
       {
         title: "Rapat & Kegiatan Pegawai",
@@ -692,7 +693,15 @@ export const navigationConfig: NavigationGroup[] = [
         title: "Komunikasi",
         href: "/communications",
         icon: MessageSquare,
-        resource: "students",
+        resource: "announcements",
+        keywords: ["broadcast", "email", "kirim pesan"],
+      },
+      {
+        title: "Log Email",
+        href: "/communications/email-log",
+        icon: Inbox,
+        resource: "email_messages",
+        keywords: ["email", "mailketing", "notifikasi", "terkirim", "gagal"],
       },
       {
         title: "Laporan Manajemen",

@@ -1,3 +1,9 @@
+[functions.notify-email]
+enabled = true
+verify_jwt = true
+import_map = "./functions/notify-email/deno.json"
+entrypoint = "./functions/notify-email/index.ts"
+
 
 [functions.send-email]
 enabled = true
