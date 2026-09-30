@@ -1,229 +1,208 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React from "react";
-import { useDelete, useList } from "@/lib/refine-compat";
+import { useList } from "@/lib/refine-compat";
 import { Link } from "react-router";
-import {
-  CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
-  ClipboardCheck,
-  Edit,
-  Plus,
-  Search,
-  Trash2,
-  Users,
-} from "lucide-react";
+import { CheckCircle2, ClipboardCheck, MessageSquareQuote, Printer, Search, Users } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "../../components/layout/PageHeader";
-import { useAcademicYear } from "../../app/providers/AcademicYearProvider";
-import { useCurrentUnit } from "../../app/providers/UnitProvider";
+import { supabaseClient } from "../../lib/supabase/client";
+import { useSystemSettings } from "../../app/providers/SettingsProvider";
 import {
-  formatPaudDate,
-  PAUD_ASPECTS,
-  PAUD_SCALE_LABELS,
+  PAUD_CP_ELEMENTS,
+  PAUD_LEARNING_MODE_LABELS,
+  PAUD_PHASES,
   PAUD_SCALE_TONES,
+  type PaudPhaseId,
   type PaudScale,
 } from "./paud-config";
+import { printPaudReport } from "./paud-report";
+import { usePaudScope } from "./use-paud-scope";
+import { PaudScopeBar } from "./components/PaudScopeBar";
 
-const PAGE_SIZE = 15;
+const db = supabaseClient as any;
 
 export const StppaAssessmentsList: React.FC = () => {
-  const { activeUnitId } = useCurrentUnit();
-  const { activeYearId, activeSemesterId } = useAcademicYear();
-  const { mutate: deleteAssessment } = useDelete();
+  const scope = usePaudScope();
+  const { appName } = useSystemSettings();
   const [classId, setClassId] = React.useState("");
-  const [status, setStatus] = React.useState("");
   const [search, setSearch] = React.useState("");
-  const [page, setPage] = React.useState(1);
-
-  const filters: any[] = [];
-  if (activeYearId) filters.push({ field: "academic_year_id", operator: "eq", value: activeYearId });
-  if (activeSemesterId) filters.push({ field: "semester_id", operator: "eq", value: activeSemesterId });
 
   const { data, isLoading, isError } = useList({
     resource: "paud_stppa_assessments",
-    filters,
-    sorters: [{ field: "date", order: "desc" }],
-    pagination: { mode: "off" },
-    meta: { select: "*, students(id,full_name,class_id,unit_id,classes(id,name)), employees(full_name)" },
-  });
-  const classesQuery = useList({
-    resource: "classes",
     filters: [
-      ...(activeUnitId ? [{ field: "unit_id", operator: "eq" as const, value: activeUnitId }] : []),
-      ...(activeYearId ? [{ field: "academic_year_id", operator: "eq" as const, value: activeYearId }] : []),
-    ],
-    sorters: [{ field: "name", order: "asc" }],
-    pagination: { mode: "off" },
-    meta: { select: "id,name" },
-  });
-  const studentsQuery = useList({
-    resource: "students",
-    filters: [
-      { field: "status", operator: "eq", value: "active" },
-      ...(activeUnitId ? [{ field: "unit_id", operator: "eq" as const, value: activeUnitId }] : []),
+      ...(scope.activeYearId ? [{ field: "academic_year_id", operator: "eq" as const, value: scope.activeYearId }] : []),
+      ...(scope.activeSemesterId ? [{ field: "semester_id", operator: "eq" as const, value: scope.activeSemesterId }] : []),
     ],
     pagination: { mode: "off" },
-    meta: { select: "id,class_id" },
+    queryOptions: { enabled: Boolean(scope.activeSemesterId) },
+    meta: { select: "id,student_id,phase,status,is_parent_visible,date,nab_scale,jati_diri_scale,steam_scale,parent_reflection" },
   });
 
-  const records = (data?.data || []).filter((record: any) => {
-    const unitMatches = !activeUnitId || record.students?.unit_id === activeUnitId;
-    const classMatches = !classId || record.class_id === classId || record.students?.class_id === classId;
-    const statusMatches = !status || (record.status || "published") === status;
-    const keyword = search.trim().toLowerCase();
-    const searchMatches = !keyword || [record.students?.full_name, record.period_name]
-      .some((value) => String(value || "").toLowerCase().includes(keyword));
-    return unitMatches && classMatches && statusMatches && searchMatches;
+  const byStudent = React.useMemo(() => {
+    const map = new Map<string, Partial<Record<PaudPhaseId, any>>>();
+    (data?.data || []).forEach((record: any) => {
+      if (!record.phase) return;
+      const entry = map.get(record.student_id) || {};
+      entry[record.phase as PaudPhaseId] = record;
+      map.set(record.student_id, entry);
+    });
+    return map;
+  }, [data]);
+
+  const keyword = search.trim().toLowerCase();
+  const students = scope.students
+    .filter((student) => scope.classById.has(student.class_id || ""))
+    .filter((student) => !classId || student.class_id === classId)
+    .filter((student) => !keyword || [student.full_name, student.nickname, student.nis].some((value) => String(value || "").toLowerCase().includes(keyword)))
+    .sort((a, b) => String(scope.classById.get(a.class_id || "")?.name).localeCompare(String(scope.classById.get(b.class_id || "")?.name)) || a.full_name.localeCompare(b.full_name));
+
+  const phaseStats = PAUD_PHASES.map((phase) => {
+    const records = students.map((student) => byStudent.get(student.id)?.[phase.id]).filter(Boolean);
+    return {
+      ...phase,
+      filled: records.length,
+      published: records.filter((record: any) => record.status === "published").length,
+    };
   });
-  const activeStudents = (studentsQuery.data?.data || []).filter((student: any) => !classId || student.class_id === classId);
-  const assessedIds = new Set(records.map((record: any) => record.student_id));
-  const coverage = activeStudents.length ? Math.round((assessedIds.size / activeStudents.length) * 100) : 0;
-  const published = records.filter((record: any) => (record.status || "published") === "published").length;
-  const pageCount = Math.max(1, Math.ceil(records.length / PAGE_SIZE));
-  const pagedRecords = records.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const reflections = students.filter((student) => Object.values(byStudent.get(student.id) || {}).some((record: any) => record?.parent_reflection)).length;
+
+  const printStudent = async (student: any) => {
+    const { data: records, error } = await db.from("paud_stppa_assessments").select("*, employees(full_name)")
+      .eq("student_id", student.id).eq("semester_id", scope.activeSemesterId);
+    if (error || !records?.length) {
+      toast.error(error ? `Laporan gagal dimuat: ${error.message}` : "Belum ada asesmen untuk dicetak.");
+      return;
+    }
+    const classItem = scope.classById.get(student.class_id || "");
+    printPaudReport({
+      schoolName: appName,
+      unitName: scope.unitById.get(student.unit_id || "")?.name,
+      className: classItem?.name,
+      semesterName: scope.semester?.name,
+      student,
+      assessments: records,
+      learningMode: scope.studentMode(student),
+    });
+  };
 
   return (
     <div className="space-y-6 pb-10">
       <PageHeader
-        title="Asesmen Perkembangan Anak"
-        description="Pantau capaian enam aspek STPPA, pertumbuhan, kekuatan anak, dan tindak lanjut bersama keluarga."
-        action={
-          <Link to="/stppa-assessments/create" className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90">
-            <Plus className="h-4 w-4" /> Isi Asesmen
-          </Link>
-        }
+        title="Asesmen Kurikulum Merdeka"
+        description="Asesmen awal, tengah, dan akhir semester untuk setiap anak KB/TK reguler maupun Preschool HBL, lengkap dengan laporan ke portal orang tua."
       />
 
-      <nav className="flex flex-wrap gap-2 border-b pb-3 text-sm">
-        <Link to="/paud" className="rounded-md px-3 py-2 text-muted-foreground hover:bg-muted">Pusat PAUD/TK</Link>
-        <Link to="/paud-activities" className="rounded-md px-3 py-2 text-muted-foreground hover:bg-muted">Jurnal Observasi</Link>
-        <span className="rounded-md bg-primary/10 px-3 py-2 font-semibold text-primary">Asesmen Perkembangan</span>
-        <Link to="/curriculum/paud" className="rounded-md px-3 py-2 text-muted-foreground hover:bg-muted">Kurikulum</Link>
-      </nav>
+      <PaudScopeBar mode={scope.mode} onModeChange={(mode) => { scope.setMode(mode); setClassId(""); }} units={scope.units} activeIsPaud={scope.activeIsPaud} activeIsOtherLevel={scope.activeIsOtherLevel} hasOnlineUnit={scope.hasOnlineUnit} />
 
-      <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <Summary icon={ClipboardCheck} value={records.length} label="Asesmen periode aktif" />
-        <Summary icon={Users} value={`${assessedIds.size}/${activeStudents.length}`} label="Anak sudah dinilai" />
-        <Summary icon={CheckCircle2} value={`${coverage}%`} label={`${published} asesmen terbit`} />
+      {!scope.activeSemesterId && (
+        <div className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">Semester aktif belum dipilih. Asesmen dicatat per semester.</div>
+      )}
+
+      <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {phaseStats.map((phase) => (
+          <div key={phase.id} className="rounded-lg border bg-card p-4">
+            <p className="text-xs font-bold uppercase text-muted-foreground">{phase.title}</p>
+            <p className="mt-1 text-2xl font-bold">{phase.filled}<span className="text-base font-semibold text-muted-foreground">/{students.length}</span></p>
+            <p className="text-xs text-muted-foreground"><CheckCircle2 className="mr-1 inline h-3.5 w-3.5 text-emerald-600" />{phase.published} terbit · {phase.timing}</p>
+          </div>
+        ))}
+        <div className="rounded-lg border bg-card p-4">
+          <p className="text-xs font-bold uppercase text-muted-foreground">Tanggapan orang tua</p>
+          <p className="mt-1 text-2xl font-bold">{reflections}</p>
+          <p className="text-xs text-muted-foreground"><MessageSquareQuote className="mr-1 inline h-3.5 w-3.5 text-sky-600" />anak dengan tanggapan keluarga</p>
+        </div>
       </section>
 
       <section className="rounded-lg border bg-card p-4">
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_220px_180px]">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_260px]">
           <label className="relative">
             <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-            <input value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} placeholder="Cari nama anak atau periode..." className="h-10 w-full rounded-md border bg-background pl-9 pr-3 text-sm" />
+            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Cari nama anak atau NIS..." className="h-10 w-full rounded-md border bg-background pl-9 pr-3 text-sm" />
           </label>
-          <select value={classId} onChange={(event) => { setClassId(event.target.value); setPage(1); }} className="h-10 rounded-md border bg-background px-3 text-sm">
-            <option value="">Semua kelas</option>
-            {(classesQuery.data?.data || []).map((item: any) => <option key={item.id} value={item.id}>{item.name}</option>)}
-          </select>
-          <select value={status} onChange={(event) => { setStatus(event.target.value); setPage(1); }} className="h-10 rounded-md border bg-background px-3 text-sm">
-            <option value="">Semua status</option>
-            <option value="draft">Draf internal</option>
-            <option value="published">Terbit</option>
+          <select value={classId} onChange={(event) => setClassId(event.target.value)} className="h-10 rounded-md border bg-background px-3 text-sm">
+            <option value="">Semua kelas PAUD/TK</option>
+            {scope.classes.map((item) => (
+              <option key={item.id} value={item.id}>{item.name} · {PAUD_LEARNING_MODE_LABELS[scope.unitById.get(item.unit_id)?.delivery_mode || "reguler"]}</option>
+            ))}
           </select>
         </div>
       </section>
 
-      {isError && (
-        <div className="rounded-md border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
-          Asesmen belum dapat dimuat. Pastikan migrasi PAUD/TK terbaru telah diterapkan.
-        </div>
+      {(isError || scope.isError) && (
+        <div className="rounded-md border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">Asesmen belum dapat dimuat. Periksa koneksi atau hak akses unit Anda.</div>
       )}
 
       <section className="overflow-hidden rounded-lg border bg-card">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1180px] text-left text-sm">
+          <table className="w-full min-w-[920px] text-left text-sm">
             <thead className="border-b bg-muted/50 text-xs uppercase text-muted-foreground">
               <tr>
-                <th className="px-4 py-3">Anak dan periode</th>
-                {PAUD_ASPECTS.map((aspect) => <th key={aspect.id} className="px-3 py-3 text-center">{aspect.shortTitle}</th>)}
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3 text-right">Aksi</th>
+                <th className="px-4 py-3">Anak</th>
+                {PAUD_PHASES.map((phase) => <th key={phase.id} className="px-3 py-3">{phase.title}</th>)}
+                <th className="px-4 py-3 text-right">Laporan</th>
               </tr>
             </thead>
             <tbody className="divide-y">
-              {isLoading ? (
-                <tr><td colSpan={10} className="px-4 py-12 text-center text-muted-foreground">Memuat asesmen perkembangan...</td></tr>
-              ) : !pagedRecords.length ? (
-                <tr><td colSpan={10} className="px-4 py-14 text-center text-muted-foreground">Belum ada asesmen sesuai kelas dan periode aktif.</td></tr>
-              ) : pagedRecords.map((record: any) => (
-                <tr key={record.id} className="align-top hover:bg-muted/20">
-                  <td className="px-4 py-4">
-                    <p className="font-bold">{record.students?.full_name || "Siswa tidak ditemukan"}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">{record.students?.classes?.name || "Tanpa kelas"}</p>
-                    <p className="mt-2 text-xs font-semibold text-primary">{record.period_name}</p>
-                    <p className="text-xs text-muted-foreground">{formatPaudDate(record.date)}</p>
-                  </td>
-                  {PAUD_ASPECTS.map((aspect) => (
-                    <td key={aspect.id} className="px-3 py-4 text-center">
-                      <ScaleBadge scale={record[`${aspect.id}_scale`]} />
+              {isLoading || scope.isLoading ? (
+                <tr><td colSpan={5} className="px-4 py-12 text-center text-muted-foreground">Memuat data asesmen...</td></tr>
+              ) : !students.length ? (
+                <tr><td colSpan={5} className="px-4 py-14 text-center text-muted-foreground"><Users className="mx-auto mb-2 h-8 w-8 opacity-30" />Belum ada anak aktif pada kelas PAUD/TK tahun ajaran ini.</td></tr>
+              ) : students.map((student) => {
+                const entry = byStudent.get(student.id) || {};
+                const mode = scope.studentMode(student);
+                const hasAny = Object.keys(entry).length > 0;
+                return (
+                  <tr key={student.id} className="align-top hover:bg-muted/20">
+                    <td className="px-4 py-3">
+                      <p className="font-bold">{student.full_name}</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">{scope.classById.get(student.class_id || "")?.name || "-"}</p>
+                      <span className={`mt-1 inline-block rounded px-1.5 py-0.5 text-[10px] font-bold ${mode === "online" ? "bg-violet-50 text-violet-700" : "bg-sky-50 text-sky-700"}`}>{PAUD_LEARNING_MODE_LABELS[mode]}</span>
                     </td>
-                  ))}
-                  <td className="px-4 py-4">
-                    <span className={`rounded px-2 py-1 text-xs font-semibold ${
-                      (record.status || "published") === "published" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
-                    }`}>
-                      {(record.status || "published") === "published" ? "Terbit" : "Draf"}
-                    </span>
-                    <p className="mt-2 max-w-32 text-xs text-muted-foreground">{record.employees?.full_name || "Admin sekolah"}</p>
-                  </td>
-                  <td className="px-4 py-4">
-                    <div className="flex justify-end gap-1">
-                      <Link title="Ubah asesmen" to={`/stppa-assessments/edit/${record.id}`} className="rounded-md p-2 text-sky-700 hover:bg-sky-50"><Edit className="h-4 w-4" /></Link>
-                      <button
-                        title="Hapus asesmen"
-                        onClick={() => {
-                          if (!window.confirm("Hapus asesmen perkembangan ini?")) return;
-                          deleteAssessment(
-                            { resource: "paud_stppa_assessments", id: record.id },
-                            {
-                              onSuccess: () => toast.success("Asesmen dihapus."),
-                              onError: (error) => toast.error(`Gagal menghapus: ${error.message}`),
-                            },
-                          );
-                        }}
-                        className="rounded-md p-2 text-rose-700 hover:bg-rose-50"
-                      >
-                        <Trash2 className="h-4 w-4" />
+                    {PAUD_PHASES.map((phase) => {
+                      const record = entry[phase.id];
+                      return (
+                        <td key={phase.id} className="px-3 py-3">
+                          <Link
+                            to={`/stppa-assessments/create?student=${student.id}&phase=${phase.id}`}
+                            className={`block rounded-md border p-2 transition-colors hover:border-primary/50 ${!record ? "border-dashed text-muted-foreground" : ""}`}
+                          >
+                            {!record ? (
+                              <span className="flex items-center gap-1.5 text-xs font-semibold"><ClipboardCheck className="h-3.5 w-3.5" /> Isi asesmen</span>
+                            ) : (
+                              <>
+                                <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${record.status === "published" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
+                                  {record.status === "published" ? (record.is_parent_visible ? "Terbit" : "Internal") : "Draf"}
+                                </span>
+                                <div className="mt-1.5 flex gap-1">
+                                  {PAUD_CP_ELEMENTS.map((element) => {
+                                    const scale = record[`${element.id}_scale`] as PaudScale | null;
+                                    return (
+                                      <span key={element.id} title={element.title} className={`min-w-9 rounded border px-1 py-0.5 text-center text-[10px] font-bold ${scale ? PAUD_SCALE_TONES[scale] : "text-muted-foreground"}`}>
+                                        {scale || "–"}
+                                      </span>
+                                    );
+                                  })}
+                                </div>
+                              </>
+                            )}
+                          </Link>
+                        </td>
+                      );
+                    })}
+                    <td className="px-4 py-3 text-right">
+                      <button type="button" title="Cetak laporan perkembangan" disabled={!hasAny} onClick={() => void printStudent(student)} className="rounded-md p-2 text-primary hover:bg-primary/10 disabled:opacity-30">
+                        <Printer className="h-4 w-4" />
                       </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
+        <p className="border-t px-4 py-2 text-xs text-muted-foreground">Urutan kotak capaian: {PAUD_CP_ELEMENTS.map((element) => element.shortTitle).join(" · ")}.</p>
       </section>
-
-      {records.length > PAGE_SIZE && (
-        <div className="flex items-center justify-between border-t pt-4 text-sm">
-          <span className="text-muted-foreground">Halaman {page} dari {pageCount} · {records.length} asesmen</span>
-          <div className="flex gap-2">
-            <button title="Halaman sebelumnya" disabled={page <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))} className="rounded-md border p-2 disabled:opacity-40"><ChevronLeft className="h-4 w-4" /></button>
-            <button title="Halaman berikutnya" disabled={page >= pageCount} onClick={() => setPage((value) => Math.min(pageCount, value + 1))} className="rounded-md border p-2 disabled:opacity-40"><ChevronRight className="h-4 w-4" /></button>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
 
-function ScaleBadge({ scale }: { scale?: PaudScale | null }) {
-  if (!scale) return <span className="text-muted-foreground">-</span>;
-  return (
-    <span title={PAUD_SCALE_LABELS[scale]} className={`inline-flex min-w-10 justify-center rounded border px-2 py-1 text-xs font-bold ${PAUD_SCALE_TONES[scale]}`}>
-      {scale}
-    </span>
-  );
-}
-
-function Summary({ icon: Icon, value, label }: { icon: React.ComponentType<{ className?: string }>; value: React.ReactNode; label: string }) {
-  return (
-    <div className="flex items-center gap-3 rounded-lg border bg-card p-4">
-      <span className="rounded-md bg-primary/10 p-2 text-primary"><Icon className="h-5 w-5" /></span>
-      <div><p className="text-xl font-bold">{value}</p><p className="text-xs text-muted-foreground">{label}</p></div>
-    </div>
-  );
-}
