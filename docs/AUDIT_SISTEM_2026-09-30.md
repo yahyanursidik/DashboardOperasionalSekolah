@@ -378,3 +378,8 @@ npx supabase db query --linked -f supabase/migrations/<file>.sql
 npx supabase migration repair --linked --status applied <versi>
 ```
 Setelahnya, ~35 migrasi lama lain yang **sudah lengkap di skema** (hasil probe "APPLIED") cukup dicatat dengan `migration repair --status applied`, dan 5 migrasi "hampir lengkap" (20260716110000, 20260811090000, 20260821080000, 20260902090000, 20260715100000, 20260715040000) perlu diambil bagian yang hilangnya saja seperti 20260715060000.
+
+### Pembaruan akhir
+Enam migrasi di atas (`20260715110000`, `20260716080000`, `20260715090000`, `20260716090000`, `20260716100000`, `20260726000000`) **sudah diterapkan dan dicatat** setelah persetujuan. Probe objek: semuanya lengkap (onboarding 21/21 termasuk 3 kebijakan `storage.objects`). Tidak ada kebijakan tulis longgar baru (tetap 4 yang disengaja).
+
+Sisa rekonsiliasi: ~35 migrasi lama yang sudah lengkap di skema cukup dicatat (`migration repair --status applied`), dan 6 migrasi "hampir lengkap" dilengkapi per bagian.
