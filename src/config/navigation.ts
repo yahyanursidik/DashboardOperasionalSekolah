@@ -384,7 +384,7 @@ export const navigationConfig: NavigationGroup[] = [
         href: "/paud",
         icon: School,
         resource: "paud_activities",
-        keywords: ["kb", "tk", "preschool", "stppa", "fase fondasi", "perkembangan anak"],
+        keywords: ["kb", "tk", "preschool", "hbl", "homeschooling", "stppa", "fase fondasi", "perkembangan anak"],
       },
       {
         title: "Jurnal Observasi Anak",
@@ -393,10 +393,11 @@ export const navigationConfig: NavigationGroup[] = [
         resource: "paud_activities",
       },
       {
-        title: "Asesmen Perkembangan",
+        title: "Asesmen Awal, Tengah & Akhir",
         href: "/stppa-assessments",
         icon: CheckSquare,
         resource: "paud_stppa_assessments",
+        keywords: ["asesmen awal", "asesmen tengah", "asesmen akhir", "kurikulum merdeka", "rapor paud"],
       },
       {
         title: "Kurikulum Fase Fondasi",

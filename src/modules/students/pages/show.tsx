@@ -46,6 +46,7 @@ import { ParentForm } from "../../parents/components/parent-form";
 import { AcademicHistoryModal } from "../components/AcademicHistoryModal";
 import { toast } from "sonner";
 import { supabaseClient } from "../../../lib/supabase/client";
+import { isPaudUnit, PAUD_CP_ELEMENTS, PAUD_PHASE_LABELS, PAUD_SCALE_TONES, type PaudPhaseId, type PaudScale } from "../../paud/paud-config";
 
 type ParentOption = {
   id: string;
@@ -99,7 +100,7 @@ const UnlinkConfirmModal: React.FC<{
 
 export const StudentShow: React.FC = () => {
   const { queryResult } = useShow({
-    meta: { select: "*, units(name), classes(name)" }
+    meta: { select: "*, units(name,education_level), classes(name)" }
   });
   const { data, isLoading } = queryResult;
   const navigate = useNavigate();
@@ -157,8 +158,8 @@ export const StudentShow: React.FC = () => {
     resource: "paud_stppa_assessments",
     filters: [{ field: "student_id", operator: "eq", value: record?.id }],
     sorters: [{ field: "date", order: "desc" }],
-    meta: { select: "*, employees(full_name)" },
-    queryOptions: { enabled: !!record?.id && record?.units?.name?.toLowerCase().includes("paud") }
+    meta: { select: "*, employees(full_name), semesters(name)" },
+    queryOptions: { enabled: !!record?.id && isPaudUnit(record?.units) }
   });
 
   const { data: attendanceData } = useList({
@@ -995,62 +996,46 @@ export const StudentShow: React.FC = () => {
             )}
           </div>
 
-          {/* PAUD STPPA Section - Only show if student is in PAUD unit or has PAUD data */}
-          {(record?.units?.name?.toLowerCase().includes("paud") || (stppaData?.data?.length ?? 0) > 0) && (
+          {/* PAUD development assessments (Kurikulum Merdeka) */}
+          {(isPaudUnit(record?.units) || (stppaData?.data?.length ?? 0) > 0) && (
             <div className="bg-card rounded-xl border shadow-sm p-6">
               <div className="flex justify-between items-center mb-6 border-b pb-4">
                 <h3 className="font-semibold text-lg flex items-center gap-2">
-                  <CheckSquare className="w-5 h-5 text-purple-600" /> Rapor STPPA (PAUD)
+                  <CheckSquare className="w-5 h-5 text-purple-600" /> Asesmen Perkembangan PAUD
                 </h3>
+                <Link to={`/stppa-assessments/create?student=${record?.id}&phase=awal`} className="text-sm font-semibold text-primary hover:underline">Buka asesmen</Link>
               </div>
               {stppaLoading ? (
-                <p className="text-sm text-muted-foreground animate-pulse">Memuat data STPPA...</p>
+                <p className="text-sm text-muted-foreground animate-pulse">Memuat asesmen...</p>
               ) : stppaData?.data?.length === 0 ? (
                 <div className="bg-muted/30 border border-dashed rounded-lg p-8 text-center">
-                  <p className="text-sm text-muted-foreground">Belum ada asesmen STPPA.</p>
+                  <p className="text-sm text-muted-foreground">Belum ada asesmen awal, tengah, atau akhir.</p>
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {stppaData?.data?.map((stppa: any) => (
-                    <div key={stppa.id} className="p-4 border rounded-xl bg-purple-50/30">
-                      <div className="flex justify-between items-center mb-4">
+                    <Link key={stppa.id} to={`/stppa-assessments/create?student=${stppa.student_id}&phase=${stppa.phase || "akhir"}`} className="block p-4 border rounded-xl bg-purple-50/30 hover:border-purple-300">
+                      <div className="flex flex-wrap justify-between items-center gap-2">
                         <span className="text-sm font-bold text-purple-800">
-                          Asesmen Tanggal: {new Date(stppa.date).toLocaleDateString('id-ID')}
+                          {stppa.phase ? PAUD_PHASE_LABELS[stppa.phase as PaudPhaseId] : stppa.period_name} · Semester {stppa.semesters?.name || "-"}
                         </span>
-                        <span className="text-xs text-muted-foreground">Oleh: {stppa.employees?.full_name}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(stppa.date).toLocaleDateString("id-ID")} · {stppa.employees?.full_name || "Tim guru"} · {stppa.status === "published" ? "Terbit" : "Draf"}
+                        </span>
                       </div>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
-                        <div className="bg-white p-2 rounded border">
-                          <div className="text-[10px] uppercase text-muted-foreground font-bold">Agama & Moral</div>
-                          <div className="font-semibold">{stppa.agama_moral}</div>
-                        </div>
-                        <div className="bg-white p-2 rounded border">
-                          <div className="text-[10px] uppercase text-muted-foreground font-bold">Fisik Motorik</div>
-                          <div className="font-semibold">{stppa.fisik_motorik}</div>
-                        </div>
-                        <div className="bg-white p-2 rounded border">
-                          <div className="text-[10px] uppercase text-muted-foreground font-bold">Kognitif</div>
-                          <div className="font-semibold">{stppa.kognitif}</div>
-                        </div>
-                        <div className="bg-white p-2 rounded border">
-                          <div className="text-[10px] uppercase text-muted-foreground font-bold">Bahasa</div>
-                          <div className="font-semibold">{stppa.bahasa}</div>
-                        </div>
-                        <div className="bg-white p-2 rounded border">
-                          <div className="text-[10px] uppercase text-muted-foreground font-bold">Sosial Emosional</div>
-                          <div className="font-semibold">{stppa.sosial_emosional}</div>
-                        </div>
-                        <div className="bg-white p-2 rounded border">
-                          <div className="text-[10px] uppercase text-muted-foreground font-bold">Seni</div>
-                          <div className="font-semibold">{stppa.seni}</div>
-                        </div>
+                      <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm">
+                        {PAUD_CP_ELEMENTS.map((element) => {
+                          const scale = stppa[`${element.id}_scale`] as PaudScale | null;
+                          return (
+                            <div key={element.id} className="bg-white p-2 rounded border">
+                              <div className="text-[10px] uppercase text-muted-foreground font-bold">{element.shortTitle}</div>
+                              {scale ? <span className={`mt-1 inline-block rounded border px-1.5 py-0.5 text-xs font-bold ${PAUD_SCALE_TONES[scale]}`}>{scale}</span> : <span className="text-xs text-muted-foreground">-</span>}
+                            </div>
+                          );
+                        })}
                       </div>
-                      {stppa.narrative_report && (
-                        <div className="mt-3 bg-white p-3 rounded border text-sm italic">
-                          "{stppa.narrative_report}"
-                        </div>
-                      )}
-                    </div>
+                      {stppa.parent_reflection && <p className="mt-3 rounded border bg-white p-3 text-sm italic">Tanggapan orang tua: "{stppa.parent_reflection}"</p>}
+                    </Link>
                   ))}
                 </div>
               )}

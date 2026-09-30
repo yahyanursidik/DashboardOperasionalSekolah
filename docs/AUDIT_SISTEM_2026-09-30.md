@@ -429,3 +429,29 @@ Riwayat migrasi produksi: 101/101 sinkron. Uji persona: 21/21.
 - Diuji 20 skenario (PGlite, termasuk perhitungan angka) — menemukan & memperbaiki rekursi kebijakan RLS sebelum produksi — dan dry-run produksi dengan data absensi nyata (20 slip).
 
 Riwayat migrasi: 104/104 sinkron. Uji persona: 21/21.
+
+## 12. Modul PAUD/TK — Kurikulum Merdeka & Preschool HBL (4 Okt 2026)
+
+**Masalah yang ditemukan**
+- Halaman PAUD (Pusat PAUD, Jurnal Observasi, Asesmen) menyaring kelas/siswa hanya dengan unit aktif; saat unit aktif kosong/lintas unit, kelas dan siswa **SD/Elementary** ikut tampil.
+- Unit **TSLS Preschool HBL** tidak memiliki jenjang (`education_level` kosong) sehingga tidak dikenali sebagai PAUD di beberapa layar.
+- Asesmen hanya satu jenis (STPPA enam aspek) tanpa siklus **asesmen awal–tengah–akhir** per semester; belum memakai tiga elemen Capaian Pembelajaran Fase Fondasi.
+- Profil siswa menampilkan kolom STPPA yang tidak ada (`agama_moral`, `narrative_report`) dan hanya muncul bila nama unit memuat "paud" (unit "TSLS Preschool" tidak pernah cocok).
+- Guru hanya bisa melihat asesmen yang ia tulis sendiri (tidak mendukung team teaching); orang tua hanya melihat laporan terbaru semester aktif.
+
+**Migrasi `20261004090000_paud_kurmer_assessment`**
+- `units.delivery_mode` (`reguler`/`online`); unit Preschool HBL → jenjang `preschool`, layanan `online`. Fungsi `is_paud_unit()`.
+- `paud_stppa_assessments`: `phase` (awal/tengah/akhir, unik per anak-semester-fase), `learning_mode`, elemen CP `nab_*`, `jati_diri_*`, `steam_*` (skala BB/MB/BSH/BSB + deskripsi), P5 (tema & deskripsi), rekap kehadiran, catatan guru, tanggapan orang tua, `published_at`.
+- `paud_activities`: `learning_mode`, `evidence_source` (observasi kelas, live meet, tugas rumah, laporan orang tua, karya, projek), `cp_elements`.
+- Kebijakan guru: semua guru yang mengakses kelas (wali, jadwal, penugasan) mengelola catatan PAUD kelas tersebut.
+- Notifikasi in-app ke orang tua saat asesmen terbit; RPC `paud_submit_parent_reflection` (hanya orang tua anak tsb., hanya laporan terbit) + notifikasi ke guru. Tanggapan orang tua tidak dapat ditimpa staf.
+
+**Aplikasi**
+- Lingkup PAUD bersama (`usePaudScope`): hanya unit Preschool (reguler & HBL), filter **Semua / Reguler / Online (HBL)**; data SD tidak lagi tampil.
+- **Asesmen Awal, Tengah & Akhir**: matriks anak × fase dengan status dan capaian per elemen; editor per anak dengan panel bukti (jurnal observasi, observasi & portofolio HBL), perbandingan fase sebelumnya, rincian 6 aspek STPPA (opsional), P5, isi kehadiran otomatis dari presensi, pertumbuhan, terbit/tarik ke draf, cetak **Laporan Perkembangan Anak**.
+- Jurnal observasi: sumber bukti sesuai mode belajar dan elemen CP; foto memakai penyimpanan aman.
+- Portal guru: asesmen per fase untuk kelas yang diampu (reguler & HBL) dengan editor yang sama.
+- Portal orang tua (menu KB/TK, kini juga untuk anak HBL): pilih semester, tab fase, grafik perjalanan capaian awal→akhir, deskripsi elemen, P5, kehadiran, pertumbuhan, linimasa bukti belajar (termasuk HBL), kirim tanggapan, cetak laporan.
+- Master Data unit: pilihan **Layanan belajar** (Reguler / Online HBL). Profil siswa: ringkasan asesmen PAUD yang benar.
+
+**Verifikasi**: dry-run produksi (trigger learning mode HBL, `published_at`, notifikasi, blokir duplikat fase, akses orang tua hanya laporan terbit, tanggapan tidak dapat diubah langsung, akses wali kelas), validasi seluruh query PostgREST ke skema produksi, uji render portal orang tua & editor asesmen dengan data contoh, `tsc`, `eslint`, `npm run build`.

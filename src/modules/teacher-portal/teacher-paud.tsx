@@ -17,12 +17,20 @@ import { supabaseClient } from "../../lib/supabase/client";
 import { uploadDocument } from "../../lib/supabase/storage";
 import { toDateInputValue } from "../leaves/leave-utils";
 import {
+  isPaudUnit,
   PAUD_ASPECTS,
+  PAUD_CP_ELEMENTS,
+  PAUD_EVIDENCE_SOURCES,
   PAUD_ISLAMIC_VALUES,
+  PAUD_LEARNING_MODE_LABELS,
   PAUD_OBSERVATION_METHODS,
-  PAUD_SCALES,
-  PAUD_SCALE_LABELS,
+  PAUD_PHASES,
+  PAUD_SCALE_TONES,
+  type PaudLearningMode,
+  type PaudPhaseId,
+  type PaudScale,
 } from "../paud/paud-config";
+import { PaudAssessmentEditor } from "../paud/components/PaudAssessmentEditor";
 import { loadTeacherAcademicAssignments } from "./teacher-assignment-data";
 
 type Mode = "observation" | "assessment";
@@ -41,6 +49,10 @@ export const TeacherPaud: React.FC = () => {
   const [isUploading, setIsUploading] = React.useState(false);
   const [photoUrl, setPhotoUrl] = React.useState("");
   const [recentCount, setRecentCount] = React.useState({ observations: 0, assessments: 0 });
+  const [unitModes, setUnitModes] = React.useState<Record<string, PaudLearningMode>>({});
+  const [semester, setSemester] = React.useState<any>(null);
+  const [phase, setPhase] = React.useState<PaudPhaseId>("awal");
+  const [classAssessments, setClassAssessments] = React.useState<any[]>([]);
 
   React.useEffect(() => {
     const loadAssignments = async () => {
@@ -71,14 +83,15 @@ export const TeacherPaud: React.FC = () => {
         ...(homeroomResult.data || []),
       ]
         .filter(Boolean)
-        .filter((item: any) => {
-          const unit = item.units;
-          const unitText = String(unit?.name || "").toLowerCase();
-          return unit?.education_level === "preschool" || ["paud", "tk", "kb", "preschool"].some((term) => unitText.includes(term));
-        })
+        .filter((item: any) => isPaudUnit(item.units))
         .forEach((item: any) => classMap.set(item.id, item));
       const assigned = [...classMap.values()].sort((a, b) => String(a.name).localeCompare(String(b.name)));
       setClasses(assigned);
+      const unitIds = [...new Set(assigned.map((item) => item.unit_id).filter(Boolean))];
+      if (unitIds.length) {
+        const { data: unitRows } = await (supabaseClient as any).from("units").select("id,delivery_mode").in("id", unitIds);
+        setUnitModes(Object.fromEntries((unitRows || []).map((unit: any) => [unit.id, unit.delivery_mode === "online" ? "online" : "reguler"])));
+      }
       if (assigned.length === 1) {
         setSelectedUnitId(assigned[0].unit_id);
         setSelectedClassId(assigned[0].id);
@@ -87,6 +100,21 @@ export const TeacherPaud: React.FC = () => {
     };
     void loadAssignments();
   }, [activeSemesterId, activeYearId, employee.id]);
+
+  React.useEffect(() => {
+    if (!activeSemesterId) { setSemester(null); return; }
+    void supabaseClient.from("semesters").select("id,name,start_date,end_date").eq("id", activeSemesterId).maybeSingle()
+      .then(({ data }) => setSemester(data || null));
+  }, [activeSemesterId]);
+
+  const loadClassAssessments = React.useCallback(async () => {
+    if (!selectedClassId || !activeSemesterId) { setClassAssessments([]); return; }
+    const { data } = await (supabaseClient as any).from("paud_stppa_assessments")
+      .select("id,student_id,phase,status,is_parent_visible,nab_scale,jati_diri_scale,steam_scale,parent_reflection")
+      .eq("class_id", selectedClassId).eq("semester_id", activeSemesterId);
+    setClassAssessments(data || []);
+  }, [activeSemesterId, selectedClassId]);
+  React.useEffect(() => { void loadClassAssessments(); }, [loadClassAssessments]);
 
   React.useEffect(() => {
     if (!selectedClassId) {
@@ -141,6 +169,9 @@ export const TeacherPaud: React.FC = () => {
     return [...map.values()];
   }, [classes]);
   const filteredClasses = classes.filter((item) => !selectedUnitId || item.unit_id === selectedUnitId);
+  const selectedClass = classes.find((item) => item.id === selectedClassId);
+  const learningMode: PaudLearningMode = unitModes[selectedClass?.unit_id || selectedUnitId] || "reguler";
+  const selectedStudent = students.find((item) => item.id === selectedStudentId);
 
   const uploadPhoto = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -179,6 +210,9 @@ export const TeacherPaud: React.FC = () => {
       title: formData.get("title"),
       description: formData.get("description"),
       observation_method: formData.get("observation_method"),
+      learning_mode: learningMode,
+      evidence_source: formData.get("evidence_source"),
+      cp_elements: formData.getAll("cp_elements"),
       development_aspects: formData.getAll("development_aspects"),
       islamic_values: formData.getAll("islamic_values"),
       follow_up: formData.get("follow_up") || null,
@@ -197,43 +231,6 @@ export const TeacherPaud: React.FC = () => {
     setRecentCount((value) => ({ ...value, observations: value.observations + 1 }));
   };
 
-  const submitAssessment = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!selectedStudentId || !selectedClassId || !activeYearId || !activeSemesterId) {
-      toast.error("Pilih unit, kelas, anak, serta pastikan periode akademik aktif.");
-      return;
-    }
-    const formData = new FormData(event.currentTarget);
-    const values: Record<string, unknown> = {
-      student_id: selectedStudentId,
-      class_id: selectedClassId,
-      employee_id: employee.id,
-      academic_year_id: activeYearId,
-      semester_id: activeSemesterId,
-      period_name: formData.get("period_name"),
-      date: formData.get("date"),
-      strengths: formData.get("strengths") || null,
-      follow_up: formData.get("follow_up") || null,
-      parent_partnership: formData.get("parent_partnership") || null,
-      status: formData.get("status"),
-      is_parent_visible: formData.get("status") === "published",
-    };
-    PAUD_ASPECTS.forEach((aspect) => {
-      values[`${aspect.id}_scale`] = formData.get(`${aspect.id}_scale`);
-      values[`${aspect.id}_desc`] = formData.get(`${aspect.id}_desc`);
-    });
-    setIsSubmitting(true);
-    const { error } = await supabaseClient.from("paud_stppa_assessments").insert(values);
-    setIsSubmitting(false);
-    if (error) {
-      toast.error(`Asesmen gagal disimpan: ${error.message}`);
-      return;
-    }
-    toast.success("Asesmen perkembangan berhasil disimpan.");
-    event.currentTarget.reset();
-    setRecentCount((value) => ({ ...value, assessments: value.assessments + 1 }));
-  };
-
   return (
     <div className="space-y-6 pb-10">
       <header className="border-b pb-5">
@@ -241,7 +238,7 @@ export const TeacherPaud: React.FC = () => {
           <span className="rounded-md bg-emerald-50 p-2 text-emerald-700"><BookOpen className="h-5 w-5" /></span>
           <div>
             <h1 className="text-2xl font-bold">Perkembangan Anak KB/TK</h1>
-            <p className="mt-1 text-sm text-muted-foreground">Observasi autentik dan asesmen STPPA sesuai kelas yang ditugaskan kepada Anda.</p>
+            <p className="mt-1 text-sm text-muted-foreground">Jurnal observasi dan asesmen awal, tengah, akhir Kurikulum Merdeka untuk kelas reguler maupun Preschool HBL yang ditugaskan kepada Anda.</p>
           </div>
         </div>
       </header>
@@ -255,7 +252,7 @@ export const TeacherPaud: React.FC = () => {
               className="h-10 w-full rounded-md border bg-background px-3 text-sm"
             >
               <option value="">Pilih unit PAUD/TK</option>
-              {unitOptions.map((unit) => <option key={unit.id} value={unit.id}>{unit.name}</option>)}
+              {unitOptions.map((unit) => <option key={unit.id} value={unit.id}>{unit.name} · {PAUD_LEARNING_MODE_LABELS[unitModes[unit.id] || "reguler"]}</option>)}
             </select>
           </SelectField>
           <SelectField label="Kelas">
@@ -291,7 +288,7 @@ export const TeacherPaud: React.FC = () => {
           <Camera className="h-4 w-4" /> Observasi
         </button>
         <button type="button" onClick={() => setMode("assessment")} className={`flex flex-1 items-center justify-center gap-2 rounded px-4 py-2 text-sm font-semibold sm:flex-none ${mode === "assessment" ? "bg-background text-primary shadow-sm" : "text-muted-foreground"}`}>
-          <ClipboardCheck className="h-4 w-4" /> Asesmen STPPA
+          <ClipboardCheck className="h-4 w-4" /> Asesmen Awal · Tengah · Akhir
         </button>
       </div>
 
@@ -301,9 +298,20 @@ export const TeacherPaud: React.FC = () => {
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <Field label="Tanggal"><input name="date" type="date" required defaultValue={toDateInputValue(new Date())} className="h-10 w-full rounded-md border bg-background px-3 text-sm" /></Field>
             <Field label="Metode"><select name="observation_method" className="h-10 w-full rounded-md border bg-background px-3 text-sm">{PAUD_OBSERVATION_METHODS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></Field>
+            <Field label={`Sumber bukti · ${PAUD_LEARNING_MODE_LABELS[learningMode]}`}>
+              <select name="evidence_source" key={learningMode} defaultValue={learningMode === "online" ? "live_meet" : "observasi_kelas"} className="h-10 w-full rounded-md border bg-background px-3 text-sm">
+                {PAUD_EVIDENCE_SOURCES.filter((item) => (item.modes as readonly string[]).includes(learningMode)).map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+              </select>
+            </Field>
           </div>
           <Field label="Judul kegiatan"><input name="title" required placeholder="Kegiatan atau momen belajar" className="h-10 w-full rounded-md border bg-background px-3 text-sm" /></Field>
           <Field label="Narasi observasi"><textarea name="description" required rows={4} placeholder="Situasi, tindakan atau ucapan anak, serta respons guru." className="w-full rounded-md border bg-background px-3 py-2 text-sm" /></Field>
+          <div>
+            <p className="text-sm font-semibold">Elemen Capaian Pembelajaran</p>
+            <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-3">
+              {PAUD_CP_ELEMENTS.map((element) => <CheckOption key={element.id} name="cp_elements" value={element.id} label={element.shortTitle} />)}
+            </div>
+          </div>
           <div>
             <p className="text-sm font-semibold">Aspek perkembangan yang terbukti</p>
             <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">
@@ -327,38 +335,66 @@ export const TeacherPaud: React.FC = () => {
           <SubmitButton loading={isSubmitting || isUploading} disabled={!selectedStudentId} label="Simpan Observasi" />
         </form>
       ) : (
-        <form onSubmit={submitAssessment} className="space-y-6">
-          <section className="rounded-lg border bg-card p-5 sm:p-6">
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <Field label="Nama periode"><input name="period_name" required placeholder="Contoh: Tengah Semester Ganjil" className="h-10 w-full rounded-md border bg-background px-3 text-sm" /></Field>
-              <Field label="Tanggal asesmen"><input name="date" type="date" required defaultValue={toDateInputValue(new Date())} className="h-10 w-full rounded-md border bg-background px-3 text-sm" /></Field>
-            </div>
-          </section>
-          <section className="divide-y overflow-hidden rounded-lg border bg-card">
-            {PAUD_ASPECTS.map((aspect) => (
-              <div key={aspect.id} className="grid grid-cols-1 gap-4 p-5 lg:grid-cols-[260px_1fr]">
-                <div>
-                  <h3 className="font-bold">{aspect.title}</h3>
-                  <div className="mt-3 grid grid-cols-2 gap-2">
-                    {PAUD_SCALES.map((scale) => (
-                      <label key={scale} className="cursor-pointer">
-                        <input type="radio" name={`${aspect.id}_scale`} value={scale} required defaultChecked={scale === "BSH"} className="peer sr-only" />
-                        <span className="block rounded-md border p-2 text-xs peer-checked:border-primary peer-checked:bg-primary/10 peer-checked:text-primary">{scale} · {PAUD_SCALE_LABELS[scale]}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-                <Field label={`Narasi ${aspect.shortTitle}`}><textarea name={`${aspect.id}_desc`} required rows={5} placeholder="Kemampuan yang tampak, contoh bukti, dan dukungan yang diperlukan." className="w-full rounded-md border bg-background px-3 py-2 text-sm" /></Field>
+        <div className="space-y-5">
+          <section className="rounded-lg border bg-card p-4">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div className="inline-flex w-full rounded-md border bg-muted/40 p-1 md:w-auto">
+                {PAUD_PHASES.map((item) => (
+                  <button key={item.id} type="button" onClick={() => setPhase(item.id)} className={`flex-1 rounded px-3 py-2 text-xs font-semibold md:flex-none ${phase === item.id ? "bg-background text-primary shadow-sm" : "text-muted-foreground"}`}>
+                    {item.title}
+                  </button>
+                ))}
               </div>
-            ))}
+              <p className="text-xs text-muted-foreground">{PAUD_PHASES.find((item) => item.id === phase)?.timing} · pilih anak dari daftar di bawah</p>
+            </div>
+            {!selectedClassId ? (
+              <p className="mt-4 text-sm text-muted-foreground">Pilih unit dan kelas untuk melihat status asesmen setiap anak.</p>
+            ) : (
+              <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {students.map((item) => {
+                  const records = classAssessments.filter((record) => record.student_id === item.id);
+                  const record = records.find((row) => row.phase === phase);
+                  return (
+                    <button key={item.id} type="button" onClick={() => setSelectedStudentId(item.id)} className={`rounded-md border p-3 text-left text-sm ${selectedStudentId === item.id ? "border-primary bg-primary/5" : "hover:bg-muted/40"}`}>
+                      <span className="flex items-center justify-between gap-2">
+                        <span className="font-semibold">{item.full_name}</span>
+                        <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${!record ? "bg-slate-100 text-slate-600" : record.status === "published" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
+                          {!record ? "Belum" : record.status === "published" ? "Terbit" : "Draf"}
+                        </span>
+                      </span>
+                      <span className="mt-2 flex gap-1">
+                        {PAUD_PHASES.map((phaseItem) => {
+                          const row = records.find((entry) => entry.phase === phaseItem.id);
+                          const scale = row?.steam_scale as PaudScale | undefined;
+                          return <span key={phaseItem.id} className={`rounded border px-1.5 py-0.5 text-[10px] font-semibold ${row ? (scale ? PAUD_SCALE_TONES[scale] : "bg-muted") : "text-muted-foreground"}`}>{phaseItem.shortTitle}{row?.parent_reflection ? " •" : ""}</span>;
+                        })}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </section>
-          <section className="grid grid-cols-1 gap-4 rounded-lg border bg-card p-5 lg:grid-cols-3">
-            <Field label="Kekuatan dan minat"><textarea name="strengths" rows={4} className="w-full rounded-md border bg-background px-3 py-2 text-sm" /></Field>
-            <Field label="Tindak lanjut sekolah"><textarea name="follow_up" rows={4} className="w-full rounded-md border bg-background px-3 py-2 text-sm" /></Field>
-            <Field label="Kemitraan orang tua"><textarea name="parent_partnership" rows={4} className="w-full rounded-md border bg-background px-3 py-2 text-sm" /></Field>
-          </section>
-          <section className="rounded-lg border bg-card p-5"><PublishRow /><SubmitButton loading={isSubmitting} disabled={!selectedStudentId} label="Simpan Asesmen" /></section>
-        </form>
+          {selectedStudent && semester && activeYearId ? (
+            <PaudAssessmentEditor
+              key={`${selectedStudent.id}-${phase}-${semester.id}`}
+              student={{ ...selectedStudent, class_id: selectedClassId, unit_id: selectedClass?.unit_id }}
+              classId={selectedClassId}
+              className={selectedClass?.name}
+              unitName={selectedClass?.units?.name}
+              phase={phase}
+              learningMode={learningMode}
+              academicYearId={activeYearId}
+              semester={semester}
+              employeeId={employee.id}
+              onSaved={() => { void loadClassAssessments(); }}
+            />
+          ) : (
+            <div className="rounded-lg border border-dashed p-10 text-center text-sm text-muted-foreground">
+              {!activeSemesterId ? "Semester aktif belum tersedia." : "Pilih anak untuk mengisi atau membuka asesmen."}
+            </div>
+          )}
+        </div>
       )}
     </div>
   );

@@ -1,25 +1,29 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/set-state-in-effect */
 import React from "react";
-import { useForm, useSelect } from "@/lib/refine-compat";
+import { useForm } from "@/lib/refine-compat";
 import { Link, useNavigate, useParams } from "react-router";
 import { ArrowLeft, Save, UploadCloud } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { uploadDocument } from "../../lib/supabase/storage";
 import { useAcademicYear } from "../../app/providers/AcademicYearProvider";
-import { useCurrentUnit } from "../../app/providers/UnitProvider";
+import { StoredImage } from "../../components/common/StoredImage";
 import {
   PAUD_ASPECTS,
+  PAUD_CP_ELEMENTS,
+  PAUD_EVIDENCE_SOURCES,
   PAUD_ISLAMIC_VALUES,
+  PAUD_LEARNING_MODE_LABELS,
   PAUD_OBSERVATION_METHODS,
 } from "./paud-config";
+import { usePaudScope } from "./use-paud-scope";
 
 export const PaudActivityForm: React.FC = () => {
   const { id } = useParams();
   const isEdit = Boolean(id);
   const navigate = useNavigate();
-  const { activeUnitId } = useCurrentUnit();
   const { activeYearId, activeSemesterId } = useAcademicYear();
+  const scope = usePaudScope();
   const [selectedClassId, setSelectedClassId] = React.useState("");
   const [selectedStudentId, setSelectedStudentId] = React.useState("");
   const [photoUrl, setPhotoUrl] = React.useState("");
@@ -39,29 +43,10 @@ export const PaudActivityForm: React.FC = () => {
     setPhotoUrl(record.photo_url || "");
   }, [record]);
 
-  const { options: classOptions } = useSelect({
-    resource: "classes",
-    optionLabel: "name",
-    optionValue: "id",
-    filters: [
-      ...(activeUnitId ? [{ field: "unit_id", operator: "eq" as const, value: activeUnitId }] : []),
-      ...(activeYearId ? [{ field: "academic_year_id", operator: "eq" as const, value: activeYearId }] : []),
-    ],
-    sorters: [{ field: "name", order: "asc" }],
-  });
-  const { options: studentOptions, queryResult: studentQuery } = useSelect({
-    resource: "students",
-    optionLabel: "full_name",
-    optionValue: "id",
-    filters: selectedClassId
-      ? [
-          { field: "class_id", operator: "eq", value: selectedClassId },
-          { field: "status", operator: "eq", value: "active" },
-        ]
-      : [],
-    queryOptions: { enabled: Boolean(selectedClassId) },
-    sorters: [{ field: "full_name", order: "asc" }],
-  });
+  const classOptions = scope.classes.map((item) => ({ value: item.id, label: `${item.name} · ${PAUD_LEARNING_MODE_LABELS[scope.unitById.get(item.unit_id)?.delivery_mode || "reguler"]}` }));
+  const studentOptions = scope.students.filter((item) => item.class_id === selectedClassId).map((item) => ({ value: item.id, label: item.full_name }));
+  const selectedStudent = scope.students.find((item) => item.id === selectedStudentId);
+  const learningMode = record?.learning_mode || scope.studentMode(selectedStudent || { unit_id: scope.classById.get(selectedClassId)?.unit_id });
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -103,6 +88,9 @@ export const PaudActivityForm: React.FC = () => {
       title: formData.get("title"),
       description: formData.get("description"),
       observation_method: formData.get("observation_method"),
+      learning_mode: learningMode,
+      evidence_source: formData.get("evidence_source"),
+      cp_elements: formData.getAll("cp_elements"),
       development_aspects: formData.getAll("development_aspects"),
       islamic_values: formData.getAll("islamic_values"),
       follow_up: formData.get("follow_up") || null,
@@ -161,7 +149,7 @@ export const PaudActivityForm: React.FC = () => {
               <select
                 value={selectedStudentId}
                 onChange={(event) => setSelectedStudentId(event.target.value)}
-                disabled={!selectedClassId || studentQuery.isLoading}
+                disabled={!selectedClassId || scope.isLoading}
                 required
                 className="h-10 w-full rounded-md border bg-background px-3 text-sm disabled:opacity-50"
               >
@@ -171,6 +159,11 @@ export const PaudActivityForm: React.FC = () => {
             </Field>
             <Field label="Tanggal" required>
               <input type="date" name="date" required defaultValue={record?.date || new Date().toLocaleDateString("en-CA")} className="h-10 w-full rounded-md border bg-background px-3 text-sm" />
+            </Field>
+            <Field label={`Sumber bukti · ${PAUD_LEARNING_MODE_LABELS[learningMode as "reguler" | "online"]}`} required>
+              <select name="evidence_source" required key={learningMode} defaultValue={record?.evidence_source || (learningMode === "online" ? "live_meet" : "observasi_kelas")} className="h-10 w-full rounded-md border bg-background px-3 text-sm">
+                {PAUD_EVIDENCE_SOURCES.filter((item) => (item.modes as readonly string[]).includes(learningMode) || item.value === record?.evidence_source).map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+              </select>
             </Field>
             <Field label="Metode bukti" required>
               <select name="observation_method" required defaultValue={record?.observation_method || "photo"} className="h-10 w-full rounded-md border bg-background px-3 text-sm">
@@ -201,7 +194,7 @@ export const PaudActivityForm: React.FC = () => {
               <div className="rounded-md border border-dashed bg-muted/20 p-4">
                 {photoUrl ? (
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                    <img src={photoUrl} alt="Bukti observasi" className="h-28 w-40 rounded-md object-cover" />
+                    <StoredImage source={photoUrl} alt="Bukti observasi" className="h-28 w-40 rounded-md object-cover" />
                     <div>
                       <p className="text-sm font-semibold">Bukti visual siap disimpan</p>
                       <button type="button" onClick={() => setPhotoUrl("")} className="mt-2 text-sm font-semibold text-rose-700 hover:underline">Hapus foto</button>
@@ -221,8 +214,18 @@ export const PaudActivityForm: React.FC = () => {
 
         <section className="rounded-lg border bg-card p-5 sm:p-6">
           <h2 className="font-bold">3. Makna perkembangan dan nilai Islam</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Pilih hanya aspek yang benar-benar didukung oleh bukti observasi.</p>
-          <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2">
+          <p className="mt-1 text-sm text-muted-foreground">Pilih hanya elemen dan aspek yang benar-benar didukung oleh bukti observasi. Bukti ini akan muncul saat guru mengisi asesmen awal, tengah, dan akhir.</p>
+          <p className="mt-5 text-sm font-semibold">Elemen Capaian Pembelajaran (Kurikulum Merdeka)</p>
+          <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-3">
+            {PAUD_CP_ELEMENTS.map((element) => (
+              <label key={element.id} className="flex cursor-pointer gap-3 rounded-md border p-3 hover:bg-muted/30">
+                <input type="checkbox" name="cp_elements" value={element.id} defaultChecked={record?.cp_elements?.includes(element.id)} className="mt-1 accent-primary" />
+                <span className="text-sm font-semibold">{element.title}</span>
+              </label>
+            ))}
+          </div>
+          <p className="mt-5 text-sm font-semibold">Aspek perkembangan (STPPA)</p>
+          <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
             {PAUD_ASPECTS.map((aspect) => (
               <label key={aspect.id} className="flex cursor-pointer gap-3 rounded-md border p-3 hover:bg-muted/30">
                 <input type="checkbox" name="development_aspects" value={aspect.id} defaultChecked={record?.development_aspects?.includes(aspect.id)} className="mt-1 accent-primary" />
