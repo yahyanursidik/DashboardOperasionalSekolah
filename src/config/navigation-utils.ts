@@ -28,14 +28,14 @@ export function getActiveNavigationHref(pathname: string, groups: NavigationGrou
     .sort((a, b) => b.href.length - a.href.length)[0]?.href;
 }
 
-export function filterNavigationGroups(groups: NavigationGroup[], search: string) {
+export function filterNavigationGroups(groups: NavigationGroup[], search: string, aliases?: (group: NavigationGroup) => string[]) {
   const query = search.trim().toLowerCase();
   if (!query) return groups;
+  const terms = query.split(/\s+/);
   return groups.flatMap((group) => {
-    const groupMatches = group.name.toLowerCase().includes(query);
     const items = group.items.filter((item) => {
-      const haystack = [item.title, item.href, ...(item.keywords || [])].join(" ").toLowerCase();
-      return groupMatches || haystack.includes(query);
+      const haystack = [group.name, ...(aliases?.(group) || []), item.title, item.href, ...(item.keywords || [])].join(" ").toLowerCase();
+      return terms.every((term) => haystack.includes(term));
     });
     return items.length ? [{ ...group, items }] : [];
   });
