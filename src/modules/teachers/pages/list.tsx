@@ -138,7 +138,7 @@ export const TeachersList: React.FC = () => {
         ],
       },
       meta: {
-        select: "*, units(name)"
+        select: "*, units!employees_unit_id_fkey(name)"
       }
     },
   });

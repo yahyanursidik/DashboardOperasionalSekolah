@@ -4,12 +4,8 @@ import { useNavigate } from "react-router";
 import { BriefcaseBusiness, Mail, User } from "lucide-react";
 import { toast } from "sonner";
 import { supabaseClient } from "../../lib/supabase/client";
+import { loadEmployeePortalWorkspace, normalizeEmployeeIdentifier, portalAccessMessage } from "../../lib/supabase/employee-portal-access";
 import { PortalLoginButton, PortalLoginShell, PortalPasswordField, PortalTextField } from "../../components/auth/PortalLoginShell";
-
-function roleName(value: any) {
-  const role = Array.isArray(value?.roles) ? value.roles[0] : value?.roles;
-  return role?.name;
-}
 
 export const HrdPortalLogin: React.FC = () => {
   const [identifier, setIdentifier] = useState("");
@@ -23,7 +19,7 @@ export const HrdPortalLogin: React.FC = () => {
 
     setIsLoading(true);
     try {
-      const normalizedIdentifier = identifier.trim();
+      const normalizedIdentifier = normalizeEmployeeIdentifier(identifier);
       let email = normalizedIdentifier.includes("@") ? normalizedIdentifier : null;
       if (!email) {
         const lookup = await supabaseClient.rpc("get_login_email_by_identifier", { p_identifier: normalizedIdentifier });
@@ -40,22 +36,12 @@ export const HrdPortalLogin: React.FC = () => {
         return;
       }
 
-      const [{ data: userRoles }, { data: employee }] = await Promise.all([
-        supabaseClient.from("user_roles").select("roles(name)").eq("user_id", authData.session.user.id),
-        supabaseClient.from("employees").select("id,status").eq("user_id", authData.session.user.id).eq("status", "active").maybeSingle(),
-      ]);
-      const hasAccess = Boolean(employee) && (userRoles || []).some((value: any) => ["hrd", "super_admin", "ketua_yayasan"].includes(roleName(value)));
-      if (!hasAccess) {
-        await supabaseClient.auth.signOut();
-        toast.error("Akun aktif, tetapi belum memiliki kewenangan HRD.");
-        return;
-      }
+      await loadEmployeePortalWorkspace(supabaseClient, authData.session.user.id, "hrd");
 
       toast.success("Berhasil masuk ke Portal HRD.");
       navigate("/hrd", { replace: true });
     } catch (error: any) {
-      console.error("HRD login error:", error);
-      toast.error(error?.message || "Login belum dapat diproses.");
+      toast.error(portalAccessMessage(error));
     } finally {
       setIsLoading(false);
     }

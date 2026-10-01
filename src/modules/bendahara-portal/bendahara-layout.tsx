@@ -1,48 +1,47 @@
 import React, { useEffect, useState, Suspense } from "react";
 import { Outlet, useNavigate, useLocation, Link } from "react-router";
 import { supabaseClient } from "../../lib/supabase/client";
+import { loadEmployeePortalWorkspace, portalAccessMessage } from "../../lib/supabase/employee-portal-access";
+import { PortalAccessNotice } from "../../components/auth/PortalAccessNotice";
 import { Wallet, Receipt, CheckCircle, CreditCard, Users, LogOut, LayoutDashboard, Settings, Landmark, BookOpenCheck, BarChart3, Tags, BadgeDollarSign, Bell, CalendarCheck, MoreHorizontal, UserRound, X } from "lucide-react";
 import { useSystemSettings } from "../../app/providers/SettingsProvider";
 import { BrandLogo } from "../../components/common/BrandLogo";
 import { PageLoader } from "../../components/common/PageLoader";
 
 type FinanceEmployee = { full_name?: string | null; position?: string | null; role?: string | null };
-type RoleRow = { roles?: { name?: string | null } | null };
-
 export const BendaharaLayout: React.FC = () => {
   const [employee, setEmployee] = useState<FinanceEmployee | null>(null);
+  const [loadError, setLoadError] = useState("");
+  const [retry, setRetry] = useState(0);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const { appName } = useSystemSettings();
 
   useEffect(() => {
+    let cancelled = false;
     const fetchSession = async () => {
-      const { data: { session } } = await supabaseClient.auth.getSession();
+      setLoadError("");
+      setEmployee(null);
+      try {
+      const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
+      if (cancelled) return;
+      if (sessionError) throw sessionError;
       
       if (!session) {
         navigate("/bendahara/login");
         return;
       }
 
-      const [employeeResult, rolesResult] = await Promise.all([
-        supabaseClient.from("employees").select("*").eq("user_id", session.user.id).eq("status", "active").maybeSingle(),
-        supabaseClient.from("user_roles").select("roles(name)").eq("user_id", session.user.id),
-      ]);
-      const position = String((employeeResult.data as FinanceEmployee | null)?.position || "").toLowerCase();
-      const roleNames = ((rolesResult.data || []) as RoleRow[]).map((item) => item.roles?.name).filter((name): name is string => Boolean(name));
-      const allowed = position.includes("bendahara") || position.includes("keuangan") || roleNames.some((role: string) => ["super_admin", "ketua_yayasan", "kepala_tu", "admin_keuangan"].includes(role));
-
-      if (!allowed) {
-        await supabaseClient.auth.signOut();
-        navigate("/bendahara/login");
-        return;
-      }
-      setEmployee((employeeResult.data as unknown as FinanceEmployee | null) || { full_name: session.user.user_metadata?.full_name || "Bendahara", role: roleNames[0] || "admin_keuangan" });
+      const workspace = await loadEmployeePortalWorkspace(supabaseClient, session.user.id, "bendahara");
+      if (cancelled) return;
+      setEmployee(workspace.employee || { full_name: session.user.user_metadata?.full_name || "Bendahara", role: workspace.roles[0] || "admin_keuangan" });
+      } catch (error) { if (!cancelled) setLoadError(portalAccessMessage(error)); }
     };
 
-    fetchSession();
-  }, [navigate]);
+    void fetchSession();
+    return () => { cancelled = true; };
+  }, [navigate, retry]);
 
   const handleLogout = async () => {
     await supabaseClient.auth.signOut();
@@ -76,6 +75,9 @@ export const BendaharaLayout: React.FC = () => {
     ] },
   ];
   const mobileItems = [navSections[0].items[0], navSections[1].items[0], navSections[2].items[1], navSections[4].items[0]];
+
+  if (loadError) return <PortalAccessNotice message={loadError} onRetry={() => setRetry((value) => value + 1)} onLogout={() => void handleLogout()} />;
+  if (!employee) return <PageLoader />;
 
   return (
     <div className="flex h-screen bg-slate-50 font-sans overflow-hidden">

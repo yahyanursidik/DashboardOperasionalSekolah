@@ -68,8 +68,8 @@ export const AttendanceEvents: React.FC = () => {
   const loadData = async () => {
     setIsLoading(true);
     const [eventResult, employeeResult, unitResult, siteResult] = await Promise.all([
-      supabaseClient.from("attendance_events").select("*,units(name),attendance_sites(name,address,radius_meters),attendance_event_participants(id,employee_id,participation_type,employees(full_name,nik,position,units(name))),attendance_event_records(id,employee_id,status,check_in_at,check_out_at,late_minutes,verification_status)").order("event_date", { ascending: false }).order("start_time", { ascending: false }).limit(100),
-      supabaseClient.from("employees").select("id,full_name,nik,position,unit_id,units(name)").eq("status", "active").order("full_name"),
+      supabaseClient.from("attendance_events").select("*,units(name),attendance_sites(name,address,radius_meters),attendance_event_participants(id,employee_id,participation_type,employees(full_name,nik,position,units!employees_unit_id_fkey(name))),attendance_event_records(id,employee_id,status,check_in_at,check_out_at,late_minutes,verification_status)").order("event_date", { ascending: false }).order("start_time", { ascending: false }).limit(100),
+      supabaseClient.from("employees").select("id,full_name,nik,position,unit_id,units!employees_unit_id_fkey(name)").eq("status", "active").order("full_name"),
       supabaseClient.from("units").select("id,name").order("name"),
       supabaseClient.from("attendance_sites").select("id,name,address,radius_meters,attendance_site_units(unit_id)").eq("is_active", true).order("name"),
     ]);

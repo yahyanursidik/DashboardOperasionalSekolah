@@ -27,7 +27,7 @@ function useDapodikData() {
   const load = useCallback(async () => {
     setLoading(true);
     let studentQuery = db.from("students").select(`*, classes(name), student_parent_links(relationship, parents(${PARENT_FIELDS}))`).eq("status", "active").order("full_name");
-    let employeeQuery = db.from("employees").select("*, units(name)").eq("status", "active").order("full_name");
+    let employeeQuery = db.from("employees").select("*, units!employees_unit_id_fkey(name)").eq("status", "active").order("full_name");
     let classQuery = db.from("classes").select("id, name, grade_level, level, homeroom:employees!homeroom_teacher_id(full_name), units(name), academic_years(name)").order("name");
     if (activeUnitId) {
       studentQuery = studentQuery.eq("unit_id", activeUnitId);

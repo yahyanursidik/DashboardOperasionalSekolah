@@ -1,31 +1,44 @@
-import React, { useEffect, Suspense } from "react";
+import React, { useEffect, useState, Suspense } from "react";
 import { Outlet, useNavigate, useLocation, Link } from "react-router";
 import { useGetIdentity, useLogout } from "@/lib/refine-compat";
-import { Target, LogOut, Menu, User, LayoutDashboard, LayoutList } from "lucide-react";
+import { Target, LogOut, User, LayoutDashboard, LayoutList } from "lucide-react";
 import { supabaseClient } from "../../../lib/supabase/client";
 import { PageLoader } from "../../../components/common/PageLoader";
+import { PortalAccessNotice } from "../../../components/auth/PortalAccessNotice";
 
 export const ExtracurricularPortalLayout: React.FC = () => {
-  const { data: identity } = useGetIdentity<any>();
+  const { data: identity } = useGetIdentity<{ full_name?: string; email?: string }>();
   const { mutate: logout } = useLogout();
   const navigate = useNavigate();
   const location = useLocation();
+  const [loadError, setLoadError] = useState("");
+  const [checking, setChecking] = useState(true);
+  const [retry, setRetry] = useState(0);
+  const isAuthPage = location.pathname.includes('/login') || location.pathname.includes('/register');
 
   useEffect(() => {
+    let cancelled = false;
     const checkAuth = async () => {
-      const { data: { session } } = await supabaseClient.auth.getSession();
+      try {
+      const { data: { session }, error } = await supabaseClient.auth.getSession();
+      if (cancelled) return;
+      if (error) throw error;
+      setLoadError("");
       if (!session) {
-        navigate("/ekskul-portal/login");
+        navigate("/ekskul-portal/login", { replace: true });
       }
+      } catch { if (!cancelled) setLoadError("Sesi belum dapat diperiksa. Periksa koneksi lalu coba lagi."); }
+      finally { if (!cancelled) setChecking(false); }
     };
-    checkAuth();
-  }, [navigate]);
-
-  const isAuthPage = location.pathname.includes('/login') || location.pathname.includes('/register');
+    if (!isAuthPage) void checkAuth();
+    return () => { cancelled = true; };
+  }, [navigate, retry, isAuthPage]);
 
   if (isAuthPage) {
     return <Suspense fallback={<PageLoader />}><Outlet /></Suspense>;
   }
+  if (loadError) return <PortalAccessNotice message={loadError} onRetry={() => { setChecking(true); setRetry((value) => value + 1); }} onLogout={() => logout()} />;
+  if (checking) return <PageLoader />;
 
   const isProgramsPage = location.pathname.includes('/ekskul-portal/programs');
 

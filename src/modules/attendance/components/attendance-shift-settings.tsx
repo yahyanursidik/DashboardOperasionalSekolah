@@ -45,9 +45,9 @@ export const AttendanceShiftSettings: React.FC = () => {
     setIsLoading(true);
     const [unitResult, employeeResult, shiftResult, assignmentResult] = await Promise.all([
       supabaseClient.from("units").select("id,name").order("name"),
-      supabaseClient.from("employees").select("id,full_name,nik,position,unit_id,employment_type,attendance_mode,units(name)").eq("status", "active").order("full_name"),
+      supabaseClient.from("employees").select("id,full_name,nik,position,unit_id,employment_type,attendance_mode,units!employees_unit_id_fkey(name)").eq("status", "active").order("full_name"),
       supabaseClient.from("attendance_shifts").select("*,units(name)").order("position").order("start_time"),
-      supabaseClient.from("attendance_shift_assignments").select("id,employee_id,shift_id,is_active,employees(full_name,nik,position,units(name)),attendance_shifts(name,start_time,end_time,position,unit_id,is_active)").eq("is_active", true).order("created_at", { ascending: false }),
+      supabaseClient.from("attendance_shift_assignments").select("id,employee_id,shift_id,is_active,employees(full_name,nik,position,units!employees_unit_id_fkey(name)),attendance_shifts(name,start_time,end_time,position,unit_id,is_active)").eq("is_active", true).order("created_at", { ascending: false }),
     ]);
     const error = unitResult.error || employeeResult.error || shiftResult.error || assignmentResult.error;
     if (error) toast.error("Data shift belum dapat dimuat", { description: error.message });

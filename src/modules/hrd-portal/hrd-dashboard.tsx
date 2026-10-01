@@ -44,11 +44,11 @@ export const HrdDashboard: React.FC = () => {
       setIsLoading(true);
       const today = new Date().toLocaleDateString("en-CA");
       const [employeeResult, attendanceResult, leaveResult, correctionResult, overtimeResult, vacancyResult, applicantResult] = await Promise.all([
-        supabaseClient.from("employees").select("id,full_name,nik,email,phone,user_id,position,employment_type,unit_id,units(name)").eq("status", "active").order("full_name"),
+        supabaseClient.from("employees").select("id,full_name,nik,email,phone,user_id,position,employment_type,unit_id,units!employees_unit_id_fkey(name)").eq("status", "active").order("full_name"),
         supabaseClient.from("employee_attendance").select("employee_id,status,time_in,time_out").eq("date", today),
-        supabaseClient.from("leave_requests").select("id,leave_type,start_date,end_date,status,employees(full_name,units(name))").eq("status", "pending").order("created_at", { ascending: false }).limit(8),
-        supabaseClient.from("attendance_correction_requests").select("id,request_type,request_date,status,employees(full_name,units(name))").eq("status", "pending").order("created_at", { ascending: false }).limit(8),
-        supabaseClient.from("employee_overtime").select("id,overtime_date,status,reason,employees(full_name,units(name))").eq("status", "pending").order("created_at", { ascending: false }).limit(8),
+        supabaseClient.from("leave_requests").select("id,leave_type,start_date,end_date,status,employees(full_name,units!employees_unit_id_fkey(name))").eq("status", "pending").order("created_at", { ascending: false }).limit(8),
+        supabaseClient.from("attendance_correction_requests").select("id,request_type,request_date,status,employees(full_name,units!employees_unit_id_fkey(name))").eq("status", "pending").order("created_at", { ascending: false }).limit(8),
+        supabaseClient.from("employee_overtime").select("id,overtime_date,status,reason,employees(full_name,units!employees_unit_id_fkey(name))").eq("status", "pending").order("created_at", { ascending: false }).limit(8),
         supabaseClient.from("recruitment_vacancies").select("id,title,status,unit_id,units(name)").eq("status", "open").order("created_at", { ascending: false }),
         supabaseClient.from("recruitment_applicants").select("id,full_name,status,vacancy_id,recruitment_vacancies(title)").order("created_at", { ascending: false }).limit(200),
       ]);

@@ -32,13 +32,15 @@ export const PortalLayout: React.FC = () => {
     setIsLoading(true);
     setLoadError("");
 
-    const { data: { session } } = await supabaseClient.auth.getSession();
+    try {
+    const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
+    if (sessionError) throw sessionError;
     if (!session) {
       navigate("/portal/login");
       return;
     }
 
-    await publishDueAnnouncements();
+    await publishDueAnnouncements().catch(() => 0);
     const { data, error } = await supabaseClient.rpc("get_parent_portal_workspace");
     if (error) {
       setLoadError("Data portal belum dapat dimuat. Periksa koneksi lalu coba lagi.");
@@ -48,8 +50,8 @@ export const PortalLayout: React.FC = () => {
 
     const workspace = data as unknown as ParentWorkspace;
     if (!workspace?.parent) {
-      await supabaseClient.auth.signOut();
-      navigate("/portal/login");
+      setLoadError("Profil orang tua belum tertaut atau belum dapat diakses. Hubungi Tata Usaha untuk memeriksa tautan akun. Sesi Anda tidak dikeluarkan.");
+      setIsLoading(false);
       return;
     }
 
@@ -62,6 +64,10 @@ export const PortalLayout: React.FC = () => {
         : accessibleStudents[0]?.id || ""
     ));
     setIsLoading(false);
+    } catch {
+      setLoadError("Data portal belum dapat dimuat. Periksa koneksi lalu coba lagi. Sesi Anda tidak dikeluarkan.");
+      setIsLoading(false);
+    }
   }, [navigate]);
 
   useEffect(() => {
@@ -141,6 +147,7 @@ export const PortalLayout: React.FC = () => {
         <h1 className="mt-3 text-lg font-bold text-gray-900">Portal belum dapat dimuat</h1>
         <p className="mt-2 text-sm leading-6 text-gray-500">{loadError}</p>
         <button onClick={() => void fetchWorkspace()} className="mt-5 rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">Coba Lagi</button>
+        <button onClick={() => void handleLogout()} className="mt-3 ml-3 rounded-md border px-4 py-2 text-sm font-semibold text-gray-700">Keluar / Ganti Akun</button>
       </div>
     </div>
   );

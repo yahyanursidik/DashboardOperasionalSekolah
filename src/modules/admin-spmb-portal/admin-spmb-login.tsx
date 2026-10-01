@@ -25,11 +25,10 @@ export const AdminSpmbLogin: React.FC = () => {
     try {
       const { data, error: authError } = await supabaseClient.auth.signInWithPassword({ email: email.trim(), password });
       if (authError) throw authError;
-      const { data: userRoles } = await supabaseClient.from("user_roles").select("roles(name)").eq("user_id", data.user.id);
-      const roles = userRoles as any[] | null;
-      const hasAccess = roles?.some((item) => ["admin_spmb", "super_admin", "ketua_yayasan", "kepsek"].includes(item.roles?.name));
-      if (!hasAccess) {
-        await supabaseClient.auth.signOut();
+      if (!data.session) throw new Error("Sesi login belum tersedia. Silakan coba lagi.");
+      const access = await supabaseClient.rpc("admission_is_manager", { target_unit_id: null });
+      if (access.error) throw new Error("Kewenangan panitia belum dapat diperiksa. Periksa koneksi lalu coba lagi.");
+      if (access.data !== true) {
         throw new Error("Anda tidak memiliki akses ke Admin SPMB.");
       }
       navigate("/admin-spmb", { replace: true });

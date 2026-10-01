@@ -43,7 +43,7 @@ export const LeavesList: React.FC = () => {
 
   const { data, isLoading } = useList({
     resource: "leave_requests",
-    meta: { select: "*, employees(full_name, position, nik, phone, units(name))" },
+    meta: { select: "*, employees(full_name, position, nik, phone, units!employees_unit_id_fkey(name))" },
     filters,
     sorters: [{ field: "start_date", order: "desc" }],
     pagination: { pageSize: 50 },

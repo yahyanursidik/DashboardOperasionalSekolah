@@ -27,7 +27,7 @@ export const AttendanceReviews: React.FC = () => {
     setIsLoading(true);
     let query = supabaseClient
       .from("attendance_correction_requests")
-      .select("*,employees(id,full_name,nik,position,unit_id,units(name)),employee_attendance(date,time_in,time_out,status,verification_status)")
+      .select("*,employees(id,full_name,nik,position,unit_id,units!employees_unit_id_fkey(name)),employee_attendance(date,time_in,time_out,status,verification_status)")
       .order("created_at", { ascending: false })
       .limit(100);
     if (filter) query = query.eq("status", filter);

@@ -140,7 +140,7 @@ export const TeacherProfile: React.FC = () => {
           { data: halaqohData },
           { data: attendanceData },
         ] = await Promise.all([
-          supabaseClient.from("employees").select("*, units(name)").eq("id", employee.id).single(),
+          supabaseClient.from("employees").select("*, units!employees_unit_id_fkey(name)").eq("id", employee.id).single(),
           loadTeacherLearningSchedules({ employeeId: employee.id, homeUnitId: employee.unit_id, academicYearId: activeYearId, semesterId: activeSemesterId }),
           loadTeacherAcademicAssignments({ employeeId: employee.id, academicYearId: activeYearId, semesterId: activeSemesterId }),
           homeroomQuery,

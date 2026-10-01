@@ -333,7 +333,7 @@ export const EmployeeShow: React.FC = () => {
   const { queryResult } = useShow({
     resource: "employees",
     id,
-    meta: { select: "*, units(name)" },
+    meta: { select: "*, units!employees_unit_id_fkey(name)" },
   });
   const { data, isLoading, refetch: refetchEmployee } = queryResult;
   const record = data?.data;

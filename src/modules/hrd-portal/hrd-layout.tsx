@@ -20,54 +20,56 @@ import {
 } from "lucide-react";
 import { RolePortalShell, type RolePortalNavGroup } from "../../components/layout/RolePortalShell";
 import { supabaseClient } from "../../lib/supabase/client";
-
-function relationRoleName(value: any) {
-  const role = Array.isArray(value?.roles) ? value.roles[0] : value?.roles;
-  return role?.name;
-}
+import { loadEmployeePortalWorkspace, portalAccessMessage } from "../../lib/supabase/employee-portal-access";
+import { PortalAccessNotice } from "../../components/auth/PortalAccessNotice";
 
 export const HrdPortalLayout: React.FC = () => {
   const [employee, setEmployee] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [retry, setRetry] = useState(0);
   const [pendingLeaves, setPendingLeaves] = useState(0);
   const [pendingReviews, setPendingReviews] = useState(0);
   const [activeApplicants, setActiveApplicants] = useState(0);
   const navigate = useNavigate();
 
   useEffect(() => {
+    let cancelled = false;
     const loadPortal = async () => {
+      let authorized = false;
       setIsLoading(true);
-      const { data: { session } } = await supabaseClient.auth.getSession();
+      setLoadError("");
+      try {
+      const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
+      if (cancelled) return;
+      if (sessionError) throw sessionError;
       if (!session) {
         navigate("/hrd/login", { replace: true });
         return;
       }
 
-      const [employeeResult, rolesResult] = await Promise.all([
-        supabaseClient.from("employees").select("*,units(name)").eq("user_id", session.user.id).eq("status", "active").maybeSingle(),
-        supabaseClient.from("user_roles").select("roles(name)").eq("user_id", session.user.id),
-      ]);
-      const roles = (rolesResult.data || []).map(relationRoleName).filter(Boolean);
-      const hasAccess = roles.some((role) => ["hrd", "super_admin", "ketua_yayasan"].includes(role));
-      if (!hasAccess || !employeeResult.data) {
-        await supabaseClient.auth.signOut();
-        navigate("/hrd/login", { replace: true });
-        return;
-      }
-
-      setEmployee(employeeResult.data);
+      const { employee: currentEmployee } = await loadEmployeePortalWorkspace(supabaseClient, session.user.id, "hrd");
+      if (cancelled) return;
+      setEmployee(currentEmployee);
+      authorized = true;
+      setIsLoading(false);
       const [leaveResult, reviewResult, applicantResult] = await Promise.all([
         supabaseClient.from("leave_requests").select("id", { count: "exact", head: true }).eq("status", "pending"),
         supabaseClient.from("attendance_correction_requests").select("id", { count: "exact", head: true }).eq("status", "pending"),
         supabaseClient.from("recruitment_applicants").select("id", { count: "exact", head: true }).not("status", "in", "(lulus,ditolak,withdrawn)"),
       ]);
+      if (cancelled) return;
       setPendingLeaves(leaveResult.count || 0);
       setPendingReviews(reviewResult.count || 0);
       setActiveApplicants(applicantResult.count || 0);
       setIsLoading(false);
+      } catch (error) {
+        if (!cancelled && !authorized) { setLoadError(portalAccessMessage(error)); setIsLoading(false); }
+      }
     };
     void loadPortal();
-  }, [navigate]);
+    return () => { cancelled = true; };
+  }, [navigate, retry]);
 
   const navGroups = useMemo<RolePortalNavGroup[]>(() => [
     { label: "Ringkasan", items: [{ to: "/hrd", label: "Beranda HRD", icon: Home, exact: true }] },
@@ -104,6 +106,7 @@ export const HrdPortalLayout: React.FC = () => {
     navigate("/hrd/login", { replace: true });
   };
 
+  if (loadError) return <PortalAccessNotice message={loadError} onRetry={() => setRetry((value) => value + 1)} onLogout={() => void handleLogout()} />;
   if (isLoading || !employee) return <div className="flex min-h-screen items-center justify-center bg-background text-sm text-muted-foreground">Menyiapkan pusat HRD...</div>;
 
   return (

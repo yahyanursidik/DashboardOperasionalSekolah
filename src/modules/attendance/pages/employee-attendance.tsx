@@ -127,7 +127,7 @@ export const EmployeeAttendanceList: React.FC = () => {
     },
     sorters: { permanent: [{ field: "full_name", order: "asc" }] },
     meta: {
-      select: "*, units(name), employee_attendance(id, status, time_in, time_out, notes, date, verification_status, location_status, site_id, is_late, late_minutes, is_early_departure, early_departure_minutes, attendance_rule_source, expected_start_time, expected_end_time, applied_grace_minutes, attendance_sites(name))"
+      select: "*, units!employees_unit_id_fkey(name), employee_attendance(id, status, time_in, time_out, notes, date, verification_status, location_status, site_id, is_late, late_minutes, is_early_departure, early_departure_minutes, attendance_rule_source, expected_start_time, expected_end_time, applied_grace_minutes, attendance_sites(name))"
     }
   });
 

@@ -569,7 +569,7 @@ export const EmployeesList: React.FC = () => {
       filters: { permanent: buildFilters() },
       sorters: { permanent: [{ field: "full_name", order: "asc" }] },
       pagination: { pageSize: 20 },
-      meta: { select: "*, units(name)" },
+      meta: { select: "*, units!employees_unit_id_fkey(name)" },
     },
   });
 

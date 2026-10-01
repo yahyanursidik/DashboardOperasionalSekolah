@@ -8,7 +8,7 @@ import { useAcademicYear } from "../../../app/providers/AcademicYearProvider";
 export const TeacherShow: React.FC = () => {
   const { queryResult } = useShow({
     resource: "employees",
-    meta: { select: "*, units(name)" }
+    meta: { select: "*, units!employees_unit_id_fkey(name)" }
   });
   const { data, isLoading } = queryResult;
   const navigate = useNavigate();
