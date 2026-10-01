@@ -1,0 +1,10 @@
+{
+  "date": "2026-10-01",
+  "scope": "Admin sidebar and dashboard navigation only",
+  "framework": "React 19.3.0 / TypeScript / Vite 8.3.0 / Tailwind 4.3.3",
+  "font": "Existing Inter and configurable SettingsProvider body font; inherited",
+  "palette": "Existing HSL Eye-Care Emerald tokens from src/index.css:33",
+  "spacing": "Existing Tailwind 4px scale; navigation aliases in tokens.css",
+  "motion": "Motion-cut; only drawer transform, with reduced-motion fallback",
+  "preserved": ["routes", "navigationConfig ownership", "role and unit permissions", "school branding", "portal login", "dashboard operational data"]
+}

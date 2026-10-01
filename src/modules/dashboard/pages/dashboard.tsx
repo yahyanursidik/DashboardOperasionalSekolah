@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useMemo, useState } from "react";
+
 import { useGetIdentity, useList, useOne } from "@/lib/refine-compat";
 import { Link } from "react-router";
 import {
@@ -15,20 +15,18 @@ import {
   FileBarChart,
   GraduationCap,
   Megaphone,
-  Search,
   Settings2,
   UserPlus,
   Users,
   Wallet,
-  X,
 } from "lucide-react";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import { useAcademicYear } from "../../../app/providers/AcademicYearProvider";
 import { useCurrentUnit } from "../../../app/providers/UnitProvider";
-import { navigationConfig, type NavigationItem } from "../../../config/navigation";
-import { filterNavigationGroups, getVisibleNavigationGroups } from "../../../config/navigation-utils";
 import { useCurrentRoles } from "../../../hooks/useAuth";
 import { canAccessResource, hasRole, type UserRoleScope } from "../../../lib/permissions";
+
+import { NavigationHub, NavigationShortcuts } from "../../../components/layout/NavigationHub";
 
 type CountState = {
   value: number | string;
@@ -388,70 +386,6 @@ const DataReadiness = ({ roles }: { roles?: UserRoleScope[] }) => {
   );
 };
 
-const FeatureDirectory = ({ roles }: { roles?: UserRoleScope[] }) => {
-  const { activeUnitId } = useCurrentUnit();
-  const [search, setSearch] = useState("");
-  const unit = useOne({ resource: "units", id: activeUnitId || "", queryOptions: { enabled: Boolean(activeUnitId) } });
-  const unitName = String(unit.data?.data?.name || "").toLowerCase();
-  const isPaudUnit = ["paud", "tk", "kb", "preschool"].some((term) => unitName.includes(term));
-  const visibleGroups = useMemo(
-    () => getVisibleNavigationGroups(navigationConfig, roles, { activeUnitId, isPaudUnit }),
-    [activeUnitId, isPaudUnit, roles],
-  );
-  const filteredGroups = useMemo(() => filterNavigationGroups(visibleGroups, search), [search, visibleGroups]);
-  const resultCount = filteredGroups.reduce((total, group) => total + group.items.length, 0);
-
-  return (
-    <section aria-labelledby="feature-directory-title">
-      <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h2 id="feature-directory-title" className="text-base font-bold">Pusat fitur sekolah</h2>
-          <p className="text-xs text-muted-foreground">Semua menu yang dapat Anda akses, tersusun mengikuti workflow terbaru.</p>
-        </div>
-        <label className="relative block w-full sm:w-80">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Cari siswa, absensi, RKAS..." className="h-10 w-full rounded-md border bg-background pl-9 pr-9 text-sm outline-none focus:ring-2 focus:ring-primary/25" />
-          {search ? <button type="button" onClick={() => setSearch("")} title="Hapus pencarian" className="absolute right-1 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-muted"><X className="h-4 w-4" /></button> : null}
-        </label>
-      </div>
-      <div className="mb-2 text-xs text-muted-foreground">{resultCount} fitur tersedia dalam {filteredGroups.length} kelompok.</div>
-      {filteredGroups.length ? (
-        <div className="grid gap-3 lg:grid-cols-2">
-          {filteredGroups.map((group) => (
-            <details key={group.name} open={Boolean(search) || group.name === "Operasional Harian"} className="group overflow-hidden rounded-md border bg-card">
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 hover:bg-muted/30">
-                <div>
-                  <p className="text-sm font-bold">{group.name}</p>
-                  <p className="text-xs text-muted-foreground">{group.items.length} fitur</p>
-                </div>
-                <Settings2 className="h-4 w-4 text-muted-foreground" />
-              </summary>
-              <div className="grid border-t sm:grid-cols-2">
-                {group.items.map((item: NavigationItem, index) => {
-                  const Icon = item.icon;
-                  return (
-                    <Link key={item.href} to={item.href} className={`flex min-h-12 items-center gap-3 px-4 py-3 text-sm font-semibold hover:bg-primary/5 hover:text-primary ${index >= 2 ? "border-t" : ""} ${index % 2 === 1 ? "sm:border-l" : ""} ${index === 1 ? "border-t sm:border-t-0" : ""}`}>
-                      <Icon className="h-4 w-4 shrink-0" />
-                      <span className="min-w-0 flex-1 truncate">{item.title}</span>
-                      <ArrowRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                    </Link>
-                  );
-                })}
-              </div>
-            </details>
-          ))}
-        </div>
-      ) : (
-        <div className="rounded-md border border-dashed py-12 text-center">
-          <Search className="mx-auto h-8 w-8 text-muted-foreground/40" />
-          <p className="mt-3 text-sm font-semibold">Fitur tidak ditemukan</p>
-          <p className="mt-1 text-xs text-muted-foreground">Gunakan nama proses, modul, atau data yang ingin dikelola.</p>
-        </div>
-      )}
-    </section>
-  );
-};
-
 const SystemStatus = ({ roles }: { roles?: UserRoleScope[] }) => {
   const items = [
     { label: "Kurikulum per tahun & semester", resource: "subjects", href: "/curriculum", icon: BookOpenCheck },
@@ -507,6 +441,7 @@ export const DashboardPage = () => {
         <div className="rounded-md border bg-card p-8 text-center text-sm text-muted-foreground">Menyiapkan dashboard sesuai hak akses...</div>
       ) : (
         <>
+          <NavigationShortcuts />
           <CoreIndicators roles={roles} />
           <QuickActions roles={roles} />
           <div className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
@@ -516,7 +451,7 @@ export const DashboardPage = () => {
               <SystemStatus roles={roles} />
             </div>
           </div>
-          <FeatureDirectory roles={roles} />
+          <NavigationHub />
           {isSystemAdmin ? (
             <div className="flex flex-col gap-3 border-t pt-5 text-sm sm:flex-row sm:items-center sm:justify-between">
               <div>

@@ -1,0 +1,25 @@
+/* Hallmark · navigation tokens · existing school brand retained */
+:root, .navigation-surface {
+  --color-nav-paper: oklch(from hsl(var(--card)) l c h);
+  --color-nav-paper-2: oklch(from hsl(var(--muted)) l c h);
+  --color-nav-ink: oklch(from hsl(var(--foreground)) l c h);
+  --color-nav-muted: color-mix(in oklab, var(--color-nav-ink) 85%, var(--color-nav-paper));
+  --color-nav-rule: oklch(from hsl(var(--border)) l c h);
+  --color-nav-accent: color-mix(in oklab, var(--color-nav-ink) 50%, oklch(from hsl(var(--primary)) l c h));
+  --color-nav-selected: color-mix(in oklab, var(--color-nav-paper) 94%, var(--color-nav-accent));
+  --color-nav-focus: var(--color-nav-accent);
+  --color-nav-overlay: oklch(20% 0.015 165 / 0.45);
+  --font-nav-body: inherit;
+  --space-nav-xs: 0.25rem;
+  --space-nav-sm: 0.5rem;
+  --space-nav-md: 0.75rem;
+  --space-nav-lg: 1rem;
+  --space-nav-xl: 1.5rem;
+  --space-nav-2xl: 2rem;
+  --radius-nav: 0.5rem;
+  --text-nav-small: 0.75rem;
+  --text-nav-body: 0.875rem;
+  --text-nav-heading: 1rem;
+  --dur-nav: 180ms;
+  --ease-nav-out: cubic-bezier(0.16, 1, 0.3, 1);
+}

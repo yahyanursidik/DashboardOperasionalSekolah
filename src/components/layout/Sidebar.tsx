@@ -1,214 +1,99 @@
-/* eslint-disable react-hooks/set-state-in-effect */
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "react-router";
-import {
-  ChevronDown,
-  ChevronRight,
-  PanelLeftClose,
-  PanelLeftOpen,
-  Search,
-  Star,
-  X,
-} from "lucide-react";
-import { useOne } from "@/lib/refine-compat";
-import { navigationConfig, type NavigationItem } from "../../config/navigation";
-import {
-  filterNavigationGroups,
-  getActiveNavigationHref,
-  getVisibleNavigationGroups,
-} from "../../config/navigation-utils";
-import { useCurrentRoles } from "../../hooks/useAuth";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { ChevronDown, ChevronRight, Home, LayoutGrid, PanelLeftClose, PanelLeftOpen, Star, X } from "lucide-react";
+import { getNavigationModuleMeta } from "../../config/navigation-module-meta";
 import { BrandLogo } from "../common/BrandLogo";
-import { useCurrentUnit } from "../../app/providers/UnitProvider";
+import { useAdminNavigation } from "./AdminNavigationProvider";
+import { FavoriteButton } from "./NavigationHub";
+import { NavigationSearchTrigger } from "./NavigationSearch";
+import type { NavigationItem } from "../../config/navigation";
 
 interface SidebarProps {
   isOpen?: boolean;
   onClose?: () => void;
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
+  brand?: React.ReactNode;
 }
 
-const EXPANDED_STORAGE_KEY = "admin-sidebar-expanded-groups";
-const FAVORITES_STORAGE_KEY = "admin-sidebar-favorites";
-const RECENT_STORAGE_KEY = "admin-sidebar-recent";
-
-function readStoredStringArray(key: string) {
-  if (typeof window === "undefined") return [];
-  try {
-    const value = JSON.parse(window.localStorage.getItem(key) || "[]");
-    return Array.isArray(value) ? value.filter((item) => typeof item === "string") : [];
-  } catch { return []; }
-}
-
-function readExpandedGroups() {
-  if (typeof window === "undefined") return { "Operasional Harian": true };
-  try {
-    const value = JSON.parse(window.localStorage.getItem(EXPANDED_STORAGE_KEY) || "{}");
-    return Object.keys(value).length ? value : { "Operasional Harian": true };
-  } catch { return { "Operasional Harian": true }; }
-}
-
-function formatRoleName(role?: string) {
-  const labels: Record<string, string> = {
-    super_admin: "Super Admin", ketua_yayasan: "Ketua Yayasan", kepsek: "Kepala Sekolah",
-    wakasek: "Wakil Kepala Sekolah", kepala_tu: "Kepala Tata Usaha", admin_tu: "Admin Tata Usaha",
-    admin_sekolah: "Admin Sekolah", admin_unit: "Admin Unit", admin_keuangan: "Admin Keuangan",
-    admin_dokumen: "Admin Dokumen", admin_spmb: "Admin SPMB", operator_absensi: "Operator Absensi",
-    guru: "Guru", wali_kelas: "Wali Kelas", hrd: "HRD",
-  };
-  return labels[role || ""] || String(role || "Pengguna").replace(/_/g, " ");
-}
-
-export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, isCollapsed = false, onToggleCollapse }) => {
-  const { roles } = useCurrentRoles();
+export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, isCollapsed = false, onToggleCollapse, brand }) => {
+  const { groups, activeHref, unitName, roleName, preferences, isLoading, setSearchOpen } = useAdminNavigation();
   const location = useLocation();
-  const { activeUnitId } = useCurrentUnit();
-  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(readExpandedGroups);
-  const [favorites, setFavorites] = useState<string[]>(() => readStoredStringArray(FAVORITES_STORAGE_KEY));
-  const [recent, setRecent] = useState<string[]>(() => readStoredStringArray(RECENT_STORAGE_KEY));
-  const [search, setSearch] = useState("");
-
-  const { data: unitData } = useOne({ resource: "units", id: activeUnitId || "", queryOptions: { enabled: Boolean(activeUnitId) } });
-  const unitName = String(unitData?.data?.name || "");
-  const normalizedUnitName = unitName.toLowerCase();
-  const isPaudUnit = ["paud", "tk", "kb", "preschool"].some((name) => normalizedUnitName.includes(name));
-
-  const visibleGroups = useMemo(
-    () => getVisibleNavigationGroups(navigationConfig, roles, { activeUnitId, isPaudUnit }),
-    [activeUnitId, isPaudUnit, roles],
-  );
-  const displayedGroups = useMemo(() => filterNavigationGroups(visibleGroups, search), [search, visibleGroups]);
-  const allVisibleItems = useMemo(() => visibleGroups.flatMap((group) => group.items), [visibleGroups]);
-  const itemByHref = useMemo(() => new Map(allVisibleItems.map((item) => [item.href, item])), [allVisibleItems]);
-  const activeHref = getActiveNavigationHref(location.pathname, visibleGroups);
-
-  const quickItems = useMemo(() => {
-    const hrefs = [...favorites, ...recent.filter((href) => !favorites.includes(href))].slice(0, 5);
-    return hrefs.map((href) => itemByHref.get(href)).filter(Boolean) as NavigationItem[];
-  }, [favorites, itemByHref, recent]);
-
+  const activeGroup = groups.find((group) => group.items.some((item) => item.href === activeHref));
+  const [openModule, setOpenModule] = useState<string | null>(null);
+  const [lastPath, setLastPath] = useState(location.pathname);
+  const sidebarRef = useRef<HTMLElement>(null);
+  const [isMobile, setIsMobile] = useState(() => window.matchMedia("(max-width: 767px)").matches);
+  // Open the current module when the route changes, but allow the user to close it.
+  if (lastPath !== location.pathname) { setLastPath(location.pathname); setOpenModule(activeGroup?.name || null); }
+  const selectedModule = openModule === null ? activeGroup?.name : openModule;
+  const byHref = useMemo(() => new Map(groups.flatMap((group) => group.items.map((item) => [item.href, item] as const))), [groups]);
+  const favorites = preferences.favorites.flatMap((href) => byHref.has(href) ? [byHref.get(href)!] : []);
+  const pinned = favorites.slice(0, 4);
   useEffect(() => {
-    const activeGroup = visibleGroups.find((group) => group.items.some((item) => item.href === activeHref));
-    if (!activeGroup) return;
-    setExpandedGroups((current) => current[activeGroup.name] ? current : { ...current, [activeGroup.name]: true });
-  }, [activeHref, visibleGroups]);
-
+    const media = window.matchMedia("(max-width: 767px)");
+    const update = () => { setIsMobile(media.matches); if (!media.matches) onClose?.(); };
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, [onClose]);
   useEffect(() => {
-    if (isCollapsed) setSearch("");
-  }, [isCollapsed]);
+    if (!isOpen || !isMobile) return;
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const focusable = () => Array.from(sidebarRef.current?.querySelectorAll<HTMLElement>("a[href], button:not(:disabled), input") || []).filter((element) => element.getClientRects().length);
+    focusable()[0]?.focus();
+    const handleKey = (event: KeyboardEvent) => {
+      if (document.querySelector("dialog[open]")) return;
+      if (event.key === "Escape") { event.preventDefault(); onClose?.(); }
+      if (event.key !== "Tab") return;
+      const elements = focusable();
+      const first = elements[0];
+      const last = elements.at(-1);
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+    };
+    document.addEventListener("keydown", handleKey);
+    return () => { document.removeEventListener("keydown", handleKey); if (previousFocus?.isConnected) previousFocus.focus(); };
+  }, [isOpen, isMobile, onClose]);
 
-  const toggleGroup = (groupName: string) => {
-    setExpandedGroups((current) => {
-      const next = { ...current, [groupName]: !current[groupName] };
-      window.localStorage.setItem(EXPANDED_STORAGE_KEY, JSON.stringify(next));
-      return next;
-    });
-  };
-
-  const toggleFavorite = (href: string) => {
-    setFavorites((current) => {
-      const next = current.includes(href) ? current.filter((item) => item !== href) : [...current, href];
-      window.localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(next));
-      return next;
-    });
-  };
-
-  const rememberRecent = (href: string) => {
-    setRecent((current) => {
-      const next = [href, ...current.filter((item) => item !== href)].slice(0, 5);
-      window.localStorage.setItem(RECENT_STORAGE_KEY, JSON.stringify(next));
-      return next;
-    });
-    onClose?.();
-  };
-
-  const renderItem = (item: NavigationItem, allowPin = true) => {
+  const renderItem = (item: NavigationItem, pin = true) => {
     const Icon = item.icon;
-    const active = item.href === activeHref;
-    const favorite = favorites.includes(item.href);
-    return (
-      <div key={item.href} className={`group/item mx-1 flex items-center rounded-md ${active ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"}`}>
-        <Link
-          to={item.href}
-          onClick={() => rememberRecent(item.href)}
-          title={isCollapsed ? item.title : undefined}
-          className={`flex min-w-0 flex-1 items-center text-sm ${isCollapsed ? "md:justify-center md:px-2 md:py-3" : "gap-3 px-3 py-2.5"} ${active ? "font-bold" : "font-medium"}`}
-        >
-          <Icon className={`h-4 w-4 shrink-0 ${active ? "text-primary" : ""}`} />
-          <span className={`truncate ${isCollapsed ? "md:hidden" : ""}`}>{item.title}</span>
-        </Link>
-        {allowPin ? (
-          <button
-            type="button"
-            onClick={() => toggleFavorite(item.href)}
-            title={favorite ? "Lepas dari favorit" : "Tambahkan ke favorit"}
-            aria-label={favorite ? `Lepas ${item.title} dari favorit` : `Favoritkan ${item.title}`}
-            className={`mr-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition-opacity ${isCollapsed ? "md:hidden" : ""} ${favorite ? "text-amber-500" : "text-muted-foreground opacity-0 group-hover/item:opacity-100 focus:opacity-100"}`}
-          >
-            <Star className="h-3.5 w-3.5" fill={favorite ? "currentColor" : "none"} />
-          </button>
-        ) : null}
-      </div>
-    );
+    return <div key={item.href} className={`nav-sidebar-item ${activeHref === item.href ? "is-active" : ""}`}>
+      <Link to={item.href} title={item.title} aria-current={activeHref === item.href ? "page" : undefined} onClick={onClose}><Icon size={17} aria-hidden="true" /><span>{item.title}</span></Link>
+      {pin ? <FavoriteButton item={item} /> : null}
+    </div>;
   };
 
-  return (
-    <>
-      {isOpen ? <button type="button" aria-label="Tutup menu" className="fixed inset-0 z-40 bg-black/50 md:hidden" onClick={onClose} /> : null}
-      <aside className={`fixed left-0 top-0 z-50 flex h-screen w-72 flex-col overflow-hidden border-r bg-card text-card-foreground shadow-sm transition-all duration-200 md:sticky md:translate-x-0 ${isCollapsed ? "md:w-20" : "md:w-72"} ${isOpen ? "translate-x-0" : "-translate-x-[110%]"}`}>
-        <div className={`flex h-16 shrink-0 items-center justify-between border-b ${isCollapsed ? "px-3 md:justify-center" : "px-5"}`}>
-          <div className={isCollapsed ? "md:hidden" : "block"}><BrandLogo textClassName="text-lg font-bold text-foreground" /></div>
-          {isCollapsed ? <div className="hidden h-9 w-9 items-center justify-center rounded-md bg-primary/10 font-bold text-primary md:flex">TS</div> : null}
-          <button type="button" onClick={onToggleCollapse} title={isCollapsed ? "Lebarkan sidebar" : "Ciutkan sidebar"} aria-label={isCollapsed ? "Lebarkan sidebar" : "Ciutkan sidebar"} className="hidden h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground md:flex">
-            {isCollapsed ? <PanelLeftOpen className="h-5 w-5" /> : <PanelLeftClose className="h-5 w-5" />}
-          </button>
-          <button type="button" onClick={onClose} aria-label="Tutup sidebar" className="flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-muted md:hidden"><X className="h-5 w-5" /></button>
-        </div>
-
-        <div className={`border-b p-3 ${isCollapsed ? "md:hidden" : ""}`}>
-            <label className="relative block">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Cari menu atau fitur..." className="h-10 w-full rounded-md border bg-background pl-9 pr-9 text-sm outline-none focus:ring-2 focus:ring-primary/30" />
-              {search ? <button type="button" onClick={() => setSearch("")} title="Hapus pencarian" className="absolute right-1 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-muted"><X className="h-4 w-4" /></button> : null}
-            </label>
-            {search ? <p className="mt-2 px-1 text-[11px] text-muted-foreground">{displayedGroups.reduce((total, group) => total + group.items.length, 0)} tujuan ditemukan</p> : null}
-        </div>
-
-        <ScrollArea className="flex-1">
-          <nav className={`space-y-4 py-4 ${isCollapsed ? "px-2" : "px-3"}`} aria-label="Navigasi utama">
-            {!search && quickItems.length ? (
-              <div className="space-y-1">
-                <div className={`flex items-center justify-between px-3 py-1.5 ${isCollapsed ? "md:hidden" : ""}`}><p className="text-[11px] font-bold uppercase text-muted-foreground">Akses Cepat</p><span className="text-[10px] text-muted-foreground">favorit & terbaru</span></div>
-                {isCollapsed ? <div className="mx-2 hidden border-t md:block" /> : null}
-                {quickItems.map((item) => renderItem(item, false))}
-              </div>
-            ) : null}
-
-            {displayedGroups.map((group) => {
-              const expanded = Boolean(search) || isCollapsed || expandedGroups[group.name];
-              const hasActiveChild = group.items.some((item) => item.href === activeHref);
-              return (
-                <section key={group.name} className="space-y-1">
-                  {isCollapsed ? <div className="mx-2 hidden border-t md:block" title={group.name} /> : null}
-                  <button type="button" onClick={() => toggleGroup(group.name)} aria-expanded={expanded} className={`flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-[11px] font-bold uppercase text-muted-foreground hover:bg-muted/50 hover:text-foreground ${isCollapsed ? "md:hidden" : ""} ${hasActiveChild ? "text-primary" : ""}`}>
-                      <span className="truncate">{group.name}</span>
-                      {expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-                  </button>
-                  {expanded ? <div className="space-y-1">{group.items.map((item) => renderItem(item))}</div> : null}
-                </section>
-              );
-            })}
-
-            {displayedGroups.length === 0 ? <div className="px-4 py-10 text-center"><Search className="mx-auto h-8 w-8 text-muted-foreground/40" /><p className="mt-3 text-sm font-semibold">Menu tidak ditemukan</p><p className="mt-1 text-xs text-muted-foreground">Coba kata seperti siswa, absensi, rapor, atau keuangan.</p></div> : null}
-          </nav>
-        </ScrollArea>
-
-        <div className={`shrink-0 border-t bg-muted/20 p-3 ${isCollapsed ? "md:hidden" : ""}`}>
-            <p className="truncate text-xs font-bold text-foreground">{unitName || (activeUnitId ? "Unit aktif" : "Lintas Unit")}</p>
-            <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{formatRoleName(roles?.[0]?.role)}{roles && roles.length > 1 ? ` +${roles.length - 1} peran` : ""}</p>
-        </div>
-      </aside>
-    </>
-  );
+  return <>
+    {isOpen ? <button type="button" aria-label="Tutup menu utama" className="nav-sidebar-scrim md:hidden" onClick={onClose} /> : null}
+    <aside ref={sidebarRef} className={`navigation-surface nav-sidebar ${isCollapsed ? "is-collapsed" : ""} ${isOpen ? "is-open" : ""}`} role={isMobile && isOpen ? "dialog" : undefined} aria-modal={isMobile && isOpen ? true : undefined} aria-label="Menu admin">
+      <div className="nav-sidebar-brand">
+        <div className="nav-expanded-only">{brand || <BrandLogo textClassName="text-base font-bold text-foreground" />}</div>
+        <div className="nav-collapsed-only nav-brand-mark">TS</div>
+        <button type="button" onClick={onToggleCollapse} aria-label={isCollapsed ? "Lebarkan sidebar" : "Ringkaskan sidebar"} title={isCollapsed ? "Lebarkan sidebar" : "Ringkaskan sidebar"} className="nav-icon-button nav-sidebar-collapse">{isCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}</button>
+        <button type="button" onClick={onClose} aria-label="Tutup sidebar" className="nav-icon-button nav-mobile-only"><X size={20} /></button>
+      </div>
+      <div className="nav-sidebar-search"><NavigationSearchTrigger compact /></div>
+      <nav className="nav-sidebar-scroll" aria-label="Navigasi utama">
+        <Link to="/" aria-current={activeHref === "/" ? "page" : undefined} title="Beranda & pintasan" className={`nav-sidebar-home ${activeHref === "/" ? "is-active" : ""}`} onClick={onClose}><Home size={19} /><span className="nav-expanded-only">Beranda & pintasan</span></Link>
+        <button type="button" className="nav-sidebar-home" title="Semua menu" onClick={() => { onClose?.(); setSearchOpen(true); }}><LayoutGrid size={19} /><span className="nav-expanded-only">Semua menu</span><span className="nav-count nav-expanded-only">{groups.reduce((total, group) => total + group.items.length, 0)}</span></button>
+        {pinned.length ? <section className="nav-sidebar-pinned nav-expanded-only"><h2><Star size={14} />Favorit</h2>{pinned.map((item) => renderItem(item, false))}{favorites.length > 4 ? <Link to="/" className="nav-text-button" onClick={onClose}>Lihat semua ({favorites.length})</Link> : null}</section> : null}
+        <div className="nav-sidebar-section-heading nav-expanded-only"><h2>Modul sekolah</h2><span>{groups.length}</span></div>
+        {isLoading ? <p className="nav-note nav-expanded-only" role="status">Menyiapkan menu…</p> : groups.map((group, index) => {
+          const meta = getNavigationModuleMeta(group);
+          const Icon = meta.icon;
+          const active = group.name === activeGroup?.name;
+          const expanded = group.name === selectedModule;
+          const items = group.items.filter((item) => item.href !== "/");
+          if (!items.length) return null;
+          return <section key={group.name} className="nav-sidebar-module">
+            <button type="button" title={meta.title} aria-label={`${meta.title}, ${items.length} menu`} className={`nav-module-trigger ${active ? "is-active" : ""}`} aria-expanded={expanded && (!isCollapsed || isMobile)} aria-controls={expanded ? `sidebar-module-${index}` : undefined} onClick={() => { setOpenModule(isCollapsed && !isMobile ? group.name : expanded ? "" : group.name); if (isCollapsed && !isMobile) onToggleCollapse?.(); }}>
+              <Icon size={19} aria-hidden="true" /><span className="nav-expanded-only">{meta.title}</span><small className="nav-expanded-only">{items.length}</small>{expanded ? <ChevronDown size={15} className="nav-expanded-only" /> : <ChevronRight size={15} className="nav-expanded-only" />}
+            </button>
+            {expanded ? <div id={`sidebar-module-${index}`} className="nav-module-items nav-expanded-only">{items.map((item) => renderItem(item))}</div> : null}
+          </section>;
+        })}
+      </nav>
+      <div className="nav-sidebar-footer nav-expanded-only"><strong>{unitName || "Lintas Unit"}</strong><span>{String(roleName || "Pengguna").replaceAll("_", " ")} · satu modul terbuka</span></div>
+    </aside>
+  </>;
 };

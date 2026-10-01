@@ -1,0 +1,13 @@
+[
+  {
+    "date": "2026-10-01",
+    "macrostructure": "Workbench (functional navigation adaptation)",
+    "genre": "modern-minimal",
+    "theme": "existing TSLS emerald",
+    "nav": "N13 with grouped side rail",
+    "footer": "Ft2 (existing attribution preserved)",
+    "enrichment": "none",
+    "brief": "Admin navigation that scales: one expanded module, personal shortcuts, recent menus, command search",
+    "preservationException": "Existing project font and palette retained; not a new brand or full-page rebuild"
+  }
+]
