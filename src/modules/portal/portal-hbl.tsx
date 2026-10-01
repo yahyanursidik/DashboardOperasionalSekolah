@@ -23,6 +23,7 @@ import type { ParentPortalContext } from "./portal-context";
 import { HblMediaPreview } from "../hbl/hbl-media-preview";
 import { formatMeetingDate, HBL_ACTIVITY_TYPES, HBL_ATTENDANCE_STATUSES, HBL_LEVEL_LABELS, HBL_PLATFORMS, meetingTiming } from "../hbl/hbl-config";
 import { PAUD_CP_ELEMENTS } from "../paud/paud-config";
+import { patternForProgram } from "../hbl/hbl-patterns";
 
 const db = supabaseClient as any;
 const WELLBEING = [
@@ -61,7 +62,7 @@ export const PortalHbl: React.FC = () => {
     if (!studentId) return;
     setLoading(true);
     const enrollment = await db.from("hbl_program_students")
-      .select("program_id,hbl_programs!inner(id,name,description,status,preschool_level,semester_id,parent_welcome,classes(name),semesters(name,start_date,academic_years(name)))")
+      .select("program_id,hbl_programs!inner(id,name,description,status,preschool_level,journey_mode,semester_id,parent_welcome,classes(name),semesters(name,start_date,academic_years(name)))")
       .eq("student_id", studentId);
     if (enrollment.error) {
       toast.error("Program HBL belum dapat dimuat", { description: enrollment.error.message });
@@ -77,7 +78,7 @@ export const PortalHbl: React.FC = () => {
 
     const [themeResult, meetingResult] = await Promise.all([
       db.from("hbl_learning_weeks").select("*").in("program_id", programIds).order("week_number"),
-      db.from("hbl_meetings").select("*").in("program_id", programIds).order("meeting_date", { nullsFirst: false }).order("meeting_number"),
+      db.from("hbl_meetings").select("*, subjects(name)").in("program_id", programIds).order("meeting_date", { nullsFirst: false }).order("meeting_number"),
     ]);
     const meetingRows = meetingResult.data || [];
     const meetingIds = meetingRows.map((row: any) => row.id);
@@ -196,6 +197,7 @@ export const PortalHbl: React.FC = () => {
   if (loading) return <div className="flex min-h-72 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-emerald-600" /></div>;
 
   const program = programs[0];
+  const pattern = patternForProgram(program);
   if (!program) {
     return (
       <div className="rounded-xl border border-dashed bg-white p-10 text-center">
@@ -209,7 +211,7 @@ export const PortalHbl: React.FC = () => {
   return (
     <div className="space-y-5">
       <section className="overflow-hidden rounded-xl bg-gradient-to-br from-emerald-700 to-teal-800 p-5 text-white shadow-sm">
-        <p className="text-xs font-bold uppercase tracking-wider text-emerald-100">Homebased Learning · {HBL_LEVEL_LABELS[program.preschool_level] || program.classes?.name || "Preschool"}</p>
+        <p className="text-xs font-bold uppercase tracking-wider text-emerald-100">Homebased Learning · {HBL_LEVEL_LABELS[program.preschool_level] || program.classes?.name || pattern.audience}</p>
         <h1 className="mt-1 text-2xl font-bold">Ruang Belajar {student.full_name}</h1>
         <p className="mt-1 text-sm text-emerald-50">{program.name} · {program.semesters?.academic_years?.name} Semester {program.semesters?.name}</p>
         {(program.parent_welcome || program.description) && <p className="mt-2 max-w-2xl text-sm text-emerald-50/90">{program.parent_welcome || program.description}</p>}
@@ -236,13 +238,13 @@ export const PortalHbl: React.FC = () => {
       </section>
 
       {!themes.length ? (
-        <div className="rounded-xl border border-dashed bg-white p-8 text-center text-sm text-gray-500"><CalendarDays className="mx-auto mb-2 h-8 w-8 text-gray-300" />Guru sedang menyiapkan tema dan pertemuan pertama.</div>
+        <div className="rounded-xl border border-dashed bg-white p-8 text-center text-sm text-gray-500"><CalendarDays className="mx-auto mb-2 h-8 w-8 text-gray-300" />Guru sedang menyiapkan {pattern.group.singular.toLowerCase()} dan pertemuan pertama.</div>
       ) : (
         <>
           <nav className="flex gap-2 overflow-x-auto pb-1">
             {themes.map((row) => (
               <button key={row.id} type="button" onClick={() => setThemeId(row.id)} className={`shrink-0 rounded-lg border px-3 py-2 text-left text-xs ${themeId === row.id ? "border-emerald-600 bg-emerald-50 text-emerald-800" : "bg-white text-gray-600 hover:bg-gray-50"}`}>
-                <span className="block font-bold">Tema {row.week_number}{row.theme ? ` · ${row.theme}` : ""}</span>
+                <span className="block font-bold">{pattern.group.singular} {row.week_number}{row.theme ? ` · ${row.theme}` : ""}</span>
                 <span>{row.title}</span>
               </button>
             ))}
@@ -250,13 +252,13 @@ export const PortalHbl: React.FC = () => {
 
           {theme && (
             <section className="rounded-xl border bg-white p-5 shadow-sm">
-              <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">Tema {theme.week_number}{theme.theme ? ` · ${theme.theme}` : ""}</p>
+              <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">{pattern.group.singular} {theme.week_number}{theme.theme ? ` · ${theme.theme}` : ""}</p>
               <h2 className="mt-1 text-xl font-bold text-gray-900">{theme.title}</h2>
               {theme.starts_on && <p className="text-xs text-gray-500">{formatMeetingDate(theme.starts_on)}{theme.ends_on ? ` s.d. ${formatMeetingDate(theme.ends_on)}` : ""}</p>}
               {theme.description && <p className="mt-2 text-sm text-gray-600">{theme.description}</p>}
               {theme.parent_guide && (
                 <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3">
-                  <p className="text-sm font-bold text-emerald-900">Panduan orang tua selama tema ini</p>
+                  <p className="text-sm font-bold text-emerald-900">Panduan orang tua selama {pattern.group.singular.toLowerCase()} ini</p>
                   <p className="mt-1 whitespace-pre-line text-sm leading-6 text-emerald-900/80">{theme.parent_guide}</p>
                 </div>
               )}
@@ -291,7 +293,8 @@ export const PortalHbl: React.FC = () => {
                   {open && (
                     <div className="space-y-4 border-t p-4">
                       <div className="flex flex-wrap items-center gap-2">
-                        {(meeting.cp_elements || []).map((id: string) => <span key={id} className="rounded bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">{PAUD_CP_ELEMENTS.find((element) => element.id === id)?.shortTitle}</span>)}
+                        {meeting.subjects?.name && <span className="rounded bg-sky-50 px-2 py-0.5 text-[11px] font-semibold text-sky-700">{meeting.subjects.name}</span>}
+                        {pattern.usesCpElements && (meeting.cp_elements || []).map((id: string) => <span key={id} className="rounded bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">{PAUD_CP_ELEMENTS.find((element) => element.id === id)?.shortTitle}</span>)}
                         {meeting.live_url && timing !== "past" && (
                           <a href={meeting.live_url} target="_blank" rel="noreferrer" className="ml-auto inline-flex items-center gap-1.5 rounded-md bg-emerald-700 px-3 py-2 text-xs font-bold text-white"><Radio className="h-3.5 w-3.5" /> Masuk {HBL_PLATFORMS[meeting.live_platform] || "live meet"}</a>
                         )}
@@ -309,7 +312,7 @@ export const PortalHbl: React.FC = () => {
 
                       {meetingActivities.length > 0 && (
                         <div className="space-y-2">
-                          <p className="text-sm font-bold">Kegiatan bersama ananda</p>
+                          <p className="text-sm font-bold">{pattern.usesCpElements ? "Kegiatan bersama ananda" : pattern.activity.plural}</p>
                           {meetingActivities.map((activity) => {
                             const submission = submissionFor(activity.id);
                             const done = Boolean(submission?.checklist_completed);
@@ -375,14 +378,14 @@ export const PortalHbl: React.FC = () => {
                 </article>
               );
             })}
-            {theme && !themeMeetings.length && <div className="rounded-xl border border-dashed bg-white p-8 text-center text-sm text-gray-500">Pertemuan untuk tema ini belum diterbitkan.</div>}
+            {theme && !themeMeetings.length && <div className="rounded-xl border border-dashed bg-white p-8 text-center text-sm text-gray-500">Pertemuan untuk {pattern.group.singular.toLowerCase()} ini belum diterbitkan.</div>}
           </div>
 
           {theme && (
             <div className="grid gap-4 lg:grid-cols-2">
               <form onSubmit={saveCheckin} className="rounded-xl border bg-white p-4 shadow-sm">
                 <p className="flex items-center gap-2 font-bold"><MessageCircleHeart className="h-5 w-5 text-rose-600" /> Cerita keluarga · {theme.title}</p>
-                <p className="text-xs text-gray-500">Sampaikan pengalaman ananda selama tema ini kepada guru.</p>
+                <p className="text-xs text-gray-500">Sampaikan pengalaman ananda selama {pattern.group.singular.toLowerCase()} ini kepada guru.</p>
                 <select value={checkinForm.wellbeing} onChange={(event) => setCheckinForm({ ...checkinForm, wellbeing: event.target.value })} className="mt-3 h-10 w-full rounded-md border px-3 text-sm">
                   {WELLBEING.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
                 </select>
@@ -390,12 +393,12 @@ export const PortalHbl: React.FC = () => {
                 <textarea value={checkinForm.message} onChange={(event) => setCheckinForm({ ...checkinForm, message: event.target.value })} rows={2} placeholder="Pesan untuk guru (opsional)" className="mt-2 w-full rounded-md border p-2 text-sm" />
                 <button disabled={saving === "checkin"} className="mt-2 inline-flex h-9 items-center gap-2 rounded-md bg-rose-600 px-4 text-xs font-bold text-white disabled:opacity-50">{saving === "checkin" && <Loader2 className="h-3.5 w-3.5 animate-spin" />} {checkin ? "Perbarui cerita" : "Kirim cerita"}</button>
               </form>
-              <Link to="/portal/paud" className="flex flex-col justify-between rounded-xl border bg-gradient-to-br from-amber-50 to-white p-4 shadow-sm hover:border-amber-300">
+              <Link to={pattern.parentReportPath} className="flex flex-col justify-between rounded-xl border bg-gradient-to-br from-amber-50 to-white p-4 shadow-sm hover:border-amber-300">
                 <div>
                   <p className="flex items-center gap-2 font-bold"><Sparkles className="h-5 w-5 text-amber-600" /> Perkembangan ananda</p>
-                  <p className="mt-1 text-sm text-gray-600">Catatan guru dari setiap pertemuan serta asesmen awal, tengah, dan akhir semester ada di halaman KB/TK.</p>
+                  <p className="mt-1 text-sm text-gray-600">{pattern.developmentNotes ? "Catatan guru dari setiap pertemuan serta asesmen awal, tengah, dan akhir semester ada di halaman KB/TK." : "Nilai tugas dan rapor ananda ada di halaman akademik."}</p>
                 </div>
-                <span className="mt-3 inline-flex items-center gap-1 text-sm font-bold text-amber-700">Lihat laporan perkembangan <ArrowRight className="h-4 w-4" /></span>
+                <span className="mt-3 inline-flex items-center gap-1 text-sm font-bold text-amber-700">{pattern.parentReportLabel} <ArrowRight className="h-4 w-4" /></span>
               </Link>
             </div>
           )}
