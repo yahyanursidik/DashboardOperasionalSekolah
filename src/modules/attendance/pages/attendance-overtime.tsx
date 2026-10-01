@@ -32,8 +32,8 @@ export const AttendanceOvertime: React.FC = () => {
   const loadData = async () => {
     setIsLoading(true);
     const [overtimeResult, employeeResult, unitResult, siteResult] = await Promise.all([
-      supabaseClient.from("employee_overtime").select("*,employees(full_name,nik,position,employment_type,attendance_mode,units(name)),units(name),attendance_sites(name,address,radius_meters)").order("overtime_date", { ascending: false }).order("planned_start_time", { ascending: false }).limit(300),
-      supabaseClient.from("employees").select("id,full_name,nik,position,employment_type,attendance_mode,unit_id,units(name)").eq("status", "active").order("full_name"),
+      supabaseClient.from("employee_overtime").select("*,employees(full_name,nik,position,employment_type,attendance_mode,units!employees_unit_id_fkey(name)),units(name),attendance_sites(name,address,radius_meters)").order("overtime_date", { ascending: false }).order("planned_start_time", { ascending: false }).limit(300),
+      supabaseClient.from("employees").select("id,full_name,nik,position,employment_type,attendance_mode,unit_id,units!employees_unit_id_fkey(name)").eq("status", "active").order("full_name"),
       supabaseClient.from("units").select("id,name").order("name"),
       supabaseClient.from("attendance_sites").select("id,name,attendance_site_units(unit_id)").eq("is_active", true).order("name"),
     ]);

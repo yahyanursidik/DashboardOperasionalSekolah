@@ -5,13 +5,39 @@ import { Link, Navigate, Outlet, useLocation, useNavigate } from "react-router";
 import { BrandLogo } from "../../components/common/BrandLogo";
 import { supabaseClient } from "../../lib/supabase/client";
 import { PageLoader } from "../../components/common/PageLoader";
+import { PortalAccessNotice } from "../../components/auth/PortalAccessNotice";
 
 const db = supabaseClient as any;
 
 export const AdminSpmbLayout: React.FC = () => {
   const location = useLocation(); const navigate = useNavigate();
   const [employee,setEmployee] = useState<any>(null); const [loading,setLoading] = useState(true); const [allowed,setAllowed] = useState(true); const [mobile,setMobile] = useState(false);
-  useEffect(() => { supabaseClient.auth.getSession().then(async ({data}) => { if(!data.session){setAllowed(false);setLoading(false);return;} const [emp,access] = await Promise.all([db.from("employees").select("full_name,position,status").eq("user_id",data.session.user.id).maybeSingle(),db.rpc("admission_is_manager",{target_unit_id:null})]); setEmployee(emp.data||{full_name:data.session.user.user_metadata?.full_name||"Admin SPMB",position:"Panitia SPMB"}); setAllowed(!access.error && access.data === true); setLoading(false); }); },[]);
+  const [loadError, setLoadError] = useState("");
+  const [retry, setRetry] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      setLoading(true); setLoadError("");
+      try {
+        const { data, error } = await supabaseClient.auth.getSession();
+        if (cancelled) return;
+        if (error) throw error;
+        if (!data.session) { setAllowed(false); return; }
+        const access = await db.rpc("admission_is_manager", { target_unit_id: null });
+        if (cancelled) return;
+        if (access.error) throw access.error;
+        if (access.data !== true) { setLoadError("Akun belum memiliki kewenangan panitia SPMB. Hubungi admin sekolah."); return; }
+        const emp = await db.from("employees").select("full_name,position,status").eq("user_id", data.session.user.id).eq("status", "active").maybeSingle();
+        if (cancelled) return;
+        setEmployee(emp.data || { full_name: data.session.user.user_metadata?.full_name || "Admin SPMB", position: "Panitia SPMB" });
+        setAllowed(true);
+      } catch { if (!cancelled) setLoadError("Kewenangan panitia belum dapat diperiksa. Periksa koneksi lalu coba lagi."); }
+      finally { if (!cancelled) setLoading(false); }
+    };
+    void load();
+    return () => { cancelled = true; };
+  }, [retry]);
+  if (loadError) return <PortalAccessNotice message={loadError} onRetry={() => setRetry((value) => value + 1)} onLogout={() => { void supabaseClient.auth.signOut().then(() => navigate("/admin-spmb/login", { replace: true })); }} />;
   if(loading)return <div className="min-h-screen grid place-items-center bg-slate-50"><div className="w-8 h-8 border-2 border-emerald-700 border-t-transparent rounded-full animate-spin" /></div>;
   if(!allowed)return <Navigate to="/admin-spmb/login" replace />;
   const nav=[{name:"Ringkasan",path:"/admin-spmb",icon:LayoutDashboard},{name:"CRM Calon Orang Tua",path:"/admin-spmb/crm",icon:ContactRound},{name:"Pendaftar",path:"/admin-spmb/applicants",icon:Users},{name:"Laporan Mutu",path:"/admin-spmb/reports",icon:FileBarChart},{name:"Pengaturan",path:"/admin-spmb/settings",icon:Settings}];

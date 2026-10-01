@@ -75,7 +75,7 @@ export const StaffProfile: React.FC = () => {
         if (activeSemesterId) scheduleQuery = scheduleQuery.or(`semester_id.eq.${activeSemesterId},semester_id.is.null`);
 
         const [{ data: employeeData }, { data: scheduleData }, { data: attendanceData }] = await Promise.all([
-          supabaseClient.from("employees").select("*, units(name)").eq("id", employee.id).single(),
+          supabaseClient.from("employees").select("*, units!employees_unit_id_fkey(name)").eq("id", employee.id).single(),
           scheduleQuery,
           supabaseClient.from("employee_attendance").select("id, date, status, time_in, time_out").eq("employee_id", employee.id).order("date", { ascending: false }).limit(10),
         ]);

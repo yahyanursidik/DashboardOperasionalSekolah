@@ -237,7 +237,7 @@ export const ReportEmployeeAttendance: React.FC = () => {
   if (activeUnitId) filters.push({ field: "unit_id", operator: "eq", value: activeUnitId });
   if (employeeId) filters.push({ field: "employee_id", operator: "eq", value: employeeId });
 
-  const select = "id,employee_id,unit_id,date,status,time_in,time_out,is_late,late_minutes,is_early_departure,early_departure_minutes,verification_status,location_status,check_in_method,check_out_method,attendance_rule_source,expected_start_time,expected_end_time,notes,created_at,employees(id,full_name,nik,position,unit_id,units(name)),attendance_sites(name)";
+  const select = "id,employee_id,unit_id,date,status,time_in,time_out,is_late,late_minutes,is_early_departure,early_departure_minutes,verification_status,location_status,check_in_method,check_out_method,attendance_rule_source,expected_start_time,expected_end_time,notes,created_at,employees(id,full_name,nik,position,unit_id,units!employees_unit_id_fkey(name)),attendance_sites(name)";
   const { data, isLoading } = useList({
     resource: "employee_attendance",
     filters,
@@ -253,7 +253,7 @@ export const ReportEmployeeAttendance: React.FC = () => {
     filters: employeeFilters,
     pagination: { pageSize: 2000 },
     sorters: [{ field: "full_name", order: "asc" }],
-    meta: { select: "id,full_name,nik,position,unit_id,units(name)" },
+    meta: { select: "id,full_name,nik,position,unit_id,units!employees_unit_id_fkey(name)" },
   });
 
   const records = useMemo(() => (data?.data || []) as AttendanceRecord[], [data?.data]);

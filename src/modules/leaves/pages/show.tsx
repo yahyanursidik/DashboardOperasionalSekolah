@@ -35,7 +35,7 @@ export const LeaveShow: React.FC = () => {
   const { data, isLoading, refetch } = useOne({
     resource: "leave_requests",
     id: id as string,
-    meta: { select: "*, employees(full_name, position, phone, nik, unit_id, units(name))" },
+    meta: { select: "*, employees(full_name, position, phone, nik, unit_id, units!employees_unit_id_fkey(name))" },
   });
 
   const leave = data?.data;

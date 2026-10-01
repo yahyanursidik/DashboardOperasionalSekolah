@@ -7,6 +7,7 @@ import { supabaseClient } from "../../../lib/supabase/client";
 import { BrandLogo } from "../../../components/common/BrandLogo";
 import { SpmbPortalContext } from "./spmb-context";
 import { PageLoader } from "../../../components/common/PageLoader";
+import { PortalAccessNotice } from "../../../components/auth/PortalAccessNotice";
 
 const db = supabaseClient as any;
 
@@ -17,6 +18,8 @@ export const SpmbLayout: React.FC = () => {
   const [applicants, setApplicants] = useState<any[]>([]);
   const [activeApplicantId, setActiveApplicantId] = useState<string | null | undefined>(undefined);
   const [loading, setLoading] = useState(true);
+  const [sessionError, setSessionError] = useState("");
+  const [retry, setRetry] = useState(0);
   const isGuestAuthPage = ["/spmb/login", "/spmb/register", "/spmb/forgot-password"].includes(location.pathname);
   const isResetPage = location.pathname === "/spmb/reset-password";
   const isAuthPage = isGuestAuthPage || isResetPage;
@@ -36,12 +39,16 @@ export const SpmbLayout: React.FC = () => {
 
   useEffect(() => {
     let mounted = true;
-    supabaseClient.auth.getSession().then(async ({ data }) => {
+    supabaseClient.auth.getSession().then(async ({ data, error }) => {
       if (!mounted) return;
+      if (error) throw error;
+      setSessionError("");
       const sessionUser = data.session?.user || null;
       setUser(sessionUser);
       if (sessionUser) await loadApplicants(sessionUser);
       if (mounted) setLoading(false);
+    }).catch(() => {
+      if (mounted) { setSessionError("Sesi belum dapat diperiksa. Periksa koneksi lalu coba lagi."); setLoading(false); }
     });
     const { data: listener } = supabaseClient.auth.onAuthStateChange((_event, session) => {
       const sessionUser = session?.user || null;
@@ -57,9 +64,10 @@ export const SpmbLayout: React.FC = () => {
       window.setTimeout(() => { void loadApplicants(sessionUser); }, 0);
     });
     return () => { mounted = false; listener.subscription.unsubscribe(); };
-  }, [loadApplicants]);
+  }, [loadApplicants, retry]);
 
   if (loading) return <div className="min-h-screen grid place-items-center bg-slate-50"><Loader2 className="w-8 h-8 animate-spin text-emerald-700" /></div>;
+  if (sessionError && !isAuthPage) return <PortalAccessNotice message={sessionError} onRetry={() => { setLoading(true); setRetry((value) => value + 1); }} onLogout={() => { void supabaseClient.auth.signOut().then(() => navigate("/spmb/login", { replace: true })); }} />;
   if (!user && !isAuthPage) return <Navigate to="/spmb/login" replace state={{ from: location.pathname }} />;
   if (user && isGuestAuthPage) return <Navigate to="/spmb" replace />;
   if (isAuthPage) return <Suspense fallback={<PageLoader />}><Outlet /></Suspense>;

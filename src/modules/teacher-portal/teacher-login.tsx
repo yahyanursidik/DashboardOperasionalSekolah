@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 import { BookOpen, Mail, User } from "lucide-react";
 import { toast } from "sonner";
 import { supabaseClient } from "../../lib/supabase/client";
+import { loadEmployeePortalWorkspace, normalizeEmployeeIdentifier, portalAccessMessage } from "../../lib/supabase/employee-portal-access";
 import { PortalLoginButton, PortalLoginShell, PortalPasswordField, PortalTextField } from "../../components/auth/PortalLoginShell";
 
 export const TeacherLogin: React.FC = () => {
@@ -22,9 +23,7 @@ export const TeacherLogin: React.FC = () => {
     try {
       // NIK is often copied from a document with spaces.  Keep an email intact,
       // but remove all whitespace from a NIK before looking up the employee.
-      const normalizedIdentifier = identifier.includes("@")
-        ? identifier.trim().toLowerCase()
-        : identifier.replace(/\s+/g, "");
+      const normalizedIdentifier = normalizeEmployeeIdentifier(identifier);
       let { data: teacherEmail, error: lookupError } = await supabaseClient.rpc(
         "get_teacher_login_email_by_identifier",
         { p_identifier: normalizedIdentifier },
@@ -61,29 +60,13 @@ export const TeacherLogin: React.FC = () => {
         return;
       }
 
-      let { data: hasAccess, error: accessError } = await supabaseClient.rpc("teacher_has_portal_access");
-      if (accessError) {
-        const { data: employee } = await supabaseClient.from("employees").select("id, position").eq("user_id", authData.session.user.id).eq("status", "active").maybeSingle();
-        const currentEmployee = employee as unknown as { id: string; position: string } | null;
-        const teachingPositions = ["guru", "guru_quran", "bk", "kepala_sekolah", "wakasek", "wakasek_umum", "wakasek_kurikulum", "wakasek_kesiswaan", "kepala_unit"];
-        const { data: assignment } = currentEmployee
-          ? await supabaseClient.from("teacher_assignments").select("id").eq("employee_id", currentEmployee.id).eq("is_active", true).in("role_type", ["homeroom", "wali_kelas", "subject", "subject_teacher", "guru_mapel", "guru_quran", "guru_diniyah", "coordinator"]).limit(1).maybeSingle()
-          : { data: null };
-        hasAccess = Boolean(currentEmployee && (teachingPositions.includes(currentEmployee.position) || assignment));
-        accessError = null;
-      }
-      if (!hasAccess) {
-        await supabaseClient.auth.signOut();
-        toast.error("Akun aktif, tetapi belum memiliki penugasan di portal pengajar.");
-        return;
-      }
+      await loadEmployeePortalWorkspace(supabaseClient, authData.session.user.id, "teacher");
 
       const mustChangePassword = Boolean(authData.session.user.app_metadata?.must_change_password || authData.session.user.user_metadata?.must_change_password);
       toast.success(mustChangePassword ? "Silakan buat kata sandi pribadi terlebih dahulu." : "Berhasil masuk ke Portal Pengajar.");
       navigate(mustChangePassword ? "/teacher/profile?security=required" : "/teacher", { replace: true });
     } catch (error) {
-      console.error("Teacher login error:", error);
-      toast.error("Login belum dapat diproses. Silakan coba kembali.");
+      toast.error(portalAccessMessage(error));
     } finally {
       setIsLoading(false);
     }

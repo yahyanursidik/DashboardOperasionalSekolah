@@ -153,7 +153,7 @@ export const PkgList: React.FC = () => {
     filters: [{ field: "status", operator: "eq", value: "active" }],
     sorters: [{ field: "full_name", order: "asc" }],
     pagination: { pageSize: 1000 },
-    meta: { select: "id, full_name, position, status, unit_id, units(name)" },
+    meta: { select: "id, full_name, position, status, unit_id, units!employees_unit_id_fkey(name)" },
   });
 
   const { data: compData } = useList({

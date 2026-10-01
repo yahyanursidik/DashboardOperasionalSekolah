@@ -5,6 +5,7 @@ const getRedirectPath = () => {
   if (typeof window !== "undefined") {
     const path = window.location.pathname;
     if (path.startsWith("/teacher")) return "/teacher/login";
+    if (path.startsWith("/staff")) return "/staff/login";
     if (path.startsWith("/portal")) return "/portal/login";
     if (path.startsWith("/ekskul-portal")) return "/ekskul-portal/login";
     if (path.startsWith("/cbt")) return "/cbt/login";

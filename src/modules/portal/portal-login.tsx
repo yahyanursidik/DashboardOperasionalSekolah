@@ -66,8 +66,11 @@ export const PortalLogin: React.FC = () => {
       }
 
       const { data: accountLinked, error: linkError } = await supabaseClient.rpc("ensure_parent_portal_account");
-      if (linkError || !accountLinked) {
-        await supabaseClient.auth.signOut();
+      if (linkError) {
+        toast.error("Tautan akun belum dapat diperiksa. Periksa koneksi lalu coba lagi.");
+        return;
+      }
+      if (!accountLinked) {
         toast.error("Akun orang tua belum dapat ditautkan. Hubungi Tata Usaha untuk memeriksa email dan status akun.");
         return;
       }

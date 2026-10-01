@@ -3,10 +3,8 @@ import { useNavigate } from "react-router";
 import { Mail, User, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { supabaseClient } from "../../lib/supabase/client";
+import { loadEmployeePortalWorkspace, normalizeEmployeeIdentifier, portalAccessMessage } from "../../lib/supabase/employee-portal-access";
 import { PortalLoginButton, PortalLoginShell, PortalPasswordField, PortalTextField } from "../../components/auth/PortalLoginShell";
-
-type FinanceEmployee = { id?: string; full_name?: string | null; position?: string | null; status?: string | null };
-type RoleRow = { roles?: { name?: string | null } | null };
 
 export const BendaharaLogin: React.FC = () => {
   const [identifier, setIdentifier] = useState("");
@@ -16,7 +14,7 @@ export const BendaharaLogin: React.FC = () => {
 
   const handleLogin = async (event: React.FormEvent) => {
     event.preventDefault();
-    const value = identifier.trim();
+    const value = normalizeEmployeeIdentifier(identifier);
     if (!value) return;
     if (!navigator.onLine) {
       toast.error("Tidak ada koneksi internet. Periksa jaringan Anda.");
@@ -38,25 +36,14 @@ export const BendaharaLogin: React.FC = () => {
         return;
       }
 
-      await supabaseClient.rpc("link_my_account");
-      const [employeeResult, rolesResult] = await Promise.all([
-        supabaseClient.from("employees").select("id, full_name, position, status").eq("user_id", authData.user.id).maybeSingle(),
-        supabaseClient.from("user_roles").select("roles(name)").eq("user_id", authData.user.id),
-      ]);
-      const employee = employeeResult.data as FinanceEmployee | null;
-      const position = String(employee?.position || "").toLowerCase();
-      const roleNames = ((rolesResult.data || []) as RoleRow[]).map((item) => item.roles?.name).filter((name): name is string => Boolean(name));
-      const allowed = position.includes("bendahara") || position.includes("keuangan") || roleNames.some((role: string) => ["super_admin", "ketua_yayasan", "kepala_tu", "admin_keuangan"].includes(role));
-      if (!allowed || employee?.status === "inactive") {
-        await supabaseClient.auth.signOut();
-        toast.error("Akun ini tidak memiliki penugasan aktif sebagai bendahara/keuangan.");
-        return;
-      }
+      const linked = await supabaseClient.rpc("link_my_account");
+      if (linked.error) { toast.error("Tautan akun belum dapat diperiksa. Coba lagi atau hubungi admin sekolah."); return; }
+      await loadEmployeePortalWorkspace(supabaseClient, authData.session.user.id, "bendahara");
 
       toast.success("Selamat datang di Portal Bendahara.");
       navigate("/bendahara");
     } catch (error: unknown) {
-      toast.error(error instanceof Error ? error.message : "Terjadi kesalahan saat memverifikasi akun.");
+      toast.error(portalAccessMessage(error));
     } finally {
       setIsLoading(false);
     }

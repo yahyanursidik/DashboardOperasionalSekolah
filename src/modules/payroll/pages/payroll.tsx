@@ -214,7 +214,7 @@ const SalariesTab: React.FC = () => {
 
   const load = useCallback(async () => {
     const [employeeResult, componentResult, itemResult] = await Promise.all([
-      db.from("employees").select("id, full_name, position, units(name)").eq("status", "active").order("full_name"),
+      db.from("employees").select("id, full_name, position, units!employees_unit_id_fkey(name)").eq("status", "active").order("full_name"),
       db.from("payroll_components").select("*").eq("is_active", true).order("kind").order("sort_order"),
       db.from("employee_salary_items").select("employee_id, component_id, amount, is_active"),
     ]);

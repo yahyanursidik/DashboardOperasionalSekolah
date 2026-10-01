@@ -23,6 +23,8 @@ import {
 import { useAcademicYear } from "../../app/providers/AcademicYearProvider";
 import { RolePortalShell, type RolePortalNavGroup } from "../../components/layout/RolePortalShell";
 import { supabaseClient } from "../../lib/supabase/client";
+import { loadEmployeePortalWorkspace, portalAccessMessage } from "../../lib/supabase/employee-portal-access";
+import { PortalAccessNotice } from "../../components/auth/PortalAccessNotice";
 import { getEmployeePosition } from "../employees/employee-role-config";
 import { loadTeacherAssignedUnitIds } from "../schedules/schedule-data";
 import { loadTeacherAssignedClassIds } from "./teacher-assignment-data";
@@ -33,6 +35,8 @@ const localReadKey = "teacher_portal_read_announcement_ids";
 export const TeacherLayout: React.FC = () => {
   const [employee, setEmployee] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [retry, setRetry] = useState(0);
   const [pendingTasks, setPendingTasks] = useState(0);
   const [unreadAnnouncements, setUnreadAnnouncements] = useState(0);
   const [attendanceActions, setAttendanceActions] = useState(0);
@@ -43,36 +47,26 @@ export const TeacherLayout: React.FC = () => {
   const { activeYearId, activeSemesterId } = useAcademicYear();
 
   useEffect(() => {
+    let cancelled = false;
     const loadPortal = async () => {
+      let authorized = false;
       setIsLoading(true);
-      const { data: { session } } = await supabaseClient.auth.getSession();
+      setLoadError("");
+      try {
+      const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
+      if (cancelled) return;
+      if (sessionError) throw sessionError;
       if (!session) {
         navigate("/teacher/login", { replace: true });
         return;
       }
 
-      const { data: empData, error } = await supabaseClient
-        .from("employees")
-        .select("*, units(name)")
-        .eq("user_id", session.user.id)
-        .eq("status", "active")
-        .maybeSingle();
-      if (error || !empData) {
-        await supabaseClient.auth.signOut();
-        navigate("/teacher/login", { replace: true });
-        return;
-      }
-
-      const { data: hasAccess, error: accessError } = await supabaseClient.rpc("teacher_has_portal_access");
-      if (!accessError && !hasAccess) {
-        await supabaseClient.auth.signOut();
-        navigate("/teacher/login", { replace: true });
-        return;
-      }
-
-      const currentEmployee = empData as any;
+      const { employee: currentEmployee } = await loadEmployeePortalWorkspace(supabaseClient, session.user.id, "teacher");
+      if (cancelled) return;
       setEmployee(currentEmployee);
-      await publishDueAnnouncements();
+      authorized = true;
+      setIsLoading(false);
+      await publishDueAnnouncements().catch(() => 0);
 
       let scheduledClassQuery = supabaseClient
         .from("employee_schedules")
@@ -103,6 +97,7 @@ export const TeacherLayout: React.FC = () => {
         quranHalaqohQuery,
         loadTeacherAssignedUnitIds(currentEmployee.id, activeYearId, activeSemesterId),
       ]);
+      if (cancelled) return;
 
       setPendingTasks((tasksResult.data || []).filter((task: any) => !["selesai", "completed", "cancelled"].includes(task.status)).length);
       let readIds = new Set<string>((readsResult.data || []).map((row: any) => row.announcement_id));
@@ -151,9 +146,13 @@ export const TeacherLayout: React.FC = () => {
       const overtimeCount = (overtimeResult.data || []).filter((item: any) => item.status === "pending" || item.overtime_date >= today).length;
       setAttendanceActions(eventCount + overtimeCount + (leaveResult.data || []).length);
       setIsLoading(false);
+      } catch (error) {
+        if (!cancelled && !authorized) { setLoadError(portalAccessMessage(error)); setIsLoading(false); }
+      }
     };
     void loadPortal();
-  }, [activeSemesterId, activeYearId, navigate]);
+    return () => { cancelled = true; };
+  }, [activeSemesterId, activeYearId, navigate, retry]);
 
   const navGroups = useMemo<RolePortalNavGroup[]>(() => {
     if (!employee) return [];
@@ -192,6 +191,7 @@ export const TeacherLayout: React.FC = () => {
     navigate("/teacher/login", { replace: true });
   };
 
+  if (loadError) return <PortalAccessNotice message={loadError} onRetry={() => setRetry((value) => value + 1)} onLogout={() => void handleLogout()} />;
   if (isLoading || !employee) return <div className="flex min-h-screen items-center justify-center bg-background text-sm text-muted-foreground">Menyiapkan portal pengajar...</div>;
 
   return (

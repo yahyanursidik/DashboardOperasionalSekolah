@@ -5,7 +5,9 @@ import { NotificationBell } from "../../components/common/NotificationBell";
 import { Bell, BookOpenCheck, Calendar, CalendarCheck, FileWarning, Home, Library, ListTodo, LogOut, Menu, PanelLeftClose, PanelLeftOpen, UserRound, Wallet, X } from "lucide-react";
 import { useSystemSettings } from "../../app/providers/SettingsProvider";
 import { supabaseClient } from "../../lib/supabase/client";
-import { formatStaffPosition, getInitials, staffPortalPositions } from "./staff-utils";
+import { formatStaffPosition, getInitials } from "./staff-utils";
+import { loadEmployeePortalWorkspace, portalAccessMessage } from "../../lib/supabase/employee-portal-access";
+import { PortalAccessNotice } from "../../components/auth/PortalAccessNotice";
 import { publishDueAnnouncements } from "../../lib/announcements/publish-due";
 import { PageLoader } from "../../components/common/PageLoader";
 
@@ -16,6 +18,8 @@ const localReadKey = "staff_portal_read_announcement_ids";
 export const StaffLayout: React.FC = () => {
   const [employee, setEmployee] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [retry, setRetry] = useState(0);
   const [isMoreOpen, setIsMoreOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => window.localStorage.getItem("staff-sidebar-collapsed") === "true");
   const [badges, setBadges] = useState({ tasks: 0, reports: 0, announcements: 0, events: 0, overtime: 0 });
@@ -24,20 +28,25 @@ export const StaffLayout: React.FC = () => {
   const { appName, logoUrl } = useSystemSettings();
 
   useEffect(() => {
+    let cancelled = false;
     const loadPortal = async () => {
-      const { data: { session } } = await supabaseClient.auth.getSession();
+      let authorized = false;
+      setIsLoading(true);
+      setLoadError("");
+      try {
+      const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
+      if (cancelled) return;
+      if (sessionError) throw sessionError;
       if (!session) { navigate("/staff/login", { replace: true }); return; }
       if ((session.user.app_metadata?.must_change_password || session.user.user_metadata?.must_change_password) && window.location.pathname !== "/staff/profile") {
         navigate("/staff/profile?security=required", { replace: true });
       }
-      const { data, error } = await supabaseClient.from("employees").select("*,units(name)").eq("user_id", session.user.id).eq("status", "active").maybeSingle();
-      const currentEmployee = data as any;
-      if (error || !currentEmployee || !staffPortalPositions.includes(currentEmployee.position)) { await supabaseClient.auth.signOut(); navigate("/staff/login", { replace: true }); return; }
-      const { data: hasAccess, error: accessError } = await supabaseClient.rpc("staff_has_portal_access");
-      if (!accessError && !hasAccess) { await supabaseClient.auth.signOut(); navigate("/staff/login", { replace: true }); return; }
+      const { employee: currentEmployee } = await loadEmployeePortalWorkspace(supabaseClient, session.user.id, "staff");
+      if (cancelled) return;
       setEmployee(currentEmployee);
+      authorized = true;
       setIsLoading(false);
-      await publishDueAnnouncements();
+      await publishDueAnnouncements().catch(() => 0);
 
       const [{ data: tasks }, { data: reports }, { data: announcements }, readsResult, { data: eventParticipations }, { data: overtimeRows }] = await Promise.all([
         supabaseClient.from("admin_tasks").select("id,status").eq("assigned_to", session.user.id),
@@ -47,6 +56,7 @@ export const StaffLayout: React.FC = () => {
         supabaseClient.from("attendance_event_participants").select("id,attendance_events(event_date,status)").eq("employee_id", currentEmployee.id),
         supabaseClient.from("employee_overtime").select("id,status,overtime_date").eq("employee_id", currentEmployee.id).in("status", ["pending", "approved"]),
       ]);
+      if (cancelled) return;
       let readIds = new Set<string>((readsResult.data || []).map((row: any) => row.announcement_id));
       if (readsResult.error) { try { readIds = new Set(JSON.parse(localStorage.getItem(localReadKey) || "[]")); } catch { readIds = new Set(); } }
       const scoped = (announcements || []).filter((item: any) => (!item.publish_at || new Date(item.publish_at).getTime() <= Date.now()) && (["all", "staff"].includes(item.target_type) || (item.target_type === "unit" && (!item.unit_id || item.unit_id === currentEmployee.unit_id))));
@@ -57,9 +67,13 @@ export const StaffLayout: React.FC = () => {
         events: (eventParticipations || []).filter((item: any) => item.attendance_events?.status === "published" && item.attendance_events?.event_date >= new Date().toLocaleDateString("en-CA")).length,
         overtime: (overtimeRows || []).filter((item: any) => item.status === "pending" || item.overtime_date >= new Date().toLocaleDateString("en-CA")).length,
       });
+      } catch (error) {
+        if (!cancelled && !authorized) { setLoadError(portalAccessMessage(error)); setIsLoading(false); }
+      }
     };
     void loadPortal();
-  }, [navigate]);
+    return () => { cancelled = true; };
+  }, [navigate, retry]);
 
   const navGroups = useMemo<NavGroup[]>(() => [
     { label: "Hari Ini", items: [{ to: "/staff", label: "Beranda", icon: Home, exact: true }] },
@@ -92,6 +106,7 @@ export const StaffLayout: React.FC = () => {
     return next;
   });
 
+  if (loadError) return <PortalAccessNotice message={loadError} onRetry={() => setRetry((value) => value + 1)} onLogout={() => void logout()} />;
   if (isLoading || !employee) return <div className="staff-light-theme flex min-h-screen items-center justify-center bg-slate-50 text-sm text-slate-600">Menyiapkan portal staf...</div>;
 
   return <div className="staff-light-theme flex h-screen overflow-hidden bg-slate-50 font-sans text-slate-900">
